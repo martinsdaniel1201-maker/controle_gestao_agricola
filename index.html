@@ -25,7 +25,30 @@
   
 
   <style>
+@media print {
+    body {
+        background-color: white !important;
+        color: black !important;
+    }
+    
+    /* Força os textos a ficarem pretos */
+    td, th, span, input, select {
+        color: black !important;
+        font-weight: bold;
+    }
 
+    /* Remove o fundo de botões ou cards que ficam claros demais */
+    .card, .linha-tabela {
+        background-color: white !important;
+        border: 1px solid #000 !important;
+    }
+
+    /* Garante que o Badge de Status fique visível */
+    .badge {
+        border: 1px solid black !important;
+        background-color: transparent !important;
+    }
+}
     :root {
 
       --agro-green: #1B5E20;
@@ -609,16 +632,19 @@ function showTab(e, id) {
 }
 
 function gerarPDF() {
-    // Seleciona o conteúdo que você quer transformar em PDF
-    // Se quiser a tela inteira, use document.body ou uma div específica
-    const elemento = document.body; 
+    const elemento = document.body; // Ou o ID do container da sua tabela
     
     const opt = {
-        margin:       0.5,
+        margin:       [0.5, 0.5, 0.5, 0.5], // Margens equilibradas
         filename:     'relatorio_operacional.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        image:        { type: 'jpeg', quality: 1 }, // Qualidade máxima
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            backgroundColor: "#ffffff", // Fundo branco sólido
+            letterRendering: true
+        },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(elemento).save();
