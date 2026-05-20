@@ -348,11 +348,27 @@ tbody td {
         </button>
     </nav>
 
+<section id="simulador" class="section">
+    <div class="card">
+        <div class="card-title"><i class="fas fa-globe"></i> Configuração Geral</div>
+        <div class="grid-inputs">
+            <div class="field"><label>Meta Unid. (t)</label><input type="number" id="meta_val" value="6500" oninput="update()"></div>
+            <div class="field"><label>Diesel R$/L</label><input type="number" id="diesel_val" value="6.10" step="0.01" oninput="update()"></div>
+        </div>
+    </div>
+    
+    <div id="frentes-list"></div>
+    <button class="btn-add" onclick="addFrente()">+ NOVA FRENTE DE TRABALHO</button>
 
+    <div class="stats-row" style="margin-top: 20px;">
+        <div class="widget"><div class="widget-lab">Produção Total</div><div class="widget-val" id="total_ton">0</div><div class="widget-lab">Toneladas</div></div>
+        <div class="widget"><div class="widget-lab">Custo Diesel</div><div class="widget-val" id="total_custo" style="color: var(--danger)">R$ 0</div><div class="widget-lab">Total/Dia</div></div>
+    </div>
+</section>
 
     <!-- ABA DADOS (COLHEDORAS) -->
 
-   <section id="simulador" class="section active">
+   <section id="entrada" class="section active">
 
         <div class="card">
 
