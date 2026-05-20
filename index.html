@@ -368,91 +368,13 @@ tbody td {
 
     <!-- ABA DADOS (COLHEDORAS) -->
 
-   <section id="entrada" class="section active">
-
-        <div class="card">
-
-            <div class="card-title"><i class="fas fa-globe"></i> Configuração Geral</div>
-
-            <div class="grid-inputs">
-
-                <div class="field"><label>Meta Unid. (t)</label><input type="number" id="meta_val" value="6500" oninput="update()"></div>
-
-                <div class="field"><label>Diesel R$/L</label><input type="number" id="diesel_val" value="6.10" step="0.01" oninput="update()"></div>
-
-            </div>
-
-        </div>
-
-        <div id="frentes-list"></div>
-
-        <button class="btn-add" onclick="addFrente()">+ NOVA FRENTE DE TRABALHO</button>
-
-    </section>
+   
 
 
 
     <!-- ABA DASHBOARD -->
 
-    <section id="dash" class="section">
-
-        <div class="stats-row">
-
-            <div class="widget">
-
-                <div class="widget-lab">Produção Total</div>
-
-                <div class="widget-val" id="total_ton">0</div>
-
-                <div class="widget-lab">Toneladas</div>
-
-            </div>
-
-            <div class="widget">
-
-                <div class="widget-lab">Custo Diesel</div>
-
-                <div class="widget-val" id="total_custo" style="color: var(--danger)">R$ 0</div>
-
-                <div class="widget-lab">Total/Dia</div>
-
-            </div>
-
-        </div>
-
-        <div class="card">
-
-            <div class="card-title"><i class="fas fa-bullseye"></i> Atingimento da Meta</div>
-
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-
-                <span id="meta_pct" style="font-size: 24px; font-weight: 800; color: var(--agro-green);">0%</span>
-
-                <span style="font-size: 11px; font-weight: 700; color: var(--text-sub);" id="meta_restante">Faltam 0 t</span>
-
-            </div>
-
-            <div class="progress-bar-bg"><div class="progress-bar-fill" id="meta_fill"></div></div>
-
-        </div>
-
-        <div class="card">
-
-            <div class="card-title"><i class="fas fa-trophy"></i> Eficiência por Frente</div>
-
-            <div id="lista-ranking"></div>
-
-        </div>
-
-        <div class="card">
-
-            <div class="card-title"><i class="fas fa-chart-bar"></i> Comparativo de Frentes</div>
-
-            <canvas id="prodChart" height="200"></canvas>
-
-        </div>
-
-    </section>
+   
 
 
 
