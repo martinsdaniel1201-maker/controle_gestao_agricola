@@ -1,4029 +1,971 @@
 <!DOCTYPE html>
-
-
-
-
-
-
-
 <html lang="pt-br">
-
-
-
-
-
-
-
 <head>
-
-
-
-<head>
-
-
-
-    <link rel="manifest" href="manifest.json">
-
-
-
-    <link rel="apple-touch-icon" href="icone_agro.png">
-
-
-
-    <meta name="theme-color" content="#2e7d32">
-
-
-
-</head>
-
-
-
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icone_agro.png">
+  <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
-
-
-
-
-
-
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-
-
-
-
-
-
   <title>CTT UNIDADE PASSOS/MG</title>
-
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
-
-
-
-
-
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-
-
-
-
-
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-
-
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-
-
-
-
-
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
-
-
-
-
-
-  
-
-
-
-
-
-
-
   <style>
-
-
-
-@media print {
-
-
-
-    body {
-
-
-
-        background-color: white !important;
-
-
-
-        color: black !important;
-
-
-
+    @media print {
+      body { background: white !important; color: black !important; }
+      td, th, span, input, select { color: black !important; }
+      .card { background: white !important; border: 1px solid #ccc !important; }
+      .badge { border: 1px solid black !important; background: transparent !important; }
+      #btn-pdf-flutuante, .tab-btn, .sub-tab-btn { display: none !important; }
     }
-
-
-
-    
-
-
-
-    /* Força os textos a ficarem pretos */
-
-
-
-    td, th, span, input, select {
-
-
-
-        color: black !important;
-
-
-
-        font-weight: bold;
-
-
-
-    }
-
-
-
-
-
-
-
-    /* Remove o fundo de botões ou cards que ficam claros demais */
-
-
-
-    .card, .linha-tabela {
-
-
-
-        background-color: white !important;
-
-
-
-        border: 1px solid #000 !important;
-
-
-
-    }
-
-
-
-
-
-
-
-    /* Garante que o Badge de Status fique visível */
-
-
-
-    .badge {
-
-
-
-        border: 1px solid black !important;
-
-
-
-        background-color: transparent !important;
-
-
-
-    }
-
-
-
-}
-
-
 
     :root {
-
-
-
-
-
-
-
-      --agro-green: #1B5E20;
-
-
-
-
-
-
-
-      --agro-light: #43A047;
-
-
-
-
-
-
-
-      --agro-gradient: linear-gradient(135deg, #1B5E20 0%, #43A047 100%);
-
-
-
-
-
-
-
-      --bg-body: #F8F9FA;
-
-
-
-
-
-
-
-      --bg-card: #FFFFFF;
-
-
-
-
-
-
-
-      --text-main: #212529;
-
-
-
-
-
-
-
-      --text-sub: #6C757D;
-
-
-
-
-
-
-
-      --border: #DEE2E6;
-
-
-
-
-
-
-
-      --danger: #C62828;
-
-
-
-
-
-
-
-      --accent: #FF8F00;
-
-
-
-
-
-
-
+      --green-900: #1B5E20;
+      --green-700: #2E7D32;
+      --green-500: #43A047;
+      --green-100: #C8E6C9;
+      --green-50:  #F1F8E9;
+      --grad: linear-gradient(135deg, #1B5E20 0%, #388E3C 100%);
+      --bg: #F4F6F4;
+      --surface: #FFFFFF;
+      --surface2: #F9FAF9;
+      --border: #E0E5E0;
+      --border-strong: #C5CEC5;
+      --text: #1A1F1A;
+      --text-2: #4A554A;
+      --text-3: #7A8A7A;
+      --red: #C62828;
+      --red-bg: #FFEBEE;
+      --amber: #E65100;
+      --amber-bg: #FFF3E0;
       --blue: #1565C0;
-
-
-
-
-
-
-
+      --blue-bg: #E3F2FD;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding-bottom: calc(env(safe-area-inset-bottom) + 80px); }
 
-
-
-
-
-
-
-    body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: env(safe-area-inset-bottom); }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    /* ── HEADER ── */
     .app-header {
-
-
-
-
-
-
-
-      background: var(--agro-gradient); color: white; padding: 1.5rem 1rem; text-align: center;
-
-
-
-
-
-
-
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 0 0 25px 25px; margin-bottom: 20px;
-
-
-
-
-
-
-
+      background: var(--grad);
+      color: white;
+      padding: 1.4rem 1.2rem 1.8rem;
+      text-align: center;
+      border-radius: 0 0 28px 28px;
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
     }
-
-
-
-
-
-
-
-    .app-title { font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .container { max-width: 800px; margin: 0 auto; padding: 0 15px; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .tabs-nav { 
-
-
-
-
-
-
-
-        display: flex; gap: 8px; margin-bottom: 20px; 
-
-
-
-
-
-
-
-        padding: 6px; background: var(--bg-card); border-radius: 18px; border: 1px solid var(--border);
-
-
-
-
-
-
-
-        overflow-x: auto;
-
-
-
-
-
-
-
+    .app-header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.07) 0%, transparent 60%);
     }
+    .app-header-inner { position: relative; z-index: 1; }
+    .app-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50px;
+      padding: 3px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .app-title { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; line-height: 1.2; }
+    .app-sub { font-size: 11px; opacity: 0.75; margin-top: 4px; font-weight: 500; }
 
+    /* ── CONTAINER ── */
+    .container { max-width: 800px; margin: 0 auto; padding: 0 14px; }
 
-
-
-
-
-
+    /* ── TABS ── */
+    .tabs-nav {
+      display: flex; gap: 6px;
+      padding: 5px;
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      margin-bottom: 18px;
+      overflow-x: auto;
+    }
     .tab-btn {
-
-
-
-
-
-
-
-        flex: 1; min-width: 80px; padding: 10px; border: none; border-radius: 14px; background: transparent;
-
-
-
-
-
-
-
-        color: var(--text-sub); font-weight: 700; font-size: 11px; cursor: pointer;
-
-
-
-
-
-
-
-        display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.3s ease;
-
-
-
-
-
-
-
+      flex: 1; min-width: 82px; padding: 10px 6px;
+      border: none; border-radius: var(--radius-md);
+      background: transparent; color: var(--text-3);
+      font-weight: 700; font-size: 10px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      transition: all 0.22s ease; line-height: 1.2; text-align: center;
     }
+    .tab-btn i { font-size: 17px; }
+    .tab-btn.active { background: var(--grad); color: white; }
+    .tab-btn:hover:not(.active) { background: var(--green-50); color: var(--green-700); }
 
-
-
-
-
-
-
-    .tab-btn i { font-size: 18px; }
-
-
-
-
-
-
-
-    .tab-btn.active { background: var(--agro-green); color: white; transform: scale(1.05); }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .section { display: none; animation: slideIn 0.3s ease-out; }
-
-
-
-
-
-
-
+    /* ── SECTIONS ── */
+    .section { display: none; animation: fadeSlide 0.25s ease-out; }
     .section.active { display: block; }
-
-
-
-
-
-
-
-    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .card { background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border); padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-
-
-
-
-
-
-
-    .card-title { font-size: 12px; font-weight: 800; color: var(--agro-green); text-transform: uppercase; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-
-
-
-
-
-
-
-    .field label { font-size: 9px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 4px; display: block; }
-
-
-
-
-
-
-
-    .field input, .field select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-main); font-weight: 700; outline: none; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /* Widgets e Resultados */
-
-
-
-
-
-
-
-    .calc-res-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 15px; }
-
-
-
-
-
-
-
-    .res-box { background: rgba(27, 94, 32, 0.05); border: 1px solid var(--border); padding: 12px; border-radius: 12px; text-align: center; }
-
-
-
-
-
-
-
-    .res-box b { display: block; font-size: 16px; color: var(--agro-green); }
-
-
-
-
-
-
-
-    .res-box span { font-size: 9px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
-
-
-
-
-
-
-
-    .widget { background: var(--bg-card); padding: 15px; border-radius: 20px; border: 1px solid var(--border); text-align: center; }
-
-
-
-
-
-
-
-    .widget-val { font-size: 22px; font-weight: 800; color: var(--agro-green); }
-
-
-
-
-
-
-
-    .widget-lab { font-size: 9px; text-transform: uppercase; color: var(--text-sub); font-weight: 700; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .progress-bar-bg { background: var(--border); height: 8px; border-radius: 10px; margin: 10px 0; overflow: hidden; }
-
-
-
-
-
-
-
-    .progress-bar-fill { background: var(--agro-gradient); height: 100%; width: 0%; transition: width 0.8s ease; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .btn-main { background: var(--agro-gradient); color: white; border: none; padding: 18px; border-radius: 15px; font-weight: 800; cursor: pointer; width: 100%; margin: 10px 0; box-shadow: 0 4px 10px rgba(27, 94, 32, 0.3); }
-
-
-
-
-
-
-
-    .btn-add { background: transparent; border: 2px dashed var(--agro-green); color: var(--agro-green); padding: 12px; border-radius: 15px; font-weight: 700; cursor: pointer; width: 100%; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    .frente-item { padding: 15px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-
-
-
-
-
-
-
-    .frente-info b { display: block; font-size: 14px; }
-
-
-
-
-
-
-
-    .frente-info span { font-size: 11px; color: var(--text-sub); }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /* Estilo do botão voltar exclusivo da nova tela */
-
-
-
-
-
-
-
+    @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── SUB-TABS ── */
+    .sub-tabs-nav {
+      display: flex; gap: 6px; margin-bottom: 18px;
+      padding: 4px;
+      background: var(--green-50);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--green-100);
+    }
+    .sub-tab-btn {
+      flex: 1; padding: 9px 8px; border: none; border-radius: var(--radius-sm);
+      background: transparent; color: var(--green-700);
+      font-weight: 700; font-size: 10px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: all 0.2s ease;
+    }
+    .sub-tab-btn i { font-size: 15px; }
+    .sub-tab-btn.active { background: var(--green-900); color: white; }
+    .sub-section { display: none; animation: fadeSlide 0.25s ease-out; }
+    .sub-section.active { display: block; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700;
+      color: var(--green-900); text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title i {
+      width: 28px; height: 28px;
+      background: var(--green-50); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: var(--green-700);
+      flex-shrink: 0;
+    }
+
+    /* ── INPUTS ── */
+    .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; }
+    .field label {
+      font-size: 9px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 5px; display: block;
+    }
+    .field input, .field select {
+      width: 100%; padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface2); color: var(--text);
+      font-weight: 600; font-size: 13px; outline: none;
+      transition: border-color 0.18s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--green-500); }
+
+    /* ── RESULT BOXES ── */
+    .calc-res-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
+    .res-box {
+      background: var(--green-50); border: 1px solid var(--green-100);
+      padding: 14px 10px; border-radius: var(--radius-md); text-align: center;
+    }
+    .res-box b { display: block; font-size: 17px; color: var(--green-900); margin-top: 4px; }
+    .res-box span { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ── WIDGETS (dashboard) ── */
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .widget {
+      background: var(--surface); padding: 16px 14px;
+      border-radius: var(--radius-lg); border: 1px solid var(--border); text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .widget-accent {
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad); border-radius: 99px 99px 0 0;
+    }
+    .widget-accent.red { background: linear-gradient(90deg, #C62828, #E53935); }
+    .widget-val { font-size: 24px; font-weight: 800; color: var(--green-900); line-height: 1; margin: 6px 0 4px; }
+    .widget-val.red { color: var(--red); }
+    .widget-lab { font-size: 9px; text-transform: uppercase; color: var(--text-3); font-weight: 700; letter-spacing: 0.5px; }
+
+    /* ── PROGRESS BAR ── */
+    .progress-bar-bg { background: var(--border); height: 10px; border-radius: 99px; margin: 10px 0; overflow: hidden; }
+    .progress-bar-fill { background: var(--grad); height: 100%; width: 0%; transition: width 0.9s cubic-bezier(.4,0,.2,1); border-radius: 99px; }
+
+    /* ── BUTTONS ── */
+    .btn-main {
+      background: var(--grad); color: white; border: none;
+      padding: 16px; border-radius: var(--radius-md); font-weight: 700; font-size: 13px;
+      cursor: pointer; width: 100%; margin: 10px 0;
+      letter-spacing: 0.3px;
+      transition: opacity 0.15s;
+    }
+    .btn-main:hover { opacity: 0.92; }
+    .btn-add {
+      background: transparent;
+      border: 2px dashed var(--green-100);
+      color: var(--green-700);
+      padding: 14px; border-radius: var(--radius-md);
+      font-weight: 700; font-size: 12px; cursor: pointer; width: 100%;
+      transition: all 0.18s;
+    }
+    .btn-add:hover { border-color: var(--green-500); background: var(--green-50); }
     .btn-voltar {
+      background: var(--surface); color: var(--green-900);
+      border: 1px solid var(--border);
+      padding: 10px 16px; border-radius: var(--radius-md);
+      font-weight: 700; font-size: 11px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-bottom: 14px; transition: all 0.18s;
+    }
+    .btn-voltar:hover { border-color: var(--green-500); }
 
+    /* ── FRENTE ITEM ── */
+    .frente-item {
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .frente-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .frente-info b { display: block; font-size: 13px; font-weight: 700; }
+    .frente-info span { font-size: 11px; color: var(--text-3); margin-top: 2px; display: block; }
+    .frente-ton { text-align: right; }
+    .frente-ton b { color: var(--green-900); font-size: 15px; }
+    .frente-ton span { display: block; font-size: 10px; color: var(--text-3); margin-top: 2px; }
 
+    /* ── TABELA LIBERAÇÕES ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--surface2);
+      color: var(--text-3); padding: 11px 12px;
+      text-align: left; border-bottom: 1.5px solid var(--border);
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.8px;
+    }
+    tbody tr { transition: background 0.12s; }
+    tbody tr:hover { background: var(--green-50); }
+    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+    .badge { padding: 4px 10px; border-radius: 50px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; }
 
-
-
-
-
-        background: var(--bg-card); color: var(--agro-green); border: 1px solid var(--border);
-
-
-
-
-
-
-
-        padding: 12px 20px; border-radius: 14px; font-weight: 700; font-size: 12px; cursor: pointer;
-
-
-
-
-
-
-
-        display: inline-flex; align-items: center; gap: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-
-
-
-
-
-
-
+    @media screen and (max-width: 768px) {
+      thead { display: none; }
+      tbody tr { display: block; margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+      tbody tr:hover { background: var(--green-50); }
+      tbody td { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px !important; border-bottom: 1px solid var(--border) !important; font-size: 12px; }
+      tbody td:last-child { border-bottom: none !important; }
+      tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
     }
 
-
-
-.card {
-
-
-
-    background: #ffffff;
-
-
-
-    border-radius: 12px;
-
-
-
-    padding: 20px;
-
-
-
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-
-
-
-    margin: 15px 0;
-
-
-
-}
-
-
-
-
-
-
-
-table {
-
-
-
-    width: 100%;
-
-
-
-    border-collapse: separate;
-
-
-
-    border-spacing: 0;
-
-
-
-    margin-top: 10px;
-
-
-
-    font-family: 'Segoe UI', sans-serif;
-
-
-
-}
-
-
-
-
-
-
-
-thead th {
-
-
-
-    background-color: #f8f9fa;
-
-
-
-    color: #333;
-
-
-
-    padding: 12px 10px;
-
-
-
-    text-align: left;
-
-
-
-    border-bottom: 2px solid #dee2e6;
-
-
-
-    font-size: 13px;
-
-
-
-    text-transform: uppercase;
-
-
-
-    letter-spacing: 0.5px;
-
-
-
-}
-
-
-
-
-
-
-
-tbody tr:nth-child(even) {
-
-
-
-    background-color: #fcfcfc;
-
-
-
-}
-
-
-
-
-
-
-
-tbody tr:hover {
-
-
-
-    background-color: #f1f1f1;
-
-
-
-    transition: 0.2s;
-
-
-
-}
-
-
-
-
-
-
-
-tbody td {
-
-
-
-    padding: 12px 10px;
-
-
-
-    border-bottom: 1px solid #eee;
-
-
-
-    font-size: 13px;
-
-
-
-    color: #444;
-
-
-
-}
-
-
-
-
-
-
-
-/* Badge de Status */
-
-
-
-.badge {
-
-
-
-    padding: 4px 8px;
-
-
-
-    border-radius: 6px;
-
-
-
-    font-weight: bold;
-
-
-
-    font-size: 11px;
-
-
-
-}
-
-
-
-  /* Estilos para telas de computador (padrão) */
-
-
-
-
-
-
-
-/* Estilos para Celulares (telas menores que 768px) */
-
-
-
-@media screen and (max-width: 768px) {
-
-
-
-    /* Esconde o cabeçalho da tabela no celular para ganhar espaço */
-
-
-
-    thead {
-
-
-
-        display: none;
-
-
-
+    /* ── PDF BUTTON ── */
+    #btn-pdf-flutuante {
+      position: fixed; bottom: 24px; right: 20px;
+      background: var(--green-900); color: white; border: none;
+      padding: 13px 18px; border-radius: 50px;
+      box-shadow: 0 4px 16px rgba(27,94,32,0.35);
+      cursor: pointer; font-size: 13px; font-weight: 700;
+      z-index: 9999; transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    #btn-pdf-flutuante:hover { transform: translateY(-2px); background: var(--green-700); }
+
+    /* ── CALCULADORA EXTRAS ── */
+    .calc-section-title {
+      font-size: 10px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin: 22px 0 10px; display: flex; align-items: center; gap: 6px;
+    }
+    .calc-section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
     }
 
-
-
-
-
-
-
-    /* Transforma cada linha (tr) em um bloco (card) */
-
-
-
-    tr {
-
-
-
-        display: block;
-
-
-
-        background: #fff;
-
-
-
-        margin-bottom: 15px;
-
-
-
-        border: 1px solid #ddd;
-
-
-
-        border-radius: 8px;
-
-
-
-        padding: 10px;
-
-
-
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-
-
-
+    /* Resultado destaque grande */
+    .res-highlight {
+      background: var(--grad); color: white;
+      border-radius: var(--radius-md); padding: 16px; text-align: center; margin-top: 14px;
     }
+    .res-highlight .val { font-size: 26px; font-weight: 800; }
+    .res-highlight .lbl { font-size: 10px; opacity: 0.85; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
+    /* Caixas de resultado coloridas */
+    .res-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 12px; }
+    .res-card { border-radius: var(--radius-md); padding: 14px 10px; text-align: center; border: 1px solid; }
+    .res-card .rc-val { font-size: 18px; font-weight: 800; margin-top: 4px; }
+    .res-card .rc-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .rc-green { background: var(--green-50); border-color: var(--green-100); }
+    .rc-green .rc-val { color: var(--green-900); }
+    .rc-green .rc-lbl { color: var(--green-700); }
+    .rc-amber { background: var(--amber-bg); border-color: #FFCC80; }
+    .rc-amber .rc-val { color: var(--amber); }
+    .rc-amber .rc-lbl { color: #BF360C; }
+    .rc-blue { background: var(--blue-bg); border-color: #90CAF9; }
+    .rc-blue .rc-val { color: var(--blue); }
+    .rc-blue .rc-lbl { color: #0D47A1; }
+    .rc-red { background: var(--red-bg); border-color: #EF9A9A; }
+    .rc-red .rc-val { color: var(--red); }
+    .rc-red .rc-lbl { color: #B71C1C; }
 
-
-
-
-
-
-    /* Faz cada célula (td) parecer uma linha de texto */
-
-
-
-    td {
-
-
-
-        display: flex;
-
-
-
-        justify-content: space-between;
-
-
-
-        padding: 5px 0 !important;
-
-
-
-        border: none !important;
-
-
-
-        font-size: 14px;
-
-
-
+    /* Indicador visual de qualidade ATR */
+    .atr-gauge { margin-top: 14px; }
+    .atr-gauge-bar {
+      height: 12px; border-radius: 99px; overflow: hidden;
+      background: linear-gradient(90deg, #e53935 0%, #FB8C00 30%, #43A047 65%, #1B5E20 100%);
+      position: relative; margin: 6px 0;
     }
-
-
-
-
-
-
-
-    /* Adiciona o rótulo antes de cada dado */
-
-
-
-    td::before {
-
-
-
-        content: attr(data-label);
-
-
-
-        font-weight: bold;
-
-
-
-        color: #555;
-
-
-
+    .atr-gauge-needle {
+      position: absolute; top: -4px; width: 4px; height: 20px;
+      background: var(--text); border-radius: 2px; transform: translateX(-50%);
+      transition: left 0.6s cubic-bezier(.4,0,.2,1);
     }
-
-
-
-}
-
-
-
-  #btn-pdf-flutuante {
-
-
-
-    position: fixed;
-
-
-
-    bottom: 30px;
-
-
-
-    right: 30px;
-
-
-
-    background-color: #2e7d32; /* Cor verde do seu projeto */
-
-
-
-    color: white;
-
-
-
-    border: none;
-
-
-
-    padding: 15px 20px;
-
-
-
-    border-radius: 50px;
-
-
-
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-
-
-
-    cursor: pointer;
-
-
-
-    font-size: 16px;
-
-
-
-    z-index: 9999; /* Garante que fique por cima de tudo */
-
-
-
-    transition: transform 0.2s;
-
-
-
-}
-
-
-
-
-
-
-
-#btn-pdf-flutuante:hover {
-
-
-
-    transform: scale(1.1);
-
-
-
-    background-color: #1b5e20;
-
-
-
-}
-
-
-
+    .atr-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-3); font-weight: 600; }
+    .atr-class { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 50px; font-size: 11px; font-weight: 700; }
+
+    /* Filtros liberações */
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .filter-bar input, .filter-bar select {
+      padding: 9px 12px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--surface2);
+      color: var(--text); font-size: 12px; font-weight: 600; outline: none;
+    }
+    .filter-bar input { flex: 1; }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: var(--green-500); }
+
+    /* Tag de configuração geral */
+    .config-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .config-row .field { flex: 1; min-width: 130px; }
+
+    /* Colhedora card melhorado */
+    .frente-card {
+      background: var(--surface); border-radius: var(--radius-lg);
+      border: 1px solid var(--border); padding: 16px 18px; margin-bottom: 12px;
+    }
+    .frente-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .frente-card-header input {
+      border: none; font-weight: 800; color: var(--green-900);
+      outline: none; font-size: 14px; background: transparent; flex: 1;
+    }
+    .btn-remove-frente {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--red-bg); border: none; cursor: pointer;
+      color: var(--red); font-size: 12px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-remove-frente:hover { background: #FFCDD2; }
+
+    /* Separador de seção na calc */
+    .divider-line { height: 1px; background: var(--border); margin: 6px 0 18px; }
   </style>
-
-
-
-
-
-
-
 </head>
-
-
-
-
-
-
-
 <body>
 
-
-
 <button id="btn-pdf-flutuante" onclick="gerarPDF()">
-
-
-
-    <i class="fa fa-print"></i> PDF
-
-
-
+  <i class="fas fa-print"></i> PDF
 </button>
 
-
-
-
-
-
-
-
-
-
-
 <header class="app-header">
-
-
-
-
-
-
-
+  <div class="app-header-inner">
+    <div class="app-badge">Gestão Operacional</div>
     <div class="app-title">CTT UNIDADE PASSOS/MG</div>
-
-
-
-
-
-
-
-    <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">GESTÃO OPERACIONAL</div>
-
-
-
-
-
-
-
+    <div class="app-sub">Controle Técnico de Tratos Culturais</div>
+  </div>
 </header>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 <div class="container" id="app-root">
 
+  <nav class="tabs-nav" id="main-nav">
+    <button class="tab-btn active" onclick="showTab(event,'simulador')">
+      <i class="fas fa-tractor"></i>SIMULADOR
+    </button>
+    <button class="tab-btn" onclick="showTab(event,'liberacoes')">
+      <i class="fas fa-table"></i>LIBERAÇÕES
+    </button>
+    <button class="tab-btn" onclick="showTab(event,'calc_aba')">
+      <i class="fas fa-calculator"></i>CALCULADORA
+    </button>
+  </nav>
 
+  <!-- ══ ABA SIMULADOR ══ -->
+  <section id="simulador" class="section active">
 
-
-
-
-
-    
-
-
-
-
-
-
-
-    <!-- Menu de abas principal -->
-
-
-
-
-
-
-
-    <nav class="tabs-nav" id="main-nav">
-
-
-
-
-
-
-
-        <button class="tab-btn active" onclick="showTab(event, 'entrada')"><i class="fas fa-edit"></i>COLHEDORAS</button>
-
-
-
-
-
-        <button class="tab-btn" onclick="showTab(event, 'dash')"><i class="fas fa-chart-pie"></i>CONTROLE FRENTES</button>
-
-
-
-<button class="tab-btn" onclick="showTab(event, 'liberacoes')"><i class="fas fa-table"></i>LIBERAÇÕES</button>
-
-
-
-        <button class="tab-btn" onclick="showTab(event, 'calc_aba')"><i class="fas fa-calculator"></i>CALCULADORA</button>
-
-
-
-
-
-
-
-
-
-
-
+    <nav class="sub-tabs-nav">
+      <button class="sub-tab-btn active" onclick="showSubTab(event,'sub_entrada')">
+        <i class="fas fa-edit"></i>COLHEDORAS
+      </button>
+      <button class="sub-tab-btn" onclick="showSubTab(event,'sub_dash')">
+        <i class="fas fa-chart-pie"></i>CONTROLE FRENTES
+      </button>
     </nav>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <!-- ABA DADOS (COLHEDORAS) -->
-
-
-
-
-
-
-
-    <section id="entrada" class="section active">
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div class="card-title"><i class="fas fa-globe"></i> Configuração Geral</div>
-
-
-
-
-
-
-
-            <div class="grid-inputs">
-
-
-
-
-
-
-
-                <div class="field"><label>Meta Unid. (t)</label><input type="number" id="meta_val" value="6500" oninput="update()"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Diesel R$/L</label><input type="number" id="diesel_val" value="6.10" step="0.01" oninput="update()"></div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
+    <!-- SUB: COLHEDORAS -->
+    <div id="sub_entrada" class="sub-section active">
+      <div class="card">
+        <div class="card-title"><i class="fas fa-cog"></i> Configuração Geral</div>
+        <div class="config-row">
+          <div class="field"><label>Meta Unidade (t)</label><input type="number" id="meta_val" value="6500" oninput="update()"></div>
+          <div class="field"><label>Diesel R$/L</label><input type="number" id="diesel_val" value="6.10" step="0.01" oninput="update()"></div>
         </div>
-
-
-
-
-
-
-
-        <div id="frentes-list"></div>
-
-
-
-
-
-
-
-        <button class="btn-add" onclick="addFrente()">+ NOVA FRENTE DE TRABALHO</button>
-
-
-
-
-
-
-
-    </section>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <!-- ABA DASHBOARD -->
-
-
-
-
-
-
-
-    <section id="dash" class="section">
-
-
-
-
-
-
-
-        <div class="stats-row">
-
-
-
-
-
-
-
-            <div class="widget">
-
-
-
-
-
-
-
-                <div class="widget-lab">Produção Total</div>
-
-
-
-
-
-
-
-                <div class="widget-val" id="total_ton">0</div>
-
-
-
-
-
-
-
-                <div class="widget-lab">Toneladas</div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div class="widget">
-
-
-
-
-
-
-
-                <div class="widget-lab">Custo Diesel</div>
-
-
-
-
-
-
-
-                <div class="widget-val" id="total_custo" style="color: var(--danger)">R$ 0</div>
-
-
-
-
-
-
-
-                <div class="widget-lab">Total/Dia</div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div class="card-title"><i class="fas fa-bullseye"></i> Atingimento da Meta</div>
-
-
-
-
-
-
-
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-
-
-
-
-
-
-
-                <span id="meta_pct" style="font-size: 24px; font-weight: 800; color: var(--agro-green);">0%</span>
-
-
-
-
-
-
-
-                <span style="font-size: 11px; font-weight: 700; color: var(--text-sub);" id="meta_restante">Faltam 0 t</span>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div class="progress-bar-bg"><div class="progress-bar-fill" id="meta_fill"></div></div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div class="card-title"><i class="fas fa-trophy"></i> Eficiência por Frente</div>
-
-
-
-
-
-
-
-            <div id="lista-ranking"></div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div class="card-title"><i class="fas fa-chart-bar"></i> Comparativo de Frentes</div>
-
-
-
-
-
-
-
-            <canvas id="prodChart" height="200"></canvas>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-    </section>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <!-- TELA CALCULADORA -->
-
-
-
-
-
-
-
-    <section id="calc_aba" class="section">
-
-
-
-
-
-        <!-- Botão para voltar à tela inicial -->
-
-
-
-
-
-
-
-        <button class="btn-voltar" onclick="voltarParaHome()"><i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO</button>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- ESTIMATIVA DE SAFRA -->
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div class="card-title"><i class="fas fa-chart-line"></i> Estimativa de Safra Avançada</div>
-
-
-
-
-
-
-
-            <div class="grid-inputs">
-
-
-
-
-
-
-
-                <div class="field"><label>Área Bruta (ha)</label><input type="number" id="safra_area" placeholder="Ex: 100" oninput="calcularSafra()"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>TCH Esperado</label><input type="number" id="safra_tch" placeholder="Ex: 85" oninput="calcularSafra()"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Aproveit. Área %</label><input type="number" id="safra_aproveit" value="95" oninput="calcularSafra()"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Perda Colheita %</label><input type="number" id="safra_perda" value="3" oninput="calcularSafra()"></div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            
-
-
-
-
-
-
-
-            <div class="calc-res-container" id="res_safra_container">
-
-
-
-
-
-
-
-                <div class="res-box"><span>Área Útil</span><b id="res_area_util">0 ha</b></div>
-
-
-
-
-
-
-
-                <div class="res-box"><span>Produção Bruta</span><b id="res_prod_bruta">0 t</b></div>
-
-
-
-
-
-
-
-                <div class="res-box"><span>Produção Real</span><b id="res_prod_liquida" style="color:var(--blue)">0 t</b></div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <!-- CÁLCULO DE PLANTIO -->
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div class="card-title"><i class="fas fa-seedling"></i> Planejamento de Plantio (Mudas)</div>
-
-
-
-
-
-
-
-            <div class="grid-inputs">
-
-
-
-
-
-
-
-                <div class="field"><label>Área a Plantar (ha)</label><input type="number" id="plantio_area" placeholder="Ex: 10" oninput="calcularPlantio()"></div>
-
-
-
-
-
-
-
-                <div class="field">
-
-
-
-
-
-
-
-                    <label>Tipo de Plantio</label>
-
-
-
-
-
-
-
-                    <select id="plantio_tipo" onchange="ajustarSugerido()">
-
-
-
-
-
-
-
-                        <option value="Mecanizado">Mecanizado</option>
-
-
-
-
-
-
-
-                        <option value="Manual">Manual</option>
-
-
-
-
-
-
-
-                        <option value="Meiose">Meiosi Manual</option>
-
-
-
-
-
-
-
-                    </select>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div class="field"><label>Consumo (t/ha)</label><input type="number" id="plantio_consumo" value="15" oninput="calcularPlantio()"></div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            
-
-
-
-
-
-
-
-            <div class="calc-res-container">
-
-
-
-
-
-
-
-                <div class="res-box" style="background: rgba(255, 143, 0, 0.05); border-color: var(--accent);">
-
-
-
-
-
-
-
-                    <span>Total Mudas</span><b id="res_mudas_total" style="color:var(--accent)">0 t</b>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div class="res-box">
-
-
-
-
-
-
-
-                    <span>Viagens (30t)</span><b id="res_mudas_viagens">0</b>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-    </section>
-
-
-
-
-
-
-
-<section id="liberacoes" class="section">
-
-
-
-    <button class="btn-voltar" onclick="voltarParaHome()">VOLTAR</button>
-
-
-
-    
-
-
-
-    <div class="card">
-
-
-
-        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-
-
-
-            <input type="text" id="filtroFrente" placeholder="Frente..." oninput="filtrarTabela()" style="flex:1; padding:8px;">
-
-
-
-            <select id="filtroStatus" onchange="filtrarTabela()" style="padding:8px;">
-
-
-
-                <option value="">Todos</option>
-
-
-
-                <option value="ABERTA">Abertas</option>
-
-
-
-                <option value="ENCERRADA">Encerradas</option>
-
-
-
-            </select>
-
-
-
-        </div>
-
-
-
-
-
-
-
-        <table>
-
-
-
-            <thead>
-
-
-
-                <tr>
-
-
-
-                    <th>Liberação</th>
-
-
-
-                    <th>Frente</th>
-
-
-
-                    <th>Fazenda</th>
-
-
-
-                    <th>Talhões</th>
-
-
-
-                    <th>Status</th>
-
-
-
-                </tr>
-
-
-
-            </thead>
-
-
-
-            <tbody id="corpo-tabela-gatec"></tbody>
-
-
-
-        </table>
-
-
-
+      </div>
+      <div id="frentes-list"></div>
+      <button class="btn-add" onclick="addFrente()">
+        <i class="fas fa-plus" style="margin-right:6px"></i> NOVA FRENTE DE TRABALHO
+      </button>
     </div>
 
+    <!-- SUB: CONTROLE FRENTES (DASHBOARD) -->
+    <div id="sub_dash" class="sub-section">
+      <div class="stats-row">
+        <div class="widget">
+          <div class="widget-accent"></div>
+          <div class="widget-lab">Produção Total</div>
+          <div class="widget-val" id="total_ton">0</div>
+          <div class="widget-lab">Toneladas/Dia</div>
+        </div>
+        <div class="widget">
+          <div class="widget-accent red"></div>
+          <div class="widget-lab">Custo Diesel</div>
+          <div class="widget-val red" id="total_custo">R$ 0</div>
+          <div class="widget-lab">Total/Dia</div>
+        </div>
+      </div>
 
+      <div class="card">
+        <div class="card-title"><i class="fas fa-bullseye"></i> Atingimento da Meta</div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+          <span id="meta_pct" style="font-size:28px; font-weight:800; color:var(--green-900);">0%</span>
+          <span id="meta_restante" style="font-size:11px; font-weight:600; color:var(--text-3);">Faltam 0 t</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="meta_fill"></div></div>
+        <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-3); font-weight:600; margin-top:4px;">
+          <span>0 t</span>
+          <span id="meta_label_total">6.500 t</span>
+        </div>
+      </div>
 
-</section>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-trophy"></i> Eficiência por Frente</div>
+        <div id="lista-ranking"></div>
+      </div>
 
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar"></i> Comparativo de Frentes</div>
+        <div style="position:relative; height:200px;">
+          <canvas id="prodChart" role="img" aria-label="Gráfico comparativo de produção por frente em toneladas por dia"></canvas>
+        </div>
+      </div>
+    </div>
 
+  </section>
 
+  <!-- ══ ABA LIBERAÇÕES ══ -->
+  <section id="liberacoes" class="section">
+    <button class="btn-voltar" onclick="voltarParaHome()">
+      <i class="fas fa-arrow-left"></i> VOLTAR
+    </button>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
+      <div class="filter-bar">
+        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()">
+        <select id="filtroStatus" onchange="filtrarTabela()">
+          <option value="">Todos</option>
+          <option value="ABERTA">Abertas</option>
+          <option value="ENCERRADA">Encerradas</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Liberação</th>
+            <th>Frente</th>
+            <th>Fazenda</th>
+            <th>Talhões</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-tabela-gatec"></tbody>
+      </table>
+    </div>
+  </section>
 
+  <!-- ══ ABA CALCULADORA ══ -->
+  <section id="calc_aba" class="section">
+    <button class="btn-voltar" onclick="voltarParaHome()">
+      <i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO
+    </button>
 
+    <!-- 1. ESTIMATIVA DE SAFRA -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-chart-line"></i> Estimativa de Safra</div>
+      <div class="grid-inputs">
+        <div class="field"><label>Área Bruta (ha)</label><input type="number" id="safra_area" placeholder="Ex: 100" oninput="calcularSafra()"></div>
+        <div class="field"><label>TCH Esperado</label><input type="number" id="safra_tch" placeholder="Ex: 85" oninput="calcularSafra()"></div>
+        <div class="field"><label>Aproveit. Área %</label><input type="number" id="safra_aproveit" value="95" oninput="calcularSafra()"></div>
+        <div class="field"><label>Perda Colheita %</label><input type="number" id="safra_perda" value="3" oninput="calcularSafra()"></div>
+      </div>
+      <div class="calc-res-container">
+        <div class="res-box"><span>Área Útil</span><b id="res_area_util">0 ha</b></div>
+        <div class="res-box"><span>Produção Bruta</span><b id="res_prod_bruta">0 t</b></div>
+        <div class="res-box"><span>Produção Real</span><b id="res_prod_liquida" style="color:var(--blue)">0 t</b></div>
+      </div>
+    </div>
 
+    <!-- 2. PLANEJAMENTO DE PLANTIO -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-seedling"></i> Planejamento de Plantio</div>
+      <div class="grid-inputs">
+        <div class="field"><label>Área a Plantar (ha)</label><input type="number" id="plantio_area" placeholder="Ex: 10" oninput="calcularPlantio()"></div>
+        <div class="field">
+          <label>Tipo de Plantio</label>
+          <select id="plantio_tipo" onchange="ajustarSugerido()">
+            <option value="Mecanizado">Mecanizado</option>
+            <option value="Manual">Manual</option>
+            <option value="Meiose">Meiosi Manual</option>
+          </select>
+        </div>
+        <div class="field"><label>Consumo (t/ha)</label><input type="number" id="plantio_consumo" value="15" oninput="calcularPlantio()"></div>
+      </div>
+      <div class="calc-res-container">
+        <div class="res-box" style="background:var(--amber-bg); border-color:#FFCC80;">
+          <span style="color:#BF360C;">Total Mudas</span>
+          <b id="res_mudas_total" style="color:var(--amber)">0 t</b>
+        </div>
+        <div class="res-box">
+          <span>Viagens (30t)</span><b id="res_mudas_viagens">0</b>
+        </div>
+      </div>
+    </div>
 
-    <button id="btn-atualizar-global" class="btn-main" onclick="update()">ATUALIZAR INDICADORES</button>
+    <!-- 3. CALCULADORA DE ATR (NOVA) -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-flask"></i> Calculadora de ATR — Qualidade da Cana</div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        O ATR (Açúcar Total Recuperável) mede a quantidade de açúcar aproveitável por tonelada de cana. Insira os dados do boletim tecnológico.
+      </p>
+      <div class="grid-inputs">
+        <div class="field"><label>Pol Cana (%)</label><input type="number" id="atr_pol" placeholder="Ex: 14.5" step="0.01" oninput="calcularATR()"></div>
+        <div class="field"><label>Fibra (%)</label><input type="number" id="atr_fibra" placeholder="Ex: 13" step="0.01" oninput="calcularATR()"></div>
+        <div class="field"><label>Pureza (%)</label><input type="number" id="atr_pureza" placeholder="Ex: 84" step="0.01" oninput="calcularATR()"></div>
+        <div class="field"><label>Toneladas Colhidas</label><input type="number" id="atr_tons" placeholder="Ex: 5000" oninput="calcularATR()"></div>
+      </div>
+      <div class="res-grid-3" id="res_atr_container" style="display:none;">
+        <div class="res-card rc-green"><div class="rc-lbl">ATR (kg/t)</div><div class="rc-val" id="res_atr_val">—</div></div>
+        <div class="res-card rc-amber"><div class="rc-lbl">Açúcar Total (t)</div><div class="rc-val" id="res_atr_total">—</div></div>
+        <div class="res-card rc-blue"><div class="rc-lbl">Receita Base (R$)</div><div class="rc-val" id="res_atr_receita">—</div></div>
+      </div>
+      <div class="atr-gauge" id="atr_gauge_container" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; margin-bottom:4px;">
+          <span style="font-size:10px; font-weight:700; color:var(--text-2);">Classificação de Qualidade</span>
+          <span class="atr-class" id="atr_class_badge">—</span>
+        </div>
+        <div class="atr-gauge-bar">
+          <div class="atr-gauge-needle" id="atr_needle"></div>
+        </div>
+        <div class="atr-labels"><span>Baixo &lt;120</span><span>Médio 130</span><span>Bom &gt;140</span></div>
+      </div>
+      <p style="font-size:10px; color:var(--text-3); margin-top:10px;">* Receita calculada com base no preço de referência CONSECANA (R$ 1,10/kg ATR)</p>
+    </div>
 
+    <!-- 4. CUSTO DE COLHEITA (NOVA) -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-dollar-sign"></i> Análise de Custo de Colheita</div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        Calcule o custo total e por tonelada da operação de colheita mecanizada.
+      </p>
+      <div class="grid-inputs">
+        <div class="field"><label>Área Colhida (ha)</label><input type="number" id="cc_area" placeholder="Ex: 500" oninput="calcularCustoColheita()"></div>
+        <div class="field"><label>TCH Realizado</label><input type="number" id="cc_tch" placeholder="Ex: 80" oninput="calcularCustoColheita()"></div>
+        <div class="field"><label>Custo Mec. (R$/ha)</label><input type="number" id="cc_mecanizado" placeholder="Ex: 320" oninput="calcularCustoColheita()"></div>
+        <div class="field"><label>Frete (R$/t)</label><input type="number" id="cc_frete" placeholder="Ex: 18" oninput="calcularCustoColheita()"></div>
+      </div>
+      <div class="res-grid-3" id="res_cc_container" style="display:none;">
+        <div class="res-card rc-green"><div class="rc-lbl">Produção Total</div><div class="rc-val" id="res_cc_prod">—</div></div>
+        <div class="res-card rc-red"><div class="rc-lbl">Custo Total (R$)</div><div class="rc-val" id="res_cc_total">—</div></div>
+        <div class="res-card rc-amber"><div class="rc-lbl">Custo/Ton (R$)</div><div class="rc-val" id="res_cc_ton">—</div></div>
+      </div>
+    </div>
 
+    <!-- 5. PRODUTIVIDADE POTENCIAL (NOVA) -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-leaf"></i> Produtividade Potencial por Variedade</div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        Estime a produção de diferentes variedades com base nos parâmetros de campo.
+      </p>
+      <div class="grid-inputs">
+        <div class="field"><label>Área (ha)</label><input type="number" id="vr_area" placeholder="Ex: 200" oninput="calcularVariedade()"></div>
+        <div class="field">
+          <label>Variedade / Ciclo</label>
+          <select id="vr_tipo" onchange="calcularVariedade()">
+            <option value="120">Precoce (TCH ref. 85)</option>
+            <option value="150">Médio (TCH ref. 95)</option>
+            <option value="180">Tardio (TCH ref. 105)</option>
+            <option value="0">Personalizado</option>
+          </select>
+        </div>
+        <div class="field"><label>TCH Personalizado</label><input type="number" id="vr_tch_custom" placeholder="Só se Personalizado" oninput="calcularVariedade()"></div>
+        <div class="field"><label>Cortes Previstos</label><input type="number" id="vr_cortes" placeholder="Ex: 5" oninput="calcularVariedade()"></div>
+      </div>
+      <div class="res-grid-3" id="res_vr_container" style="display:none;">
+        <div class="res-card rc-green"><div class="rc-lbl">Prod. 1º Corte</div><div class="rc-val" id="res_vr_1corte">—</div></div>
+        <div class="res-card rc-blue"><div class="rc-lbl">Prod. Ciclo Total</div><div class="rc-val" id="res_vr_total">—</div></div>
+        <div class="res-card rc-amber"><div class="rc-lbl">Média/Corte</div><div class="rc-val" id="res_vr_media">—</div></div>
+      </div>
+    </div>
 
+  </section>
 
+  <button id="btn-atualizar-global" class="btn-main" onclick="update()">
+    <i class="fas fa-sync-alt" style="margin-right:6px"></i> ATUALIZAR INDICADORES
+  </button>
 
-
-
-
-
-
-
-
-
-
-
-    <footer style="text-align:center; padding: 20px; color: var(--text-sub); font-size: 10px;">
-
-
-
-
-
-
-
-        DANIEL MARTINS - ANALISTA CONTROLE AGRÍCOLA
-
-
-
-
-
-
-
-    </footer>
-
-
-
-
-
-
-
+  <footer style="text-align:center; padding:16px 0 10px; color:var(--text-3); font-size:10px; font-weight:600; letter-spacing:0.5px;">
+    DANIEL MARTINS · ANALISTA CONTROLE AGRÍCOLA
+  </footer>
 </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 <script>
-
-
-
-
-
-
-
 let frentes = [
-
-
-
-
-
-
-
-    { id: 1, nome: "FRENTE 01", maquinas: 5, tch: 85, vel: 4.5, larg: 1.5, efc: 85, horas: 12, diesel: 48 }
-
-
-
-
-
-
-
+  { id: 1, nome: "FRENTE 01", maquinas: 5, tch: 85, vel: 4.5, larg: 1.5, efc: 85, horas: 12, diesel: 48 }
 ];
-
-
-
-
-
-
-
 let myChart = null;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* ── NAVEGAÇÃO ── */
 function showTab(e, id) {
-
-
-
-
-
-
-
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-
-
-
-
-
-
-
-    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-    document.getElementById(id).classList.add('active');
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-    if(e && e.currentTarget) {
-
-
-
-
-
-
-
-        e.currentTarget.classList.add('active');
-
-
-
-
-
-
-
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    if(id === 'dash') {
-
-
-
-
-
-
-
-        renderChart();
-
-
-
-
-
-
-
-    }
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-    if(id === 'calc_aba' || id === 'liberacoes') {
-
-
-
-
-
-
-
-        document.getElementById('main-nav').style.display = 'none';
-
-
-
-
-
-
-
-        document.getElementById('btn-atualizar-global').style.display = 'none';
-
-
-
-
-
-
-
-    } else {
-
-
-
-
-
-
-
-        document.getElementById('main-nav').style.display = 'flex';
-
-
-
-
-
-
-
-        document.getElementById('btn-atualizar-global').style.display = 'block';
-
-
-
-
-
-
-
-    }
-
-
-
-
-
-
-
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (e && e.currentTarget) e.currentTarget.classList.add('active');
+
+  const isExtra = (id === 'calc_aba' || id === 'liberacoes');
+  document.getElementById('main-nav').style.display = isExtra ? 'none' : 'flex';
+  document.getElementById('btn-atualizar-global').style.display = isExtra ? 'none' : 'block';
+
+  if (id === 'simulador') {
+    if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
+  }
 }
 
-
-
-function abrirSimulador() {
-
-
-
-    // Esconde todas as outras sections
-
-
-
-    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-
-
-
-    // Mostra apenas a nova section do Simulador
-
-
-
-    document.getElementById('simulador').style.display = 'block';
-
-
-
+function showSubTab(e, id) {
+  document.querySelectorAll('.sub-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sub-tab-btn').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (e && e.currentTarget) e.currentTarget.classList.add('active');
+  if (id === 'sub_dash') renderChart();
 }
-
-
-
-
-
-
-
-function executarCalculosIntegrados() {
-
-
-
-    // Pegue os valores de TODAS as colhedoras e frentes de uma vez
-
-
-
-    const metaUnid = document.getElementById('metaUnid').value;
-
-
-
-    const diesel = document.getElementById('diesel').value;
-
-
-
-    const tch = document.getElementById('tch').value;
-
-
-
-    // ... e assim por diante
-
-
-
-    
-
-
-
-    // Execute o cálculo que você já tinha pronto
-
-
-
-    console.log("Calculando tudo...");
-
-
-
-}
-
-
-
-function gerarPDF() {
-
-
-
-    const elemento = document.body; // Ou o ID do container da sua tabela
-
-
-
-    
-
-
-
-    const opt = {
-
-
-
-        margin:       [0.5, 0.5, 0.5, 0.5], // Margens equilibradas
-
-
-
-        filename:     'relatorio_operacional.pdf',
-
-
-
-        image:        { type: 'jpeg', quality: 1 }, // Qualidade máxima
-
-
-
-        html2canvas:  { 
-
-
-
-            scale: 2, 
-
-
-
-            useCORS: true, 
-
-
-
-            backgroundColor: "#ffffff", // Fundo branco sólido
-
-
-
-            letterRendering: true
-
-
-
-        },
-
-
-
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-
-
-
-    };
-
-
-
-
-
-
-
-    html2pdf().set(opt).from(elemento).save();
-
-
-
-}
-
-
-
-
-
-
 
 function voltarParaHome() {
-
-
-
-
-
-
-
-    const primeiroBotao = document.querySelector('.tabs-nav .tab-btn');
-
-
-
-
-
-
-
-    showTab(null, 'entrada');
-
-
-
-
-
-
-
-    if(primeiroBotao) primeiroBotao.classList.add('active');
-
-
-
-
-
-
-
+  showTab(null, 'simulador');
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('btn-atualizar-global').style.display = 'block';
+  const primeiro = document.querySelector('.tabs-nav .tab-btn');
+  if (primeiro) primeiro.classList.add('active');
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function calcularSafra() {
-
-
-
-
-
-
-
-    const area = parseFloat(document.getElementById('safra_area').value) || 0;
-
-
-
-
-
-
-
-    const tch = parseFloat(document.getElementById('safra_tch').value) || 0;
-
-
-
-
-
-
-
-    const aproveit = (parseFloat(document.getElementById('safra_aproveit').value) || 0) / 100;
-
-
-
-
-
-
-
-    const perda = (parseFloat(document.getElementById('safra_perda').value) || 0) / 100;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    const areaUtil = area * aproveit;
-
-
-
-
-
-
-
-    const prodBruta = areaUtil * tch;
-
-
-
-
-
-
-
-    const prodLiquida = prodBruta * (1 - perda);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    document.getElementById('res_area_util').innerText = areaUtil.toFixed(2) + ' ha';
-
-
-
-
-
-
-
-    document.getElementById('res_prod_bruta').innerText = Math.round(prodBruta).toLocaleString() + ' t';
-
-
-
-
-
-
-
-    document.getElementById('res_prod_liquida').innerText = Math.round(prodLiquida).toLocaleString() + ' t';
-
-
-
-
-
-
-
+/* ── PDF ── */
+function gerarPDF() {
+  const opt = {
+    margin: [0.5, 0.5, 0.5, 0.5],
+    filename: 'relatorio_operacional_ctt.pdf',
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(document.body).save();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function ajustarSugerido() {
-
-
-
-
-
-
-
-    const tipo = document.getElementById('plantio_tipo').value;
-
-
-
-
-
-
-
-    const inputConsumo = document.getElementById('plantio_consumo');
-
-
-
-
-
-
-
-    if(tipo === "Mecanizado") inputConsumo.value = 15;
-
-
-
-
-
-
-
-    else if(tipo === "Manual") inputConsumo.value = 12;
-
-
-
-
-
-
-
-    else if(tipo === "Meiose") inputConsumo.value = 10;
-
-
-
-
-
-
-
-    calcularPlantio();
-
-
-
-
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function calcularPlantio() {
-
-
-
-
-
-
-
-    const area = parseFloat(document.getElementById('plantio_area').value) || 0;
-
-
-
-
-
-
-
-    const consumo = parseFloat(document.getElementById('plantio_consumo').value) || 0;
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-    const total = area * consumo;
-
-
-
-
-
-
-
-    const viagens = Math.ceil(total / 30);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    document.getElementById('res_mudas_total').innerText = Math.round(total).toLocaleString() + ' t';
-
-
-
-
-
-
-
-    document.getElementById('res_mudas_viagens').innerText = viagens;
-
-
-
-
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* ── FRENTES ── */
 function addFrente() {
-
-
-
-
-
-
-
-    const id = Date.now();
-
-
-
-
-
-
-
-    frentes.push({ id, nome: `FRENTE 0${frentes.length + 1}`, maquinas: 1, tch: 80, vel: 4.0, larg: 1.5, efc: 85, hours: 12, diesel: 45 });
-
-
-
-
-
-
-
-    renderFrentes();
-
-
-
-
-
-
-
-    update();
-
-
-
-
-
-
-
+  const id = Date.now();
+  frentes.push({ id, nome: `FRENTE 0${frentes.length + 1}`, maquinas: 1, tch: 80, vel: 4.0, larg: 1.5, efc: 85, horas: 12, diesel: 45 });
+  renderFrentes();
+  update();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function renderFrentes() {
-
-
-
-
-
-
-
-    const container = document.getElementById('frentes-list');
-
-
-
-
-
-
-
-    container.innerHTML = frentes.map(f => `
-
-
-
-
-
-
-
-        <div class="card">
-
-
-
-
-
-
-
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:8px">
-
-
-
-
-
-
-
-                <input type="text" value="${f.nome}" oninput="editData(${f.id}, 'nome', this.value)" style="border:none; font-weight:800; color:var(--agro-green); outline:none; font-size:14px; background:transparent">
-
-
-
-
-
-
-
-                <i class="fas fa-times" onclick="removeFrente(${f.id})" style="color:var(--danger); cursor:pointer"></i>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div class="grid-inputs">
-
-
-
-
-
-
-
-                <div class="field"><label>Máqs</label><input type="number" value="${f.maquinas}" oninput="editData(${f.id}, 'maquinas', this.value)"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>TCH</label><input type="number" value="${f.tch}" oninput="editData(${f.id}, 'tch', this.value)"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Km/h</label><input type="number" value="${f.vel}" step="0.1" oninput="editData(${f.id}, 'vel', this.value)"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Larg.</label><input type="number" value="${f.larg}" step="0.1" oninput="editData(${f.id}, 'larg', this.value)"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Efic.%</label><input type="number" value="${f.efc}" oninput="editData(${f.id}, 'efc', this.value)"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>Horas</label><input type="number" value="${f.horas}" oninput="editData(${f.id}, 'horas', this.value)"></div>
-
-
-
-
-
-
-
-                <div class="field"><label>L/h</label><input type="number" value="${f.diesel}" oninput="editData(${f.id}, 'diesel', this.value)"></div>
-
-
-
-
-
-
-
-            </div>
-
-
-
-
-
-
-
-        </div>
-
-
-
-
-
-
-
-    `).join('');
-
-
-
-
-
-
-
+  const container = document.getElementById('frentes-list');
+  container.innerHTML = frentes.map(f => `
+    <div class="frente-card">
+      <div class="frente-card-header">
+        <input type="text" value="${f.nome}" oninput="editData(${f.id},'nome',this.value)">
+        <button class="btn-remove-frente" onclick="removeFrente(${f.id})">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="grid-inputs">
+        <div class="field"><label>Nº Máqs</label><input type="number" value="${f.maquinas}" oninput="editData(${f.id},'maquinas',this.value)"></div>
+        <div class="field"><label>TCH</label><input type="number" value="${f.tch}" oninput="editData(${f.id},'tch',this.value)"></div>
+        <div class="field"><label>Km/h</label><input type="number" value="${f.vel}" step="0.1" oninput="editData(${f.id},'vel',this.value)"></div>
+        <div class="field"><label>Largura (m)</label><input type="number" value="${f.larg}" step="0.1" oninput="editData(${f.id},'larg',this.value)"></div>
+        <div class="field"><label>Efic. %</label><input type="number" value="${f.efc}" oninput="editData(${f.id},'efc',this.value)"></div>
+        <div class="field"><label>Horas/Dia</label><input type="number" value="${f.horas}" oninput="editData(${f.id},'horas',this.value)"></div>
+        <div class="field"><label>Consumo L/h</label><input type="number" value="${f.diesel}" oninput="editData(${f.id},'diesel',this.value)"></div>
+      </div>
+    </div>
+  `).join('');
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function editData(id, field, val) {
-
-
-
-
-
-
-
-    const f = frentes.find(x => x.id === id);
-
-
-
-
-
-
-
-    if(f) f[field] = field === 'nome' ? val : parseFloat(val) || 0;
-
-
-
-
-
-
-
-    update();
-
-
-
-
-
-
-
+  const f = frentes.find(x => x.id === id);
+  if (f) f[field] = field === 'nome' ? val : parseFloat(val) || 0;
+  update();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function removeFrente(id) {
-
-
-
-
-
-
-
-    frentes = frentes.filter(f => f.id !== id);
-
-
-
-
-
-
-
-    renderFrentes();
-
-
-
-
-
-
-
-    update();
-
-
-
-
-
-
-
+  frentes = frentes.filter(f => f.id !== id);
+  renderFrentes();
+  update();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* ── UPDATE DASHBOARD ── */
 function update() {
-
-
-
-
-
-
-
-    const prDiesel = parseFloat(document.getElementById('diesel_val').value) || 0;
-
-
-
-
-
-
-
-    const metaG = parseFloat(document.getElementById('meta_val').value) || 1;
-
-
-
-
-
-
-
-    let tTon = 0, tCusto = 0, rankingHtml = '';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    frentes.forEach(f => {
-
-
-
-
-
-
-
-        const rend = (f.vel * f.larg * (f.efc/100)) / 10;
-
-
-
-
-
-
-
-        const tonH = rend * f.tch;
-
-
-
-
-
-
-
-        const tonD = tonH * f.horas * f.maquinas;
-
-
-
-
-
-
-
-        const cD = (f.diesel * prDiesel * f.horas * f.maquinas);
-
-
-
-
-
-
-
-        tTon += tonD;
-
-
-
-
-
-
-
-        tCusto += cD;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        rankingHtml += `
-
-
-
-
-
-
-
-            <div class="frente-item">
-
-
-
-
-
-
-
-                <div class="frente-info">
-
-
-
-
-
-
-
-                    <b>${f.nome}</b>
-
-
-
-
-
-
-
-                    <span>${f.maquinas} máqs • ${rend.toFixed(2)} ha/h</span>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-                <div style="text-align:right">
-
-
-
-
-
-
-
-                    <b style="color:var(--agro-green)">${Math.round(tonD).toLocaleString()} t</b>
-
-
-
-
-
-
-
-                    <span style="display:block; font-size:10px">R$ ${(cD/tonD || 0).toFixed(2)} / t</span>
-
-
-
-
-
-
-
-                </div>
-
-
-
-
-
-
-
-            </div>`;
-
-
-
-
-
-
-
-    });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    const pct = (tTon / metaG) * 100;
-
-
-
-
-
-
-
-    document.getElementById('total_ton').innerText = Math.round(tTon).toLocaleString();
-
-
-
-
-
-
-
-    document.getElementById('total_custo').innerText = 'R$ ' + Math.round(tCusto).toLocaleString();
-
-
-
-
-
-
-
-    document.getElementById('meta_pct').innerText = pct.toFixed(1) + '%';
-
-
-
-
-
-
-
-    document.getElementById('meta_fill').style.width = Math.min(pct, 100) + '%';
-
-
-
-
-
-
-
-    document.getElementById('meta_restante').innerText = tTon < metaG ? `Faltam ${Math.round(metaG - tTon).toLocaleString()} t` : 'Meta Atingida!';
-
-
-
-
-
-
-
-    document.getElementById('lista-ranking').innerHTML = rankingHtml;
-
-
-
-
-
-
-
+  const prDiesel = parseFloat(document.getElementById('diesel_val').value) || 0;
+  const metaG = parseFloat(document.getElementById('meta_val').value) || 1;
+  let tTon = 0, tCusto = 0, rankingHtml = '';
+
+  document.getElementById('meta_label_total').innerText =
+    metaG.toLocaleString('pt-BR') + ' t';
+
+  frentes.forEach(f => {
+    const rend = (f.vel * f.larg * (f.efc / 100)) / 10;
+    const tonD = rend * f.tch * f.horas * f.maquinas;
+    const cD = f.diesel * prDiesel * f.horas * f.maquinas;
+    const custoTon = tonD > 0 ? (cD / tonD).toFixed(2) : '0.00';
+    tTon += tonD;
+    tCusto += cD;
+
+    rankingHtml += `
+      <div class="frente-item">
+        <div class="frente-info">
+          <b>${f.nome}</b>
+          <span>${f.maquinas} máqs &nbsp;·&nbsp; ${rend.toFixed(2)} ha/h</span>
+        </div>
+        <div class="frente-ton">
+          <b>${Math.round(tonD).toLocaleString('pt-BR')} t</b>
+          <span>R$ ${custoTon}/t diesel</span>
+        </div>
+      </div>`;
+  });
+
+  const pct = (tTon / metaG) * 100;
+  document.getElementById('total_ton').innerText = Math.round(tTon).toLocaleString('pt-BR');
+  document.getElementById('total_custo').innerText = 'R$ ' + Math.round(tCusto).toLocaleString('pt-BR');
+  document.getElementById('meta_pct').innerText = pct.toFixed(1) + '%';
+  document.getElementById('meta_fill').style.width = Math.min(pct, 100) + '%';
+  document.getElementById('meta_restante').innerText = tTon < metaG
+    ? `Faltam ${Math.round(metaG - tTon).toLocaleString('pt-BR')} t`
+    : '✓ Meta Atingida!';
+  document.getElementById('lista-ranking').innerHTML = rankingHtml || '<p style="font-size:12px;color:var(--text-3);padding:10px 0">Nenhuma frente cadastrada.</p>';
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* ── GRÁFICO ── */
 function renderChart() {
-
-
-
-
-
-
-
-    const ctx = document.getElementById('prodChart').getContext('2d');
-
-
-
-
-
-
-
-    if(myChart) myChart.destroy();
-
-
-
-
-
-
-
-    myChart = new Chart(ctx, {
-
-
-
-
-
-
-
-        type: 'bar',
-
-
-
-
-
-
-
-        data: {
-
-
-
-
-
-
-
-            labels: frentes.map(f => f.nome),
-
-
-
-
-
-
-
-            datasets: [{
-
-
-
-
-
-
-
-                label: 'Toneladas/Dia',
-
-
-
-
-
-
-
-                data: frentes.map(f => {
-
-
-
-
-
-
-
-                    const r = (f.vel * f.larg * (f.efc/100)) / 10;
-
-
-
-
-
-
-
-                    return Math.round(r * f.tch * f.horas * f.maquinas);
-
-
-
-
-
-
-
-                }),
-
-
-
-
-
-
-
-                backgroundColor: '#1B5E20',
-
-
-
-
-
-
-
-                borderRadius: 7
-
-
-
-
-
-
-
-            }]
-
-
-
-
-
-
-
-        },
-
-
-
-
-
-
-
-        options: { responsive: true, plugins: { legend: { display: false } } }
-
-
-
-
-
-
-
-    });
-
-
-
-
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function exportToPDF() {
-
-
-
-
-
-
-
-    html2pdf().set({ margin: 10, filename: 'Gestao_Agricola.pdf', html2canvas: { scale: 3 } }).from(document.getElementById('app-root')).save();
-
-
-
-
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-renderFrentes();
-
-
-
-
-
-
-
-update();
-
-
-
-// Função para carregar a planilha GATEC
-
-
-
-async function carregarDadosGATEC() {
-
-
-
-    const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
-
-
-
-    
-
-
-
-    Papa.parse(URL_CSV, {
-
-
-
-        download: true,
-
-
-
-        header: true, 
-
-
-
-        skipEmptyLines: true,
-
-
-
-        complete: function(results) {
-
-
-
-            const corpo = document.getElementById('corpo-tabela-gatec');
-
-
-
-            corpo.innerHTML = results.data.map(row => {
-
-
-
-                // Aqui o PapaParse garante que o conteúdo de LISTAGEM TALHAO venha completo
-
-
-
-                const talhoes = row["LISTAGEM TALHAO"] || ""; 
-
-
-
-                const status = (row["STATUS OS"] || "").toUpperCase().trim();
-
-
-
-               const isEncerrada = status.includes("ENCERRADA");
-
-
-
-
-
-
-
-return `<tr class="linha-tabela">
-
-
-
-    <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
-
-
-
-    <td data-label="Frente:">${row["FRENTE"] || ""}</td>
-
-
-
-    <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
-
-
-
-    <td data-label="Talhões:">${row["LISTAGEM TALHAO"] || ""}</td>
-
-
-
-    <td data-label="Status:">
-
-
-
-        <span class="badge" style="background: ${isEncerrada ? '#ffebee' : '#e8f5e9'}; color: ${isEncerrada ? '#c62828' : '#2e7d32'}">
-
-
-
-            ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
-
-
-
-        </span>
-
-
-
-    </td>
-
-
-
-</tr>`;
-
-
-
-            }).join('');
-
-
-
+  const ctx = document.getElementById('prodChart').getContext('2d');
+  if (myChart) myChart.destroy();
+  myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: frentes.map(f => f.nome),
+      datasets: [{
+        label: 'Toneladas/Dia',
+        data: frentes.map(f => {
+          const r = (f.vel * f.larg * (f.efc / 100)) / 10;
+          return Math.round(r * f.tch * f.horas * f.maquinas);
+        }),
+        backgroundColor: '#2E7D32',
+        hoverBackgroundColor: '#1B5E20',
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ' + ctx.parsed.y.toLocaleString('pt-BR') + ' t/dia'
+          }
         }
-
-
-
-    });
-
-
-
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#4A554A' } },
+        y: {
+          grid: { color: '#E0E5E0' },
+          ticks: { font: { size: 10 }, color: '#7A8A7A', callback: v => v.toLocaleString('pt-BR') + ' t' }
+        }
+      }
+    }
+  });
 }
 
+/* ── CALCULADORA: SAFRA ── */
+function calcularSafra() {
+  const area = parseFloat(document.getElementById('safra_area').value) || 0;
+  const tch = parseFloat(document.getElementById('safra_tch').value) || 0;
+  const aproveit = (parseFloat(document.getElementById('safra_aproveit').value) || 0) / 100;
+  const perda = (parseFloat(document.getElementById('safra_perda').value) || 0) / 100;
+  const areaUtil = area * aproveit;
+  const prodBruta = areaUtil * tch;
+  const prodLiquida = prodBruta * (1 - perda);
+  document.getElementById('res_area_util').innerText = areaUtil.toFixed(2) + ' ha';
+  document.getElementById('res_prod_bruta').innerText = Math.round(prodBruta).toLocaleString('pt-BR') + ' t';
+  document.getElementById('res_prod_liquida').innerText = Math.round(prodLiquida).toLocaleString('pt-BR') + ' t';
+}
 
+/* ── CALCULADORA: PLANTIO ── */
+function ajustarSugerido() {
+  const tipo = document.getElementById('plantio_tipo').value;
+  const inp = document.getElementById('plantio_consumo');
+  if (tipo === 'Mecanizado') inp.value = 15;
+  else if (tipo === 'Manual') inp.value = 12;
+  else if (tipo === 'Meiose') inp.value = 10;
+  calcularPlantio();
+}
+
+function calcularPlantio() {
+  const area = parseFloat(document.getElementById('plantio_area').value) || 0;
+  const consumo = parseFloat(document.getElementById('plantio_consumo').value) || 0;
+  const total = area * consumo;
+  const viagens = Math.ceil(total / 30);
+  document.getElementById('res_mudas_total').innerText = Math.round(total).toLocaleString('pt-BR') + ' t';
+  document.getElementById('res_mudas_viagens').innerText = viagens;
+}
+
+/* ── CALCULADORA: ATR ── */
+function calcularATR() {
+  const pol = parseFloat(document.getElementById('atr_pol').value) || 0;
+  const fibra = parseFloat(document.getElementById('atr_fibra').value) || 0;
+  const pureza = parseFloat(document.getElementById('atr_pureza').value) || 0;
+  const tons = parseFloat(document.getElementById('atr_tons').value) || 0;
+
+  if (!pol || !fibra || !pureza) return;
+
+  // Fórmula CONSECANA: ATR = (pol / (1 - fibra/100)) * (pureza/100) * 10
+  const polCorrigido = pol / (1 - fibra / 100);
+  const atr = polCorrigido * (pureza / 100) * 10;
+  const acucarTotal = (atr / 1000) * tons;
+  const receita = acucarTotal * 1100; // R$ 1,10 por kg = R$ 1100 por t ATR
+
+  document.getElementById('res_atr_val').innerText = atr.toFixed(1);
+  document.getElementById('res_atr_total').innerText = acucarTotal.toFixed(0) + ' t';
+  document.getElementById('res_atr_receita').innerText = 'R$ ' + Math.round(receita / 1000) + ' mil';
+
+  // Classificação
+  let classe = '', corFundo = '', corTexto = '';
+  if (atr < 120) { classe = 'Baixo'; corFundo = '#FFEBEE'; corTexto = '#C62828'; }
+  else if (atr < 130) { classe = 'Regular'; corFundo = '#FFF3E0'; corTexto = '#E65100'; }
+  else if (atr < 140) { classe = 'Bom'; corFundo = '#F1F8E9'; corTexto = '#2E7D32'; }
+  else { classe = 'Excelente'; corFundo = '#E8F5E9'; corTexto = '#1B5E20'; }
+
+  const badge = document.getElementById('atr_class_badge');
+  badge.innerText = classe;
+  badge.style.background = corFundo;
+  badge.style.color = corTexto;
+
+  // Agulha do gauge (faixa: 100 a 160 ATR)
+  const pct = Math.min(Math.max((atr - 100) / 60, 0), 1) * 100;
+  document.getElementById('atr_needle').style.left = pct + '%';
+
+  document.getElementById('res_atr_container').style.display = 'grid';
+  document.getElementById('atr_gauge_container').style.display = 'block';
+}
+
+/* ── CALCULADORA: CUSTO COLHEITA ── */
+function calcularCustoColheita() {
+  const area = parseFloat(document.getElementById('cc_area').value) || 0;
+  const tch = parseFloat(document.getElementById('cc_tch').value) || 0;
+  const custoMec = parseFloat(document.getElementById('cc_mecanizado').value) || 0;
+  const frete = parseFloat(document.getElementById('cc_frete').value) || 0;
+
+  if (!area || !tch) return;
+
+  const producao = area * tch;
+  const custoTotal = (area * custoMec) + (producao * frete);
+  const custoPorTon = producao > 0 ? custoTotal / producao : 0;
+
+  document.getElementById('res_cc_prod').innerText = Math.round(producao).toLocaleString('pt-BR') + ' t';
+  document.getElementById('res_cc_total').innerText = 'R$ ' + Math.round(custoTotal).toLocaleString('pt-BR');
+  document.getElementById('res_cc_ton').innerText = 'R$ ' + custoPorTon.toFixed(2);
+  document.getElementById('res_cc_container').style.display = 'grid';
+}
+
+/* ── CALCULADORA: VARIEDADE ── */
+function calcularVariedade() {
+  const area = parseFloat(document.getElementById('vr_area').value) || 0;
+  const tipo = document.getElementById('vr_tipo').value;
+  const custom = parseFloat(document.getElementById('vr_tch_custom').value) || 0;
+  const cortes = parseFloat(document.getElementById('vr_cortes').value) || 0;
+
+  let tchRef = 0;
+  if (tipo === '0') tchRef = custom;
+  else if (tipo === '120') tchRef = 85;
+  else if (tipo === '150') tchRef = 95;
+  else if (tipo === '180') tchRef = 105;
+
+  if (!area || !tchRef || !cortes) return;
+
+  const prod1Corte = area * tchRef;
+  // Soqueiras decaem ~8% por corte após o 1º
+  let total = prod1Corte;
+  for (let i = 1; i < cortes; i++) total += prod1Corte * Math.pow(0.92, i);
+  const media = total / cortes;
+
+  document.getElementById('res_vr_1corte').innerText = Math.round(prod1Corte).toLocaleString('pt-BR') + ' t';
+  document.getElementById('res_vr_total').innerText = Math.round(total).toLocaleString('pt-BR') + ' t';
+  document.getElementById('res_vr_media').innerText = Math.round(media).toLocaleString('pt-BR') + ' t';
+  document.getElementById('res_vr_container').style.display = 'grid';
+}
+
+/* ── LIBERAÇÕES (GATEC) ── */
+async function carregarDadosGATEC() {
+  const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
+  Papa.parse(URL_CSV, {
+    download: true, header: true, skipEmptyLines: true,
+    complete: function(results) {
+      const corpo = document.getElementById('corpo-tabela-gatec');
+      corpo.innerHTML = results.data.map(row => {
+        const status = (row["STATUS OS"] || "").toUpperCase().trim();
+        const isEncerrada = status.includes("ENCERRADA");
+        return `<tr class="linha-tabela">
+          <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
+          <td data-label="Frente:">${row["FRENTE"] || ""}</td>
+          <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
+          <td data-label="Talhões:">${row["LISTAGEM TALHAO"] || ""}</td>
+          <td data-label="Status:">
+            <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'}">
+              ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
+            </span>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+  });
+}
 
 function filtrarTabela() {
-
-
-
-    const buscaFrente = document.getElementById('filtroFrente').value.toLowerCase();
-
-
-
-    const buscaStatus = document.getElementById('filtroStatus').value;
-
-
-
-    const linhas = document.querySelectorAll('#corpo-tabela-gatec tr');
-
-
-
-    
-
-
-
-    linhas.forEach(linha => {
-
-
-
-        const frente = linha.cells[1].innerText.toLowerCase();
-
-
-
-        const status = linha.cells[4].innerText.toUpperCase();
-
-
-
-        
-
-
-
-        const matchFrente = frente.includes(buscaFrente);
-
-
-
-        const matchStatus = (buscaStatus === "" || status.includes(buscaStatus));
-
-
-
-        
-
-
-
-        linha.style.display = (matchFrente && matchStatus) ? '' : 'none';
-
-
-
-    });
-
-
-
+  const bFrente = document.getElementById('filtroFrente').value.toLowerCase();
+  const bStatus = document.getElementById('filtroStatus').value;
+  document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
+    const frente = linha.cells[1].innerText.toLowerCase();
+    const status = linha.cells[4].innerText.toUpperCase();
+    linha.style.display = (frente.includes(bFrente) && (bStatus === '' || status.includes(bStatus))) ? '' : 'none';
+  });
 }
 
-
-
-
-
-
-
-// Chamar a função ao carregar a página
-
-
-
+/* ── INIT ── */
+renderFrentes();
+update();
 carregarDadosGATEC();
-
-
-
 </script>
-
-
-
-
-
-
-
 </body>
-
-
-
-
-
-
-
 </html>
