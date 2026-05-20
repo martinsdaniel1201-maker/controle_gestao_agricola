@@ -644,7 +644,23 @@ function showTab(e, id) {
     }
 
 }
+function abrirSimulador() {
+    // Esconde todas as outras sections
+    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    // Mostra apenas a nova section do Simulador
+    document.getElementById('simulador').style.display = 'block';
+}
 
+function executarCalculosIntegrados() {
+    // Pegue os valores de TODAS as colhedoras e frentes de uma vez
+    const metaUnid = document.getElementById('metaUnid').value;
+    const diesel = document.getElementById('diesel').value;
+    const tch = document.getElementById('tch').value;
+    // ... e assim por diante
+    
+    // Execute o cálculo que você já tinha pronto
+    console.log("Calculando tudo...");
+}
 function gerarPDF() {
     const elemento = document.body; // Ou o ID do container da sua tabela
     
