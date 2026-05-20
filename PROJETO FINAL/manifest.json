@@ -1,0 +1,1 @@
+{  "name": "Agro Daniel Martins",  "short_name": "AgroCalc",  "start_url": "index.html",  "display": "standalone",  "background_color": "#121412",  "theme_color": "#4C9E31",  "icons": [    {      "src": "./icone_agro.png",      "sizes": "512x512",      "type": "image/png",      "purpose": "any"    }  ]}
