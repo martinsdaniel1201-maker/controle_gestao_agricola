@@ -227,6 +227,42 @@ tbody td {
     font-weight: bold;
     font-size: 11px;
 }
+	  /* Estilos para telas de computador (padrão) */
+
+/* Estilos para Celulares (telas menores que 768px) */
+@media screen and (max-width: 768px) {
+    /* Esconde o cabeçalho da tabela no celular para ganhar espaço */
+    thead {
+        display: none;
+    }
+
+    /* Transforma cada linha (tr) em um bloco (card) */
+    tr {
+        display: block;
+        background: #fff;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Faz cada célula (td) parecer uma linha de texto */
+    td {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0 !important;
+        border: none !important;
+        font-size: 14px;
+    }
+
+    /* Adiciona o rótulo antes de cada dado */
+    td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        color: #555;
+    }
+}
   </style>
 
 </head>
@@ -854,11 +890,11 @@ async function carregarDadosGATEC() {
                const isEncerrada = status.includes("ENCERRADA");
 
 return `<tr class="linha-tabela">
-    <td style="font-weight:500;">${row["LIBERAÇÃO"] || ""}</td>
-    <td>${row["FRENTE"] || ""}</td>
-    <td>${row["DESC.FAZENDA"] || ""}</td>
-    <td style="font-style: italic; color: #666;">${row["LISTAGEM TALHAO"] || ""}</td>
-    <td>
+    <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
+    <td data-label="Frente:">${row["FRENTE"] || ""}</td>
+    <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
+    <td data-label="Talhões:">${row["LISTAGEM TALHAO"] || ""}</td>
+    <td data-label="Status:">
         <span class="badge" style="background: ${isEncerrada ? '#ffebee' : '#e8f5e9'}; color: ${isEncerrada ? '#c62828' : '#2e7d32'}">
             ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
         </span>
