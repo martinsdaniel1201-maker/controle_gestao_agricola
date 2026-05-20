@@ -16,7 +16,7 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
@@ -608,7 +608,21 @@ function showTab(e, id) {
 
 }
 
+function gerarPDF() {
+    // Seleciona o conteúdo que você quer transformar em PDF
+    // Se quiser a tela inteira, use document.body ou uma div específica
+    const elemento = document.body; 
+    
+    const opt = {
+        margin:       0.5,
+        filename:     'relatorio_operacional.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
 
+    html2pdf().set(opt).from(elemento).save();
+}
 
 function voltarParaHome() {
 
