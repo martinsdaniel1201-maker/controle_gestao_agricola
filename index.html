@@ -18,7 +18,7 @@
       td, th, span, input, select { color: black !important; }
       .card { background: white !important; border: 1px solid #ccc !important; }
       .badge { border: 1px solid black !important; background: transparent !important; }
-      #btn-pdf-flutuante, .tab-btn, .sub-tab-btn, .menu-home-btn, .accordion-menu { display: none !important; }
+      #btn-pdf-flutuante, .tab-btn, .sub-tab-btn { display: none !important; }
     }
 
     :root {
@@ -88,7 +88,7 @@
 
     /* ── TABS ── */
     .tabs-nav {
-      display: none; gap: 6px;
+      display: flex; gap: 6px;
       padding: 5px;
       background: var(--surface);
       border-radius: var(--radius-lg);
@@ -113,40 +113,25 @@
     .section.active { display: block; }
     @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ── COLLAPSIBLE HEADERS (SIMULADOR ALTERATION) ── */
-    .collapsible-trigger {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 16px 20px;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      color: var(--green-900);
-      font-weight: 700;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      transition: background 0.2s;
+    /* ── SUB-TABS ── */
+    .sub-tabs-nav {
+      display: flex; gap: 6px; margin-bottom: 18px;
+      padding: 4px;
+      background: var(--green-50);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--green-100);
     }
-    .collapsible-trigger:hover { background: var(--surface2); }
-    .collapsible-trigger i.fa-chevron-down {
-      transition: transform 0.25s ease;
-      font-size: 12px;
-      color: var(--green-700);
+    .sub-tab-btn {
+      flex: 1; padding: 9px 8px; border: none; border-radius: var(--radius-sm);
+      background: transparent; color: var(--green-700);
+      font-weight: 700; font-size: 10px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: all 0.2s ease;
     }
-    .collapsible-trigger.active i.fa-chevron-down {
-      transform: rotate(180deg);
-    }
-    .sub-section-collapsible {
-      display: none;
-      animation: fadeSlide 0.25s ease-out;
-      margin-bottom: 18px;
-    }
-    .sub-section-collapsible.active { display: block; }
+    .sub-tab-btn i { font-size: 15px; }
+    .sub-tab-btn.active { background: var(--green-900); color: white; }
+    .sub-section { display: none; animation: fadeSlide 0.25s ease-out; }
+    .sub-section.active { display: block; }
 
     /* ── CARDS ── */
     .card {
@@ -168,175 +153,6 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; color: var(--green-700);
       flex-shrink: 0;
-    }
-
-    /* ── NAVIGATION NATIVE ACCORDION ── */
-    .menu-home-btn {
-      background: var(--grad);
-      color: white;
-      border: none;
-      padding: 18px;
-      border-radius: var(--radius-lg);
-      font-weight: 700;
-      font-size: 14px;
-      cursor: pointer;
-      width: 100%;
-      letter-spacing: 0.5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 4px 12px rgba(27,94,32,0.15);
-      transition: background 0.2s;
-    }
-    .menu-home-btn i.toggle-arrow {
-      transition: transform 0.25s ease;
-    }
-    .menu-home-btn.open i.toggle-arrow {
-      transform: rotate(180deg);
-    }
-    .accordion-menu {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-top: 4px;
-      margin-bottom: 18px;
-    }
-    .accordion-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 16px 20px;
-      border-radius: var(--radius-md);
-      font-weight: 700;
-      font-size: 12px;
-      color: var(--text-2);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      transition: all 0.2s;
-    }
-    .accordion-item:hover {
-      background: var(--green-50);
-      color: var(--green-900);
-      border-color: var(--green-100);
-    }
-    .accordion-item i {
-      font-size: 16px;
-      color: var(--green-700);
-      width: 20px;
-      text-align: center;
-    }
-
-    /* ── WEATHER SECTION ── */
-    .weather-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .weather-day {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 12px 6px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-    .weather-day.today {
-      background: var(--green-50);
-      border-color: var(--green-100);
-    }
-    .weather-day .day-name {
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: var(--text-3);
-    }
-    .weather-day.today .day-name {
-      color: var(--green-900);
-    }
-    .weather-day i {
-      font-size: 22px;
-      margin: 4px 0;
-    }
-    .weather-day .day-temp {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-2);
-    }
-    .weather-day .day-rain {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--blue);
-      display: flex;
-      align-items: center;
-      gap: 3px;
-    }
-
-    /* 30-Day Weather List */
-    .weather-30d-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--green-900);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin: 18px 0 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .weather-30d-scroll {
-      max-height: 250px;
-      overflow-y: auto;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      background: var(--surface2);
-    }
-    .weather-30d-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .weather-30d-row:last-child {
-      border-bottom: none;
-    }
-    .weather-30d-date {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-2);
-      width: 90px;
-    }
-    .weather-30d-icon {
-      font-size: 16px;
-      width: 30px;
-      text-align: center;
-    }
-    .weather-30d-temp {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-3);
-      width: 80px;
-      text-align: right;
-    }
-    .weather-30d-temp strong {
-      color: var(--text);
-    }
-    .weather-30d-rain {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--blue);
-      width: 70px;
-      text-align: right;
     }
 
     /* ── INPUTS ── */
@@ -410,7 +226,6 @@
       font-weight: 700; font-size: 11px; cursor: pointer;
       display: inline-flex; align-items: center; gap: 6px;
       margin-bottom: 14px; transition: all 0.18s;
-      width: 100%; justify-content: center;
     }
     .btn-voltar:hover { border-color: var(--green-500); }
 
@@ -422,7 +237,7 @@
     .frente-item:last-child { border-bottom: none; padding-bottom: 0; }
     .frente-info b { display: block; font-size: 13px; font-weight: 700; }
     .frente-info span { font-size: 11px; color: var(--text-3); margin-top: 2px; display: block; }
-    .frente-ton text-align: right; }
+    .frente-ton { text-align: right; }
     .frente-ton b { color: var(--green-900); font-size: 15px; }
     .frente-ton span { display: block; font-size: 10px; color: var(--text-3); margin-top: 2px; }
 
@@ -568,64 +383,32 @@
 
 <div class="container" id="app-root">
 
-  <section id="home_aba" class="section active">
-    <button class="menu-home-btn" onclick="toggleHomeMenu()">
-      <span><i class="fas fa-bars" style="margin-right:10px;"></i>  Abrir Menu Operacional</span>
-      <i class="fas fa-chevron-down toggle-arrow"></i>
-    </button>
-    
-    <div class="accordion-menu" id="home-accordion">
-      <div class="accordion-item" onclick="selectFromHome('simulador')">
-        <i class="fas fa-tractor"></i> Simulador de Campo
-      </div>
-      <div class="accordion-item" onclick="selectFromHome('liberacoes')">
-        <i class="fas fa-table"></i> Liberações GATEC
-      </div>
-      <div class="accordion-item" onclick="selectFromHome('calc_aba')">
-        <i class="fas fa-calculator"></i> Calculadora Agrícola
-      </div>
-    </div>
-
-    <div class="card" style="margin-top: 18px;">
-      <div class="card-title"><i class="fas fa-cloud-sun"></i> Previsão Operacional — Passos/MG</div>
-      
-      <div class="weather-grid" id="weather-container">
-        <p style="grid-column: span 3; font-size:12px; color:var(--text-3); text-align:center; padding:15px;">
-          <i class="fas fa-spinner fa-spin" style="margin-right: 5px;"></i> Sincronizando dados meteorológicos...
-        </p>
-      </div>
-
-      <div class="weather-30d-title"><i class="fas fa-calendar-days"></i> Tendência Estendida (Próximos 30 dias)</div>
-      <div class="weather-30d-scroll" id="weather-30d-container">
-        <p style="font-size:12px; color:var(--text-3); text-align:center; padding:15px;">
-          Aguardando dados...
-        </p>
-      </div>
-    </div>
-  </section>
-
   <nav class="tabs-nav" id="main-nav">
-    <button class="tab-btn" id="nav-btn-simulador" onclick="showTab(event,'simulador')">
+    <button class="tab-btn active" onclick="showTab(event,'simulador')">
       <i class="fas fa-tractor"></i>SIMULADOR
     </button>
-    <button class="tab-btn" id="nav-btn-liberacoes" onclick="showTab(event,'liberacoes')">
+    <button class="tab-btn" onclick="showTab(event,'liberacoes')">
       <i class="fas fa-table"></i>LIBERAÇÕES
     </button>
-    <button class="tab-btn" id="nav-btn-calc_aba" onclick="showTab(event,'calc_aba')">
+    <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
     </button>
   </nav>
 
-  <section id="simulador" class="section">
-    <button class="btn-voltar" onclick="voltarParaHome()">
-      <i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO
-    </button>
+  <!-- ══ ABA SIMULADOR ══ -->
+  <section id="simulador" class="section active">
 
-    <div class="collapsible-trigger" id="trigger_entrada" onclick="toggleCollapsible('sub_entrada')">
-      <span><i class="fas fa-cog" style="margin-right: 8px;"></i> Entrada: Parâmetros e Colhedoras</span>
-      <i class="fas fa-chevron-down"></i>
-    </div>
-    <div id="sub_entrada" class="sub-section-collapsible">
+    <nav class="sub-tabs-nav">
+      <button class="sub-tab-btn active" onclick="showSubTab(event,'sub_entrada')">
+        <i class="fas fa-edit"></i>COLHEDORAS
+      </button>
+      <button class="sub-tab-btn" onclick="showSubTab(event,'sub_dash')">
+        <i class="fas fa-chart-pie"></i>CONTROLE FRENTES
+      </button>
+    </nav>
+
+    <!-- SUB: COLHEDORAS -->
+    <div id="sub_entrada" class="sub-section active">
       <div class="card">
         <div class="card-title"><i class="fas fa-cog"></i> Configuração Geral</div>
         <div class="config-row">
@@ -639,11 +422,8 @@
       </button>
     </div>
 
-    <div class="collapsible-trigger" id="trigger_dash" onclick="toggleCollapsible('sub_dash')">
-      <span><i class="fas fa-chart-pie" style="margin-right: 8px;"></i> Painel: Controle de Frentes</span>
-      <i class="fas fa-chevron-down"></i>
-    </div>
-    <div id="sub_dash" class="sub-section-collapsible">
+    <!-- SUB: CONTROLE FRENTES (DASHBOARD) -->
+    <div id="sub_dash" class="sub-section">
       <div class="stats-row">
         <div class="widget">
           <div class="widget-accent"></div>
@@ -687,9 +467,10 @@
 
   </section>
 
+  <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
     <button class="btn-voltar" onclick="voltarParaHome()">
-      <i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO
+      <i class="fas fa-arrow-left"></i> VOLTAR
     </button>
     <div class="card">
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
@@ -716,11 +497,13 @@
     </div>
   </section>
 
+  <!-- ══ ABA CALCULADORA ══ -->
   <section id="calc_aba" class="section">
     <button class="btn-voltar" onclick="voltarParaHome()">
       <i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO
     </button>
 
+    <!-- 1. ESTIMATIVA DE SAFRA -->
     <div class="card">
       <div class="card-title"><i class="fas fa-chart-line"></i> Estimativa de Safra</div>
       <div class="grid-inputs">
@@ -736,6 +519,7 @@
       </div>
     </div>
 
+    <!-- 2. PLANEJAMENTO DE PLANTIO -->
     <div class="card">
       <div class="card-title"><i class="fas fa-seedling"></i> Planejamento de Plantio</div>
       <div class="grid-inputs">
@@ -761,6 +545,7 @@
       </div>
     </div>
 
+    <!-- 3. CALCULADORA DE ATR (NOVA) -->
     <div class="card">
       <div class="card-title"><i class="fas fa-flask"></i> Calculadora de ATR — Qualidade da Cana</div>
       <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
@@ -790,6 +575,7 @@
       <p style="font-size:10px; color:var(--text-3); margin-top:10px;">* Receita calculada com base no preço de referência CONSECANA (R$ 1,10/kg ATR)</p>
     </div>
 
+    <!-- 4. CUSTO DE COLHEITA (NOVA) -->
     <div class="card">
       <div class="card-title"><i class="fas fa-dollar-sign"></i> Análise de Custo de Colheita</div>
       <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
@@ -808,6 +594,7 @@
       </div>
     </div>
 
+    <!-- 5. PRODUTIVIDADE POTENCIAL (NOVA) -->
     <div class="card">
       <div class="card-title"><i class="fas fa-leaf"></i> Produtividade Potencial por Variedade</div>
       <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
@@ -836,7 +623,7 @@
 
   </section>
 
-  <button id="btn-atualizar-global" class="btn-main" onclick="update()" style="display:none;">
+  <button id="btn-atualizar-global" class="btn-main" onclick="update()">
     <i class="fas fa-sync-alt" style="margin-right:6px"></i> ATUALIZAR INDICADORES
   </button>
 
@@ -851,175 +638,36 @@ let frentes = [
 ];
 let myChart = null;
 
-/* ── NAVEGAÇÃO HOME E ABAS ── */
-function toggleHomeMenu() {
-  const menu = document.getElementById('home-accordion');
-  const btn = document.querySelector('.menu-home-btn');
-  if (menu.style.maxHeight && menu.style.maxHeight !== '0px') {
-    menu.style.maxHeight = '0px';
-    btn.classList.remove('open');
-  } else {
-    menu.style.maxHeight = menu.scrollHeight + "px";
-    btn.classList.add('open');
-  }
-}
-
-function selectFromHome(tabId) {
-  const menu = document.getElementById('home-accordion');
-  const btn = document.querySelector('.menu-home-btn');
-  menu.style.maxHeight = '0px';
-  btn.classList.remove('open');
-
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-
-  document.getElementById('main-nav').style.display = 'flex';
-  document.getElementById('btn-atualizar-global').style.display = (tabId === 'simulador') ? 'block' : 'none';
-
-  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-  const targetNavBtn = document.getElementById(`nav-btn-${tabId}`);
-  if (targetNavBtn) targetNavBtn.classList.add('active');
-
-  if (tabId === 'simulador') {
-    document.getElementById('sub_entrada').classList.add('active');
-    document.getElementById('trigger_entrada').classList.add('active');
-    document.getElementById('sub_dash').classList.remove('active');
-    document.getElementById('trigger_dash').classList.remove('active');
-    renderChart();
-  }
-}
-
+/* ── NAVEGAÇÃO ── */
 function showTab(e, id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (e && e.currentTarget) e.currentTarget.classList.add('active');
 
-  document.getElementById('main-nav').style.display = (id === 'home_aba') ? 'none' : 'flex';
-  document.getElementById('btn-atualizar-global').style.display = (id === 'simulador') ? 'block' : 'none';
+  const isExtra = (id === 'calc_aba' || id === 'liberacoes');
+  document.getElementById('main-nav').style.display = isExtra ? 'none' : 'flex';
+  document.getElementById('btn-atualizar-global').style.display = isExtra ? 'none' : 'block';
 
   if (id === 'simulador') {
-    renderChart();
+    if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
   }
+}
+
+function showSubTab(e, id) {
+  document.querySelectorAll('.sub-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sub-tab-btn').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (e && e.currentTarget) e.currentTarget.classList.add('active');
+  if (id === 'sub_dash') renderChart();
 }
 
 function voltarParaHome() {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('home_aba').classList.add('active');
-  document.getElementById('main-nav').style.display = 'none';
-  document.getElementById('btn-atualizar-global').style.display = 'none';
-}
-
-/* ── SUB-ABAS SIMULADOR ── */
-function toggleCollapsible(subSectionId) {
-  const target = document.getElementById(subSectionId);
-  const trigger = document.getElementById(`trigger_${subSectionId.split('_')[1]}`);
-  
-  if (target.classList.contains('active')) {
-    target.classList.remove('active');
-    trigger.classList.remove('active');
-  } else {
-    target.classList.add('active');
-    trigger.classList.add('active');
-    if (subSectionId === 'sub_dash') {
-      setTimeout(renderChart, 50);
-    }
-  }
-}
-
-/* ── PREVISÃO DO TEMPO REAL-TIME VIA OPEN-METEO API ── */
-async function carregarPrevisaoTempo() {
-  const container3d = document.getElementById('weather-container');
-  const container30d = document.getElementById('weather-30d-container');
-  
-  // Coordenadas exatas de Passos/MG fornecidas
-  const lat = -20.7189;
-  const lon = -46.6111;
-  
-  // Endpoint configurado para dados diários de Temperatura Máx/Mín, Código do Tempo (WMO) e Soma de Precipitação para 30 dias
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&forecast_days=30&timezone=America%2FSao_Paulo`;
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Erro na requisição da API");
-    const data = await response.json();
-    
-    // Limpa as mensagens de carregamento anteriores
-    container3d.innerHTML = '';
-    container30d.innerHTML = '';
-
-    // Mapeamento de Códigos WMO para ícones Font Awesome v6 e cores contextuais
-    const parseWmoCode = (code) => {
-      if (code === 0) return { icon: 'fa-sun', color: '#E65100' }; // Céu limpo
-      if ([1, 2, 3].includes(code)) return { icon: 'fa-cloud-sun', color: '#F57C00' }; // Parcialmente nublado
-      if ([45, 48].includes(code)) return { icon: 'fa-smog', color: '#78909C' }; // Nevoeiro
-      if ([51, 53, 55, 56, 57].includes(code)) return { icon: 'fa-cloud-sun-rain', color: '#1976D2' }; // Chuvisco
-      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { icon: 'fa-cloud-showers-heavy', color: '#1565C0' }; // Chuva regulamentar / Pancadas
-      if ([71, 73, 75, 77, 85, 86].includes(code)) return { icon: 'fa-snowflake', color: '#00B0FF' }; // Neve / Granizo leve
-      if ([95, 96, 99].includes(code)) return { icon: 'fa-cloud-bolt', color: '#212121' }; // Tempestade
-      return { icon: 'fa-cloud', color: '#4A554A' }; // Padrão nublado
-    };
-
-    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-    // 1. RENDERIZA OS 3 CARDS DE TOPO (Hoje + 2 dias)
-    for (let i = 0; i < 3; i++) {
-      const rawDate = data.daily.time[i];
-      const dataObj = new Date(rawDate + 'T00:00:00');
-      
-      const nomeDia = (i === 0) ? 'HOJE' : diasSemana[dataObj.getDay()];
-      const tMax = Math.round(data.daily.temperature_2m_max[i]);
-      const tMin = Math.round(data.daily.temperature_2m_min[i]);
-      const chuva = data.daily.precipitation_sum[i].toFixed(1);
-      const wcode = data.daily.weathercode[i];
-      
-      const configClima = parseWmoCode(wcode);
-
-      const divCard = document.createElement('div');
-      divCard.className = `weather-day ${i === 0 ? 'today' : ''}`;
-      
-      divCard.innerHTML = `
-        <span class="day-name">${nomeDia}</span>
-        <i class="fas ${configClima.icon}" style="color: ${configClima.color}"></i>
-        <span class="day-temp">${tMax}° / ${tMin}°</span>
-        <span class="day-rain"><i class="fas fa-droplet"></i> ${chuva}mm</span>
-      `;
-      
-      container3d.appendChild(divCard);
-    }
-
-    // 2. RENDERIZA O PAINEL DE 30 DIAS COMPACTO
-    for (let i = 0; i < 30; i++) {
-      const rawDate = data.daily.time[i];
-      const dataObj = new Date(rawDate + 'T00:00:00');
-      
-      // Formata a data em DD/MM
-      const diaFormatado = String(dataObj.getDate()).padStart(2, '0') + '/' + String(dataObj.getMonth() + 1).padStart(2, '0');
-      const labelDia = `${diaFormatado} (${diasSemana[dataObj.getDay()]})`;
-      
-      const tMax = Math.round(data.daily.temperature_2m_max[i]);
-      const tMin = Math.round(data.daily.temperature_2m_min[i]);
-      const chuva = data.daily.precipitation_sum[i].toFixed(1);
-      const wcode = data.daily.weathercode[i];
-      
-      const configClima = parseWmoCode(wcode);
-
-      const row = document.createElement('div');
-      row.className = 'weather-30d-row';
-      row.innerHTML = `
-        <div class="weather-30d-date">${i === 0 ? 'Hoje' : labelDia}</div>
-        <div class="weather-30d-icon"><i class="fas ${configClima.icon}" style="color: ${configClima.color}"></i></div>
-        <div class="weather-30d-rain"><i class="fas fa-droplet" style="font-size:10px;"></i> ${chuva} mm</div>
-        <div class="weather-30d-temp"><strong>${tMax}°</strong> / ${tMin}°</div>
-      `;
-      container30d.appendChild(row);
-    }
-
-  } catch (error) {
-    console.error("Falha ao recuperar dados do Open-Meteo:", error);
-    container3d.innerHTML = `<p style="grid-column: span 3; font-size:12px; color:var(--red); text-align:center;">Erro ao sincronizar clima online.</p>`;
-    container30d.innerHTML = `<p style="font-size:12px; color:var(--red); text-align:center; padding:10px;">Não foi possível buscar a tendência de 30 dias.</p>`;
-  }
+  showTab(null, 'simulador');
+  document.getElementById('main-nav').style.display = 'flex';
+  document.getElementById('btn-atualizar-global').style.display = 'block';
+  const primeiro = document.querySelector('.tabs-nav .tab-btn');
+  if (primeiro) primeiro.classList.add('active');
 }
 
 /* ── PDF ── */
@@ -1083,7 +731,8 @@ function update() {
   const metaG = parseFloat(document.getElementById('meta_val').value) || 1;
   let tTon = 0, tCusto = 0, rankingHtml = '';
 
-  document.getElementById('meta_label_total').innerText = metaG.toLocaleString('pt-BR') + ' t';
+  document.getElementById('meta_label_total').innerText =
+    metaG.toLocaleString('pt-BR') + ' t';
 
   frentes.forEach(f => {
     const rend = (f.vel * f.larg * (f.efc / 100)) / 10;
@@ -1119,9 +768,7 @@ function update() {
 
 /* ── GRÁFICO ── */
 function renderChart() {
-  const canvas = document.getElementById('prodChart');
-  if(!canvas || canvas.clientWidth === 0) return;
-  const ctx = canvas.getContext('2d');
+  const ctx = document.getElementById('prodChart').getContext('2d');
   if (myChart) myChart.destroy();
   myChart = new Chart(ctx, {
     type: 'bar',
@@ -1189,9 +836,9 @@ function calcularPlantio() {
   const area = parseFloat(document.getElementById('plantio_area').value) || 0;
   const consumo = parseFloat(document.getElementById('plantio_consumo').value) || 0;
   const total = area * consumo;
-  const viajes = Math.ceil(total / 30);
+  const viagens = Math.ceil(total / 30);
   document.getElementById('res_mudas_total').innerText = Math.round(total).toLocaleString('pt-BR') + ' t';
-  document.getElementById('res_mudas_viagens').innerText = viajes;
+  document.getElementById('res_mudas_viagens').innerText = viagens;
 }
 
 /* ── CALCULADORA: ATR ── */
@@ -1203,15 +850,17 @@ function calcularATR() {
 
   if (!pol || !fibra || !pureza) return;
 
+  // Fórmula CONSECANA: ATR = (pol / (1 - fibra/100)) * (pureza/100) * 10
   const polCorrigido = pol / (1 - fibra / 100);
   const atr = polCorrigido * (pureza / 100) * 10;
   const acucarTotal = (atr / 1000) * tons;
-  const receita = acucarTotal * 1100;
+  const receita = acucarTotal * 1100; // R$ 1,10 por kg = R$ 1100 por t ATR
 
   document.getElementById('res_atr_val').innerText = atr.toFixed(1);
   document.getElementById('res_atr_total').innerText = acucarTotal.toFixed(0) + ' t';
   document.getElementById('res_atr_receita').innerText = 'R$ ' + Math.round(receita / 1000) + ' mil';
 
+  // Classificação
   let classe = '', corFundo = '', corTexto = '';
   if (atr < 120) { classe = 'Baixo'; corFundo = '#FFEBEE'; corTexto = '#C62828'; }
   else if (atr < 130) { classe = 'Regular'; corFundo = '#FFF3E0'; corTexto = '#E65100'; }
@@ -1223,6 +872,7 @@ function calcularATR() {
   badge.style.background = corFundo;
   badge.style.color = corTexto;
 
+  // Agulha do gauge (faixa: 100 a 160 ATR)
   const pct = Math.min(Math.max((atr - 100) / 60, 0), 1) * 100;
   document.getElementById('atr_needle').style.left = pct + '%';
 
@@ -1265,6 +915,7 @@ function calcularVariedade() {
   if (!area || !tchRef || !cortes) return;
 
   const prod1Corte = area * tchRef;
+  // Soqueiras decaem ~8% por corte após o 1º
   let total = prod1Corte;
   for (let i = 1; i < cortes; i++) total += prod1Corte * Math.pow(0.92, i);
   const media = total / cortes;
@@ -1282,7 +933,6 @@ async function carregarDadosGATEC() {
     download: true, header: true, skipEmptyLines: true,
     complete: function(results) {
       const corpo = document.getElementById('corpo-tabela-gatec');
-      if(!corpo) return;
       corpo.innerHTML = results.data.map(row => {
         const status = (row["STATUS OS"] || "").toUpperCase().trim();
         const isEncerrada = status.includes("ENCERRADA");
@@ -1312,16 +962,10 @@ function filtrarTabela() {
   });
 }
 
-/* ── INIT SCRIPT ── */
+/* ── INIT ── */
 renderFrentes();
 update();
 carregarDadosGATEC();
-
-// Executa a carga inicial do clima
-carregarPrevisaoTempo();
-
-// Executa a atualização automática em background a cada 15 minutos (15 * 60 * 1000 ms)
-setInterval(carregarPrevisaoTempo, 900000);
 </script>
 </body>
 </html>
