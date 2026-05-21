@@ -97,7 +97,7 @@
       overflow-x: auto;
     }
     .tab-btn {
-      flex: 1; min-width: 82px; padding: 10px 6px;
+      flex: 1; min-width: 72px; padding: 10px 6px;
       border: none; border-radius: var(--radius-md);
       background: transparent; color: var(--text-3);
       font-weight: 700; font-size: 10px; cursor: pointer;
@@ -122,14 +122,22 @@
       border: 1px solid var(--green-100);
     }
     .sub-tab-btn {
-      flex: 1; padding: 9px 8px; border: none; border-radius: var(--radius-sm);
+      flex: 1; padding: 10px 8px; border: none; border-radius: var(--radius-sm);
       background: transparent; color: var(--green-700);
       font-weight: 700; font-size: 10px; cursor: pointer;
       display: flex; flex-direction: column; align-items: center; gap: 4px;
       transition: all 0.2s ease;
+      box-shadow: none;
     }
     .sub-tab-btn i { font-size: 15px; }
-    .sub-tab-btn.active { background: var(--green-900); color: white; }
+    .sub-tab-btn.active {
+      background: var(--green-900); color: white;
+      box-shadow: 0 3px 10px rgba(27,94,32,0.35);
+    }
+    .sub-tab-btn:hover:not(.active) {
+      background: var(--green-100);
+      box-shadow: 0 2px 6px rgba(27,94,32,0.15);
+    }
     .sub-section { display: none; animation: fadeSlide 0.25s ease-out; }
     .sub-section.active { display: block; }
 
@@ -171,6 +179,15 @@
       transition: border-color 0.18s;
     }
     .field input:focus, .field select:focus { border-color: var(--green-500); }
+
+    /* Input com sufixo de unidade */
+    .input-unit-wrap { position: relative; }
+    .input-unit-wrap input { padding-right: 44px; }
+    .input-unit {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      font-size: 10px; font-weight: 700; color: var(--text-3);
+      pointer-events: none; letter-spacing: 0.3px;
+    }
 
     /* ── RESULT BOXES ── */
     .calc-res-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
@@ -229,6 +246,19 @@
     }
     .btn-voltar:hover { border-color: var(--green-500); }
 
+    /* Botões secundários (salvar/carregar) */
+    .btn-secondary {
+      background: var(--surface2); color: var(--green-700);
+      border: 1.5px solid var(--border);
+      padding: 9px 14px; border-radius: var(--radius-sm);
+      font-weight: 700; font-size: 11px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: all 0.18s;
+    }
+    .btn-secondary:hover { border-color: var(--green-500); background: var(--green-50); }
+    .btn-secondary.danger { color: var(--red); border-color: #EF9A9A; }
+    .btn-secondary.danger:hover { background: var(--red-bg); }
+
     /* ── FRENTE ITEM ── */
     .frente-item {
       padding: 14px 0; border-bottom: 1px solid var(--border);
@@ -286,7 +316,6 @@
       content: ''; flex: 1; height: 1px; background: var(--border);
     }
 
-    /* Resultado destaque grande */
     .res-highlight {
       background: var(--grad); color: white;
       border-radius: var(--radius-md); padding: 16px; text-align: center; margin-top: 14px;
@@ -294,7 +323,6 @@
     .res-highlight .val { font-size: 26px; font-weight: 800; }
     .res-highlight .lbl { font-size: 10px; opacity: 0.85; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
-    /* Caixas de resultado coloridas */
     .res-grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 12px; }
     .res-card { border-radius: var(--radius-md); padding: 14px 10px; text-align: center; border: 1px solid; }
     .res-card .rc-val { font-size: 18px; font-weight: 800; margin-top: 4px; }
@@ -312,7 +340,6 @@
     .rc-red .rc-val { color: var(--red); }
     .rc-red .rc-lbl { color: #B71C1C; }
 
-    /* Indicador visual de qualidade ATR */
     .atr-gauge { margin-top: 14px; }
     .atr-gauge-bar {
       height: 12px; border-radius: 99px; overflow: hidden;
@@ -327,7 +354,6 @@
     .atr-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-3); font-weight: 600; }
     .atr-class { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 50px; font-size: 11px; font-weight: 700; }
 
-    /* Filtros liberações */
     .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; }
     .filter-bar input, .filter-bar select {
       padding: 9px 12px; border-radius: var(--radius-sm);
@@ -337,11 +363,10 @@
     .filter-bar input { flex: 1; }
     .filter-bar input:focus, .filter-bar select:focus { border-color: var(--green-500); }
 
-    /* Tag de configuração geral */
     .config-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
     .config-row .field { flex: 1; min-width: 130px; }
 
-    /* Colhedora card melhorado */
+    /* ── COLHEDORA CARD ── */
     .frente-card {
       background: var(--surface); border-radius: var(--radius-lg);
       border: 1px solid var(--border); padding: 16px 18px; margin-bottom: 12px;
@@ -354,6 +379,10 @@
       border: none; font-weight: 800; color: var(--green-900);
       outline: none; font-size: 14px; background: transparent; flex: 1;
     }
+    .frente-card-header input:focus {
+      border-bottom: 2px solid var(--green-500);
+      color: var(--green-700);
+    }
     .btn-remove-frente {
       width: 28px; height: 28px; border-radius: 8px;
       background: var(--red-bg); border: none; cursor: pointer;
@@ -363,8 +392,174 @@
     }
     .btn-remove-frente:hover { background: #FFCDD2; }
 
-    /* Separador de seção na calc */
     .divider-line { height: 1px; background: var(--border); margin: 6px 0 18px; }
+
+    /* ── TOGGLE MODO SIMULAÇÃO ── */
+    .toggle-mode-bar {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+    .toggle-mode-label { font-size: 11px; font-weight: 700; color: var(--text-2); flex: 1; }
+    .toggle-mode-label span { display: block; font-size: 9px; color: var(--text-3); font-weight: 500; margin-top: 2px; }
+    .toggle-switch {
+      position: relative; width: 46px; height: 24px; flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--green-100); border-radius: 24px;
+      transition: background 0.3s;
+    }
+    .toggle-slider:before {
+      content: ''; position: absolute;
+      height: 18px; width: 18px; left: 3px; bottom: 3px;
+      background: white; border-radius: 50%;
+      transition: transform 0.3s; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--green-700); }
+    .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+    .mode-badge {
+      padding: 3px 10px; border-radius: 50px; font-size: 10px; font-weight: 700;
+    }
+    .mode-badge.real { background: var(--green-50); color: var(--green-700); }
+    .mode-badge.sim { background: #E3F2FD; color: #1565C0; }
+
+    /* ── SALVAR CENÁRIOS ── */
+    .cenario-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center;
+    }
+    .cenario-select {
+      flex: 1; min-width: 150px; padding: 9px 12px;
+      border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+      background: var(--surface2); color: var(--text);
+      font-size: 12px; font-weight: 600; outline: none;
+    }
+    .cenario-select:focus { border-color: var(--green-500); }
+
+    /* ── INSIGHTS OPERACIONAIS ── */
+    .insights-box {
+      border-radius: var(--radius-md); overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .insight-item {
+      padding: 10px 14px; font-size: 12px; line-height: 1.5;
+      border-left: 3px solid; display: flex; align-items: flex-start; gap: 8px;
+    }
+    .insight-item.warn {
+      background: var(--amber-bg); border-color: var(--amber); color: #4E2500;
+    }
+    .insight-item.tip {
+      background: var(--blue-bg); border-color: var(--blue); color: #0D2F5E;
+    }
+    .insight-item.ok {
+      background: var(--green-50); border-color: var(--green-500); color: #1A3A1A;
+    }
+    .insight-item i { margin-top: 2px; flex-shrink: 0; }
+
+    /* ── CLIMA ── */
+    .clima-city-bar {
+      display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .clima-city-bar .field { flex: 1; min-width: 150px; }
+    .btn-clima {
+      background: var(--grad); color: white; border: none;
+      padding: 10px 18px; border-radius: var(--radius-sm);
+      font-weight: 700; font-size: 12px; cursor: pointer;
+      transition: opacity 0.15s; white-space: nowrap;
+    }
+    .btn-clima:hover { opacity: 0.88; }
+
+    /* Clima sub-tabs */
+    .clima-sub-tabs {
+      display: flex; gap: 6px; margin-bottom: 16px;
+    }
+    .clima-sub-btn {
+      flex: 1; padding: 9px 6px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); background: var(--surface2);
+      color: var(--text-3); font-weight: 700; font-size: 10px;
+      cursor: pointer; text-align: center; transition: all 0.18s;
+    }
+    .clima-sub-btn.active {
+      background: var(--green-50); color: var(--green-900);
+      border-color: var(--green-500);
+    }
+    .clima-sub-panel { display: none; }
+    .clima-sub-panel.active { display: block; }
+
+    /* Cards de previsão */
+    .forecast-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 10px; margin-bottom: 14px;
+    }
+    .forecast-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 14px 10px; text-align: center;
+      transition: border-color 0.18s;
+    }
+    .forecast-card:hover { border-color: var(--green-500); }
+    .forecast-card.today { border-color: var(--green-500); background: var(--green-50); }
+    .forecast-day { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; margin-bottom: 8px; }
+    .forecast-icon { font-size: 28px; margin: 6px 0; }
+    .forecast-cond { font-size: 9px; color: var(--text-3); font-weight: 600; margin-bottom: 8px; }
+    .forecast-temps { display: flex; justify-content: center; gap: 8px; }
+    .temp-max { font-size: 15px; font-weight: 800; color: var(--red); }
+    .temp-min { font-size: 15px; font-weight: 800; color: var(--blue); }
+    .forecast-rain {
+      margin-top: 8px; padding: 4px 8px;
+      background: var(--blue-bg); border-radius: 6px;
+      font-size: 10px; font-weight: 700; color: var(--blue);
+    }
+
+    /* Tendência 30 dias */
+    .tendencia-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 4px; margin-bottom: 14px;
+    }
+    .tend-day {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 4px; text-align: center;
+    }
+    .tend-day-num { font-size: 9px; font-weight: 700; color: var(--text-3); }
+    .tend-day-icon { font-size: 14px; margin: 3px 0; }
+    .tend-day-rain { font-size: 8px; color: var(--blue); font-weight: 700; }
+
+    /* Histórico */
+    .historico-result {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px; margin-top: 14px;
+    }
+
+    /* Loading spinner */
+    .clima-loading {
+      text-align: center; padding: 30px;
+      color: var(--text-3); font-size: 13px;
+    }
+    .clima-loading i { font-size: 24px; margin-bottom: 8px; display: block; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 10000; display: flex; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--surface); border-radius: var(--radius-lg);
+      padding: 24px; width: 100%; max-width: 360px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+    }
+    .modal-title { font-size: 15px; font-weight: 800; margin-bottom: 14px; }
+    .modal-input {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600; outline: none; margin-bottom: 14px;
+      transition: border-color 0.18s;
+    }
+    .modal-input:focus { border-color: var(--green-500); }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btns button { flex: 1; }
   </style>
 </head>
 <body>
@@ -372,6 +567,18 @@
 <button id="btn-pdf-flutuante" onclick="gerarPDF()">
   <i class="fas fa-print"></i> PDF
 </button>
+
+<!-- Modal Salvar Cenário -->
+<div class="modal-overlay" id="modal-cenario">
+  <div class="modal-box">
+    <div class="modal-title"><i class="fas fa-save" style="color:var(--green-700);margin-right:8px"></i>Salvar Simulação</div>
+    <input class="modal-input" id="modal-cenario-nome" type="text" placeholder='Ex: "Cenário Seca - Maio/26"'>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-main" style="margin:0" onclick="confirmarSalvar()">Salvar</button>
+    </div>
+  </div>
+</div>
 
 <header class="app-header">
   <div class="app-header-inner">
@@ -393,6 +600,9 @@
     <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
     </button>
+    <button class="tab-btn" onclick="showTab(event,'clima_aba')">
+      <i class="fas fa-cloud-sun"></i>CLIMA
+    </button>
   </nav>
 
   <!-- ══ ABA SIMULADOR ══ -->
@@ -409,13 +619,59 @@
 
     <!-- SUB: COLHEDORAS -->
     <div id="sub_entrada" class="sub-section active">
+
+      <!-- Toggle Modo -->
+      <div class="toggle-mode-bar">
+        <div class="toggle-mode-label">
+          <span id="modo-label-titulo">Modo Atual</span>
+          <span id="modo-label-desc">Visualizando dados reais da operação</span>
+        </div>
+        <span class="mode-badge real" id="modo-badge">REAL</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-modo" onchange="alternarModo()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Gerenciar Cenários -->
       <div class="card">
         <div class="card-title"><i class="fas fa-cog"></i> Configuração Geral</div>
-        <div class="config-row">
-          <div class="field"><label>Meta Unidade (t)</label><input type="number" id="meta_val" value="6500" oninput="update()"></div>
-          <div class="field"><label>Diesel R$/L</label><input type="number" id="diesel_val" value="6.10" step="0.01" oninput="update()"></div>
+        <div class="config-row" style="margin-bottom:12px">
+          <div class="field">
+            <label>Meta Unidade</label>
+            <div class="input-unit-wrap">
+              <input type="number" id="meta_val" value="6500" oninput="update()">
+              <span class="input-unit">t</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Diesel</label>
+            <div class="input-unit-wrap">
+              <input type="number" id="diesel_val" value="6.10" step="0.01" oninput="update()">
+              <span class="input-unit">R$/L</span>
+            </div>
+          </div>
+        </div>
+        <!-- Barra de cenários -->
+        <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:2px;">
+          <div style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+            <i class="fas fa-folder" style="margin-right:4px"></i> Gerenciar Cenários Salvos
+          </div>
+          <div class="cenario-bar">
+            <select class="cenario-select" id="cenario-select">
+              <option value="">— Nenhum cenário salvo —</option>
+            </select>
+            <button class="btn-secondary" onclick="carregarCenario()"><i class="fas fa-folder-open"></i> Carregar</button>
+            <button class="btn-secondary danger" onclick="excluirCenario()"><i class="fas fa-trash"></i></button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-secondary" style="flex:1" onclick="abrirModalSalvar()">
+              <i class="fas fa-save"></i> Salvar Simulação
+            </button>
+          </div>
         </div>
       </div>
+
       <div id="frentes-list"></div>
       <button class="btn-add" onclick="addFrente()">
         <i class="fas fa-plus" style="margin-right:6px"></i> NOVA FRENTE DE TRABALHO
@@ -436,6 +692,14 @@
           <div class="widget-lab">Custo Diesel</div>
           <div class="widget-val red" id="total_custo">R$ 0</div>
           <div class="widget-lab">Total/Dia</div>
+        </div>
+      </div>
+
+      <!-- Insights Operacionais -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-lightbulb"></i> Insights Operacionais</div>
+        <div id="insights-container">
+          <div class="insight-item ok"><i class="fas fa-check-circle"></i><span>Nenhum alerta no momento. Todos os indicadores dentro do esperado.</span></div>
         </div>
       </div>
 
@@ -507,10 +771,34 @@
     <div class="card">
       <div class="card-title"><i class="fas fa-chart-line"></i> Estimativa de Safra</div>
       <div class="grid-inputs">
-        <div class="field"><label>Área Bruta (ha)</label><input type="number" id="safra_area" placeholder="Ex: 100" oninput="calcularSafra()"></div>
-        <div class="field"><label>TCH Esperado</label><input type="number" id="safra_tch" placeholder="Ex: 85" oninput="calcularSafra()"></div>
-        <div class="field"><label>Aproveit. Área %</label><input type="number" id="safra_aproveit" value="95" oninput="calcularSafra()"></div>
-        <div class="field"><label>Perda Colheita %</label><input type="number" id="safra_perda" value="3" oninput="calcularSafra()"></div>
+        <div class="field">
+          <label>Área Bruta</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="safra_area" placeholder="Ex: 100" oninput="calcularSafra()">
+            <span class="input-unit">ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>TCH Esperado</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="safra_tch" placeholder="Ex: 85" oninput="calcularSafra()">
+            <span class="input-unit">t/ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Aproveit. Área</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="safra_aproveit" value="95" oninput="calcularSafra()">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Perda Colheita</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="safra_perda" value="3" oninput="calcularSafra()">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
       </div>
       <div class="calc-res-container">
         <div class="res-box"><span>Área Útil</span><b id="res_area_util">0 ha</b></div>
@@ -523,7 +811,13 @@
     <div class="card">
       <div class="card-title"><i class="fas fa-seedling"></i> Planejamento de Plantio</div>
       <div class="grid-inputs">
-        <div class="field"><label>Área a Plantar (ha)</label><input type="number" id="plantio_area" placeholder="Ex: 10" oninput="calcularPlantio()"></div>
+        <div class="field">
+          <label>Área a Plantar</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="plantio_area" placeholder="Ex: 10" oninput="calcularPlantio()">
+            <span class="input-unit">ha</span>
+          </div>
+        </div>
         <div class="field">
           <label>Tipo de Plantio</label>
           <select id="plantio_tipo" onchange="ajustarSugerido()">
@@ -532,7 +826,13 @@
             <option value="Meiose">Meiosi Manual</option>
           </select>
         </div>
-        <div class="field"><label>Consumo (t/ha)</label><input type="number" id="plantio_consumo" value="15" oninput="calcularPlantio()"></div>
+        <div class="field">
+          <label>Consumo</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="plantio_consumo" value="15" oninput="calcularPlantio()">
+            <span class="input-unit">t/ha</span>
+          </div>
+        </div>
       </div>
       <div class="calc-res-container">
         <div class="res-box" style="background:var(--amber-bg); border-color:#FFCC80;">
@@ -545,17 +845,41 @@
       </div>
     </div>
 
-    <!-- 3. CALCULADORA DE ATR (NOVA) -->
+    <!-- 3. CALCULADORA DE ATR -->
     <div class="card">
       <div class="card-title"><i class="fas fa-flask"></i> Calculadora de ATR — Qualidade da Cana</div>
       <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
         O ATR (Açúcar Total Recuperável) mede a quantidade de açúcar aproveitável por tonelada de cana. Insira os dados do boletim tecnológico.
       </p>
       <div class="grid-inputs">
-        <div class="field"><label>Pol Cana (%)</label><input type="number" id="atr_pol" placeholder="Ex: 14.5" step="0.01" oninput="calcularATR()"></div>
-        <div class="field"><label>Fibra (%)</label><input type="number" id="atr_fibra" placeholder="Ex: 13" step="0.01" oninput="calcularATR()"></div>
-        <div class="field"><label>Pureza (%)</label><input type="number" id="atr_pureza" placeholder="Ex: 84" step="0.01" oninput="calcularATR()"></div>
-        <div class="field"><label>Toneladas Colhidas</label><input type="number" id="atr_tons" placeholder="Ex: 5000" oninput="calcularATR()"></div>
+        <div class="field">
+          <label>Pol Cana</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="atr_pol" placeholder="Ex: 14.5" step="0.01" oninput="calcularATR()">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Fibra</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="atr_fibra" placeholder="Ex: 13" step="0.01" oninput="calcularATR()">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Pureza</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="atr_pureza" placeholder="Ex: 84" step="0.01" oninput="calcularATR()">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Toneladas Colhidas</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="atr_tons" placeholder="Ex: 5000" oninput="calcularATR()">
+            <span class="input-unit">t</span>
+          </div>
+        </div>
       </div>
       <div class="res-grid-3" id="res_atr_container" style="display:none;">
         <div class="res-card rc-green"><div class="rc-lbl">ATR (kg/t)</div><div class="rc-val" id="res_atr_val">—</div></div>
@@ -575,17 +899,38 @@
       <p style="font-size:10px; color:var(--text-3); margin-top:10px;">* Receita calculada com base no preço de referência CONSECANA (R$ 1,10/kg ATR)</p>
     </div>
 
-    <!-- 4. CUSTO DE COLHEITA (NOVA) -->
+    <!-- 4. CUSTO DE COLHEITA -->
     <div class="card">
       <div class="card-title"><i class="fas fa-dollar-sign"></i> Análise de Custo de Colheita</div>
-      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
-        Calcule o custo total e por tonelada da operação de colheita mecanizada.
-      </p>
       <div class="grid-inputs">
-        <div class="field"><label>Área Colhida (ha)</label><input type="number" id="cc_area" placeholder="Ex: 500" oninput="calcularCustoColheita()"></div>
-        <div class="field"><label>TCH Realizado</label><input type="number" id="cc_tch" placeholder="Ex: 80" oninput="calcularCustoColheita()"></div>
-        <div class="field"><label>Custo Mec. (R$/ha)</label><input type="number" id="cc_mecanizado" placeholder="Ex: 320" oninput="calcularCustoColheita()"></div>
-        <div class="field"><label>Frete (R$/t)</label><input type="number" id="cc_frete" placeholder="Ex: 18" oninput="calcularCustoColheita()"></div>
+        <div class="field">
+          <label>Área Colhida</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="cc_area" placeholder="Ex: 500" oninput="calcularCustoColheita()">
+            <span class="input-unit">ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>TCH Realizado</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="cc_tch" placeholder="Ex: 80" oninput="calcularCustoColheita()">
+            <span class="input-unit">t/ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Custo Mecanizado</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="cc_mecanizado" placeholder="Ex: 320" oninput="calcularCustoColheita()">
+            <span class="input-unit">R$/ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Frete</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="cc_frete" placeholder="Ex: 18" oninput="calcularCustoColheita()">
+            <span class="input-unit">R$/t</span>
+          </div>
+        </div>
       </div>
       <div class="res-grid-3" id="res_cc_container" style="display:none;">
         <div class="res-card rc-green"><div class="rc-lbl">Produção Total</div><div class="rc-val" id="res_cc_prod">—</div></div>
@@ -594,14 +939,17 @@
       </div>
     </div>
 
-    <!-- 5. PRODUTIVIDADE POTENCIAL (NOVA) -->
+    <!-- 5. PRODUTIVIDADE POTENCIAL -->
     <div class="card">
       <div class="card-title"><i class="fas fa-leaf"></i> Produtividade Potencial por Variedade</div>
-      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
-        Estime a produção de diferentes variedades com base nos parâmetros de campo.
-      </p>
       <div class="grid-inputs">
-        <div class="field"><label>Área (ha)</label><input type="number" id="vr_area" placeholder="Ex: 200" oninput="calcularVariedade()"></div>
+        <div class="field">
+          <label>Área</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="vr_area" placeholder="Ex: 200" oninput="calcularVariedade()">
+            <span class="input-unit">ha</span>
+          </div>
+        </div>
         <div class="field">
           <label>Variedade / Ciclo</label>
           <select id="vr_tipo" onchange="calcularVariedade()">
@@ -611,13 +959,98 @@
             <option value="0">Personalizado</option>
           </select>
         </div>
-        <div class="field"><label>TCH Personalizado</label><input type="number" id="vr_tch_custom" placeholder="Só se Personalizado" oninput="calcularVariedade()"></div>
-        <div class="field"><label>Cortes Previstos</label><input type="number" id="vr_cortes" placeholder="Ex: 5" oninput="calcularVariedade()"></div>
+        <div class="field">
+          <label>TCH Personalizado</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="vr_tch_custom" placeholder="Só se Personalizado" oninput="calcularVariedade()">
+            <span class="input-unit">t/ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Cortes Previstos</label>
+          <input type="number" id="vr_cortes" placeholder="Ex: 5" oninput="calcularVariedade()">
+        </div>
       </div>
       <div class="res-grid-3" id="res_vr_container" style="display:none;">
         <div class="res-card rc-green"><div class="rc-lbl">Prod. 1º Corte</div><div class="rc-val" id="res_vr_1corte">—</div></div>
         <div class="res-card rc-blue"><div class="rc-lbl">Prod. Ciclo Total</div><div class="rc-val" id="res_vr_total">—</div></div>
         <div class="res-card rc-amber"><div class="rc-lbl">Média/Corte</div><div class="rc-val" id="res_vr_media">—</div></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══ ABA CLIMA ══ -->
+  <section id="clima_aba" class="section">
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-map-marker-alt"></i> Selecionar Cidade</div>
+      <div class="clima-city-bar">
+        <div class="field" style="flex:1">
+          <label>Cidade da Região</label>
+          <select id="cidade-select" onchange="onCidadeSelectChange()">
+            <option value="-20.72|-46.61|Passos">Passos, MG</option>
+            <option value="-20.86|-46.39|Alpinópolis">Alpinópolis, MG</option>
+            <option value="-20.47|-45.93|Piumhi">Piumhi, MG</option>
+            <option value="-21.30|-46.71|Guaxupé">Guaxupé, MG</option>
+            <option value="-21.09|-47.05|Itamogi">Itamogi, MG</option>
+            <option value="-20.92|-46.99|São Sebastião do Paraíso">São Sebastião do Paraíso, MG</option>
+            <option value="outro">Outra cidade...</option>
+          </select>
+        </div>
+        <button class="btn-clima" onclick="buscarClima()"><i class="fas fa-search"></i> Buscar</button>
+      </div>
+      <div id="cidade-custom-wrap" style="display:none; margin-top:-4px; margin-bottom:8px;">
+        <div class="field">
+          <label>Digite o nome da cidade</label>
+          <input type="text" id="cidade-custom-input" placeholder="Ex: São João del Rei" style="border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; width:100%; font-size:13px; font-weight:600; outline:none;">
+        </div>
+        <p style="font-size:10px; color:var(--text-3); margin-top:6px;">* Para cidades fora da lista, será usada a localização aproximada de Minas Gerais central.</p>
+      </div>
+    </div>
+
+    <!-- Sub-abas clima -->
+    <div class="clima-sub-tabs">
+      <button class="clima-sub-btn active" onclick="showClimaTab('previsao5')"><i class="fas fa-sun"></i> Próximos 5 dias</button>
+      <button class="clima-sub-btn" onclick="showClimaTab('tendencia30')"><i class="fas fa-calendar-alt"></i> Tendência 30 dias</button>
+      <button class="clima-sub-btn" onclick="showClimaTab('historico')"><i class="fas fa-history"></i> Histórico</button>
+    </div>
+
+    <!-- Painel: Previsão 5 dias -->
+    <div class="clima-sub-panel active" id="panel-previsao5">
+      <div id="forecast5-container">
+        <div class="clima-loading">
+          <i class="fas fa-cloud-sun"></i>
+          Selecione uma cidade e clique em "Buscar" para carregar a previsão.
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel: Tendência 30 dias -->
+    <div class="clima-sub-panel" id="panel-tendencia30">
+      <div id="forecast30-container">
+        <div class="clima-loading">
+          <i class="fas fa-calendar-alt"></i>
+          Selecione uma cidade e clique em "Buscar" para carregar a tendência.
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel: Histórico -->
+    <div class="clima-sub-panel" id="panel-historico">
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calendar-check"></i> Consultar Registro Histórico</div>
+        <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+          Consulte os dados reais de temperatura e precipitação registrados em uma data passada na cidade selecionada.
+        </p>
+        <div class="field" style="margin-bottom:12px;">
+          <label>Selecionar Data</label>
+          <input type="date" id="historico-data" style="border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; width:100%; font-size:13px; font-weight:600; outline:none; background:var(--surface2);">
+        </div>
+        <button class="btn-clima" style="width:100%" onclick="buscarHistorico()">
+          <i class="fas fa-search"></i> Consultar Histórico
+        </button>
+        <div id="historico-result"></div>
       </div>
     </div>
 
@@ -633,12 +1066,19 @@
 </div>
 
 <script>
+/* ══════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════ */
 let frentes = [
   { id: 1, nome: "FRENTE 01", maquinas: 5, tch: 85, vel: 4.5, larg: 1.5, efc: 85, horas: 12, diesel: 48 }
 ];
 let myChart = null;
+let modoSimulacao = false;
+let frentesReal = null; // snapshot dos dados reais
 
-/* ── NAVEGAÇÃO ── */
+/* ══════════════════════════════════════════════
+   NAVEGAÇÃO
+══════════════════════════════════════════════ */
 function showTab(e, id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
@@ -651,6 +1091,9 @@ function showTab(e, id) {
 
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
+  }
+  if (id === 'clima_aba') {
+    document.getElementById('btn-atualizar-global').style.display = 'none';
   }
 }
 
@@ -670,7 +1113,9 @@ function voltarParaHome() {
   if (primeiro) primeiro.classList.add('active');
 }
 
-/* ── PDF ── */
+/* ══════════════════════════════════════════════
+   PDF
+══════════════════════════════════════════════ */
 function gerarPDF() {
   const opt = {
     margin: [0.5, 0.5, 0.5, 0.5],
@@ -682,7 +1127,109 @@ function gerarPDF() {
   html2pdf().set(opt).from(document.body).save();
 }
 
-/* ── FRENTES ── */
+/* ══════════════════════════════════════════════
+   MODO SIMULAÇÃO / REAL
+══════════════════════════════════════════════ */
+function alternarModo() {
+  modoSimulacao = document.getElementById('toggle-modo').checked;
+  const badge = document.getElementById('modo-badge');
+  const labelDesc = document.getElementById('modo-label-desc');
+  const labelTitulo = document.getElementById('modo-label-titulo');
+
+  if (modoSimulacao) {
+    // Salva snapshot real
+    frentesReal = JSON.parse(JSON.stringify(frentes));
+    badge.className = 'mode-badge sim';
+    badge.textContent = 'SIMULAÇÃO';
+    labelTitulo.textContent = 'Modo Simulação';
+    labelDesc.textContent = 'Altere livremente sem perder os dados reais';
+  } else {
+    // Restaura dados reais
+    if (frentesReal) {
+      frentes = JSON.parse(JSON.stringify(frentesReal));
+      renderFrentes();
+      update();
+    }
+    badge.className = 'mode-badge real';
+    badge.textContent = 'REAL';
+    labelTitulo.textContent = 'Cenário Atual';
+    labelDesc.textContent = 'Visualizando dados reais da operação';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   CENÁRIOS (localStorage)
+══════════════════════════════════════════════ */
+function getCenarios() {
+  try {
+    return JSON.parse(localStorage.getItem('ctt_cenarios') || '{}');
+  } catch { return {}; }
+}
+
+function saveCenarios(obj) {
+  localStorage.setItem('ctt_cenarios', JSON.stringify(obj));
+}
+
+function atualizarSelectCenarios() {
+  const cenarios = getCenarios();
+  const sel = document.getElementById('cenario-select');
+  const nomes = Object.keys(cenarios);
+  sel.innerHTML = nomes.length === 0
+    ? '<option value="">— Nenhum cenário salvo —</option>'
+    : '<option value="">Selecionar cenário...</option>' +
+      nomes.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+}
+
+function abrirModalSalvar() {
+  document.getElementById('modal-cenario-nome').value = '';
+  document.getElementById('modal-cenario').classList.add('open');
+  setTimeout(() => document.getElementById('modal-cenario-nome').focus(), 100);
+}
+
+function fecharModal() {
+  document.getElementById('modal-cenario').classList.remove('open');
+}
+
+function confirmarSalvar() {
+  const nome = document.getElementById('modal-cenario-nome').value.trim();
+  if (!nome) { alert('Digite um nome para o cenário.'); return; }
+  const cenarios = getCenarios();
+  cenarios[nome] = {
+    frentes: JSON.parse(JSON.stringify(frentes)),
+    meta: document.getElementById('meta_val').value,
+    diesel: document.getElementById('diesel_val').value
+  };
+  saveCenarios(cenarios);
+  atualizarSelectCenarios();
+  fecharModal();
+}
+
+function carregarCenario() {
+  const nome = document.getElementById('cenario-select').value;
+  if (!nome) return;
+  const cenarios = getCenarios();
+  const c = cenarios[nome];
+  if (!c) return;
+  frentes = JSON.parse(JSON.stringify(c.frentes));
+  if (c.meta) document.getElementById('meta_val').value = c.meta;
+  if (c.diesel) document.getElementById('diesel_val').value = c.diesel;
+  renderFrentes();
+  update();
+}
+
+function excluirCenario() {
+  const nome = document.getElementById('cenario-select').value;
+  if (!nome) return;
+  if (!confirm(`Excluir o cenário "${nome}"?`)) return;
+  const cenarios = getCenarios();
+  delete cenarios[nome];
+  saveCenarios(cenarios);
+  atualizarSelectCenarios();
+}
+
+/* ══════════════════════════════════════════════
+   FRENTES
+══════════════════════════════════════════════ */
 function addFrente() {
   const id = Date.now();
   frentes.push({ id, nome: `FRENTE 0${frentes.length + 1}`, maquinas: 1, tch: 80, vel: 4.0, larg: 1.5, efc: 85, horas: 12, diesel: 45 });
@@ -695,19 +1242,58 @@ function renderFrentes() {
   container.innerHTML = frentes.map(f => `
     <div class="frente-card">
       <div class="frente-card-header">
-        <input type="text" value="${f.nome}" oninput="editData(${f.id},'nome',this.value)">
+        <input type="text" value="${escapeHtml(f.nome)}" title="Clique para editar o nome da frente" placeholder="Nome da Frente..." oninput="editData(${f.id},'nome',this.value)">
         <button class="btn-remove-frente" onclick="removeFrente(${f.id})">
           <i class="fas fa-times"></i>
         </button>
       </div>
       <div class="grid-inputs">
-        <div class="field"><label>Nº Máqs</label><input type="number" value="${f.maquinas}" oninput="editData(${f.id},'maquinas',this.value)"></div>
-        <div class="field"><label>TCH</label><input type="number" value="${f.tch}" oninput="editData(${f.id},'tch',this.value)"></div>
-        <div class="field"><label>Km/h</label><input type="number" value="${f.vel}" step="0.1" oninput="editData(${f.id},'vel',this.value)"></div>
-        <div class="field"><label>Largura (m)</label><input type="number" value="${f.larg}" step="0.1" oninput="editData(${f.id},'larg',this.value)"></div>
-        <div class="field"><label>Efic. %</label><input type="number" value="${f.efc}" oninput="editData(${f.id},'efc',this.value)"></div>
-        <div class="field"><label>Horas/Dia</label><input type="number" value="${f.horas}" oninput="editData(${f.id},'horas',this.value)"></div>
-        <div class="field"><label>Consumo L/h</label><input type="number" value="${f.diesel}" oninput="editData(${f.id},'diesel',this.value)"></div>
+        <div class="field">
+          <label>Nº Máqs</label>
+          <input type="number" value="${f.maquinas}" oninput="editData(${f.id},'maquinas',this.value)">
+        </div>
+        <div class="field">
+          <label>TCH</label>
+          <div class="input-unit-wrap">
+            <input type="number" value="${f.tch}" oninput="editData(${f.id},'tch',this.value)">
+            <span class="input-unit">t/ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Velocidade</label>
+          <div class="input-unit-wrap">
+            <input type="number" value="${f.vel}" step="0.1" oninput="editData(${f.id},'vel',this.value)">
+            <span class="input-unit">km/h</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Largura</label>
+          <div class="input-unit-wrap">
+            <input type="number" value="${f.larg}" step="0.1" oninput="editData(${f.id},'larg',this.value)">
+            <span class="input-unit">m</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Eficiência</label>
+          <div class="input-unit-wrap">
+            <input type="number" value="${f.efc}" oninput="editData(${f.id},'efc',this.value)">
+            <span class="input-unit">%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Horas/Dia</label>
+          <div class="input-unit-wrap">
+            <input type="number" value="${f.horas}" oninput="editData(${f.id},'horas',this.value)">
+            <span class="input-unit">h</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Consumo</label>
+          <div class="input-unit-wrap">
+            <input type="number" value="${f.diesel}" oninput="editData(${f.id},'diesel',this.value)">
+            <span class="input-unit">L/h</span>
+          </div>
+        </div>
       </div>
     </div>
   `).join('');
@@ -717,6 +1303,8 @@ function editData(id, field, val) {
   const f = frentes.find(x => x.id === id);
   if (f) f[field] = field === 'nome' ? val : parseFloat(val) || 0;
   update();
+  // Re-render chart se dashboard visível
+  if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
 }
 
 function removeFrente(id) {
@@ -725,14 +1313,16 @@ function removeFrente(id) {
   update();
 }
 
-/* ── UPDATE DASHBOARD ── */
+/* ══════════════════════════════════════════════
+   UPDATE DASHBOARD + INSIGHTS
+══════════════════════════════════════════════ */
 function update() {
   const prDiesel = parseFloat(document.getElementById('diesel_val').value) || 0;
   const metaG = parseFloat(document.getElementById('meta_val').value) || 1;
   let tTon = 0, tCusto = 0, rankingHtml = '';
+  let insights = [];
 
-  document.getElementById('meta_label_total').innerText =
-    metaG.toLocaleString('pt-BR') + ' t';
+  document.getElementById('meta_label_total').innerText = metaG.toLocaleString('pt-BR') + ' t';
 
   frentes.forEach(f => {
     const rend = (f.vel * f.larg * (f.efc / 100)) / 10;
@@ -745,14 +1335,21 @@ function update() {
     rankingHtml += `
       <div class="frente-item">
         <div class="frente-info">
-          <b>${f.nome}</b>
-          <span>${f.maquinas} máqs &nbsp;·&nbsp; ${rend.toFixed(2)} ha/h</span>
+          <b>${escapeHtml(f.nome)}</b>
+          <span>${f.maquinas} máqs &nbsp;·&nbsp; ${rend.toFixed(2)} ha/h &nbsp;·&nbsp; Efic. ${f.efc}%</span>
         </div>
         <div class="frente-ton">
           <b>${Math.round(tonD).toLocaleString('pt-BR')} t</b>
           <span>R$ ${custoTon}/t diesel</span>
         </div>
       </div>`;
+
+    // Insights por frente
+    if (f.efc < 80) {
+      const efc85ton = ((f.vel * f.larg * 0.85) / 10) * f.tch * f.horas * f.maquinas;
+      const economiaDiesel = ((efc85ton - tonD) > 0) ? '' : '';
+      insights.push({ type: 'warn', msg: `⚠️ Aumentar a eficiência de <b>${escapeHtml(f.nome)}</b> para 85% aumentaria a produção de ${Math.round(tonD).toLocaleString('pt-BR')} t para ${Math.round(efc85ton).toLocaleString('pt-BR')} t/dia, reduzindo o custo diesel por tonelada.` });
+    }
   });
 
   const pct = (tTon / metaG) * 100;
@@ -764,9 +1361,26 @@ function update() {
     ? `Faltam ${Math.round(metaG - tTon).toLocaleString('pt-BR')} t`
     : '✓ Meta Atingida!';
   document.getElementById('lista-ranking').innerHTML = rankingHtml || '<p style="font-size:12px;color:var(--text-3);padding:10px 0">Nenhuma frente cadastrada.</p>';
+
+  // Insight de meta
+  if (frentes.length > 0 && tTon < metaG * 0.7) {
+    insights.push({ type: 'tip', msg: `💡 A produção atual (${Math.round(tTon).toLocaleString('pt-BR')} t/dia) está abaixo de 70% da meta. Considere adicionar +1 máquina por frente ou estender as horas de operação por dia para atingir a meta operacional.` });
+  }
+
+  // Renderizar insights
+  const insContainer = document.getElementById('insights-container');
+  if (insights.length === 0) {
+    insContainer.innerHTML = '<div class="insight-item ok"><i class="fas fa-check-circle"></i><span>Todos os indicadores dentro do esperado. Nenhum alerta no momento.</span></div>';
+  } else {
+    insContainer.innerHTML = insights.map(ins =>
+      `<div class="insight-item ${ins.type}"><i class="fas fa-${ins.type === 'warn' ? 'exclamation-triangle' : 'lightbulb'}"></i><span>${ins.msg}</span></div>`
+    ).join('');
+  }
 }
 
-/* ── GRÁFICO ── */
+/* ══════════════════════════════════════════════
+   GRÁFICO
+══════════════════════════════════════════════ */
 function renderChart() {
   const ctx = document.getElementById('prodChart').getContext('2d');
   if (myChart) myChart.destroy();
@@ -808,7 +1422,9 @@ function renderChart() {
   });
 }
 
-/* ── CALCULADORA: SAFRA ── */
+/* ══════════════════════════════════════════════
+   CALCULADORA: SAFRA
+══════════════════════════════════════════════ */
 function calcularSafra() {
   const area = parseFloat(document.getElementById('safra_area').value) || 0;
   const tch = parseFloat(document.getElementById('safra_tch').value) || 0;
@@ -822,7 +1438,9 @@ function calcularSafra() {
   document.getElementById('res_prod_liquida').innerText = Math.round(prodLiquida).toLocaleString('pt-BR') + ' t';
 }
 
-/* ── CALCULADORA: PLANTIO ── */
+/* ══════════════════════════════════════════════
+   CALCULADORA: PLANTIO
+══════════════════════════════════════════════ */
 function ajustarSugerido() {
   const tipo = document.getElementById('plantio_tipo').value;
   const inp = document.getElementById('plantio_consumo');
@@ -841,92 +1459,82 @@ function calcularPlantio() {
   document.getElementById('res_mudas_viagens').innerText = viagens;
 }
 
-/* ── CALCULADORA: ATR ── */
+/* ══════════════════════════════════════════════
+   CALCULADORA: ATR
+══════════════════════════════════════════════ */
 function calcularATR() {
   const pol = parseFloat(document.getElementById('atr_pol').value) || 0;
   const fibra = parseFloat(document.getElementById('atr_fibra').value) || 0;
   const pureza = parseFloat(document.getElementById('atr_pureza').value) || 0;
   const tons = parseFloat(document.getElementById('atr_tons').value) || 0;
-
   if (!pol || !fibra || !pureza) return;
-
-  // Fórmula CONSECANA: ATR = (pol / (1 - fibra/100)) * (pureza/100) * 10
   const polCorrigido = pol / (1 - fibra / 100);
   const atr = polCorrigido * (pureza / 100) * 10;
   const acucarTotal = (atr / 1000) * tons;
-  const receita = acucarTotal * 1100; // R$ 1,10 por kg = R$ 1100 por t ATR
-
+  const receita = acucarTotal * 1100;
   document.getElementById('res_atr_val').innerText = atr.toFixed(1);
   document.getElementById('res_atr_total').innerText = acucarTotal.toFixed(0) + ' t';
   document.getElementById('res_atr_receita').innerText = 'R$ ' + Math.round(receita / 1000) + ' mil';
-
-  // Classificação
   let classe = '', corFundo = '', corTexto = '';
   if (atr < 120) { classe = 'Baixo'; corFundo = '#FFEBEE'; corTexto = '#C62828'; }
   else if (atr < 130) { classe = 'Regular'; corFundo = '#FFF3E0'; corTexto = '#E65100'; }
   else if (atr < 140) { classe = 'Bom'; corFundo = '#F1F8E9'; corTexto = '#2E7D32'; }
   else { classe = 'Excelente'; corFundo = '#E8F5E9'; corTexto = '#1B5E20'; }
-
   const badge = document.getElementById('atr_class_badge');
   badge.innerText = classe;
   badge.style.background = corFundo;
   badge.style.color = corTexto;
-
-  // Agulha do gauge (faixa: 100 a 160 ATR)
   const pct = Math.min(Math.max((atr - 100) / 60, 0), 1) * 100;
   document.getElementById('atr_needle').style.left = pct + '%';
-
   document.getElementById('res_atr_container').style.display = 'grid';
   document.getElementById('atr_gauge_container').style.display = 'block';
 }
 
-/* ── CALCULADORA: CUSTO COLHEITA ── */
+/* ══════════════════════════════════════════════
+   CALCULADORA: CUSTO COLHEITA
+══════════════════════════════════════════════ */
 function calcularCustoColheita() {
   const area = parseFloat(document.getElementById('cc_area').value) || 0;
   const tch = parseFloat(document.getElementById('cc_tch').value) || 0;
   const custoMec = parseFloat(document.getElementById('cc_mecanizado').value) || 0;
   const frete = parseFloat(document.getElementById('cc_frete').value) || 0;
-
   if (!area || !tch) return;
-
   const producao = area * tch;
   const custoTotal = (area * custoMec) + (producao * frete);
   const custoPorTon = producao > 0 ? custoTotal / producao : 0;
-
   document.getElementById('res_cc_prod').innerText = Math.round(producao).toLocaleString('pt-BR') + ' t';
   document.getElementById('res_cc_total').innerText = 'R$ ' + Math.round(custoTotal).toLocaleString('pt-BR');
   document.getElementById('res_cc_ton').innerText = 'R$ ' + custoPorTon.toFixed(2);
   document.getElementById('res_cc_container').style.display = 'grid';
 }
 
-/* ── CALCULADORA: VARIEDADE ── */
+/* ══════════════════════════════════════════════
+   CALCULADORA: VARIEDADE
+══════════════════════════════════════════════ */
 function calcularVariedade() {
   const area = parseFloat(document.getElementById('vr_area').value) || 0;
   const tipo = document.getElementById('vr_tipo').value;
   const custom = parseFloat(document.getElementById('vr_tch_custom').value) || 0;
   const cortes = parseFloat(document.getElementById('vr_cortes').value) || 0;
-
   let tchRef = 0;
   if (tipo === '0') tchRef = custom;
   else if (tipo === '120') tchRef = 85;
   else if (tipo === '150') tchRef = 95;
   else if (tipo === '180') tchRef = 105;
-
   if (!area || !tchRef || !cortes) return;
-
   const prod1Corte = area * tchRef;
-  // Soqueiras decaem ~8% por corte após o 1º
   let total = prod1Corte;
   for (let i = 1; i < cortes; i++) total += prod1Corte * Math.pow(0.92, i);
   const media = total / cortes;
-
   document.getElementById('res_vr_1corte').innerText = Math.round(prod1Corte).toLocaleString('pt-BR') + ' t';
   document.getElementById('res_vr_total').innerText = Math.round(total).toLocaleString('pt-BR') + ' t';
   document.getElementById('res_vr_media').innerText = Math.round(media).toLocaleString('pt-BR') + ' t';
   document.getElementById('res_vr_container').style.display = 'grid';
 }
 
-/* ── LIBERAÇÕES (GATEC) ── */
+/* ══════════════════════════════════════════════
+   LIBERAÇÕES (GATEC)
+══════════════════════════════════════════════ */
 async function carregarDadosGATEC() {
   const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
   Papa.parse(URL_CSV, {
@@ -962,10 +1570,250 @@ function filtrarTabela() {
   });
 }
 
-/* ── INIT ── */
+/* ══════════════════════════════════════════════
+   MÓDULO DE CLIMA — Open-Meteo API
+══════════════════════════════════════════════ */
+let climaAtual = { lat: -20.72, lon: -46.61, nome: 'Passos' };
+
+const CIDADES_COORDS = {
+  '-20.72|-46.61|Passos': { lat: -20.72, lon: -46.61, nome: 'Passos' },
+  '-20.86|-46.39|Alpinópolis': { lat: -20.86, lon: -46.39, nome: 'Alpinópolis' },
+  '-20.47|-45.93|Piumhi': { lat: -20.47, lon: -45.93, nome: 'Piumhi' },
+  '-21.30|-46.71|Guaxupé': { lat: -21.30, lon: -46.71, nome: 'Guaxupé' },
+  '-21.09|-47.05|Itamogi': { lat: -21.09, lon: -47.05, nome: 'Itamogi' },
+  '-20.92|-46.99|São Sebastião do Paraíso': { lat: -20.92, lon: -46.99, nome: 'São Sebastião do Paraíso' }
+};
+
+function onCidadeSelectChange() {
+  const val = document.getElementById('cidade-select').value;
+  const wrap = document.getElementById('cidade-custom-wrap');
+  wrap.style.display = (val === 'outro') ? 'block' : 'none';
+}
+
+function showClimaTab(tab) {
+  document.querySelectorAll('.clima-sub-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.clima-sub-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  // Ativar botão correto
+  const btns = document.querySelectorAll('.clima-sub-btn');
+  const map = { previsao5: 0, tendencia30: 1, historico: 2 };
+  btns[map[tab]].classList.add('active');
+}
+
+function getCidadeAtual() {
+  const val = document.getElementById('cidade-select').value;
+  if (val === 'outro') {
+    const nomeCustom = document.getElementById('cidade-custom-input').value.trim() || 'Cidade';
+    return { lat: -19.92, lon: -43.94, nome: nomeCustom };
+  }
+  return CIDADES_COORDS[val] || { lat: -20.72, lon: -46.61, nome: 'Passos' };
+}
+
+async function buscarClima() {
+  const cidade = getCidadeAtual();
+  climaAtual = cidade;
+
+  // Mostrar loading em todos os painéis
+  document.getElementById('forecast5-container').innerHTML = '<div class="clima-loading"><i class="fas fa-spinner fa-spin"></i>Carregando previsão para ' + escapeHtml(cidade.nome) + '...</div>';
+  document.getElementById('forecast30-container').innerHTML = '<div class="clima-loading"><i class="fas fa-spinner fa-spin"></i>Carregando tendência...</div>';
+
+  try {
+    // API Open-Meteo: previsão 7 dias
+    const url5 = `https://api.open-meteo.com/v1/forecast?latitude=${cidade.lat}&longitude=${cidade.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=America/Sao_Paulo&forecast_days=7`;
+    const r5 = await fetch(url5);
+    const d5 = await r5.json();
+    renderPrevisao5(d5, cidade.nome);
+
+    // API Open-Meteo: previsão 16 dias + completar com médias
+    const url30 = `https://api.open-meteo.com/v1/forecast?latitude=${cidade.lat}&longitude=${cidade.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=America/Sao_Paulo&forecast_days=16`;
+    const r30 = await fetch(url30);
+    const d30 = await r30.json();
+    renderTendencia30(d30, cidade.nome);
+  } catch (err) {
+    document.getElementById('forecast5-container').innerHTML = '<div class="clima-loading" style="color:var(--red)"><i class="fas fa-exclamation-triangle"></i>Erro ao carregar dados. Verifique sua conexão.</div>';
+    document.getElementById('forecast30-container').innerHTML = '<div class="clima-loading" style="color:var(--red)"><i class="fas fa-exclamation-triangle"></i>Erro ao carregar dados.</div>';
+  }
+}
+
+function getWeatherIcon(code) {
+  // WMO weather codes
+  if (code === 0) return { icon: '☀️', cls: '', label: 'Céu limpo' };
+  if (code <= 3) return { icon: '⛅', cls: '', label: 'Parcialmente nublado' };
+  if (code <= 49) return { icon: '🌫️', cls: '', label: 'Névoa/Neblina' };
+  if (code <= 67) return { icon: '🌧️', cls: '', label: 'Chuva' };
+  if (code <= 77) return { icon: '❄️', cls: '', label: 'Neve/Granizo' };
+  if (code <= 82) return { icon: '🌦️', cls: '', label: 'Pancadas de chuva' };
+  if (code <= 99) return { icon: '⛈️', cls: '', label: 'Tempestade' };
+  return { icon: '🌡️', cls: '', label: 'Variável' };
+}
+
+const DIAS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return `${DIAS_PT[d.getDay()]} ${d.getDate()}/${MESES_PT[d.getMonth()]}`;
+}
+
+function isToday(dateStr) {
+  const today = new Date();
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+}
+
+function renderPrevisao5(data, nomeCidade) {
+  const { time, temperature_2m_max, temperature_2m_min, precipitation_sum, weathercode } = data.daily;
+  const dias = time.slice(0, 7);
+
+  let html = `<div class="card"><div class="card-title"><i class="fas fa-sun"></i> Previsão — ${escapeHtml(nomeCidade)}</div>`;
+  html += '<div class="forecast-grid">';
+  dias.forEach((dt, i) => {
+    const w = getWeatherIcon(weathercode[i]);
+    const hoje = isToday(dt);
+    const chuva = (precipitation_sum[i] || 0).toFixed(1);
+    html += `
+      <div class="forecast-card ${hoje ? 'today' : ''}">
+        <div class="forecast-day">${hoje ? '📍 HOJE' : formatDate(dt)}</div>
+        <div class="forecast-icon">${w.icon}</div>
+        <div class="forecast-cond">${w.label}</div>
+        <div class="forecast-temps">
+          <span class="temp-max">${Math.round(temperature_2m_max[i])}°</span>
+          <span style="color:var(--text-3); font-size:13px; align-self:center;">/</span>
+          <span class="temp-min">${Math.round(temperature_2m_min[i])}°</span>
+        </div>
+        <div class="forecast-rain"><i class="fas fa-tint" style="margin-right:3px"></i>${chuva} mm</div>
+      </div>`;
+  });
+  html += '</div></div>';
+  document.getElementById('forecast5-container').innerHTML = html;
+}
+
+function renderTendencia30(data, nomeCidade) {
+  const { time, temperature_2m_max, temperature_2m_min, precipitation_sum, weathercode } = data.daily;
+
+  let html = `<div class="card">
+    <div class="card-title"><i class="fas fa-calendar-alt"></i> Tendência — ${escapeHtml(nomeCidade)} (próximos ${time.length} dias)</div>
+    <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+      Previsão estendida disponível via Open-Meteo. Dados acima de 7 dias são estimativas de modelos climatológicos.
+    </p>
+    <div class="tendencia-grid">`;
+
+  time.forEach((dt, i) => {
+    const w = getWeatherIcon(weathercode[i]);
+    const d = new Date(dt + 'T12:00:00');
+    const chuva = (precipitation_sum[i] || 0).toFixed(0);
+    html += `
+      <div class="tend-day">
+        <div class="tend-day-num">${d.getDate()}/${d.getMonth()+1}</div>
+        <div class="tend-day-icon">${w.icon}</div>
+        <div class="tend-day-rain">${chuva}mm</div>
+      </div>`;
+  });
+
+  html += `</div>`;
+
+  // Resumo estatístico
+  const maxAlta = Math.max(...temperature_2m_max);
+  const maxBaixa = Math.min(...temperature_2m_min);
+  const totalChuva = precipitation_sum.reduce((a, b) => a + (b || 0), 0);
+  const diasChuva = precipitation_sum.filter(p => p > 1).length;
+
+  html += `
+    <div class="calc-res-container" style="margin-top:14px;">
+      <div class="res-box"><span>Temp. Máx. prevista</span><b style="color:var(--red)">${Math.round(maxAlta)}°C</b></div>
+      <div class="res-box"><span>Temp. Mín. prevista</span><b style="color:var(--blue)">${Math.round(maxBaixa)}°C</b></div>
+      <div class="res-box"><span>Chuva total prevista</span><b style="color:var(--blue)">${totalChuva.toFixed(0)} mm</b></div>
+      <div class="res-box"><span>Dias com chuva</span><b>${diasChuva} dias</b></div>
+    </div>
+  </div>`;
+
+  document.getElementById('forecast30-container').innerHTML = html;
+}
+
+async function buscarHistorico() {
+  const dataSel = document.getElementById('historico-data').value;
+  if (!dataSel) { alert('Selecione uma data para consultar.'); return; }
+
+  const hoje = new Date();
+  const dataBusca = new Date(dataSel + 'T12:00:00');
+  if (dataBusca >= hoje) { alert('Selecione uma data passada para consultar o histórico.'); return; }
+
+  const cidade = climaAtual;
+  const resultEl = document.getElementById('historico-result');
+  resultEl.innerHTML = '<div class="clima-loading" style="margin-top:14px"><i class="fas fa-spinner fa-spin"></i>Consultando histórico...</div>';
+
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${cidade.lat}&longitude=${cidade.lon}&start_date=${dataSel}&end_date=${dataSel}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=America/Sao_Paulo`;
+    const r = await fetch(url);
+    const d = await r.json();
+
+    if (!d.daily || !d.daily.time || d.daily.time.length === 0) {
+      resultEl.innerHTML = '<p style="color:var(--red); font-size:12px; margin-top:12px;">Dados não encontrados para esta data.</p>';
+      return;
+    }
+
+    const tmax = Math.round(d.daily.temperature_2m_max[0]);
+    const tmin = Math.round(d.daily.temperature_2m_min[0]);
+    const chuva = (d.daily.precipitation_sum[0] || 0).toFixed(1);
+    const w = getWeatherIcon(d.daily.weathercode[0]);
+    const d2 = new Date(dataSel + 'T12:00:00');
+    const dataFmt = `${d2.getDate()} de ${['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][d2.getMonth()]} de ${d2.getFullYear()}`;
+
+    resultEl.innerHTML = `
+      <div style="margin-top:16px; padding:14px; background:var(--surface2); border-radius:var(--radius-md); border:1px solid var(--border);">
+        <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; margin-bottom:10px;">
+          <i class="fas fa-map-marker-alt" style="color:var(--green-700); margin-right:4px"></i>
+          ${escapeHtml(cidade.nome)} · ${escapeHtml(dataFmt)}
+        </div>
+        <div style="font-size:32px; text-align:center; margin:8px 0">${w.icon}</div>
+        <div style="text-align:center; font-size:11px; color:var(--text-3); margin-bottom:12px">${w.label}</div>
+      </div>
+      <div class="historico-result">
+        <div class="res-box"><span>Temp. Máxima</span><b style="color:var(--red)">${tmax}°C</b></div>
+        <div class="res-box"><span>Temp. Mínima</span><b style="color:var(--blue)">${tmin}°C</b></div>
+        <div class="res-box"><span>Precipitação</span><b style="color:var(--blue)">${chuva} mm</b></div>
+      </div>
+      <p style="font-size:10px; color:var(--text-3); margin-top:10px;">* Dados históricos fornecidos pela Open-Meteo Historical Weather API.</p>`;
+  } catch (err) {
+    resultEl.innerHTML = '<p style="color:var(--red); font-size:12px; margin-top:12px;"><i class="fas fa-exclamation-triangle"></i> Erro ao consultar histórico. Verifique sua conexão.</p>';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   UTILIDADES
+══════════════════════════════════════════════ */
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Fechar modal ao clicar fora
+document.getElementById('modal-cenario').addEventListener('click', function(e) {
+  if (e.target === this) fecharModal();
+});
+
+// Tecla Enter no modal
+document.getElementById('modal-cenario-nome').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') confirmarSalvar();
+});
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
 renderFrentes();
 update();
 carregarDadosGATEC();
+atualizarSelectCenarios();
+
+// Data máxima do histórico = ontem
+(function() {
+  const inp = document.getElementById('historico-data');
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  inp.max = ontem.toISOString().split('T')[0];
+  // Data mínima: 1940 (limite da API histórica)
+  inp.min = '1940-01-01';
+})();
 </script>
 </body>
 </html>
