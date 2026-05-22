@@ -533,14 +533,16 @@
 
     /* Comparativo Real x Simulado */
     .comparativo-toggle-bar {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: 12px;
       background: #E3F2FD; border: 1.5px solid #90CAF9;
-      border-radius: var(--radius-md); padding: 10px 14px;
+      border-radius: var(--radius-md); padding: 12px 14px;
       margin-bottom: 14px; cursor: pointer;
+      box-sizing: border-box; width: 100%;
     }
-    .comparativo-toggle-bar label { cursor: pointer; flex:1; }
-    .comparativo-toggle-bar .ctb-title { font-size:11px; font-weight:700; color:#0D47A1; }
-    .comparativo-toggle-bar .ctb-desc  { font-size:9px; color:#1565C0; font-weight:500; margin-top:2px; }
+    .comparativo-toggle-bar .ctb-text { flex: 1; min-width: 0; }
+    .comparativo-toggle-bar .ctb-title { font-size:11px; font-weight:700; color:#0D47A1; display:block; }
+    .comparativo-toggle-bar .ctb-desc  { font-size:9px; color:#1565C0; font-weight:500; margin-top:2px; display:block; }
+    .comparativo-toggle-bar .toggle-switch { flex-shrink: 0; margin-left: auto; }
     .comp-frente-card {
       background: var(--surface); border: 1.5px solid var(--border);
       border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px;
@@ -759,9 +761,9 @@
 
       <!-- Toggle Comparativo Real x Simulado -->
       <div class="comparativo-toggle-bar" onclick="toggleComparativo()">
-        <div style="flex:1;">
-          <div class="ctb-title"><i class="fas fa-exchange-alt" style="margin-right:5px;"></i>Comparar com Dados Reais</div>
-          <div class="ctb-desc">Ative para visualizar as variações entre o cenário simulado e os dados reais</div>
+        <div class="ctb-text">
+          <span class="ctb-title"><i class="fas fa-exchange-alt" style="margin-right:5px;"></i>Comparar com Dados Reais</span>
+          <span class="ctb-desc">Ative para visualizar as variações entre o cenário simulado e os dados reais</span>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="toggle-comparativo" onchange="toggleComparativo()">
@@ -1054,6 +1056,9 @@
             <option value="-21.30|-46.71|Guaxupé">Guaxupé, MG</option>
             <option value="-21.09|-47.05|Itamogi">Itamogi, MG</option>
             <option value="-20.92|-46.99|São Sebastião do Paraíso">São Sebastião do Paraíso, MG</option>
+            <option value="-21.47|-47.01|Mococa">Mococa, SP</option>
+            <option value="-21.90|-47.62|Descalvado">Descalvado, SP</option>
+            <option value="-21.88|-49.03|Iacanga">Iacanga, SP</option>
             <option value="outro">Outra cidade...</option>
           </select>
         </div>
@@ -1117,6 +1122,19 @@
         </button>
         <div id="historico-result"></div>
       </div>
+
+      <!-- Card: Comparativo de Chuvas entre Cidades -->
+      <div class="card" style="margin-top:0;">
+        <div class="card-title"><i class="fas fa-city"></i> Comparativo de Chuvas entre Cidades</div>
+        <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+          Compara o acumulado de chuvas (mm) entre Mococa, Iacanga, Descalvado e Passos para o período definido acima.
+        </p>
+        <button class="btn-clima" style="width:100%; background:linear-gradient(135deg,#1565C0,#1976D2);" onclick="buscarComparativoCidades()">
+          <i class="fas fa-balance-scale"></i> Comparar Cidades
+        </button>
+        <div id="comparativo-cidades-result"></div>
+      </div>
+
     </div>
 
   </section>
@@ -1139,7 +1157,9 @@ let frentes = [
 ];
 let myChart = null;
 let modoSimulacao = false;
-let frentesReal = null; // snapshot dos dados reais
+// Dois conjuntos de dados estanques: real e simulado
+let dadosReal = null;       // snapshot do modo real (gravado ao entrar em simulação)
+let dadosSimulado = null;   // estado persistente do modo simulado entre alternâncias
 
 /* ══════════════════════════════════════════════
    NAVEGAÇÃO
@@ -1193,28 +1213,38 @@ function gerarPDF() {
 }
 
 /* ══════════════════════════════════════════════
-   MODO SIMULAÇÃO / REAL
+   MODO SIMULAÇÃO / REAL  (dois conjuntos estanques)
 ══════════════════════════════════════════════ */
 function alternarModo() {
   modoSimulacao = document.getElementById('toggle-modo').checked;
-  const badge = document.getElementById('modo-badge');
-  const labelDesc = document.getElementById('modo-label-desc');
+  const badge       = document.getElementById('modo-badge');
+  const labelDesc   = document.getElementById('modo-label-desc');
   const labelTitulo = document.getElementById('modo-label-titulo');
 
   if (modoSimulacao) {
-    // Salva snapshot real
-    frentesReal = JSON.parse(JSON.stringify(frentes));
+    // Ao entrar em simulação: salva estado atual como "real" e carrega/inicia o simulado
+    dadosReal = JSON.parse(JSON.stringify(frentes));
+
+    if (dadosSimulado === null) {
+      // Primeira vez: inicializa o simulado copiando o real
+      dadosSimulado = JSON.parse(JSON.stringify(dadosReal));
+    }
+    // Carrega o estado simulado na tela (NÃO toca dadosReal)
+    frentes = JSON.parse(JSON.stringify(dadosSimulado));
+    renderFrentes();
+    update();
+
     badge.className = 'mode-badge sim';
     badge.textContent = 'SIMULAÇÃO';
     labelTitulo.textContent = 'Modo Simulação';
-    labelDesc.textContent = 'Altere livremente sem perder os dados reais';
+    labelDesc.textContent = 'Altere livremente — os dados reais estão protegidos';
   } else {
-    // Restaura dados reais
-    if (frentesReal) {
-      frentes = JSON.parse(JSON.stringify(frentesReal));
-      renderFrentes();
-      update();
-    }
+    // Ao sair da simulação: persiste o estado simulado e restaura o real
+    dadosSimulado = JSON.parse(JSON.stringify(frentes));
+    frentes = JSON.parse(JSON.stringify(dadosReal));
+    renderFrentes();
+    update();
+
     badge.className = 'mode-badge real';
     badge.textContent = 'REAL';
     labelTitulo.textContent = 'Cenário Atual';
@@ -1298,6 +1328,7 @@ function excluirCenario() {
 function addFrente() {
   const id = Date.now();
   frentes.push({ id, nome: `FRENTE 0${frentes.length + 1}`, maquinas: 1, tch: 80, vel: 4.0, larg: 1.5, efc: 85, horas: 12, diesel: 45 });
+  if (modoSimulacao) dadosSimulado = JSON.parse(JSON.stringify(frentes));
   renderFrentes();
   update();
 }
@@ -1367,6 +1398,8 @@ function renderFrentes() {
 function editData(id, field, val) {
   const f = frentes.find(x => x.id === id);
   if (f) f[field] = field === 'nome' ? val : parseFloat(val) || 0;
+  // Persiste imediatamente no conjunto simulado para não perder ao alternar
+  if (modoSimulacao) dadosSimulado = JSON.parse(JSON.stringify(frentes));
   update();
   // Re-render chart se dashboard visível
   if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
@@ -1374,6 +1407,7 @@ function editData(id, field, val) {
 
 function removeFrente(id) {
   frentes = frentes.filter(f => f.id !== id);
+  if (modoSimulacao) dadosSimulado = JSON.parse(JSON.stringify(frentes));
   renderFrentes();
   update();
 }
@@ -1516,7 +1550,7 @@ function calcCustoFrente(f) {
 
 function renderComparativo() {
   const container = document.getElementById('comp-frentes-container');
-  if (!modoSimulacao || !frentesReal || frentesReal.length === 0) {
+  if (!modoSimulacao || !dadosReal || dadosReal.length === 0) {
     container.innerHTML = '<div class="insight-item tip" style="border-radius:var(--radius-sm);"><i class="fas fa-info-circle"></i><span>Ative o <b>Modo Simulação</b> (toggle no topo da aba Colhedoras) e ajuste os dados para visualizar o comparativo Real × Simulado.</span></div>';
     return;
   }
@@ -1531,7 +1565,7 @@ function renderComparativo() {
 
   let html = '';
   frentes.forEach(fSim => {
-    const fReal = frentesReal.find(r => r.id === fSim.id);
+    const fReal = dadosReal.find(r => r.id === fSim.id);
     if (!fReal) return;
 
     const simTon = calcTonFrente(fSim);
@@ -1766,7 +1800,10 @@ const CIDADES_COORDS = {
   '-20.47|-45.93|Piumhi': { lat: -20.47, lon: -45.93, nome: 'Piumhi' },
   '-21.30|-46.71|Guaxupé': { lat: -21.30, lon: -46.71, nome: 'Guaxupé' },
   '-21.09|-47.05|Itamogi': { lat: -21.09, lon: -47.05, nome: 'Itamogi' },
-  '-20.92|-46.99|São Sebastião do Paraíso': { lat: -20.92, lon: -46.99, nome: 'São Sebastião do Paraíso' }
+  '-20.92|-46.99|São Sebastião do Paraíso': { lat: -20.92, lon: -46.99, nome: 'São Sebastião do Paraíso' },
+  '-21.47|-47.01|Mococa': { lat: -21.47, lon: -47.01, nome: 'Mococa' },
+  '-21.90|-47.62|Descalvado': { lat: -21.90, lon: -47.62, nome: 'Descalvado' },
+  '-21.88|-49.03|Iacanga': { lat: -21.88, lon: -49.03, nome: 'Iacanga' }
 };
 
 function onCidadeSelectChange() {
@@ -2022,6 +2059,114 @@ async function buscarHistorico() {
     resultEl.innerHTML = html;
   } catch (err) {
     resultEl.innerHTML = '<p style="color:var(--red); font-size:12px; margin-top:12px;"><i class="fas fa-exclamation-triangle"></i> Erro ao consultar histórico. Verifique sua conexão.</p>';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   COMPARATIVO HISTÓRICO DE CHUVAS — 4 CIDADES
+══════════════════════════════════════════════ */
+const CIDADES_COMPARATIVO = [
+  { nome: 'Passos',     lat: -20.72, lon: -46.61, estado: 'MG', cor: '#1B5E20', corBg: '#E8F5E9' },
+  { nome: 'Mococa',     lat: -21.47, lon: -47.01, estado: 'SP', cor: '#1565C0', corBg: '#E3F2FD' },
+  { nome: 'Descalvado', lat: -21.90, lon: -47.62, estado: 'SP', cor: '#6A1B9A', corBg: '#F3E5F5' },
+  { nome: 'Iacanga',    lat: -21.88, lon: -49.03, estado: 'SP', cor: '#E65100', corBg: '#FFF3E0' }
+];
+
+async function buscarComparativoCidades() {
+  const dataIni = document.getElementById('historico-data-ini').value;
+  const dataFim = document.getElementById('historico-data-fim').value;
+  if (!dataIni || !dataFim) { alert('Defina a Data Inicial e a Data Final no filtro de Histórico acima antes de comparar.'); return; }
+  if (dataIni > dataFim) { alert('A Data Inicial deve ser anterior ou igual à Data Final.'); return; }
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dFim = new Date(dataFim + 'T12:00:00');
+  if (dFim >= hoje) { alert('A Data Final deve ser uma data passada.'); return; }
+
+  const resultEl = document.getElementById('comparativo-cidades-result');
+  resultEl.innerHTML = '<div class="clima-loading" style="margin-top:14px"><i class="fas fa-spinner fa-spin"></i>Consultando dados das 4 cidades...</div>';
+
+  const fmtDate = d2 => `${d2.getDate().toString().padStart(2,'0')}/${(d2.getMonth()+1).toString().padStart(2,'0')}/${d2.getFullYear()}`;
+  const dIniObj = new Date(dataIni + 'T12:00:00');
+  const dFimObj = new Date(dataFim + 'T12:00:00');
+
+  try {
+    const resultados = await Promise.all(CIDADES_COMPARATIVO.map(async cidade => {
+      const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${cidade.lat}&longitude=${cidade.lon}&start_date=${dataIni}&end_date=${dataFim}&daily=precipitation_sum&timezone=America/Sao_Paulo`;
+      const r = await fetch(url);
+      const d = await r.json();
+      const precipArr = (d.daily && d.daily.precipitation_sum) ? d.daily.precipitation_sum : [];
+      const total = precipArr.reduce((acc, v) => acc + (v || 0), 0);
+      const diasChuva = precipArr.filter(v => v > 0).length;
+      const totalDias = precipArr.length;
+      return { ...cidade, total, diasChuva, totalDias };
+    }));
+
+    // Ordenar por total decrescente para ranking
+    const ordenados = [...resultados].sort((a, b) => b.total - a.total);
+    const maxTotal = ordenados[0].total || 1;
+
+    let html = `
+      <div style="margin-top:16px; padding:12px 14px; background:var(--surface2); border-radius:var(--radius-md); border:1px solid var(--border); margin-bottom:14px;">
+        <div style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">
+          <i class="fas fa-calendar-alt" style="margin-right:4px; color:var(--blue);"></i>
+          Período: ${fmtDate(dIniObj)} a ${fmtDate(dFimObj)}
+        </div>
+      </div>`;
+
+    // Blocos lado a lado
+    html += `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:14px;">`;
+    resultados.forEach((c, i) => {
+      const rank = ordenados.findIndex(x => x.nome === c.nome) + 1;
+      const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+      html += `
+        <div style="background:${c.corBg}; border:1.5px solid ${c.cor}30; border-radius:var(--radius-md); padding:14px 12px; text-align:center; position:relative;">
+          <div style="position:absolute; top:8px; right:10px; font-size:14px;">${rankIcon}</div>
+          <div style="font-size:11px; font-weight:800; color:${c.cor}; margin-bottom:2px;">${c.nome}</div>
+          <div style="font-size:9px; font-weight:600; color:var(--text-3); margin-bottom:10px;">${c.estado}</div>
+          <div style="font-size:22px; font-weight:800; color:${c.cor}; line-height:1;">${c.total.toFixed(1)}</div>
+          <div style="font-size:10px; font-weight:700; color:var(--text-3); margin-bottom:8px;">mm acumulados</div>
+          <div style="font-size:9px; color:var(--text-3);">${c.diasChuva} dias com chuva</div>
+          <!-- Mini barra proporcional -->
+          <div style="margin-top:8px; height:6px; background:${c.cor}20; border-radius:99px; overflow:hidden;">
+            <div style="height:100%; width:${Math.round((c.total/maxTotal)*100)}%; background:${c.cor}; border-radius:99px; transition:width 0.8s;"></div>
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+
+    // Mini tabela comparativa
+    html += `
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:11px;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:8px 10px; background:var(--surface2); border-bottom:2px solid var(--border); color:var(--text-3); font-size:9px; text-transform:uppercase; letter-spacing:0.5px;">Cidade</th>
+              <th style="text-align:right; padding:8px 10px; background:var(--surface2); border-bottom:2px solid var(--border); color:var(--text-3); font-size:9px; text-transform:uppercase; letter-spacing:0.5px;">Total mm</th>
+              <th style="text-align:right; padding:8px 10px; background:var(--surface2); border-bottom:2px solid var(--border); color:var(--text-3); font-size:9px; text-transform:uppercase; letter-spacing:0.5px;">Dias c/ chuva</th>
+              <th style="text-align:right; padding:8px 10px; background:var(--surface2); border-bottom:2px solid var(--border); color:var(--text-3); font-size:9px; text-transform:uppercase; letter-spacing:0.5px;">Ranking</th>
+            </tr>
+          </thead>
+          <tbody>`;
+    ordenados.forEach((c, i) => {
+      const rank = i + 1;
+      const rankIcon = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+      html += `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 10px; font-weight:700; color:${c.cor};">${c.nome}, ${c.estado}</td>
+              <td style="padding:9px 10px; text-align:right; font-weight:800; color:${c.cor};">${c.total.toFixed(1)} mm</td>
+              <td style="padding:9px 10px; text-align:right; color:var(--text-2);">${c.diasChuva} / ${c.totalDias}</td>
+              <td style="padding:9px 10px; text-align:right; font-size:14px;">${rankIcon}</td>
+            </tr>`;
+    });
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:10px; color:var(--text-3); margin-top:10px;">* Dados fornecidos pela Open-Meteo Historical Weather API.</p>`;
+
+    resultEl.innerHTML = html;
+  } catch (err) {
+    resultEl.innerHTML = '<p style="color:var(--red); font-size:12px; margin-top:12px;"><i class="fas fa-exclamation-triangle"></i> Erro ao consultar dados das cidades. Verifique sua conexão.</p>';
   }
 }
 
