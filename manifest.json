@@ -1,6 +1,6 @@
 {
-  "name": "Agro CTT",
-  "short_name": "CTT - PAS",
+  "name": "Gestão - PAS",
+  "short_name": "Gestão - PAS",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#121412",
