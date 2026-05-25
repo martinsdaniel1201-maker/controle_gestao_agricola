@@ -610,32 +610,6 @@
     .mapas-sub-btn:hover:not(.active) {
       background: var(--green-100); border-color: var(--green-500);
     }
-    .mapas-busca-bar {
-      display: flex; gap: 8px; align-items: center;
-      margin-bottom: 10px;
-    }
-    .mapas-busca-bar input {
-      flex: 1; padding: 10px 14px;
-      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface2); color: var(--text);
-      font-size: 13px; font-weight: 600; outline: none;
-      transition: border-color 0.18s;
-    }
-    .mapas-busca-bar input:focus { border-color: var(--green-500); }
-    .mapas-busca-bar .btn-limpar {
-      padding: 10px 14px; border-radius: var(--radius-sm);
-      border: 1.5px solid var(--border); background: var(--surface2);
-      color: var(--text-3); font-size: 11px; font-weight: 700;
-      cursor: pointer; white-space: nowrap; transition: all 0.18s;
-    }
-    .mapas-busca-bar .btn-limpar:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
-    .mapas-dica {
-      font-size: 10px; color: var(--text-3); line-height: 1.6;
-      padding: 10px 14px; background: var(--amber-bg);
-      border-left: 3px solid var(--amber); border-radius: var(--radius-sm);
-      margin-bottom: 14px;
-    }
-    .mapas-dica strong { color: var(--amber); }
     .mapas-viewer-wrap {
       border-radius: var(--radius-md); overflow: hidden;
       border: 1.5px solid var(--border);
@@ -643,9 +617,29 @@
       position: relative;
     }
     .mapas-viewer-wrap iframe {
-      width: 100%; height: 72vh; min-height: 480px;
+      width: 100%; height: 80vh; min-height: 520px;
       border: none; display: block;
     }
+    /* No mobile o iframe não funciona no iOS — usa botão de abrir */
+    .mapas-mobile-open {
+      display: none;
+      flex-direction: column; align-items: center;
+      justify-content: center; gap: 16px;
+      padding: 32px 20px;
+      background: var(--surface2);
+      text-align: center;
+    }
+    .mapas-mobile-open .mob-icon { font-size: 44px; color: var(--green-100); }
+    .mapas-mobile-open .mob-nome { font-size: 13px; font-weight: 800; color: var(--green-900); }
+    .mapas-mobile-open .mob-desc { font-size: 11px; color: var(--text-3); line-height: 1.6; max-width: 260px; }
+    .mapas-mobile-open .btn-abrir-pdf {
+      background: var(--grad); color: white; border: none;
+      padding: 14px 28px; border-radius: var(--radius-md);
+      font-weight: 800; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; transition: opacity 0.15s;
+    }
+    .mapas-mobile-open .btn-abrir-pdf:hover { opacity: 0.88; }
     .mapas-placeholder {
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; gap: 12px;
@@ -700,7 +694,7 @@
     <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
     </button>
-   
+ 
    
   </nav>
 
@@ -1230,33 +1224,37 @@
       </button>
     </div>
 
-    <!-- Barra de busca -->
-    <div class="card" style="margin-bottom:14px;">
-      <div class="card-title"><i class="fas fa-search"></i> Buscar no Caderno</div>
-      <div class="mapas-busca-bar">
-        <input type="text" id="mapas-busca-input"
-          placeholder="Buscar fazenda, código, município..."
-          oninput="atualizarDicaBusca()"
-        >
-        <button class="btn-limpar" onclick="limparBuscaMapas()">
-          <i class="fas fa-times" style="margin-right:4px;"></i>Limpar
-        </button>
-      </div>
-      <div class="mapas-dica" id="mapas-dica-texto">
-        <strong><i class="fas fa-lightbulb" style="margin-right:4px;"></i>Dica:</strong>
-        Selecione um caderno acima para começar. Para localizar fazendas, talhões ou municípios diretamente nas páginas do mapa com alta precisão, use o atalho <strong>Ctrl + F</strong> (ou o ícone de lupa 🔍 do visualizador) após abrir o PDF.
-      </div>
-    </div>
-
     <!-- Visualizador de PDF -->
     <div class="card" style="padding:14px;">
       <div class="card-title"><i class="fas fa-file-pdf" style="color:#C62828;"></i> <span id="mapas-titulo-pdf">Selecione um caderno para visualizar</span></div>
       <div class="mapas-viewer-wrap" id="mapas-viewer-wrap">
+
+        <!-- Estado inicial / placeholder -->
         <div class="mapas-placeholder" id="mapas-placeholder">
           <i class="fas fa-map-marked-alt"></i>
           <p>Selecione uma das abas acima para carregar o caderno de mapas correspondente.</p>
         </div>
-        <iframe id="mapas-iframe" src="" style="display:none;" title="Visualizador de Caderno de Mapas" allow="fullscreen"></iframe>
+
+        <!-- Desktop: iframe nativo -->
+        <iframe id="mapas-iframe" src="" style="display:none;"
+          title="Visualizador de Caderno de Mapas"
+          allow="fullscreen">
+        </iframe>
+
+        <!-- Mobile/iOS: botão para abrir no leitor nativo -->
+        <div class="mapas-mobile-open" id="mapas-mobile-open">
+          <div class="mob-icon"><i class="fas fa-file-pdf" style="color:#C62828;"></i></div>
+          <div class="mob-nome" id="mob-nome-pdf">—</div>
+          <div class="mob-desc">
+            No celular, toque no botão abaixo para abrir o PDF no leitor nativo do dispositivo,
+            onde você pode usar o <strong>ícone de busca 🔍</strong> para localizar fazendas,
+            talhões e municípios com alta precisão.
+          </div>
+          <a id="btn-abrir-pdf-mobile" href="#" target="_blank" class="btn-abrir-pdf">
+            <i class="fas fa-external-link-alt"></i> Abrir PDF
+          </a>
+        </div>
+
       </div>
     </div>
 
@@ -2297,8 +2295,6 @@ async function buscarComparativoCidades() {
    CADERNO DE MAPAS
 ══════════════════════════════════════════════ */
 
-// Mapa de PDFs disponíveis — o arquivo do fornecedor 25/26 está no servidor local
-// Os demais cadernos ainda não foram carregados (placeholder)
 const MAPAS_PDFS = {
   fornecedor_25_26: {
     label: "Caderno de Mapas de Fornecedores 25'26",
@@ -2306,7 +2302,7 @@ const MAPAS_PDFS = {
   },
   proprio_25_26: {
     label: "Caderno de Mapas Próprio 25'26",
-    arquivo: null   // ainda não disponível
+    arquivo: null
   },
   proprio_26_27: {
     label: "Caderno de Mapas Próprio 26'27",
@@ -2320,8 +2316,16 @@ const MAPAS_PDFS = {
 
 let mapaAtivo = null;
 
+// Detecta mobile ou iOS (iframe de PDF não funciona no Safari/iOS)
+function isMobileOuIOS() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isAndroid = /Android/.test(ua);
+  const isMobileWidth = window.innerWidth <= 768;
+  return isIOS || isAndroid || isMobileWidth;
+}
+
 function trocarMapaPDF(chave, btnEl) {
-  // Atualizar botões ativos
   document.querySelectorAll('.mapas-sub-btn').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
 
@@ -2331,58 +2335,36 @@ function trocarMapaPDF(chave, btnEl) {
   mapaAtivo = chave;
   document.getElementById('mapas-titulo-pdf').textContent = mapa.label;
 
-  const iframe    = document.getElementById('mapas-iframe');
+  const iframe      = document.getElementById('mapas-iframe');
   const placeholder = document.getElementById('mapas-placeholder');
+  const mobileOpen  = document.getElementById('mapas-mobile-open');
 
-  if (mapa.arquivo) {
-    // Usar viewer nativo do navegador sem parâmetro de download
-    // O '#toolbar=1' ativa a barra de ferramentas nativa incluindo o Ctrl+F / lupa
-    iframe.src = mapa.arquivo + '#toolbar=1&navpanes=1&scrollbar=1';
-    iframe.style.display = 'block';
-    placeholder.style.display = 'none';
-  } else {
+  // Esconde tudo primeiro
+  iframe.style.display      = 'none';
+  placeholder.style.display = 'none';
+  mobileOpen.style.display  = 'none';
+  iframe.src = '';
+
+  if (!mapa.arquivo) {
     // Caderno ainda não disponível
-    iframe.src = '';
-    iframe.style.display = 'none';
     placeholder.style.display = 'flex';
     placeholder.innerHTML = `
       <i class="fas fa-clock" style="font-size:36px; color:var(--amber);"></i>
       <p style="color:var(--amber); font-weight:700;">${escapeHtml(mapa.label)}</p>
-      <p style="font-size:11px;">Este caderno ainda não foi carregado no sistema. Substitua o arquivo PDF correspondente na pasta do projeto para ativá-lo.</p>`;
-  }
-
-  // Atualizar dica de busca
-  atualizarDicaBusca();
-}
-
-function atualizarDicaBusca() {
-  const input = document.getElementById('mapas-busca-input');
-  const dica  = document.getElementById('mapas-dica-texto');
-  const termo = (input && input.value) ? input.value.trim() : '';
-
-  if (!mapaAtivo) {
-    dica.innerHTML = `<strong><i class="fas fa-lightbulb" style="margin-right:4px;"></i>Dica:</strong>
-      Selecione um caderno acima para começar. Para localizar termos com alta precisão, use <strong>Ctrl + F</strong> ou o ícone de lupa 🔍 do visualizador nativo.`;
+      <p style="font-size:11px;">Este caderno ainda não foi carregado. Adicione o PDF correspondente na pasta do projeto para ativá-lo.</p>`;
     return;
   }
 
-  if (termo.length > 0) {
-    dica.innerHTML = `<strong><i class="fas fa-search" style="margin-right:4px;"></i>Buscando:</strong>
-      Você digitou <strong>"${escapeHtml(termo)}"</strong>. Como o PDF é renderizado pelo navegador, 
-      para localizar esse termo diretamente nas páginas use <strong>Ctrl + F</strong> 
-      (Windows/Linux) ou <strong>⌘ + F</strong> (Mac) dentro do visualizador. O ícone de lupa 🔍 
-      na barra nativa do PDF também realiza buscas com alta precisão.`;
+  if (isMobileOuIOS()) {
+    // Mobile / iOS: mostra botão para abrir no leitor nativo
+    document.getElementById('mob-nome-pdf').textContent = mapa.label;
+    document.getElementById('btn-abrir-pdf-mobile').href = mapa.arquivo;
+    mobileOpen.style.display = 'flex';
   } else {
-    dica.innerHTML = `<strong><i class="fas fa-lightbulb" style="margin-right:4px;"></i>Dica:</strong>
-      Para localizar fazendas, talhões ou municípios diretamente nas páginas, use o atalho 
-      <strong>Ctrl + F</strong> ou o ícone de lupa 🔍 no visualizador nativo do PDF.`;
+    // Desktop: iframe nativo com toolbar (inclui lupa / Ctrl+F)
+    iframe.src = mapa.arquivo + '#toolbar=1&navpanes=1&scrollbar=1';
+    iframe.style.display = 'block';
   }
-}
-
-function limparBuscaMapas() {
-  const input = document.getElementById('mapas-busca-input');
-  if (input) { input.value = ''; input.focus(); }
-  atualizarDicaBusca();
 }
 
 /* ══════════════════════════════════════════════
