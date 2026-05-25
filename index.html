@@ -293,7 +293,32 @@
       tbody td:last-child { border-bottom: none !important; }
       tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
     }
+/* Seleciona o contêiner do menu de abas no celular */
+@media screen and (max-width: 768px) {
+  /* Substitua pelo seletor real da sua barra de abas se houver uma classe específica */
+  .tabs-container, .nav-tabs, div[style*="display: flex"] { 
+    gap: 4px !important; /* Diminui o espaçamento entre os botões */
+    overflow-x: auto !important; /* Mantém o deslize com o dedo */
+    scrollbar-width: none !important; /* Esconde a barra no Firefox */
+    -ms-overflow-style: none !important; /* Esconde a barra no IE/Edge */
+  }
 
+  /* Esconde a barra de rolagem cinza no Chrome, Safari e aparelhos Android/iOS */
+  .tabs-container::-webkit-scrollbar, 
+  .nav-tabs::-webkit-scrollbar,
+  div[style*="display: flex"]::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Ajusta o tamanho dos botões internos para caberem melhor */
+  .tabs-container button, .nav-tabs a, .tab-btn {
+    font-size: 11px !important; /* Diminui um pouquinho a letra */
+    padding: 6px 4px !important; /* Reduz as bordas internas */
+    min-width: 75px !important; /* Garante que eles fiquem organizados */
+  }
+}
     /* ── PDF BUTTON ── */
     #btn-pdf-flutuante {
       position: fixed; bottom: 24px; right: 20px;
