@@ -648,9 +648,144 @@
     }
     .mapas-placeholder i { font-size: 40px; color: var(--green-100); }
     .mapas-placeholder p { font-size: 12px; font-weight: 600; text-align: center; max-width: 220px; line-height: 1.5; }
+
+    /* ── DARK MODE ── */
+    body.dark-mode {
+      --bg: #0F1410;
+      --surface: #1A2018;
+      --surface2: #222C20;
+      --border: #2E3D2A;
+      --border-strong: #3A4E35;
+      --text: #E8F0E6;
+      --text-2: #B0C4AC;
+      --text-3: #6E8A68;
+      --green-50: #162015;
+      --green-100: #1E3A1A;
+      --red-bg: #2A1010;
+      --amber-bg: #2A1A08;
+      --blue-bg: #0A1828;
+      --grad: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+    }
+    body.dark-mode .app-header { background: linear-gradient(135deg,#0D3B10 0%,#1B5E20 100%); }
+    body.dark-mode .modal-box { background: var(--surface); }
+    body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
+      background: var(--surface2) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    body.dark-mode .res-highlight { background: linear-gradient(135deg,#1B5E20,#2E7D32); }
+
+    /* Toggle dark mode button */
+    #btn-dark-mode {
+      position: fixed; bottom: 76px; right: 20px;
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--surface); border: 1.5px solid var(--border);
+      color: var(--text-3); font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+      z-index: 9998; transition: all 0.2s;
+    }
+    #btn-dark-mode:hover { border-color: var(--green-500); color: var(--green-700); }
+
+    /* ── TOAST / SNACKBAR ── */
+    #toast-container {
+      position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+      z-index: 99999; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--green-900); color: white;
+      padding: 10px 20px; border-radius: 50px;
+      font-size: 12px; font-weight: 700;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      display: flex; align-items: center; gap: 8px;
+      animation: toastIn 0.3s ease-out forwards;
+      pointer-events: none;
+    }
+    .toast.error { background: var(--red); }
+    .toast.info  { background: var(--blue); }
+    @keyframes toastIn {
+      from { opacity:0; transform: translateY(12px) scale(0.95); }
+      to   { opacity:1; transform: translateY(0)   scale(1);    }
+    }
+    @keyframes toastOut {
+      from { opacity:1; }
+      to   { opacity:0; transform: translateY(8px); }
+    }
+
+    /* ── OFFLINE BANNER ── */
+    #offline-banner {
+      display: none; position: fixed; top: 0; left: 0; right: 0;
+      background: var(--red); color: white;
+      text-align: center; padding: 8px 16px;
+      font-size: 11px; font-weight: 700; z-index: 99997;
+      letter-spacing: 0.3px;
+    }
+    #offline-banner.visible { display: block; }
+    body.has-offline-banner .app-header { margin-top: 36px; }
+
+    /* ── JORNADA WIDGET ── */
+    .jornada-widget {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 14px 16px;
+      margin-bottom: 14px; position: relative; overflow: hidden;
+    }
+    .jornada-widget-accent {
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--green-500), var(--amber));
+      border-radius: 99px 99px 0 0;
+    }
+    .jornada-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .jornada-label { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+    .jornada-horas { font-size: 13px; font-weight: 800; color: var(--green-900); }
+    .jornada-bar-bg { background: var(--border); height: 8px; border-radius: 99px; overflow: hidden; }
+    .jornada-bar-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--green-500), var(--amber));
+      transition: width 1s ease;
+    }
+    .jornada-turnos {
+      display: flex; justify-content: space-between;
+      font-size: 9px; color: var(--text-3); font-weight: 600; margin-top: 5px;
+    }
+
+    /* ── DATETIME NO HEADER ── */
+    .header-datetime {
+      font-size: 10px; opacity: 0.8; margin-top: 6px;
+      font-weight: 600; letter-spacing: 0.3px;
+    }
+
+    /* ── BOTÃO COPIAR RESUMO ── */
+    #btn-copiar-resumo {
+      background: var(--surface2); color: var(--green-700);
+      border: 1.5px solid var(--border);
+      padding: 9px 14px; border-radius: var(--radius-sm);
+      font-weight: 700; font-size: 11px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: all 0.18s; width: 100%; justify-content: center;
+      margin-bottom: 10px;
+    }
+    #btn-copiar-resumo:hover { border-color: var(--green-500); background: var(--green-50); }
   </style>
 </head>
 <body>
+
+<!-- Offline Banner -->
+<div id="offline-banner">
+  <i class="fas fa-wifi" style="margin-right:6px; opacity:0.8;"></i>
+  SEM CONEXÃO — Algumas funcionalidades podem estar indisponíveis
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Botão Dark Mode -->
+<button id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro">
+  <i class="fas fa-moon" id="dark-mode-icon"></i>
+</button>
 
 <button id="btn-pdf-flutuante" onclick="gerarPDF()">
   <i class="fas fa-print"></i> PDF
@@ -673,6 +808,7 @@
     <div class="app-badge">Gestão Operacional</div>
     <div class="app-title">CONTROLE TÉCNICO AGRÍCOLA</div>
     <div class="app-sub">CTT - UNIDADE PASSOS/MG</div>
+    <div class="header-datetime" id="header-datetime">—</div>
   </div>
 </header>
 
@@ -685,16 +821,15 @@
     <button class="tab-btn" onclick="showTab(event,'liberacoes')">
       <i class="fas fa-table"></i>LIBERAÇÕES
     </button>
- <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
-      <i class="fas fa-map"></i>CADERNO DE MAPAS
-    </button>
      <button class="tab-btn" onclick="showTab(event,'clima_aba')">
       <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
     </button>
     <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
     </button>
- 
+    <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
+      <i class="fas fa-map"></i>CADERNO DE MAPAS
+    </button>
    
   </nav>
 
@@ -773,6 +908,24 @@
 
     <!-- SUB: CONTROLE FRENTES (DASHBOARD) -->
     <div id="sub_dash" class="sub-section">
+
+      <!-- Jornada do Dia -->
+      <div class="jornada-widget" id="jornada-widget">
+        <div class="jornada-widget-accent"></div>
+        <div class="jornada-top">
+          <span class="jornada-label"><i class="fas fa-clock" style="margin-right:4px;"></i>Jornada do Dia</span>
+          <span class="jornada-horas" id="jornada-horas-label">— h de — h</span>
+        </div>
+        <div class="jornada-bar-bg">
+          <div class="jornada-bar-fill" id="jornada-bar" style="width:0%"></div>
+        </div>
+        <div class="jornada-turnos">
+          <span id="jornada-inicio">Início: —</span>
+          <span id="jornada-turno-label">—</span>
+          <span id="jornada-fim">Fim: —</span>
+        </div>
+      </div>
+
       <div class="stats-row">
         <div class="widget">
           <div class="widget-accent"></div>
@@ -821,6 +974,11 @@
         </div>
       </div>
 
+      <!-- Copiar Resumo Operacional -->
+      <button id="btn-copiar-resumo" onclick="copiarResumoOperacional()">
+        <i class="fas fa-share-alt"></i> Copiar Resumo para WhatsApp
+      </button>
+
       <!-- Toggle Comparativo Real x Simulado -->
       <div class="comparativo-toggle-bar" onclick="toggleComparativo()">
         <div class="ctb-text">
@@ -859,13 +1017,19 @@
     </button>
     <div class="card">
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
-      <div class="filter-bar">
-        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()">
+      <div class="filter-bar" style="flex-wrap:wrap; gap:6px;">
+        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
+        <input type="text" id="filtroFazenda" placeholder="Buscar fazenda..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
         <select id="filtroStatus" onchange="filtrarTabela()">
           <option value="">Todos</option>
           <option value="ABERTA">Abertas</option>
           <option value="ENCERRADA">Encerradas</option>
         </select>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+        <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec">
+          <i class="fas fa-sync-alt"></i> Atualizar dados
+        </button>
       </div>
       <table>
         <thead>
@@ -2368,6 +2532,274 @@ function trocarMapaPDF(chave, btnEl) {
 }
 
 /* ══════════════════════════════════════════════
+   #1 — PERSISTÊNCIA AUTOMÁTICA (localStorage)
+══════════════════════════════════════════════ */
+const STORAGE_KEY_REAL    = 'ctt_frentes_real';
+const STORAGE_KEY_META    = 'ctt_meta';
+const STORAGE_KEY_DIESEL  = 'ctt_diesel';
+const STORAGE_KEY_DARK    = 'ctt_darkmode';
+
+function salvarEstadoReal() {
+  try {
+    localStorage.setItem(STORAGE_KEY_REAL,   JSON.stringify(frentes));
+    localStorage.setItem(STORAGE_KEY_META,   document.getElementById('meta_val').value);
+    localStorage.setItem(STORAGE_KEY_DIESEL, document.getElementById('diesel_val').value);
+  } catch(e) {}
+}
+
+function restaurarEstadoReal() {
+  try {
+    const f = localStorage.getItem(STORAGE_KEY_REAL);
+    const m = localStorage.getItem(STORAGE_KEY_META);
+    const d = localStorage.getItem(STORAGE_KEY_DIESEL);
+    if (f) frentes = JSON.parse(f);
+    if (m) document.getElementById('meta_val').value = m;
+    if (d) document.getElementById('diesel_val').value = d;
+  } catch(e) {}
+}
+
+// Hookar o editData e update para auto-salvar (modo real apenas)
+const _editDataOrig = editData;
+editData = function(id, field, val) {
+  _editDataOrig(id, field, val);
+  if (!modoSimulacao) salvarEstadoReal();
+};
+
+/* ══════════════════════════════════════════════
+   #2 — ATUALIZAR GATEC (botão manual)
+══════════════════════════════════════════════ */
+async function atualizarGATEC() {
+  const btn = document.getElementById('btn-atualizar-gatec');
+  if (btn) {
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
+    btn.disabled = true;
+  }
+  await carregarDadosGATEC();
+  if (btn) {
+    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Atualizar dados';
+    btn.disabled = false;
+  }
+  showToast('✅ Liberações atualizadas com sucesso!');
+}
+
+/* ══════════════════════════════════════════════
+   #3 — DATA E HORA EM TEMPO REAL NO HEADER
+══════════════════════════════════════════════ */
+const DIAS_SEMANA_FULL = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const MESES_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function atualizarRelogio() {
+  const el = document.getElementById('header-datetime');
+  if (!el) return;
+  const now = new Date();
+  const dia  = DIAS_SEMANA_FULL[now.getDay()];
+  const d    = now.getDate().toString().padStart(2,'0');
+  const mes  = MESES_FULL[now.getMonth()];
+  const ano  = now.getFullYear();
+  const hh   = now.getHours().toString().padStart(2,'0');
+  const mm   = now.getMinutes().toString().padStart(2,'0');
+  el.textContent = `${dia}, ${d} de ${mes} de ${ano} · ${hh}:${mm}`;
+  atualizarJornada();
+}
+
+/* ══════════════════════════════════════════════
+   #4 — JORNADA DO DIA
+══════════════════════════════════════════════ */
+function atualizarJornada() {
+  // Calcula a média de horas/dia configuradas nas frentes
+  const totalHoras = frentes.length > 0
+    ? Math.round(frentes.reduce((s, f) => s + (f.horas || 12), 0) / frentes.length)
+    : 12;
+
+  const now   = new Date();
+  const horaAtual = now.getHours() + now.getMinutes() / 60;
+
+  // Turno: considera início às 06h (turno diurno padrão)
+  const inicioTurno = 6;
+  const fimTurno    = inicioTurno + totalHoras;
+  const horasTrab   = Math.max(0, Math.min(horaAtual - inicioTurno, totalHoras));
+  const pct         = Math.min((horasTrab / totalHoras) * 100, 100);
+
+  const fmt = h => {
+    const hh = Math.floor(h).toString().padStart(2,'0');
+    const mm = Math.round((h % 1) * 60).toString().padStart(2,'0');
+    return `${hh}:${mm}`;
+  };
+
+  document.getElementById('jornada-bar').style.width = pct.toFixed(1) + '%';
+  document.getElementById('jornada-horas-label').textContent =
+    `${horasTrab.toFixed(1).replace('.',',')} h de ${totalHoras} h`;
+  document.getElementById('jornada-inicio').textContent  = `Início: ${fmt(inicioTurno)}`;
+  document.getElementById('jornada-fim').textContent     = `Fim: ${fmt(fimTurno)}`;
+
+  let turnoLabel = '';
+  if (horaAtual < inicioTurno)       turnoLabel = '⏳ Antes do turno';
+  else if (horaAtual >= fimTurno)    turnoLabel = '✅ Turno encerrado';
+  else if (pct < 50)                 turnoLabel = '🟢 Em andamento';
+  else if (pct < 85)                 turnoLabel = '🟡 Mais da metade';
+  else                               turnoLabel = '🔴 Reta final';
+  document.getElementById('jornada-turno-label').textContent = turnoLabel;
+}
+
+/* ══════════════════════════════════════════════
+   #5 — COPIAR RESUMO PARA WHATSAPP
+══════════════════════════════════════════════ */
+function copiarResumoOperacional() {
+  const prDiesel = parseFloat(document.getElementById('diesel_val').value) || 0;
+  const metaG    = parseFloat(document.getElementById('meta_val').value) || 0;
+  const now      = new Date();
+  const dataHora = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+  let tTon = 0, tCusto = 0;
+  const linhasFrente = frentes.map(f => {
+    const rend  = (f.vel * f.larg * (f.efc / 100)) / 10;
+    const tonD  = rend * f.tch * f.horas * f.maquinas;
+    const cD    = f.diesel * prDiesel * f.horas * f.maquinas;
+    const cTon  = tonD > 0 ? (cD / tonD).toFixed(2) : '0.00';
+    tTon  += tonD;
+    tCusto += cD;
+    return `  • ${f.nome}: *${Math.round(tonD).toLocaleString('pt-BR')} t/dia* | R$${cTon}/t`;
+  }).join('\n');
+
+  const pct = metaG > 0 ? ((tTon / metaG) * 100).toFixed(1) : '—';
+  const modo = modoSimulacao ? '📊 SIMULAÇÃO' : '✅ REAL';
+
+  const texto =
+`🌾 *CONTROLE TÉCNICO AGRÍCOLA*
+CTT - UNIDADE PASSOS/MG
+📅 ${dataHora} | Modo: ${modo}
+${'─'.repeat(32)}
+🚜 *FRENTES DE COLHEITA*
+${linhasFrente}
+${'─'.repeat(32)}
+📦 *Produção Total:* ${Math.round(tTon).toLocaleString('pt-BR')} t/dia
+⛽ *Custo Diesel:* R$ ${Math.round(tCusto).toLocaleString('pt-BR')}/dia
+🎯 *Meta (${metaG.toLocaleString('pt-BR')} t):* ${pct}%
+${'─'.repeat(32)}
+_Gerado pelo CTT Controle Agrícola_`;
+
+  navigator.clipboard.writeText(texto)
+    .then(() => showToast('✅ Resumo copiado! Cole no WhatsApp.'))
+    .catch(() => {
+      // Fallback para dispositivos sem clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('✅ Resumo copiado! Cole no WhatsApp.');
+    });
+}
+
+/* ══════════════════════════════════════════════
+   #6 — FILTRO POR FAZENDA (já no HTML, lógica aqui)
+   Atualizar filtrarTabela para incluir fazenda
+══════════════════════════════════════════════ */
+// Substituir filtrarTabela original:
+filtrarTabela = function() {
+  const bFrente  = (document.getElementById('filtroFrente')?.value  || '').toLowerCase();
+  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
+  const bStatus  = (document.getElementById('filtroStatus')?.value  || '');
+  document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
+    const frente  = linha.cells[1]?.innerText.toLowerCase() || '';
+    const fazenda = linha.cells[2]?.innerText.toLowerCase() || '';
+    const status  = linha.cells[4]?.innerText.toUpperCase() || '';
+    const ok = frente.includes(bFrente)
+            && fazenda.includes(bFazenda)
+            && (bStatus === '' || status.includes(bStatus));
+    linha.style.display = ok ? '' : 'none';
+  });
+};
+
+/* ══════════════════════════════════════════════
+   #7 — TOAST / CONFIRMAÇÃO VISUAL
+══════════════════════════════════════════════ */
+function showToast(msg, tipo = 'success', duracao = 2800) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const t = document.createElement('div');
+  t.className = 'toast' + (tipo === 'error' ? ' error' : tipo === 'info' ? ' info' : '');
+  t.innerHTML = msg;
+  container.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => t.remove(), 320);
+  }, duracao);
+}
+
+// Hookar confirmarSalvar para mostrar toast
+const _confirmarSalvarOrig = confirmarSalvar;
+confirmarSalvar = function() {
+  const nome = document.getElementById('modal-cenario-nome').value.trim();
+  if (!nome) { alert('Digite um nome para o cenário.'); return; }
+  _confirmarSalvarOrig();
+  showToast(`💾 Cenário "${nome}" salvo com sucesso!`);
+};
+
+/* ══════════════════════════════════════════════
+   #8 — MODO ESCURO
+══════════════════════════════════════════════ */
+function toggleDarkMode() {
+  const body = document.body;
+  const icon = document.getElementById('dark-mode-icon');
+  const isDark = body.classList.toggle('dark-mode');
+  icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+  try { localStorage.setItem(STORAGE_KEY_DARK, isDark ? '1' : '0'); } catch(e) {}
+  showToast(isDark ? '🌙 Modo escuro ativado' : '☀️ Modo claro ativado', 'info', 2000);
+}
+
+function restaurarDarkMode() {
+  try {
+    const pref = localStorage.getItem(STORAGE_KEY_DARK);
+    if (pref === '1') {
+      document.body.classList.add('dark-mode');
+      const icon = document.getElementById('dark-mode-icon');
+      if (icon) icon.className = 'fas fa-sun';
+    }
+  } catch(e) {}
+}
+
+/* ══════════════════════════════════════════════
+   #9 — ATALHOS DE TECLADO (desktop)
+══════════════════════════════════════════════ */
+document.addEventListener('keydown', function(e) {
+  // Alt + 1..5 navega entre abas
+  if (e.altKey && !e.ctrlKey && !e.shiftKey) {
+    const mapa = { '1':'simulador', '2':'liberacoes', '3':'clima_aba', '4':'calc_aba', '5':'mapas_aba' };
+    if (mapa[e.key]) {
+      e.preventDefault();
+      const btn = document.querySelectorAll('.tab-btn')[parseInt(e.key)-1];
+      showTab({ currentTarget: btn }, mapa[e.key]);
+      if (btn) { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+      showToast(`⌨️ Aba ${e.key} — ${mapa[e.key].replace('_aba','').replace('clima','Clima').replace('calc','Calculadora').replace('mapas','Mapas').replace('liberacoes','Liberações').replace('simulador','Simulador')}`, 'info', 1800);
+    }
+  }
+});
+
+/* ══════════════════════════════════════════════
+   #10 — INDICADOR DE CONEXÃO OFFLINE
+══════════════════════════════════════════════ */
+function atualizarStatusConexao() {
+  const banner = document.getElementById('offline-banner');
+  if (!banner) return;
+  if (!navigator.onLine) {
+    banner.classList.add('visible');
+    document.body.classList.add('has-offline-banner');
+  } else {
+    if (banner.classList.contains('visible')) {
+      banner.classList.remove('visible');
+      document.body.classList.remove('has-offline-banner');
+      showToast('📶 Conexão restaurada!', 'success', 2500);
+    }
+  }
+}
+window.addEventListener('online',  atualizarStatusConexao);
+window.addEventListener('offline', atualizarStatusConexao);
+
+/* ══════════════════════════════════════════════
    UTILIDADES
 ══════════════════════════════════════════════ */
 function escapeHtml(str) {
@@ -2388,10 +2820,34 @@ document.getElementById('modal-cenario-nome').addEventListener('keydown', functi
 /* ══════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════ */
+
+// Restaurar estado persistido (frentes reais, meta, diesel)
+restaurarEstadoReal();
+
 renderFrentes();
 update();
 carregarDadosGATEC();
 atualizarSelectCenarios();
+
+// Dark mode
+restaurarDarkMode();
+
+// Relógio + jornada em tempo real (atualiza a cada 30s)
+atualizarRelogio();
+setInterval(atualizarRelogio, 30000);
+
+// Auto-salvar ao alterar meta ou diesel
+document.getElementById('meta_val').addEventListener('input', () => { if (!modoSimulacao) salvarEstadoReal(); });
+document.getElementById('diesel_val').addEventListener('input', () => { if (!modoSimulacao) salvarEstadoReal(); });
+
+// Auto-salvar ao adicionar/remover frente (patch nas funções globais)
+const _addFrenteOrig = addFrente;
+addFrente = function() { _addFrenteOrig(); if (!modoSimulacao) salvarEstadoReal(); };
+const _removeFrenteOrig = removeFrente;
+removeFrente = function(id) { _removeFrenteOrig(id); if (!modoSimulacao) salvarEstadoReal(); };
+
+// Verificar conexão ao iniciar
+atualizarStatusConexao();
 
 // Datas do histórico: máximo = ontem, mínimo = 1940
 (function() {
