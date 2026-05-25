@@ -1013,9 +1013,8 @@
 
  <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
-    <div class="card" style="overflow: hidden;">
+    <div class="card">
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
-      
       <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
         <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
         <input type="text" id="filtroFazenda" placeholder="Buscar fazenda..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
@@ -1025,29 +1024,23 @@
           <option value="ENCERRADA">Encerradas</option>
         </select>
       </div>
-
       <div style="display:flex; justify-content:flex-end; margin-bottom:10px; margin-top:10px;">
         <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec">
           <i class="fas fa-sync-alt"></i> Atualizar dados
         </button>
       </div>
-
-      <!-- O SEGREDO ESTÁ AQUI: Essa div impede a tabela de estourar o fundo branco -->
-      <div style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th>Liberação</th>
-              <th>Frente</th>
-              <th>Fazenda</th>
-              <th>Talhões</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="corpo-tabela-gatec"></tbody>
-        </table>
-      </div>
-
+      <table style="width: 100%; table-layout: auto;">
+        <thead>
+          <tr>
+            <th>Liberação</th>
+            <th>Frente</th>
+            <th>Fazenda</th>
+            <th>Talhões</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-tabela-gatec"></tbody>
+      </table>
     </div>
   </section>
 
