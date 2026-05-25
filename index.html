@@ -293,6 +293,14 @@
       tbody td:last-child { border-bottom: none !important; }
       tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
     }
+    @media screen and (max-width: 768px) {
+  .tabs-nav {
+    display: flex;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* Rolagem elástica nativa no iOS/Safari */
+  }
+}
 /* Seleciona o contêiner do menu de abas no celular */
 @media screen and (max-width: 768px) {
   /* Substitua pelo seletor real da sua barra de abas se houver uma classe específica */
