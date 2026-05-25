@@ -282,7 +282,7 @@
     }
     tbody tr { transition: background 0.12s; }
     tbody tr:hover { background: var(--green-50); }
-    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text); background: var(--surface); }
+    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
     .badge { padding: 4px 10px; border-radius: 50px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; }
 
     @media screen and (max-width: 768px) {
@@ -821,15 +821,16 @@
     <button class="tab-btn" onclick="showTab(event,'liberacoes')">
       <i class="fas fa-table"></i>LIBERAÇÕES
     </button>
+ <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
+      <i class="fas fa-map"></i>CADERNO DE MAPAS
+    </button>
      <button class="tab-btn" onclick="showTab(event,'clima_aba')">
       <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
     </button>
     <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
     </button>
-    <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
-      <i class="fas fa-map"></i>CADERNO DE MAPAS
-    </button>
+   
    
   </nav>
 
@@ -1012,20 +1013,19 @@
 
   <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
-    <button class="btn-voltar" onclick="voltarParaHome()">
-      <i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO
-    </button>
     <div class="card">
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
-      <div class="filter-bar" style="display:flex; align-items:center; gap:10px; flex-wrap:nowrap; margin-bottom:10px;">
-        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
+      <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
         <input type="text" id="filtroFazenda" placeholder="Buscar fazenda..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
-        <select id="filtroStatus" onchange="filtrarTabela()" style="min-width:140px;">
+        <select id="filtroStatus" onchange="filtrarTabela()">
           <option value="">Todos</option>
           <option value="ABERTA">Abertas</option>
           <option value="ENCERRADA">Encerradas</option>
         </select>
-        <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec" style="white-space:nowrap;">
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-bottom:10px; margin-top:10px;">
+        <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec">
           <i class="fas fa-sync-alt"></i> Atualizar dados
         </button>
       </div>
@@ -1046,9 +1046,6 @@
 
   <!-- ══ ABA CALCULADORA ══ -->
   <section id="calc_aba" class="section">
-    <button class="btn-voltar" onclick="voltarParaHome()">
-      <i class="fas fa-arrow-left"></i> VOLTAR PARA O INÍCIO
-    </button>
 
     <!-- 1. ESTIMATIVA DE SAFRA -->
     <div class="card">
@@ -1453,15 +1450,15 @@ function showTab(e, id) {
   document.getElementById(id).classList.add('active');
   if (e && e.currentTarget) e.currentTarget.classList.add('active');
 
-  const isExtra = (id === 'calc_aba' || id === 'liberacoes');
-  document.getElementById('main-nav').style.display = isExtra ? 'none' : 'flex';
-  document.getElementById('btn-atualizar-global').style.display = isExtra ? 'none' : 'block';
+  // O nav principal fica sempre visível em todas as abas
+  document.getElementById('main-nav').style.display = 'flex';
+
+  // Botão "Atualizar Indicadores" só aparece no Simulador
+  const mostrarBtnAtualizar = (id === 'simulador');
+  document.getElementById('btn-atualizar-global').style.display = mostrarBtnAtualizar ? 'block' : 'none';
 
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
-  }
-  if (id === 'clima_aba' || id === 'mapas_aba') {
-    document.getElementById('btn-atualizar-global').style.display = 'none';
   }
 }
 
@@ -1475,10 +1472,11 @@ function showSubTab(e, id) {
 
 function voltarParaHome() {
   showTab(null, 'simulador');
-  document.getElementById('main-nav').style.display = 'flex';
-  document.getElementById('btn-atualizar-global').style.display = 'block';
   const primeiro = document.querySelector('.tabs-nav .tab-btn');
-  if (primeiro) primeiro.classList.add('active');
+  if (primeiro) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    primeiro.classList.add('active');
+  }
 }
 
 /* ══════════════════════════════════════════════
