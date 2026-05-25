@@ -1013,7 +1013,7 @@
 
  <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
-    <div class="card">
+    <div class="card" style="width: 100%; box-sizing: border-box;">
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
       <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
         <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
@@ -1029,17 +1029,19 @@
           <i class="fas fa-sync-alt"></i> Atualizar dados
         </button>
       </div>
-      <table style="width: 100%; table-layout: auto;">
+      
+      <!-- Tabela com layout fixo e quebra de texto para se ajustar milimetricamente à tela -->
+      <table style="width: 100%; table-layout: fixed; border-collapse: collapse; word-wrap: break-word; word-break: break-word;">
         <thead>
           <tr>
-            <th>Liberação</th>
-            <th>Frente</th>
-            <th>Fazenda</th>
-            <th>Talhões</th>
-            <th>Status</th>
+            <th style="width: 18%; padding: 8px 4px;">Liberação</th>
+            <th style="width: 12%; padding: 8px 4px;">Frente</th>
+            <th style="width: 30%; padding: 8px 4px;">Fazenda</th>
+            <th style="width: 25%; padding: 8px 4px;">Talhões</th>
+            <th style="width: 15%; padding: 8px 4px;">Status</th>
           </tr>
         </thead>
-        <tbody id="corpo-tabela-gatec"></tbody>
+        <tbody id="corpo-tabela-gatec" style="font-size: 14px;"></tbody>
       </table>
     </div>
   </section>
