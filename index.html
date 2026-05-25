@@ -590,6 +590,70 @@
     .modal-input:focus { border-color: var(--green-500); }
     .modal-btns { display: flex; gap: 8px; }
     .modal-btns button { flex: 1; }
+
+    /* ── CADERNO DE MAPAS ── */
+    .mapas-sub-tabs {
+      display: flex; gap: 5px; margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .mapas-sub-btn {
+      flex: 1; min-width: 120px; padding: 10px 8px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface2); color: var(--text-3);
+      font-weight: 700; font-size: 9px; cursor: pointer;
+      text-align: center; transition: all 0.18s; line-height: 1.4;
+    }
+    .mapas-sub-btn.active {
+      background: var(--green-50); color: var(--green-900);
+      border-color: var(--green-500);
+    }
+    .mapas-sub-btn:hover:not(.active) {
+      background: var(--green-100); border-color: var(--green-500);
+    }
+    .mapas-busca-bar {
+      display: flex; gap: 8px; align-items: center;
+      margin-bottom: 10px;
+    }
+    .mapas-busca-bar input {
+      flex: 1; padding: 10px 14px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface2); color: var(--text);
+      font-size: 13px; font-weight: 600; outline: none;
+      transition: border-color 0.18s;
+    }
+    .mapas-busca-bar input:focus { border-color: var(--green-500); }
+    .mapas-busca-bar .btn-limpar {
+      padding: 10px 14px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--surface2);
+      color: var(--text-3); font-size: 11px; font-weight: 700;
+      cursor: pointer; white-space: nowrap; transition: all 0.18s;
+    }
+    .mapas-busca-bar .btn-limpar:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .mapas-dica {
+      font-size: 10px; color: var(--text-3); line-height: 1.6;
+      padding: 10px 14px; background: var(--amber-bg);
+      border-left: 3px solid var(--amber); border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+    .mapas-dica strong { color: var(--amber); }
+    .mapas-viewer-wrap {
+      border-radius: var(--radius-md); overflow: hidden;
+      border: 1.5px solid var(--border);
+      background: #f0f0f0;
+      position: relative;
+    }
+    .mapas-viewer-wrap iframe {
+      width: 100%; height: 72vh; min-height: 480px;
+      border: none; display: block;
+    }
+    .mapas-placeholder {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px;
+      height: 260px; color: var(--text-3);
+      background: var(--surface2);
+    }
+    .mapas-placeholder i { font-size: 40px; color: var(--green-100); }
+    .mapas-placeholder p { font-size: 12px; font-weight: 600; text-align: center; max-width: 220px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -627,12 +691,16 @@
     <button class="tab-btn" onclick="showTab(event,'liberacoes')">
       <i class="fas fa-table"></i>LIBERAÇÕES
     </button>
+ <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
+      <i class="fas fa-map"></i>CADERNO DE MAPAS
+    </button>
      <button class="tab-btn" onclick="showTab(event,'clima_aba')">
       <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
     </button>
     <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
     </button>
+   
    
   </nav>
 
@@ -1139,6 +1207,61 @@
 
   </section>
 
+  <!-- ══ ABA CADERNO DE MAPAS ══ -->
+  <section id="mapas_aba" class="section">
+
+    <!-- Sub-abas -->
+    <div class="mapas-sub-tabs">
+      <button class="mapas-sub-btn" onclick="trocarMapaPDF('fornecedor_25_26', this)">
+        <i class="fas fa-users" style="display:block;font-size:14px;margin-bottom:4px;"></i>
+        FORNECEDOR<br>25'26
+      </button>
+      <button class="mapas-sub-btn" onclick="trocarMapaPDF('proprio_25_26', this)">
+        <i class="fas fa-tractor" style="display:block;font-size:14px;margin-bottom:4px;"></i>
+        PRÓPRIO<br>25'26
+      </button>
+      <button class="mapas-sub-btn" onclick="trocarMapaPDF('proprio_26_27', this)">
+        <i class="fas fa-seedling" style="display:block;font-size:14px;margin-bottom:4px;"></i>
+        PRÓPRIO<br>26'27
+      </button>
+      <button class="mapas-sub-btn" onclick="trocarMapaPDF('fornecedor_26_27', this)">
+        <i class="fas fa-handshake" style="display:block;font-size:14px;margin-bottom:4px;"></i>
+        FORNECEDOR<br>26'27
+      </button>
+    </div>
+
+    <!-- Barra de busca -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-title"><i class="fas fa-search"></i> Buscar no Caderno</div>
+      <div class="mapas-busca-bar">
+        <input type="text" id="mapas-busca-input"
+          placeholder="Buscar fazenda, código, município..."
+          oninput="atualizarDicaBusca()"
+        >
+        <button class="btn-limpar" onclick="limparBuscaMapas()">
+          <i class="fas fa-times" style="margin-right:4px;"></i>Limpar
+        </button>
+      </div>
+      <div class="mapas-dica" id="mapas-dica-texto">
+        <strong><i class="fas fa-lightbulb" style="margin-right:4px;"></i>Dica:</strong>
+        Selecione um caderno acima para começar. Para localizar fazendas, talhões ou municípios diretamente nas páginas do mapa com alta precisão, use o atalho <strong>Ctrl + F</strong> (ou o ícone de lupa 🔍 do visualizador) após abrir o PDF.
+      </div>
+    </div>
+
+    <!-- Visualizador de PDF -->
+    <div class="card" style="padding:14px;">
+      <div class="card-title"><i class="fas fa-file-pdf" style="color:#C62828;"></i> <span id="mapas-titulo-pdf">Selecione um caderno para visualizar</span></div>
+      <div class="mapas-viewer-wrap" id="mapas-viewer-wrap">
+        <div class="mapas-placeholder" id="mapas-placeholder">
+          <i class="fas fa-map-marked-alt"></i>
+          <p>Selecione uma das abas acima para carregar o caderno de mapas correspondente.</p>
+        </div>
+        <iframe id="mapas-iframe" src="" style="display:none;" title="Visualizador de Caderno de Mapas" allow="fullscreen"></iframe>
+      </div>
+    </div>
+
+  </section>
+
   <button id="btn-atualizar-global" class="btn-main" onclick="update()">
     <i class="fas fa-sync-alt" style="margin-right:6px"></i> ATUALIZAR INDICADORES
   </button>
@@ -1177,7 +1300,7 @@ function showTab(e, id) {
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
   }
-  if (id === 'clima_aba') {
+  if (id === 'clima_aba' || id === 'mapas_aba') {
     document.getElementById('btn-atualizar-global').style.display = 'none';
   }
 }
@@ -2168,6 +2291,98 @@ async function buscarComparativoCidades() {
   } catch (err) {
     resultEl.innerHTML = '<p style="color:var(--red); font-size:12px; margin-top:12px;"><i class="fas fa-exclamation-triangle"></i> Erro ao consultar dados das cidades. Verifique sua conexão.</p>';
   }
+}
+
+/* ══════════════════════════════════════════════
+   CADERNO DE MAPAS
+══════════════════════════════════════════════ */
+
+// Mapa de PDFs disponíveis — o arquivo do fornecedor 25/26 está no servidor local
+// Os demais cadernos ainda não foram carregados (placeholder)
+const MAPAS_PDFS = {
+  fornecedor_25_26: {
+    label: "Caderno de Mapas de Fornecedores 25'26",
+    arquivo: 'CADERNO_DE_MAPA_FORNACEDOR_25_26.pdf'
+  },
+  proprio_25_26: {
+    label: "Caderno de Mapas Próprio 25'26",
+    arquivo: null   // ainda não disponível
+  },
+  proprio_26_27: {
+    label: "Caderno de Mapas Próprio 26'27",
+    arquivo: null
+  },
+  fornecedor_26_27: {
+    label: "Caderno de Mapas Fornecedor 26'27",
+    arquivo: null
+  }
+};
+
+let mapaAtivo = null;
+
+function trocarMapaPDF(chave, btnEl) {
+  // Atualizar botões ativos
+  document.querySelectorAll('.mapas-sub-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+
+  const mapa = MAPAS_PDFS[chave];
+  if (!mapa) return;
+
+  mapaAtivo = chave;
+  document.getElementById('mapas-titulo-pdf').textContent = mapa.label;
+
+  const iframe    = document.getElementById('mapas-iframe');
+  const placeholder = document.getElementById('mapas-placeholder');
+
+  if (mapa.arquivo) {
+    // Usar viewer nativo do navegador sem parâmetro de download
+    // O '#toolbar=1' ativa a barra de ferramentas nativa incluindo o Ctrl+F / lupa
+    iframe.src = mapa.arquivo + '#toolbar=1&navpanes=1&scrollbar=1';
+    iframe.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    // Caderno ainda não disponível
+    iframe.src = '';
+    iframe.style.display = 'none';
+    placeholder.style.display = 'flex';
+    placeholder.innerHTML = `
+      <i class="fas fa-clock" style="font-size:36px; color:var(--amber);"></i>
+      <p style="color:var(--amber); font-weight:700;">${escapeHtml(mapa.label)}</p>
+      <p style="font-size:11px;">Este caderno ainda não foi carregado no sistema. Substitua o arquivo PDF correspondente na pasta do projeto para ativá-lo.</p>`;
+  }
+
+  // Atualizar dica de busca
+  atualizarDicaBusca();
+}
+
+function atualizarDicaBusca() {
+  const input = document.getElementById('mapas-busca-input');
+  const dica  = document.getElementById('mapas-dica-texto');
+  const termo = (input && input.value) ? input.value.trim() : '';
+
+  if (!mapaAtivo) {
+    dica.innerHTML = `<strong><i class="fas fa-lightbulb" style="margin-right:4px;"></i>Dica:</strong>
+      Selecione um caderno acima para começar. Para localizar termos com alta precisão, use <strong>Ctrl + F</strong> ou o ícone de lupa 🔍 do visualizador nativo.`;
+    return;
+  }
+
+  if (termo.length > 0) {
+    dica.innerHTML = `<strong><i class="fas fa-search" style="margin-right:4px;"></i>Buscando:</strong>
+      Você digitou <strong>"${escapeHtml(termo)}"</strong>. Como o PDF é renderizado pelo navegador, 
+      para localizar esse termo diretamente nas páginas use <strong>Ctrl + F</strong> 
+      (Windows/Linux) ou <strong>⌘ + F</strong> (Mac) dentro do visualizador. O ícone de lupa 🔍 
+      na barra nativa do PDF também realiza buscas com alta precisão.`;
+  } else {
+    dica.innerHTML = `<strong><i class="fas fa-lightbulb" style="margin-right:4px;"></i>Dica:</strong>
+      Para localizar fazendas, talhões ou municípios diretamente nas páginas, use o atalho 
+      <strong>Ctrl + F</strong> ou o ícone de lupa 🔍 no visualizador nativo do PDF.`;
+  }
+}
+
+function limparBuscaMapas() {
+  const input = document.getElementById('mapas-busca-input');
+  if (input) { input.value = ''; input.focus(); }
+  atualizarDicaBusca();
 }
 
 /* ══════════════════════════════════════════════
