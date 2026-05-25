@@ -1017,17 +1017,15 @@
     </button>
     <div class="card">
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
-      <div class="filter-bar" style="flex-wrap:wrap; gap:6px;">
-        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
+      <div class="filter-bar" style="display:flex; align-items:center; gap:10px; flex-wrap:nowrap; margin-bottom:10px;">
+        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
         <input type="text" id="filtroFazenda" placeholder="Buscar fazenda..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
-        <select id="filtroStatus" onchange="filtrarTabela()">
+        <select id="filtroStatus" onchange="filtrarTabela()" style="min-width:140px;">
           <option value="">Todos</option>
           <option value="ABERTA">Abertas</option>
           <option value="ENCERRADA">Encerradas</option>
         </select>
-      </div>
-      <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
-        <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec">
+        <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec" style="white-space:nowrap;">
           <i class="fas fa-sync-alt"></i> Atualizar dados
         </button>
       </div>
