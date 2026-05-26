@@ -854,11 +854,14 @@
     <button class="tab-btn" onclick="showTab(event,'liberacoes')">
       <i class="fas fa-table"></i>LIBERAÇÕES
     </button>
- <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
-      <i class="fas fa-map"></i>CADERNO DE MAPAS
-    </button>
-     <button class="tab-btn" onclick="showTab(event,'clima_aba')">
+ <button class="tab-btn" onclick="showTab(event,'clima_aba')">
       <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
+    </button>
+    <button class="tab-btn" onclick="showTab(event,'conf_os_aba')">
+      <i class="fas fa-clipboard-check"></i>CONF. OPERADORES X O.S
+    </button>
+    <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
+      <i class="fas fa-map"></i>CADERNO DE MAPAS
     </button>
     <button class="tab-btn" onclick="showTab(event,'calc_aba')">
       <i class="fas fa-calculator"></i>CALCULADORA
@@ -1454,6 +1457,67 @@
 
   </section>
 
+  <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
+  <section id="conf_os_aba" class="section">
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fas fa-clipboard-check"></i> CONFERÊNCIA OPERADORES × O.S
+      </div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        Listagem das O.S encerradas com data de encerramento, fazenda, operação agrícola e observações.
+      </p>
+
+      <!-- Barra de filtros -->
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+        <div class="field" style="flex:1; min-width:140px;">
+          <label>Buscar Fazenda</label>
+          <input type="text" id="filtroConfFazenda" placeholder="Digite a fazenda..." oninput="filtrarTabelaConf()"
+            style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
+        </div>
+        <div class="field" style="flex:1; min-width:140px;">
+          <label>Operação Agrícola</label>
+          <input type="text" id="filtroConfOperacao" placeholder="Digite a operação..." oninput="filtrarTabelaConf()"
+            style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
+        </div>
+        <div class="field" style="min-width:120px;">
+          <label>&nbsp;</label>
+          <button class="btn-clima" onclick="carregarDadosConfOS()" style="width:100%; padding:9px 14px;">
+            <i class="fas fa-sync-alt"></i> Atualizar
+          </button>
+        </div>
+      </div>
+
+      <!-- Contador -->
+      <div id="conf-os-contador" style="font-size:10px; font-weight:700; color:var(--text-3); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+        Carregando...
+      </div>
+
+      <!-- Tabela -->
+      <div style="overflow-x:auto;">
+        <table id="tabela-conf-os">
+          <thead>
+            <tr>
+              <th>Nº da O.S</th>
+              <th>Data Encerramento</th>
+              <th>Fazenda</th>
+              <th>Operação Agrícola</th>
+              <th>OBS</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela-conf-os">
+            <tr>
+              <td colspan="5" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;">
+                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+
   <button id="btn-atualizar-global" class="btn-main" onclick="update()">
     <i class="fas fa-sync-alt" style="margin-right:6px"></i> ATUALIZAR INDICADORES
   </button>
@@ -1494,6 +1558,9 @@ function showTab(e, id) {
 
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
+  }
+  if (id === 'conf_os_aba' && !window._confOsDados) {
+    carregarDadosConfOS();
   }
 }
 
@@ -2091,6 +2158,95 @@ async function carregarDadosGATEC() {
       }).join('');
     }
   });
+}
+
+/* ══════════════════════════════════════════════
+   CONFERÊNCIA OPERADORES X O.S
+══════════════════════════════════════════════ */
+async function carregarDadosConfOS() {
+  const URL_CONF = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=781227222&single=true&output=csv";
+  const corpo = document.getElementById('corpo-tabela-conf-os');
+  const contador = document.getElementById('conf-os-contador');
+  if (!corpo) return;
+  corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>`;
+  if (contador) contador.textContent = 'Carregando...';
+
+  Papa.parse(URL_CONF, {
+    download: true, header: true, skipEmptyLines: true,
+    complete: function(results) {
+      if (!results.data || results.data.length === 0) {
+        corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>Nenhum dado encontrado.</td></tr>`;
+        if (contador) contador.textContent = '0 registros';
+        return;
+      }
+
+      // Descobrir nomes reais das colunas (ignora espaços extras)
+      const cols = results.meta.fields || [];
+      function findCol(keywords) {
+        return cols.find(c => keywords.some(k => c.toUpperCase().includes(k))) || '';
+      }
+      const colOS        = findCol(['Nº', 'N°', 'NO', 'OS', 'O.S', 'NUMERO', 'NÚMERO']);
+      const colData      = findCol(['DATA', 'ENCERR', 'FECHA']);
+      const colFazenda   = findCol(['FAZENDA', 'FARM', 'PROPRI']);
+      const colOperacao  = findCol(['OPERA', 'AGRICOLA', 'AGRÍCOLA', 'ATIVIDADE', 'SERVIÇO', 'SERVICO']);
+      const colObs       = findCol(['OBS', 'OBSERV']);
+
+      window._confOsDados = results.data;
+      window._confOsCols  = { colOS, colData, colFazenda, colOperacao, colObs };
+
+      renderTabelaConfOS(results.data);
+    },
+    error: function() {
+      corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;"><i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Erro ao carregar dados. Verifique sua conexão.</td></tr>`;
+      if (contador) contador.textContent = 'Erro';
+    }
+  });
+}
+
+function renderTabelaConfOS(dados) {
+  const corpo = document.getElementById('corpo-tabela-conf-os');
+  const contador = document.getElementById('conf-os-contador');
+  if (!corpo) return;
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  if (!dados || dados.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:20px;font-size:12px;">Nenhum registro encontrado para os filtros aplicados.</td></tr>`;
+    if (contador) contador.textContent = '0 registros';
+    return;
+  }
+
+  corpo.innerHTML = dados.map(row => {
+    const os       = escapeHtml(row[colOS]       || '—');
+    const data     = escapeHtml(row[colData]     || '—');
+    const fazenda  = escapeHtml(row[colFazenda]  || '—');
+    const operacao = escapeHtml(row[colOperacao] || '—');
+    const obs      = escapeHtml(row[colObs]      || '');
+
+    return `<tr>
+      <td data-label="Nº da O.S:" style="font-weight:700; color:var(--green-900);">${os}</td>
+      <td data-label="Data Encerramento:">${data}</td>
+      <td data-label="Fazenda:">${fazenda}</td>
+      <td data-label="Operação Agrícola:">${operacao}</td>
+      <td data-label="OBS:" style="color:var(--text-3); font-size:11px;">${obs}</td>
+    </tr>`;
+  }).join('');
+
+  if (contador) contador.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+}
+
+function filtrarTabelaConf() {
+  const bFazenda   = (document.getElementById('filtroConfFazenda')?.value   || '').toLowerCase();
+  const bOperacao  = (document.getElementById('filtroConfOperacao')?.value  || '').toLowerCase();
+  if (!window._confOsDados) return;
+
+  const filtrados = window._confOsDados.filter(row => {
+    const { colFazenda, colOperacao } = window._confOsCols || {};
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao);
+  });
+
+  renderTabelaConfOS(filtrados);
 }
 
 function filtrarTabela() {
