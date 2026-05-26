@@ -1482,8 +1482,12 @@
         </div>
         <div class="field" style="flex:1; min-width:140px;">
           <label>OBS</label>
-          <input type="text" id="filtroConfObs" placeholder="Digite a observação..." oninput="filtrarTabelaConf()"
+          <select id="filtroConfObs" onchange="filtrarTabelaConf()"
             style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
+            <option value="">— Todas —</option>
+            <option value="ok">OK</option>
+            <option value="operação sem apontamento">OPERAÇÃO SEM APONTAMENTO</option>
+          </select>
         </div>
         <div class="field" style="min-width:120px;">
           <label>&nbsp;</label>
