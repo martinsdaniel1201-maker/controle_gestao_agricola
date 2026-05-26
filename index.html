@@ -1480,6 +1480,11 @@
           <input type="text" id="filtroConfOperacao" placeholder="Digite a operação..." oninput="filtrarTabelaConf()"
             style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
         </div>
+        <div class="field" style="flex:1; min-width:140px;">
+          <label>OBS</label>
+          <input type="text" id="filtroConfObs" placeholder="Digite a observação..." oninput="filtrarTabelaConf()"
+            style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
+        </div>
         <div class="field" style="min-width:120px;">
           <label>&nbsp;</label>
           <button class="btn-clima" onclick="carregarDadosConfOS()" style="width:100%; padding:9px 14px;">
@@ -2237,13 +2242,15 @@ function renderTabelaConfOS(dados) {
 function filtrarTabelaConf() {
   const bFazenda   = (document.getElementById('filtroConfFazenda')?.value   || '').toLowerCase();
   const bOperacao  = (document.getElementById('filtroConfOperacao')?.value  || '').toLowerCase();
+  const bObs       = (document.getElementById('filtroConfObs')?.value       || '').toLowerCase();
   if (!window._confOsDados) return;
 
   const filtrados = window._confOsDados.filter(row => {
-    const { colFazenda, colOperacao } = window._confOsCols || {};
+    const { colFazenda, colOperacao, colObs } = window._confOsCols || {};
     const fazenda  = (row[colFazenda]  || '').toLowerCase();
     const operacao = (row[colOperacao] || '').toLowerCase();
-    return fazenda.includes(bFazenda) && operacao.includes(bOperacao);
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
   });
 
   renderTabelaConfOS(filtrados);
