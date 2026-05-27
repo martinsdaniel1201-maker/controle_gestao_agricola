@@ -1497,9 +1497,14 @@
         </div>
       </div>
 
-      <!-- Contador -->
-      <div id="conf-os-contador" style="font-size:10px; font-weight:700; color:var(--text-3); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
-        Carregando...
+      <!-- Contador + Exportar -->
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+        <div id="conf-os-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">
+          Carregando...
+        </div>
+        <button onclick="exportarConfOsExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          <i class="fas fa-file-excel"></i> Exportar Excel
+        </button>
       </div>
 
       <!-- Tabela -->
@@ -2259,6 +2264,47 @@ function filtrarTabelaConf() {
 
   renderTabelaConfOS(filtrados);
 }
+
+function exportarConfOsExcel() {
+  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+
+  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
+  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
+  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  const filtrados = window._confOsDados.filter(row => {
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  // Montar CSV com BOM para Excel reconhecer UTF-8
+  const cabecalho = ['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS'];
+  const linhas = filtrados.map(row => [
+    row[colOS]       || '',
+    row[colData]     || '',
+    row[colFazenda]  || '',
+    row[colOperacao] || '',
+    row[colObs]      || ''
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+
+  const csv = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `conf_os_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`✅ ${filtrados.length} registros exportados!`, 'success', 2500);
+}
+
 
 function filtrarTabela() {
   const bFrente = document.getElementById('filtroFrente').value.toLowerCase();
