@@ -18,7 +18,7 @@
       td, th, span, input, select { color: black !important; }
       .card { background: white !important; border: 1px solid #ccc !important; }
       .badge { border: 1px solid black !important; background: transparent !important; }
-      #btn-pdf-flutuante, .tab-btn, .sub-tab-btn { display: none !important; }
+      #btn-pdf-flutuante, .btn-pdf-contextual, .tab-btn, .sub-tab-btn { display: none !important; }
     }
 
     :root {
@@ -327,17 +327,25 @@
     min-width: 75px !important; /* Garante que eles fiquem organizados */
   }
 }
-    /* ── PDF BUTTON ── */
-    #btn-pdf-flutuante {
-      position: fixed; bottom: 24px; right: 20px;
-      background: var(--green-900); color: white; border: none;
-      padding: 13px 18px; border-radius: 50px;
-      box-shadow: 0 4px 16px rgba(27,94,32,0.35);
-      cursor: pointer; font-size: 13px; font-weight: 700;
-      z-index: 9999; transition: all 0.2s;
-      display: flex; align-items: center; gap: 6px;
+    /* ── PDF BUTTON (CONTEXTUAL) ── */
+    .btn-pdf-contextual {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; margin: 4px 0 18px;
+      padding: 14px 20px;
+      background: transparent;
+      color: var(--green-900);
+      border: 1.5px solid var(--green-100);
+      border-radius: var(--radius-md);
+      font-size: 12px; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.3px;
+      transition: all 0.18s;
     }
-    #btn-pdf-flutuante:hover { transform: translateY(-2px); background: var(--green-700); }
+    .btn-pdf-contextual i { font-size: 14px; color: var(--green-700); }
+    .btn-pdf-contextual:hover {
+      background: var(--green-50);
+      border-color: var(--green-500);
+      color: var(--green-700);
+    }
 
     /* ── CALCULADORA EXTRAS ── */
     .calc-section-title {
@@ -798,63 +806,83 @@
     #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
     #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.34s; }
 
-    /* ── BOTÃO VOLTAR AO MENU ── */
+    /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) ── */
     #btn-voltar-menu {
       display: none;
-      align-items: center;
-      gap: 0;
-      background: var(--surface);
-      color: var(--green-900);
-      border: none;
-      border-bottom: 1.5px solid var(--border);
-      padding: 0 16px;
-      height: 44px;
-      font-weight: 700;
-      font-size: 11px;
-      cursor: pointer;
-      margin-bottom: 18px;
-      width: calc(100% + 32px);
-      margin-left: -16px;
-      margin-top: -18px;
-      justify-content: space-between;
       position: sticky;
       top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      z-index: 9990;
+      height: 58px;
+      background: var(--surface);
+      border-bottom: 1.5px solid var(--border);
+      box-shadow: 0 3px 14px rgba(0,0,0,0.10);
+      padding: 0 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 -14px 18px;
+      width: calc(100% + 28px);
       transition: background 0.18s;
     }
-    #btn-voltar-menu:hover { background: var(--green-50); }
-    #btn-voltar-menu:active { background: var(--green-100); }
 
-    /* Lado esquerdo: seta + label */
+    /* Lado esquerdo: botão voltar */
     #btn-voltar-menu .voltar-left {
+      display: flex; align-items: center; gap: 0;
+      flex-shrink: 0;
+    }
+    #btn-voltar-menu .voltar-btn-inner {
       display: flex; align-items: center; gap: 8px;
-      color: var(--green-700);
+      background: var(--green-50);
+      border: 1.5px solid var(--green-100);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: all 0.18s;
+      color: var(--green-900);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
     }
-    #btn-voltar-menu .voltar-left i {
-      font-size: 14px;
-    }
-    #btn-voltar-menu .voltar-label {
-      font-size: 11px; font-weight: 700;
-      letter-spacing: 0.4px; color: var(--green-700);
+    #btn-voltar-menu .voltar-btn-inner i { font-size: 13px; color: var(--green-700); }
+    #btn-voltar-menu .voltar-btn-inner:hover {
+      background: var(--green-100);
+      border-color: var(--green-500);
     }
 
-    /* Centro: nome da aba ativa */
+    /* Centro: nome da aba */
     #btn-voltar-menu .voltar-aba-nome {
       position: absolute; left: 50%; transform: translateX(-50%);
       font-size: 12px; font-weight: 800;
-      color: var(--text); letter-spacing: 0.5px;
+      color: var(--text); letter-spacing: 0.6px;
       text-transform: uppercase; white-space: nowrap;
+      pointer-events: none;
     }
 
-    /* Lado direito: ícone de grade */
+    /* Lado direito: área para botões futuros */
     #btn-voltar-menu .voltar-right {
-      display: flex; align-items: center; justify-content: center;
-      width: 30px; height: 30px;
-      background: var(--grad);
-      border-radius: var(--radius-sm);
-      color: white; font-size: 12px;
+      display: flex; align-items: center; gap: 8px;
       flex-shrink: 0;
+      min-width: 90px;
+      justify-content: flex-end;
+    }
+    /* Estilo base para futuros botões de ação na barra */
+    #btn-voltar-menu .voltar-right .nav-action-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-2);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.18s;
+      flex-shrink: 0;
+    }
+    #btn-voltar-menu .voltar-right .nav-action-btn:hover {
+      border-color: var(--green-500);
+      color: var(--green-700);
+      background: var(--green-50);
     }
 
     /* Badge contador liberações abertas */
@@ -891,19 +919,7 @@
     #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
     #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.35s; }
 
-    /* Indicador de aba ativa no btn-voltar */
-    #btn-voltar-menu .voltar-aba-nome {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-3);
-      margin-left: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    #btn-voltar-menu .voltar-sep {
-      color: var(--border-strong);
-      margin: 0 4px;
-    }
+
 
     /* Toggle dark mode button */
     #btn-dark-mode {
@@ -1017,9 +1033,6 @@
   <i class="fas fa-moon" id="dark-mode-icon"></i>
 </button>
 
-<button id="btn-pdf-flutuante" onclick="gerarPDF()">
-  <i class="fas fa-print"></i> PDF
-</button>
 
 <!-- Modal Salvar Cenário -->
 <div class="modal-overlay" id="modal-cenario">
@@ -1067,14 +1080,19 @@
    
   </nav>
 
-  <button id="btn-voltar-menu" onclick="voltarParaHome()">
+  <div id="btn-voltar-menu">
     <span class="voltar-left">
-      <i class="fas fa-chevron-left"></i>
-      <span class="voltar-label">MENU</span>
+      <span class="voltar-btn-inner" onclick="voltarParaHome()">
+        <i class="fas fa-chevron-left"></i>
+        <span class="voltar-label">MENU</span>
+      </span>
     </span>
     <span class="voltar-aba-nome" id="voltar-aba-nome"></span>
-    <span class="voltar-right"><i class="fas fa-th-large"></i></span>
-  </button>
+    <!-- Área para botões futuros -->
+    <span class="voltar-right" id="voltar-acoes">
+      <!-- Futuros botões de ação serão adicionados aqui -->
+    </span>
+  </div>
 
   <!-- ══ ABA SIMULADOR ══ -->
   <section id="simulador" class="section">
@@ -1251,6 +1269,10 @@
       </div>
     </div>
 
+    <button class="btn-pdf-contextual" onclick="gerarPDF()">
+      <i class="fas fa-print"></i> Gerar PDF desta aba
+    </button>
+
   </section>
 
  <!-- ══ ABA LIBERAÇÕES ══ -->
@@ -1286,6 +1308,10 @@
         <tbody id="corpo-tabela-gatec" style="font-size: 14px;"></tbody>
       </table>
     </div>
+
+    <button class="btn-pdf-contextual" onclick="gerarPDF()">
+      <i class="fas fa-print"></i> Gerar PDF desta aba
+    </button>
   </section>
 
   <!-- ══ ABA CALCULADORA ══ -->
@@ -1501,6 +1527,10 @@
         <div class="res-card rc-amber"><div class="rc-lbl">Média/Corte</div><div class="rc-val" id="res_vr_media">—</div></div>
       </div>
     </div>
+
+    <button class="btn-pdf-contextual" onclick="gerarPDF()">
+      <i class="fas fa-print"></i> Gerar PDF desta aba
+    </button>
 
   </section>
 
@@ -1735,6 +1765,10 @@
         </table>
       </div>
     </div>
+
+    <button class="btn-pdf-contextual" onclick="gerarPDF()">
+      <i class="fas fa-print"></i> Gerar PDF desta aba
+    </button>
 
   </section>
 
