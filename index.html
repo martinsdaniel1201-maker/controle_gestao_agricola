@@ -712,6 +712,8 @@
     #main-nav.home-mode {
       display: grid !important;
       grid-template-columns: 1fr 1fr;
+      grid-auto-rows: 1fr;        /* todas as linhas com altura igual */
+      align-items: stretch;       /* bordas alinhadas */
       gap: 12px;
       background: transparent;
       border: none;
@@ -722,20 +724,32 @@
     #main-nav.home-mode .tab-btn {
       flex: unset;
       min-width: unset;
-      padding: 22px 14px;
+      width: 100%;
+      height: 100%;               /* ocupa toda a célula do grid */
+      padding: 20px 10px;
       border-radius: var(--radius-lg);
       background: var(--surface);
       border: 1.5px solid var(--border);
       color: var(--text-2);
-      font-size: 11px;
+      font-size: clamp(9px, 1.8vw, 12px);  /* texto fluido */
       font-weight: 700;
       gap: 10px;
+      line-height: 1.3;
+      word-break: break-word;
+      hyphens: auto;
+      white-space: normal;        /* permite quebra de linha */
+      text-align: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     #main-nav.home-mode .tab-btn i {
-      font-size: 26px;
+      font-size: clamp(22px, 5vw, 28px);
       color: var(--green-700);
+      flex-shrink: 0;
     }
     #main-nav.home-mode .tab-btn:hover {
       background: var(--green-50);
@@ -751,19 +765,145 @@
     }
     #main-nav.home-mode .tab-btn.active i { color: white; }
 
-    /* Botão voltar ao menu */
+    /* Badge de contador nos botões do menu home */
+    .home-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: var(--red);
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 50px;
+      letter-spacing: 0.3px;
+      line-height: 1.4;
+      box-shadow: 0 2px 6px rgba(198,40,40,0.35);
+      pointer-events: none;
+    }
+    #main-nav.home-mode .tab-btn { position: relative; }
+
+    /* Animação de entrada em cascata */
+    @keyframes cardEntrada {
+      from { opacity: 0; transform: translateY(18px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    #main-nav.home-mode .tab-btn {
+      opacity: 0;
+      animation: cardEntrada 0.35s ease-out forwards;
+    }
+    #main-nav.home-mode .tab-btn:nth-child(1) { animation-delay: 0.04s; }
+    #main-nav.home-mode .tab-btn:nth-child(2) { animation-delay: 0.10s; }
+    #main-nav.home-mode .tab-btn:nth-child(3) { animation-delay: 0.16s; }
+    #main-nav.home-mode .tab-btn:nth-child(4) { animation-delay: 0.22s; }
+    #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
+    #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.34s; }
+
+    /* ── BOTÃO VOLTAR AO MENU ── */
     #btn-voltar-menu {
       display: none;
-      align-items: center; gap: 8px;
-      background: var(--surface); color: var(--green-900);
-      border: 1.5px solid var(--border);
-      padding: 10px 16px; border-radius: var(--radius-md);
-      font-weight: 700; font-size: 12px; cursor: pointer;
-      margin-bottom: 16px; transition: all 0.18s;
-      width: 100%;
-      justify-content: center;
+      align-items: center;
+      gap: 0;
+      background: var(--surface);
+      color: var(--green-900);
+      border: none;
+      border-bottom: 1.5px solid var(--border);
+      padding: 0 16px;
+      height: 44px;
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      margin-bottom: 18px;
+      width: calc(100% + 32px);
+      margin-left: -16px;
+      margin-top: -18px;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      transition: background 0.18s;
     }
-    #btn-voltar-menu:hover { border-color: var(--green-500); background: var(--green-50); }
+    #btn-voltar-menu:hover { background: var(--green-50); }
+    #btn-voltar-menu:active { background: var(--green-100); }
+
+    /* Lado esquerdo: seta + label */
+    #btn-voltar-menu .voltar-left {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--green-700);
+    }
+    #btn-voltar-menu .voltar-left i {
+      font-size: 14px;
+    }
+    #btn-voltar-menu .voltar-label {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.4px; color: var(--green-700);
+    }
+
+    /* Centro: nome da aba ativa */
+    #btn-voltar-menu .voltar-aba-nome {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      font-size: 12px; font-weight: 800;
+      color: var(--text); letter-spacing: 0.5px;
+      text-transform: uppercase; white-space: nowrap;
+    }
+
+    /* Lado direito: ícone de grade */
+    #btn-voltar-menu .voltar-right {
+      display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px;
+      background: var(--grad);
+      border-radius: var(--radius-sm);
+      color: white; font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    /* Badge contador liberações abertas */
+    .home-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--red);
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 50px;
+      margin-top: 4px;
+      letter-spacing: 0;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    /* Animação staggered de entrada dos cards */
+    @keyframes cardEntrada {
+      from { opacity: 0; transform: translateY(18px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    }
+    #main-nav.home-mode .tab-btn {
+      animation: cardEntrada 0.35s ease-out both;
+    }
+    #main-nav.home-mode .tab-btn:nth-child(1) { animation-delay: 0.00s; }
+    #main-nav.home-mode .tab-btn:nth-child(2) { animation-delay: 0.07s; }
+    #main-nav.home-mode .tab-btn:nth-child(3) { animation-delay: 0.14s; }
+    #main-nav.home-mode .tab-btn:nth-child(4) { animation-delay: 0.21s; }
+    #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
+    #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.35s; }
+
+    /* Indicador de aba ativa no btn-voltar */
+    #btn-voltar-menu .voltar-aba-nome {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-3);
+      margin-left: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #btn-voltar-menu .voltar-sep {
+      color: var(--border-strong);
+      margin: 0 4px;
+    }
 
     /* Toggle dark mode button */
     #btn-dark-mode {
@@ -909,7 +1049,7 @@
       <i class="fas fa-tractor"></i>SIMULADOR
     </button>
     <button class="tab-btn" onclick="showTab(event,'liberacoes')">
-      <i class="fas fa-table"></i>LIBERAÇÕES
+      <i class="fas fa-table"></i>LIBERAÇÕES<span class="home-badge" id="badge-liberacoes" style="display:none"></span>
     </button>
  <button class="tab-btn" onclick="showTab(event,'clima_aba')">
       <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
@@ -928,7 +1068,12 @@
   </nav>
 
   <button id="btn-voltar-menu" onclick="voltarParaHome()">
-    <i class="fas fa-th-large"></i> MENU PRINCIPAL
+    <span class="voltar-left">
+      <i class="fas fa-chevron-left"></i>
+      <span class="voltar-label">MENU</span>
+    </span>
+    <span class="voltar-aba-nome" id="voltar-aba-nome"></span>
+    <span class="voltar-right"><i class="fas fa-th-large"></i></span>
   </button>
 
   <!-- ══ ABA SIMULADOR ══ -->
@@ -1630,6 +1775,15 @@ function showTab(e, id) {
   nav.style.display = 'none';
   document.getElementById('btn-voltar-menu').style.display = 'flex';
 
+  // Indicador da aba ativa no botão voltar
+  const nomes = {
+    'simulador': 'SIMULADOR', 'liberacoes': 'LIBERAÇÕES',
+    'clima_aba': 'CLIMA', 'conf_os_aba': 'CONF. OS',
+    'mapas_aba': 'MAPAS', 'calc_aba': 'CALCULADORA'
+  };
+  const nomeEl = document.getElementById('voltar-aba-nome');
+  if (nomeEl) nomeEl.textContent = nomes[id] || '';
+
   // Botão "Atualizar Indicadores" só aparece no Simulador
   const mostrarBtnAtualizar = (id === 'simulador');
   document.getElementById('btn-atualizar-global').style.display = mostrarBtnAtualizar ? 'block' : 'none';
@@ -1657,10 +1811,18 @@ function voltarParaHome() {
 
   // Volta ao modo home: mostra o grid de menu, oculta o botão voltar
   const nav = document.getElementById('main-nav');
-  nav.classList.add('home-mode');
+  nav.classList.remove('home-mode');
   nav.style.display = '';
+  // Força reflow para reiniciar a animação
+  void nav.offsetWidth;
+  nav.classList.add('home-mode');
+
   document.getElementById('btn-voltar-menu').style.display = 'none';
   document.getElementById('btn-atualizar-global').style.display = 'none';
+
+  // Limpa indicador de aba
+  const nomeEl = document.getElementById('voltar-aba-nome');
+  if (nomeEl) nomeEl.textContent = '';
 
   // Scrolla para o topo
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2241,6 +2403,17 @@ async function carregarDadosGATEC() {
           </td>
         </tr>`;
       }).join('');
+
+      // Atualizar badge de abertas no menu home
+      const abertas = results.data.filter(row => {
+        const s = (row["STATUS OS"] || "").toUpperCase().trim();
+        return !s.includes("ENCERRADA");
+      }).length;
+      const badge = document.getElementById('badge-liberacoes');
+      if (badge) {
+        badge.textContent = abertas;
+        badge.style.display = abertas > 0 ? 'inline-flex' : 'none';
+      }
     }
   });
 }
