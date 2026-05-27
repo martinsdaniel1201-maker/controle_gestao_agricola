@@ -708,6 +708,63 @@
     }
     body.dark-mode .res-highlight { background: linear-gradient(135deg,#1B5E20,#2E7D32); }
 
+    /* ── HOME MENU ── */
+    #main-nav.home-mode {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin-top: 8px;
+      margin-bottom: 24px;
+    }
+    #main-nav.home-mode .tab-btn {
+      flex: unset;
+      min-width: unset;
+      padding: 22px 14px;
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      color: var(--text-2);
+      font-size: 11px;
+      font-weight: 700;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: all 0.2s ease;
+    }
+    #main-nav.home-mode .tab-btn i {
+      font-size: 26px;
+      color: var(--green-700);
+    }
+    #main-nav.home-mode .tab-btn:hover {
+      background: var(--green-50);
+      border-color: var(--green-500);
+      color: var(--green-900);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(27,94,32,0.15);
+    }
+    #main-nav.home-mode .tab-btn.active {
+      background: var(--grad);
+      color: white;
+      border-color: transparent;
+    }
+    #main-nav.home-mode .tab-btn.active i { color: white; }
+
+    /* Botão voltar ao menu */
+    #btn-voltar-menu {
+      display: none;
+      align-items: center; gap: 8px;
+      background: var(--surface); color: var(--green-900);
+      border: 1.5px solid var(--border);
+      padding: 10px 16px; border-radius: var(--radius-md);
+      font-weight: 700; font-size: 12px; cursor: pointer;
+      margin-bottom: 16px; transition: all 0.18s;
+      width: 100%;
+      justify-content: center;
+    }
+    #btn-voltar-menu:hover { border-color: var(--green-500); background: var(--green-50); }
+
     /* Toggle dark mode button */
     #btn-dark-mode {
       position: fixed; bottom: 76px; right: 20px;
@@ -847,8 +904,8 @@
 
 <div class="container" id="app-root">
 
-  <nav class="tabs-nav" id="main-nav">
-    <button class="tab-btn active" onclick="showTab(event,'simulador')">
+  <nav class="tabs-nav home-mode" id="main-nav">
+    <button class="tab-btn" onclick="showTab(event,'simulador')">
       <i class="fas fa-tractor"></i>SIMULADOR
     </button>
     <button class="tab-btn" onclick="showTab(event,'liberacoes')">
@@ -858,7 +915,7 @@
       <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
     </button>
     <button class="tab-btn" onclick="showTab(event,'conf_os_aba')">
-      <i class="fas fa-clipboard-check"></i>CONFERÊNCIAS
+      <i class="fas fa-clipboard-check"></i>CONF. OPERADORES X O.S
     </button>
     <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
       <i class="fas fa-map"></i>CADERNO DE MAPAS
@@ -870,8 +927,12 @@
    
   </nav>
 
+  <button id="btn-voltar-menu" onclick="voltarParaHome()">
+    <i class="fas fa-th-large"></i> MENU PRINCIPAL
+  </button>
+
   <!-- ══ ABA SIMULADOR ══ -->
-  <section id="simulador" class="section active">
+  <section id="simulador" class="section">
 
     <nav class="sub-tabs-nav">
       <button class="sub-tab-btn active" onclick="showSubTab(event,'sub_entrada')">
@@ -1532,7 +1593,7 @@
 
   </section>
 
-  <button id="btn-atualizar-global" class="btn-main" onclick="update()">
+  <button id="btn-atualizar-global" class="btn-main" onclick="update()" style="display:none">
     <i class="fas fa-sync-alt" style="margin-right:6px"></i> ATUALIZAR INDICADORES
   </button>
 
@@ -1563,8 +1624,11 @@ function showTab(e, id) {
   document.getElementById(id).classList.add('active');
   if (e && e.currentTarget) e.currentTarget.classList.add('active');
 
-  // O nav principal fica sempre visível em todas as abas
-  document.getElementById('main-nav').style.display = 'flex';
+  // Sai do modo home: oculta o grid de menu, mostra o botão voltar
+  const nav = document.getElementById('main-nav');
+  nav.classList.remove('home-mode');
+  nav.style.display = 'none';
+  document.getElementById('btn-voltar-menu').style.display = 'flex';
 
   // Botão "Atualizar Indicadores" só aparece no Simulador
   const mostrarBtnAtualizar = (id === 'simulador');
@@ -1587,12 +1651,19 @@ function showSubTab(e, id) {
 }
 
 function voltarParaHome() {
-  showTab(null, 'simulador');
-  const primeiro = document.querySelector('.tabs-nav .tab-btn');
-  if (primeiro) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    primeiro.classList.add('active');
-  }
+  // Oculta todas as sections
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+  // Volta ao modo home: mostra o grid de menu, oculta o botão voltar
+  const nav = document.getElementById('main-nav');
+  nav.classList.add('home-mode');
+  nav.style.display = '';
+  document.getElementById('btn-voltar-menu').style.display = 'none';
+  document.getElementById('btn-atualizar-global').style.display = 'none';
+
+  // Scrolla para o topo
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /* ══════════════════════════════════════════════
