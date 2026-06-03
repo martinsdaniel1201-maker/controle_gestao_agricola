@@ -14,11 +14,30 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @media print {
-      body { background: white !important; color: black !important; }
-      td, th, span, input, select { color: black !important; }
-      .card { background: white !important; border: 1px solid #ccc !important; }
-      .badge { border: 1px solid black !important; background: transparent !important; }
-      #btn-pdf-flutuante, .btn-pdf-contextual, .tab-btn, .sub-tab-btn { display: none !important; }
+      /* Esconde tudo exceto a aba activa */
+      body { background: #fff !important; color: #111 !important; }
+      #main-nav, #btn-voltar-menu, #btn-atualizar-global,
+      #sabedoria-home-wrap, .tab-btn, .sub-tab-btn,
+      .btn-pdf-contextual, #btn-pdf-flutuante,
+      .collapse-hint, .collapse-chevron { display: none !important; }
+
+      /* Mostra só a seção ativa */
+      .section { display: none !important; }
+      .section.active { display: block !important; }
+
+      /* Abre cards colapsados na impressão */
+      .card-collapsible .card-collapse-body {
+        max-height: none !important; opacity: 1 !important; overflow: visible !important;
+      }
+      .card-collapse-trigger { border-bottom: 1px solid #ddd !important; }
+
+      /* Cores claras */
+      .card { background: #fff !important; border: 1px solid #ccc !important; color: #111 !important; }
+      td, th, span, input, select { color: #111 !important; }
+      .badge { border: 1px solid #555 !important; background: transparent !important; }
+
+      /* Evita corte de cards entre páginas */
+      .card { break-inside: avoid; page-break-inside: avoid; }
     }
 
     :root {
@@ -619,6 +638,42 @@
       color: var(--text-3); font-size: 13px;
     }
     .clima-loading i { font-size: 24px; margin-bottom: 8px; display: block; }
+
+
+    /* ── Collapsible sub-cards (GDA + ETA) ── */
+    .card-collapsible .card-collapse-body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease;
+    }
+    .card-collapsible.open .card-collapse-body {
+      max-height: 2000px;
+      opacity: 1;
+    }
+    .card-collapse-trigger {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      padding: 2px 0 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+    .card-collapsible.open .card-collapse-trigger {
+      margin-bottom: 14px;
+    }
+    .card-collapse-trigger .collapse-chevron {
+      font-size: 13px; color: var(--text-3);
+      transition: transform 0.3s ease;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .card-collapsible.open .card-collapse-trigger .collapse-chevron {
+      transform: rotate(180deg);
+    }
+    .collapse-hint {
+      font-size: 10px; color: var(--text-3); font-weight: 400;
+      opacity: 1; transition: opacity 0.2s;
+    }
+    .card-collapsible.open .collapse-hint { opacity: 0; pointer-events:none; }
 
     /* ── MÓDULO GDA (Graus-Dia Acumulados) ── */
     .gda-card-header {
@@ -1986,11 +2041,15 @@
     </div>
 
     <!-- ═══ CARD: GRAUS-DIA ACUMULADOS (NASA POWER API) ═══ -->
-    <div class="card" id="card-gda">
-      <div class="gda-card-header">
-        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-thermometer-half"></i> Graus-Dia Acumulados (GDA)</div>
-        <span class="gda-status-badge carregando" id="gda-status-badge">⏳ Aguardando</span>
+    <div class="card card-collapsible" id="card-gda">
+      <div class="card-collapse-trigger" onclick="toggleCard('card-gda')">
+        <div class="gda-card-header" style="margin-bottom:0; border:none; padding:0;">
+          <div class="card-title" style="margin-bottom:0;"><i class="fas fa-thermometer-half"></i> Graus-Dia Acumulados (GDA)</div>
+          <span class="gda-status-badge carregando" id="gda-status-badge">⏳ Aguardando</span>
+        </div>
+        <div class="collapse-chevron"><span class="collapse-hint">toque para expandir</span><i class="fas fa-chevron-down"></i></div>
       </div>
+      <div class="card-collapse-body">
       <p style="font-size:11px; color:var(--text-3); margin-bottom:10px; line-height:1.6;">
         Calculado via <strong>NASA POWER API</strong>. O acúmulo de graus-dia (Base 18°C) indica o estágio de desenvolvimento e maturação da cana.
       </p>
@@ -2024,12 +2083,17 @@
       <div id="gda-result-container">
         <div class="eta-loading"><i class="fas fa-satellite-dish fa-spin"></i>Clique em "Calcular" para buscar dados da NASA POWER.</div>
       </div>
+      </div><!-- /card-collapse-body GDA -->
     </div>
 
     <!-- ═══ CARD: LOGÍSTICA DE TRANSPORTE (OSRM API) ═══ -->
-    <div class="card" id="card-eta">
-      <div class="card-title"><i class="fas fa-truck"></i> Logística — ETA Transbordo para Usina</div>
-      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+    <div class="card card-collapsible" id="card-eta">
+      <div class="card-collapse-trigger" onclick="toggleCard('card-eta')">
+        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-truck"></i> Logística — ETA Transbordo para Usina</div>
+        <div class="collapse-chevron"><span class="collapse-hint">toque para expandir</span><i class="fas fa-chevron-down"></i></div>
+      </div>
+      <div class="card-collapse-body">
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; margin-top:4px; line-height:1.6;">
         Calcula a distância rodoviária real e o ETA dos rodotrens via <strong>OSRM</strong> (OpenStreetMap Routing), sem chave de API.
       </p>
 
@@ -2075,6 +2139,7 @@
       </button>
 
       <div id="eta-result-container" style="margin-top:0;"></div>
+      </div><!-- /card-collapse-body ETA -->
     </div>
 
   </section>
@@ -2317,14 +2382,100 @@ function voltarParaHome() {
    PDF
 ══════════════════════════════════════════════ */
 function gerarPDF() {
+  // 1. Descobre a aba activa
+  const secaoAtiva = document.querySelector('.section.active');
+  if (!secaoAtiva) {
+    showToast('⚠️ Nenhuma aba aberta para exportar.', 'error', 2500);
+    return;
+  }
+
+  const nomeAba = secaoAtiva.id.replace('_aba','').replace('_','-') || 'relatorio';
+  const filename = `CTT_${nomeAba}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
+
+  // 2. Clona a seção para não alterar a tela
+  const clone = secaoAtiva.cloneNode(true);
+
+  // 3. Estilos base do wrapper — fundo branco, texto preto, sem cortes
+  Object.assign(clone.style, {
+    display:         'block',
+    position:        'static',
+    background:      '#ffffff',
+    color:           '#111111',
+    padding:         '24px',
+    width:           '750px',
+    boxSizing:       'border-box',
+    fontFamily:      'system-ui, sans-serif',
+    fontSize:        '12px',
+  });
+
+  // 4. Abre todos os cards colapsados no clone
+  clone.querySelectorAll('.card-collapsible').forEach(card => {
+    card.classList.add('open');
+    const body = card.querySelector('.card-collapse-body');
+    if (body) Object.assign(body.style, { maxHeight: 'none', opacity: '1', overflow: 'visible' });
+    const trigger = card.querySelector('.card-collapse-trigger');
+    if (trigger) trigger.style.borderBottom = '1px solid #ddd';
+  });
+
+  // 5. Remove elementos que não devem aparecer no PDF
+  clone.querySelectorAll(
+    '.btn-pdf-contextual, button, .tab-btn, .sub-tab-btn, ' +
+    '.sabedoria-nav, .gda-status-badge, .collapse-hint, ' +
+    '.collapse-chevron, [id$="-loading"]'
+  ).forEach(el => el.remove());
+
+  // 6. Força texto/fundo claros em todos os nós do clone
+  clone.querySelectorAll('*').forEach(el => {
+    const cs = window.getComputedStyle(el);
+    // Fundo escuro → branco
+    const bg = cs.backgroundColor;
+    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      const rgb = bg.match(/\d+/g);
+      if (rgb) {
+        const [r,g,b] = rgb.map(Number);
+        const luminancia = (0.299*r + 0.587*g + 0.114*b);
+        if (luminancia < 80) el.style.backgroundColor = '#f8f8f8';
+        if (luminancia < 80) el.style.color = '#111111';
+      }
+    }
+    // Cor de texto escura (CSS vars que renderizaram escuras)
+    const c = cs.color;
+    if (c) {
+      const rgb2 = c.match(/\d+/g);
+      if (rgb2) {
+        const [r,g,b] = rgb2.map(Number);
+        if (r > 200 && g > 200 && b > 200) el.style.color = '#333333';
+      }
+    }
+  });
+
+  // 7. Monta container temporário fora da tela e captura
+  const wrapper = document.createElement('div');
+  Object.assign(wrapper.style, {
+    position: 'fixed', top: '-9999px', left: '-9999px', zIndex: '-1',
+    background: '#ffffff', width: '800px',
+  });
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
   const opt = {
-    margin: [0.5, 0.5, 0.5, 0.5],
-    filename: 'relatorio_operacional_ctt.pdf',
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    margin:      [10, 10, 10, 10],
+    filename,
+    image:       { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:   { mode: ['avoid-all', 'css', 'legacy'] }
   };
-  html2pdf().set(opt).from(document.body).save();
+
+  showToast('📄 Gerando PDF…', 'info', 3000);
+
+  html2pdf()
+    .set(opt)
+    .from(clone)
+    .save()
+    .finally(() => {
+      document.body.removeChild(wrapper);
+    });
 }
 
 /* ══════════════════════════════════════════════
@@ -4379,6 +4530,13 @@ removeFrente = function(id) { _removeFrenteOrig(id); if (!modoSimulacao) salvarE
 
 // Verificar conexão ao iniciar
 atualizarStatusConexao();
+
+/* ── Toggle collapsible sub-cards ── */
+function toggleCard(id) {
+  const card = document.getElementById(id);
+  if (!card) return;
+  card.classList.toggle('open');
+}
 
 // Iniciar rotação de Sabedoria de Campo
 iniciarSabedoria();
