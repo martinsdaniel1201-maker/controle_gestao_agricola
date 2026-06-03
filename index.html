@@ -666,7 +666,7 @@
       text-transform: uppercase; letter-spacing: 0.4px; margin-top: 3px; display: block;
     }
     .gda-coord-inputs {
-      display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: flex-end;
+      display: grid; grid-template-columns: 1fr 1fr 0.6fr auto; gap: 8px; align-items: flex-end;
       margin-bottom: 14px;
     }
     .gda-coord-inputs .btn-clima { padding: 10px 14px; white-space: nowrap; }
@@ -1991,19 +1991,31 @@
         <div class="card-title" style="margin-bottom:0;"><i class="fas fa-thermometer-half"></i> Graus-Dia Acumulados (GDA)</div>
         <span class="gda-status-badge carregando" id="gda-status-badge">⏳ Aguardando</span>
       </div>
-      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:10px; line-height:1.6;">
         Calculado via <strong>NASA POWER API</strong>. O acúmulo de graus-dia (Base 18°C) indica o estágio de desenvolvimento e maturação da cana.
       </p>
 
-      <!-- Coordenadas -->
+      <!-- Sincronizar com cidade selecionada -->
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <button class="btn-clima" style="padding:7px 12px; font-size:11px; background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue); border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap;" onclick="sincronizarCidadeGDA()">
+          <i class="fas fa-map-marker-alt"></i> Usar cidade selecionada
+        </button>
+        <span style="font-size:10px; color:var(--text-3);">Preenche lat/lon automaticamente com a cidade do seletor acima.</span>
+      </div>
+
+      <!-- Coordenadas + Dias -->
       <div class="gda-coord-inputs">
         <div class="field">
           <label>Latitude</label>
-          <input type="number" id="gda-lat" value="-20.72" step="0.01" placeholder="-20.72">
+          <input type="number" id="gda-lat" value="-20.7222" step="0.0001" placeholder="-20.7222">
         </div>
         <div class="field">
           <label>Longitude</label>
-          <input type="number" id="gda-lon" value="-46.61" step="0.01" placeholder="-46.61">
+          <input type="number" id="gda-lon" value="-46.6111" step="0.0001" placeholder="-46.6111">
+        </div>
+        <div class="field">
+          <label>Dias</label>
+          <input type="number" id="gda-dias" value="120" min="10" max="365" step="1" placeholder="120" title="Quantidade de dias para acumular GDA">
         </div>
         <button class="btn-clima" onclick="buscarGDA()"><i class="fas fa-satellite"></i> Calcular</button>
       </div>
@@ -4045,9 +4057,18 @@ function iniciarSabedoria() {
 /* ══════════════════════════════════════════════
    MÓDULO 3 — GDA (NASA POWER API)
 ══════════════════════════════════════════════ */
+function sincronizarCidadeGDA() {
+  const cidade = getCidadeAtual();
+  if (!cidade) return;
+  document.getElementById('gda-lat').value = cidade.lat.toFixed(4);
+  document.getElementById('gda-lon').value = cidade.lon.toFixed(4);
+  showToast(`📍 Coordenadas atualizadas para ${cidade.nome}`, 'success', 2500);
+}
+
 async function buscarGDA() {
-  const lat = parseFloat(document.getElementById('gda-lat').value) || -20.72;
-  const lon = parseFloat(document.getElementById('gda-lon').value) || -46.61;
+  const lat = parseFloat(document.getElementById('gda-lat').value) || -20.7222;
+  const lon = parseFloat(document.getElementById('gda-lon').value) || -46.6111;
+  const numDias = parseInt(document.getElementById('gda-dias').value) || 120;
 
   const badge    = document.getElementById('gda-status-badge');
   const container = document.getElementById('gda-result-container');
@@ -4057,10 +4078,10 @@ async function buscarGDA() {
   container.innerHTML = '<div class="eta-loading"><i class="fas fa-satellite-dish fa-spin"></i>Consultando NASA POWER API...</div>';
 
   try {
-    // Período: últimos 120 dias (para acumular GDA da safra recente)
+    // Período: últimos N dias definidos pelo usuário (padrão 120)
     const hoje = new Date();
     const inicio = new Date(hoje);
-    inicio.setDate(hoje.getDate() - 120);
+    inicio.setDate(hoje.getDate() - numDias);
 
     const fmtData = d => {
       const yyyy = d.getFullYear();
@@ -4109,25 +4130,36 @@ async function buscarGDA() {
     tempMedia /= diasValidos;
     radMedia  /= diasValidos;
 
-    // Fase fenológica estimada por GDA acumulado (120 dias)
+    // Fase fenológica estimada por GDA acumulado (período selecionado)
     let faseTexto, faseDescricao;
-    if (gdaTotal < 600)  { faseTexto = '🌱 Brotação / Perfilhamento'; faseDescricao = 'Fase inicial. Cana em desenvolvimento vegetativo precoce.'; }
-    else if (gdaTotal < 1000) { faseTexto = '📈 Crescimento Vegetativo'; faseDescricao = 'Máximo crescimento em altura. Alta demanda hídrica e nutricional.'; }
-    else if (gdaTotal < 1400) { faseTexto = '🔄 Transição / Pré-Maturação'; faseDescricao = 'Início do acúmulo de sacarose. Condições ideais para maturadores.'; }
-    else if (gdaTotal < 1800) { faseTexto = '🍬 Maturação Ativa'; faseDescricao = 'Excelente momento para colheita. ATR tende a estar no pico sazonal.'; }
-    else { faseTexto = '⏳ Maturação Plena / Sobrematuração'; faseDescricao = 'Cuidado: início da inversão de sacarose. Priorizar colheita imediata dos talhões.'; }
+    if (gdaTotal < 600)  {
+      faseTexto = '🌱 Brotação / Perfilhamento';
+      faseDescricao = `<strong>Fase inicial (0–600 GDA):</strong> A cana encontra-se em pleno estabelecimento. Os perfilhos primários e secundários estão se formando. É o período mais crítico para garantia do estande. Atenção especial ao controle de plantas daninhas (supressão de até 80% do rendimento se mal manejadas) e à disponibilidade hídrica — déficit nessa fase pode reduzir o número de colmos permanentes de forma irreversível. <em>Recomendação:</em> Não aplicar herbicidas sistêmicos. Priorizar cobertura de solo e irrigação de estabelecimento.`;
+    } else if (gdaTotal < 1000) {
+      faseTexto = '📈 Crescimento Vegetativo';
+      faseDescricao = `<strong>Fase de crescimento intenso (600–1000 GDA):</strong> A cana entra no pico de elongação dos colmos, podendo acrescentar até 10 cm/dia em condições ideais. Neste período ocorre a maior absorção de N, K e P. A eficiência fotossintética é máxima. O índice de área foliar (IAF) atinge seu pico. <em>Recomendação:</em> Avaliar necessidade de adubação de cobertura nitrogenada e potássica. Monitorar brocas (<em>Diatraea saccharalis</em>) intensamente. Irrigação por gotejo ou aspersão garante até 20% a mais de TCH.`;
+    } else if (gdaTotal < 1400) {
+      faseTexto = '🔄 Transição / Pré-Maturação';
+      faseDescricao = `<strong>Fase de pré-maturação (1000–1400 GDA):</strong> O crescimento vegetativo desacelera e a planta começa a direcionar fotoassimilados para o acúmulo de sacarose nos colmos. O teor de Pol (pureza do caldo) começa a subir. Esta janela é estratégica para a aplicação de maturadores químicos (etefon, glifosato subdose, sulfometuron) — a resposta tende a ser excelente entre 1100–1300 GDA. <em>Recomendação:</em> Programar aplicação aérea ou terrestre de maturador. Iniciar amostragem de maturidade (Brix e Pol) para orientar o planejamento de colheita.`;
+    } else if (gdaTotal < 1800) {
+      faseTexto = '🍬 Maturação Ativa';
+      faseDescricao = `<strong>Fase de maturação ativa (1400–1800 GDA):</strong> A sacarose acumulada nos colmos está no pico ou próxima do pico sazonal. O ATR (Açúcar Total Recuperável) tende a atingir valores máximos nessa janela. A fibra do colmo está estabilizada, favorecendo a eficiência de extração industrial. <em>Recomendação:</em> Priorizar a colheita dos talhões mais maduros. Monitorar a previsão climática — chuvas excessivas diluem o caldo e reduzem o ATR. Organizar a logística de transporte para minimizar o tempo entre corte e moagem (&lt;48h ideal).`;
+    } else {
+      faseTexto = '⏳ Maturação Plena / Sobrematuração';
+      faseDescricao = `<strong>⚠️ Sobrematuração (acima de 1800 GDA):</strong> Atenção máxima! Nesta fase pode ocorrer a inversão da sacarose em glicose e frutose, reduzindo drasticamente o ATR e prejudicando o rendimento industrial. Também há risco de florescimento (<em>chochamento</em>) e senescência precoce em variedades mais precoces. <em>Recomendação emergencial:</em> Antecipar a colheita dos talhões mais antigos com urgência. Comunicar a usina sobre possível queda de qualidade. Rever o calendário de safra e, se possível, escalonar os cortes pelos talhões de maior produtividade histórica.`;
+    }
 
     // Progresso da GDA (meta ~1800 para maturação plena)
     const metaGDA = 1800;
     const pctGDA  = Math.min((gdaTotal / metaGDA) * 100, 100);
 
     badge.className = 'gda-status-badge ok';
-    badge.textContent = `✅ ${nDias} dias`;
+    badge.textContent = `✅ ${nDias} de ${numDias} dias`;
 
     container.innerHTML = `
       <div class="gda-big-val">
         <div class="gda-big-num">${Math.round(gdaTotal).toLocaleString('pt-BR')}</div>
-        <div class="gda-big-unit">Graus-Dia Acumulados (Base 18°C) — últimos ${diasValidos} dias</div>
+        <div class="gda-big-unit">Graus-Dia Acumulados (Base 18°C) — últimos ${diasValidos} dias consultados</div>
       </div>
 
       <div style="margin: 10px 0 4px;">
@@ -4143,9 +4175,9 @@ async function buscarGDA() {
         </div>
       </div>
 
-      <div style="text-align:center; margin:10px 0;">
-        <div class="gda-fase-badge">${faseTexto}</div>
-        <p style="font-size:11px; color:var(--text-3); margin-top:8px; line-height:1.55;">${faseDescricao}</p>
+      <div style="margin:10px 0;">
+        <div class="gda-fase-badge" style="display:inline-flex;">${faseTexto}</div>
+        <p style="font-size:11px; color:var(--text-3); margin-top:8px; line-height:1.65; text-align:left;">${faseDescricao}</p>
       </div>
 
       <div class="gda-meta-grid">
@@ -4163,7 +4195,7 @@ async function buscarGDA() {
         </div>
       </div>
       <p style="font-size:9px; color:var(--text-3); margin-top:10px; text-align:center;">
-        Fonte: NASA POWER API (LARC) · Lat ${lat.toFixed(3)}, Lon ${lon.toFixed(3)}
+        Fonte: NASA POWER API (LARC) · Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)} · Período: ${numDias} dias
       </p>`;
 
     showToast('🛰️ GDA calculado com sucesso via NASA POWER!', 'success', 3000);
