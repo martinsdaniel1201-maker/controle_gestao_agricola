@@ -1577,7 +1577,7 @@
     </div>
 
     <button class="btn-pdf-contextual" onclick="gerarPDF()">
-      <i class="fas fa-print"></i> Gerar PDF
+      <i class="fas fa-print"></i> Gerar PDF desta aba
     </button>
 
   </section>
@@ -3883,8 +3883,55 @@ function setSabedoriaFonte(fonte) {
 }
 
 /* ── Busca dicas frescas na API do Claude ── */
+/* ── Cache key: inclui mês/ano para renovar automaticamente todo mês ── */
+function _sabedoriaCacheKey() {
+  const d = new Date();
+  return `sabedoria_ia_${d.getFullYear()}_${d.getMonth()}`;
+}
+
+async function _chamarAPIComRetry(body, tentativas = 3) {
+  for (let i = 0; i < tentativas; i++) {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (resp.ok) return resp;
+    if (resp.status === 429) {
+      // Backoff exponencial: 4s, 8s, 16s
+      const espera = Math.pow(2, i + 2) * 1000;
+      console.warn(`⏳ Rate limit (429). Tentativa ${i + 1}/${tentativas}. Aguardando ${espera / 1000}s...`);
+      await new Promise(r => setTimeout(r, espera));
+      continue;
+    }
+    throw new Error(`API HTTP ${resp.status}`);
+  }
+  throw new Error('API HTTP 429 — rate limit após todas as tentativas');
+}
+
 async function buscarSabedoriasIA() {
   if (sabedoriaIACarregada || sabedoriaIACarregando) return;
+
+  // ── 1. Verifica cache da sessão (evita re-chamar API em recarregamentos) ──
+  const cacheKey = _sabedoriaCacheKey();
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const novas = JSON.parse(cached);
+      if (Array.isArray(novas) && novas.length > 0) {
+        const alertas = SABEDORIAS.filter(s => s.alert !== null);
+        SABEDORIAS = [...alertas, ...novas, ...SABEDORIAS_FALLBACK];
+        sabedoriaIACarregada = true;
+        sabedoriaIACarregando = false;
+        setSabedoriaFonte('ia');
+        sabedoriaAtual = alertas.length;
+        renderSabedoria(sabedoriaAtual);
+        console.log(`✅ Sabedoria de Campo: ${novas.length} dicas carregadas do cache.`);
+        return;
+      }
+    }
+  } catch (_) { /* sessionStorage indisponível — segue para API */ }
+
   sabedoriaIACarregando = true;
   setSabedoriaFonte('carregando');
 
@@ -3904,70 +3951,53 @@ Regras obrigatórias:
 Responda APENAS com JSON válido e completo, sem markdown:
 [{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."}]`;
 
-  // Sem signal — AbortController/AbortSignal não podem ser clonados no contexto iframe do claude.ai
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }]
-      })
+    // ── 2. Chama API com retry automático em caso de 429 ──
+    const resp = await _chamarAPIComRetry({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }]
     });
 
-    if (!resp.ok) throw new Error(`API HTTP ${resp.status}`);
     const data = await resp.json();
 
-    // Extrai o texto da resposta
     const raw = (data.content || [])
       .filter(b => b.type === 'text')
       .map(b => b.text)
       .join('');
 
-    // Remove blocos de markdown residuais
     const clean = raw.replace(/```json|```/gi, '').trim();
 
-    // Parser robusto: tenta JSON.parse normal; se falhar por truncamento,
-    // extrai os objetos completos que já chegaram com regex
     let parsed = [];
     try {
       parsed = JSON.parse(clean);
     } catch (_) {
-      // Extrai todos os objetos {"tag":...,"texto":...} completos que vieram
       const matches = [...clean.matchAll(/\{\s*"tag"\s*:\s*"([^"]+)"\s*,\s*"texto"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g)];
       parsed = matches.map(m => ({ tag: m[1], texto: m[2].replace(/\\n/g, ' ').replace(/\\"/g, '"') }));
     }
 
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Nenhuma dica válida extraída');
 
-    // Converte para o formato interno — ignora itens sem texto
     const novas = parsed
       .filter(item => item.tag && item.texto && item.texto.length > 20)
-      .map(item => ({
-        tag:   item.tag,
-        alert: null,
-        texto: item.texto,
-        fonte: 'ia'
-      }));
+      .map(item => ({ tag: item.tag, alert: null, texto: item.texto, fonte: 'ia' }));
 
     if (novas.length === 0) throw new Error('Dicas extraídas estavam vazias');
 
-    // Mantém alertas críticos no topo, insere dicas IA após eles, preserva fallback no fim
+    // ── 3. Salva no cache da sessão ──
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(novas)); } catch (_) {}
+
     const alertas = SABEDORIAS.filter(s => s.alert !== null);
     SABEDORIAS = [...alertas, ...novas, ...SABEDORIAS_FALLBACK];
 
     sabedoriaIACarregada = true;
     setSabedoriaFonte('ia');
-
-    // Avança para a primeira dica nova gerada pela IA (após alertas)
     sabedoriaAtual = alertas.length;
     renderSabedoria(sabedoriaAtual);
 
     console.log(`✅ Sabedoria de Campo: ${novas.length} dicas geradas pela IA.`);
 
   } catch (err) {
-    // Silencioso: fallback já está ativo, o usuário não percebe a falha
     setSabedoriaFonte('fallback');
     sabedoriaIACarregando = false;
     console.warn('⚠️ Sabedoria IA falhou, usando fallback:', err.message);
