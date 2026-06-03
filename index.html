@@ -602,12 +602,170 @@
     .comp-legend span { display:flex; align-items:center; gap:4px; }
     .comp-legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
 
+    /* ── SABEDORIA NA TELA INICIAL ── */
+    #sabedoria-home-wrap {
+      display: block;
+      padding: 0 0 4px;
+      animation: cardEntrada 0.42s cubic-bezier(.4,0,.2,1) 0.38s both;
+    }
+    /* Esconde quando qualquer seção está ativa (menu recolhido) */
+    body.tab-open #sabedoria-home-wrap {
+      display: none;
+    }
+
     /* Loading spinner */
     .clima-loading {
       text-align: center; padding: 30px;
       color: var(--text-3); font-size: 13px;
     }
     .clima-loading i { font-size: 24px; margin-bottom: 8px; display: block; }
+
+    /* ── MÓDULO GDA (Graus-Dia Acumulados) ── */
+    .gda-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .gda-status-badge {
+      padding: 3px 10px; border-radius: 50px; font-size: 9px; font-weight: 700;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .gda-status-badge.carregando { background: var(--blue-bg); color: var(--blue); }
+    .gda-status-badge.ok { background: var(--green-50); color: var(--green-700); }
+    .gda-status-badge.erro { background: var(--red-bg); color: var(--red); }
+    .gda-big-val {
+      text-align: center; padding: 20px 0 10px;
+    }
+    .gda-big-num {
+      font-size: 52px; font-weight: 800; color: var(--green-900); line-height: 1;
+    }
+    .gda-big-unit {
+      font-size: 14px; font-weight: 700; color: var(--text-3); margin-top: 4px;
+    }
+    .gda-progress-labels {
+      display: flex; justify-content: space-between;
+      font-size: 9px; color: var(--text-3); font-weight: 700; margin-top: 6px;
+    }
+    .gda-fase-badge {
+      display: inline-block; padding: 5px 14px; border-radius: 50px;
+      font-size: 11px; font-weight: 700; margin-top: 12px;
+      background: var(--amber-bg); color: var(--amber);
+      border: 1px solid #FFCC80;
+    }
+    .gda-meta-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px;
+    }
+    .gda-meta-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 8px; text-align: center;
+    }
+    .gda-meta-item .gda-mi-val {
+      font-size: 16px; font-weight: 800; color: var(--green-900); display: block;
+    }
+    .gda-meta-item .gda-mi-lbl {
+      font-size: 9px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.4px; margin-top: 3px; display: block;
+    }
+    .gda-coord-inputs {
+      display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: flex-end;
+      margin-bottom: 14px;
+    }
+    .gda-coord-inputs .btn-clima { padding: 10px 14px; white-space: nowrap; }
+
+    /* ── MÓDULO TCH/TAH ── */
+    .tch-insight {
+      margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
+      font-size: 11px; line-height: 1.5; display: none;
+      border-left: 3px solid;
+    }
+    .tch-insight.alert-baixo {
+      background: var(--red-bg); border-color: var(--red); color: #4a0000; display: block;
+    }
+    .tch-insight.alert-medio {
+      background: var(--amber-bg); border-color: var(--amber); color: #4E2500; display: block;
+    }
+    .tch-insight.alert-bom {
+      background: var(--green-50); border-color: var(--green-500); color: #1A3A1A; display: block;
+    }
+
+    /* ── MÓDULO SABEDORIA DE CAMPO ── */
+    .sabedoria-card {
+      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%);
+      border-radius: var(--radius-lg); padding: 20px;
+      margin-bottom: 14px; position: relative; overflow: hidden; color: white;
+    }
+    .sabedoria-card::before {
+      content: ''; position: absolute; top: -20px; right: -20px;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+    }
+    .sabedoria-card::after {
+      content: ''; position: absolute; bottom: -30px; left: -10px;
+      width: 90px; height: 90px; border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .sabedoria-inner { position: relative; z-index: 1; }
+    .sabedoria-tag {
+      display: inline-block; background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.25); border-radius: 50px;
+      padding: 3px 11px; font-size: 9px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .sabedoria-texto {
+      font-size: 13px; font-weight: 500; line-height: 1.65;
+      opacity: 0.95; transition: opacity 0.4s ease;
+    }
+    .sabedoria-texto.fadding { opacity: 0; }
+    .sabedoria-nav {
+      display: flex; justify-content: space-between; align-items: center; margin-top: 14px;
+    }
+    .sabedoria-dots { display: flex; gap: 5px; }
+    .sabedoria-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.35); transition: background 0.3s;
+    }
+    .sabedoria-dot.active { background: white; width: 16px; border-radius: 3px; }
+    .sabedoria-btn {
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+      color: white; padding: 6px 12px; border-radius: var(--radius-sm);
+      font-size: 10px; font-weight: 700; cursor: pointer; transition: background 0.18s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .sabedoria-btn:hover { background: rgba(255,255,255,0.25); }
+    .sabedoria-alert-badge {
+      background: #FF8F00; color: white; border-radius: 50px;
+      padding: 4px 12px; font-size: 10px; font-weight: 700;
+      display: inline-block; margin-bottom: 10px; margin-top: -4px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── MÓDULO LOGÍSTICA / ETA ── */
+    .eta-result-card {
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px; margin-top: 12px;
+    }
+    .eta-main {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+    }
+    .eta-tempo {
+      font-size: 32px; font-weight: 800; color: var(--green-900); line-height: 1;
+    }
+    .eta-tempo-unit { font-size: 12px; font-weight: 600; color: var(--text-3); margin-top: 2px; }
+    .eta-dist-badge {
+      background: var(--blue-bg); border: 1px solid #90CAF9;
+      border-radius: var(--radius-sm); padding: 8px 14px; text-align: center;
+    }
+    .eta-dist-val { font-size: 18px; font-weight: 800; color: var(--blue); }
+    .eta-dist-lbl { font-size: 9px; font-weight: 700; color: var(--blue); text-transform: uppercase; }
+    .eta-frota-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .eta-frota-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 8px; text-align: center;
+    }
+    .eta-frota-item .ef-val { font-size: 15px; font-weight: 800; color: var(--green-900); display: block; }
+    .eta-frota-item .ef-lbl { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 3px; display: block; }
+    .eta-loading { text-align: center; padding: 20px; color: var(--text-3); font-size: 12px; }
+    .eta-loading i { font-size: 20px; display: block; margin-bottom: 6px; }
 
     /* Modal */
     .modal-overlay {
@@ -716,64 +874,191 @@
     }
     body.dark-mode .res-highlight { background: linear-gradient(135deg,#1B5E20,#2E7D32); }
 
-    /* ── HOME MENU ── */
+    /* ══════════════════════════════════════════════
+       HOME MENU — PROPOSTA D (Orbs Coloridos)
+    ══════════════════════════════════════════════ */
     #main-nav.home-mode {
       display: grid !important;
       grid-template-columns: 1fr 1fr;
-      grid-auto-rows: 1fr;        /* todas as linhas com altura igual */
-      align-items: stretch;       /* bordas alinhadas */
-      gap: 12px;
+      gap: 11px;
       background: transparent;
       border: none;
       padding: 0;
-      margin-top: 8px;
-      margin-bottom: 24px;
+      margin-top: 10px;
+      margin-bottom: 26px;
     }
+
+    /* Card base */
     #main-nav.home-mode .tab-btn {
       flex: unset;
       min-width: unset;
       width: 100%;
-      height: 100%;               /* ocupa toda a célula do grid */
-      padding: 20px 10px;
-      border-radius: var(--radius-lg);
+      min-height: 122px;
+      padding: 20px 12px 16px;
+      border-radius: 22px;
       background: var(--surface);
       border: 1.5px solid var(--border);
-      color: var(--text-2);
-      font-size: clamp(9px, 1.8vw, 12px);  /* texto fluido */
-      font-weight: 700;
-      gap: 10px;
-      line-height: 1.3;
-      word-break: break-word;
-      hyphens: auto;
-      white-space: normal;        /* permite quebra de linha */
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.25;
       text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      transition: all 0.2s ease;
+      white-space: normal;
+      word-break: break-word;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+      transition: transform 0.22s cubic-bezier(.4,0,.2,1),
+                  box-shadow 0.22s cubic-bezier(.4,0,.2,1),
+                  border-color 0.22s ease;
     }
-    #main-nav.home-mode .tab-btn i {
-      font-size: clamp(22px, 5vw, 28px);
-      color: var(--green-700);
+
+    /* Orb — bolha do ícone */
+    #main-nav.home-mode .tab-btn .menu-orb {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 11px;
       flex-shrink: 0;
+      transition: transform 0.22s cubic-bezier(.4,0,.2,1);
     }
+
+    /* Label principal */
+    #main-nav.home-mode .tab-btn .menu-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.25;
+      letter-spacing: 0.1px;
+    }
+
+    /* Pill de contexto — aparece no hover */
+    #main-nav.home-mode .tab-btn .menu-tag {
+      display: inline-block;
+      margin-top: 7px;
+      padding: 3px 9px;
+      border-radius: 50px;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    /* Hover geral */
     #main-nav.home-mode .tab-btn:hover {
-      background: var(--green-50);
-      border-color: var(--green-500);
-      color: var(--green-900);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 18px rgba(27,94,32,0.15);
-    }
-    #main-nav.home-mode .tab-btn.active {
-      background: var(--grad);
-      color: white;
+      transform: translateY(-3px) scale(1.025);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.12);
       border-color: transparent;
     }
-    #main-nav.home-mode .tab-btn.active i { color: white; }
+    #main-nav.home-mode .tab-btn:hover .menu-orb {
+      transform: scale(1.1);
+    }
+    #main-nav.home-mode .tab-btn:hover .menu-tag {
+      opacity: 1;
+      transform: translateY(0);
+    }
 
-    /* Badge de contador nos botões do menu home */
+    /* Estado active (ao clicar — feedback tátil) */
+    #main-nav.home-mode .tab-btn:active {
+      transform: translateY(0) scale(0.97);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.10);
+    }
+
+    /* ── Cores individuais por card (orb + hover border + tag) ── */
+
+    /* 1 — Simulador: verde escuro */
+    #main-nav.home-mode .tab-btn.menu-c1 .menu-orb {
+      background: linear-gradient(135deg, #C8E6C9, #A5D6A7);
+      color: #1B5E20;
+    }
+    #main-nav.home-mode .tab-btn.menu-c1:hover {
+      box-shadow: 0 10px 28px rgba(27,94,32,0.18);
+      border-color: #A5D6A7;
+    }
+    #main-nav.home-mode .tab-btn.menu-c1 .menu-tag {
+      background: #E8F5E9; color: #1B5E20;
+    }
+
+    /* 2 — Liberações: azul */
+    #main-nav.home-mode .tab-btn.menu-c2 .menu-orb {
+      background: linear-gradient(135deg, #BBDEFB, #90CAF9);
+      color: #0D47A1;
+    }
+    #main-nav.home-mode .tab-btn.menu-c2:hover {
+      box-shadow: 0 10px 28px rgba(13,71,161,0.16);
+      border-color: #90CAF9;
+    }
+    #main-nav.home-mode .tab-btn.menu-c2 .menu-tag {
+      background: #E3F2FD; color: #0D47A1;
+    }
+
+    /* 3 — Clima & Agro: âmbar */
+    #main-nav.home-mode .tab-btn.menu-c3 .menu-orb {
+      background: linear-gradient(135deg, #FFF9C4, #FFF176);
+      color: #E65100;
+    }
+    #main-nav.home-mode .tab-btn.menu-c3:hover {
+      box-shadow: 0 10px 28px rgba(230,81,0,0.15);
+      border-color: #FFE082;
+    }
+    #main-nav.home-mode .tab-btn.menu-c3 .menu-tag {
+      background: #FFF8E1; color: #E65100;
+    }
+
+    /* 4 — Conf. OS: vermelho/laranja */
+    #main-nav.home-mode .tab-btn.menu-c4 .menu-orb {
+      background: linear-gradient(135deg, #FFCCBC, #FFAB91);
+      color: #BF360C;
+    }
+    #main-nav.home-mode .tab-btn.menu-c4:hover {
+      box-shadow: 0 10px 28px rgba(191,54,12,0.16);
+      border-color: #FFAB91;
+    }
+    #main-nav.home-mode .tab-btn.menu-c4 .menu-tag {
+      background: #FBE9E7; color: #BF360C;
+    }
+
+    /* 5 — Mapas: índigo */
+    #main-nav.home-mode .tab-btn.menu-c5 .menu-orb {
+      background: linear-gradient(135deg, #C5CAE9, #9FA8DA);
+      color: #1A237E;
+    }
+    #main-nav.home-mode .tab-btn.menu-c5:hover {
+      box-shadow: 0 10px 28px rgba(26,35,126,0.15);
+      border-color: #9FA8DA;
+    }
+    #main-nav.home-mode .tab-btn.menu-c5 .menu-tag {
+      background: #E8EAF6; color: #1A237E;
+    }
+
+    /* 6 — Calculadora: teal */
+    #main-nav.home-mode .tab-btn.menu-c6 .menu-orb {
+      background: linear-gradient(135deg, #B2DFDB, #80CBC4);
+      color: #004D40;
+    }
+    #main-nav.home-mode .tab-btn.menu-c6:hover {
+      box-shadow: 0 10px 28px rgba(0,77,64,0.15);
+      border-color: #80CBC4;
+    }
+    #main-nav.home-mode .tab-btn.menu-c6 .menu-tag {
+      background: #E0F2F1; color: #004D40;
+    }
+
+    /* Badge de notificação (liberações abertas) */
     .home-badge {
       position: absolute;
       top: 10px; right: 10px;
@@ -781,23 +1066,46 @@
       color: white;
       font-size: 9px;
       font-weight: 800;
-      padding: 2px 7px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
       border-radius: 50px;
-      letter-spacing: 0.3px;
-      line-height: 1.4;
-      box-shadow: 0 2px 6px rgba(198,40,40,0.35);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.2px;
+      line-height: 1;
+      box-shadow: 0 2px 8px rgba(198,40,40,0.4);
       pointer-events: none;
     }
-    #main-nav.home-mode .tab-btn { position: relative; }
+
+    /* Dark mode — ajustes do menu D */
+    body.dark-mode #main-nav.home-mode .tab-btn {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    body.dark-mode #main-nav.home-mode .tab-btn .menu-label { color: var(--text); }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c1 .menu-orb { background: linear-gradient(135deg,#1B4D1E,#2E6B31); color:#81C784; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c2 .menu-orb { background: linear-gradient(135deg,#0D2B5E,#163E7E); color:#64B5F6; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c3 .menu-orb { background: linear-gradient(135deg,#3E2800,#5C3A00); color:#FFD54F; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c4 .menu-orb { background: linear-gradient(135deg,#3E1206,#5C1C09); color:#FF8A65; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c5 .menu-orb { background: linear-gradient(135deg,#0D1340,#151D5C); color:#7986CB; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c6 .menu-orb { background: linear-gradient(135deg,#012220,#013330); color:#4DB6AC; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c1 .menu-tag { background:#162015; color:#81C784; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c2 .menu-tag { background:#0A1828; color:#64B5F6; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c3 .menu-tag { background:#2A1A08; color:#FFD54F; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c4 .menu-tag { background:#2A1010; color:#FF8A65; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c5 .menu-tag { background:#0D1030; color:#7986CB; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c6 .menu-tag { background:#011E1C; color:#4DB6AC; }
 
     /* Animação de entrada em cascata */
     @keyframes cardEntrada {
-      from { opacity: 0; transform: translateY(18px) scale(0.97); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0)    scale(1);    }
     }
     #main-nav.home-mode .tab-btn {
       opacity: 0;
-      animation: cardEntrada 0.35s ease-out forwards;
+      animation: cardEntrada 0.38s cubic-bezier(.4,0,.2,1) forwards;
     }
     #main-nav.home-mode .tab-btn:nth-child(1) { animation-delay: 0.04s; }
     #main-nav.home-mode .tab-btn:nth-child(2) { animation-delay: 0.10s; }
@@ -884,42 +1192,6 @@
       color: var(--green-700);
       background: var(--green-50);
     }
-
-    /* Badge contador liberações abertas */
-    .home-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--red);
-      color: white;
-      font-size: 9px;
-      font-weight: 800;
-      min-width: 18px;
-      height: 18px;
-      padding: 0 5px;
-      border-radius: 50px;
-      margin-top: 4px;
-      letter-spacing: 0;
-      line-height: 1;
-      flex-shrink: 0;
-    }
-
-    /* Animação staggered de entrada dos cards */
-    @keyframes cardEntrada {
-      from { opacity: 0; transform: translateY(18px) scale(0.96); }
-      to   { opacity: 1; transform: translateY(0)   scale(1);    }
-    }
-    #main-nav.home-mode .tab-btn {
-      animation: cardEntrada 0.35s ease-out both;
-    }
-    #main-nav.home-mode .tab-btn:nth-child(1) { animation-delay: 0.00s; }
-    #main-nav.home-mode .tab-btn:nth-child(2) { animation-delay: 0.07s; }
-    #main-nav.home-mode .tab-btn:nth-child(3) { animation-delay: 0.14s; }
-    #main-nav.home-mode .tab-btn:nth-child(4) { animation-delay: 0.21s; }
-    #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
-    #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.35s; }
-
-
 
     /* Toggle dark mode button */
     #btn-dark-mode {
@@ -1058,27 +1330,62 @@
 <div class="container" id="app-root">
 
   <nav class="tabs-nav home-mode" id="main-nav">
-    <button class="tab-btn" onclick="showTab(event,'simulador')">
-      <i class="fas fa-tractor"></i>SIMULADOR
+
+    <button class="tab-btn menu-c1" onclick="showTab(event,'simulador')">
+      <div class="menu-orb"><i class="fas fa-tractor"></i></div>
+      <span class="menu-label">Simulador</span>
+      <span class="menu-tag">Colheita</span>
     </button>
-    <button class="tab-btn" onclick="showTab(event,'liberacoes')">
-      <i class="fas fa-table"></i>LIBERAÇÕES<span class="home-badge" id="badge-liberacoes" style="display:none"></span>
+
+    <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes')">
+      <span class="home-badge" id="badge-liberacoes" style="display:none"></span>
+      <div class="menu-orb"><i class="fas fa-table"></i></div>
+      <span class="menu-label">Liberações</span>
+      <span class="menu-tag">GATEC</span>
     </button>
- <button class="tab-btn" onclick="showTab(event,'clima_aba')">
-      <i class="fas fa-cloud-sun"></i>PREVISÃO CLIMÁTICA
+
+    <button class="tab-btn menu-c3" onclick="showTab(event,'clima_aba')">
+      <div class="menu-orb"><i class="fas fa-cloud-sun"></i></div>
+      <span class="menu-label">Clima & Agro</span>
+      <span class="menu-tag">GDA · ETA</span>
     </button>
-    <button class="tab-btn" onclick="showTab(event,'conf_os_aba')">
-      <i class="fas fa-clipboard-check"></i>CONF. OPERADORES X O.S
+
+    <button class="tab-btn menu-c4" onclick="showTab(event,'conf_os_aba')">
+      <div class="menu-orb"><i class="fas fa-clipboard-check"></i></div>
+      <span class="menu-label">Conferências</span>
+      <span class="menu-tag">Operadores x O.S</span>
     </button>
-    <button class="tab-btn" onclick="showTab(event,'mapas_aba')">
-      <i class="fas fa-map"></i>CADERNO DE MAPAS
+
+    <button class="tab-btn menu-c5" onclick="showTab(event,'mapas_aba')">
+      <div class="menu-orb"><i class="fas fa-map"></i></div>
+      <span class="menu-label">Mapas</span>
+      <span class="menu-tag">Estimativas</span>
     </button>
-    <button class="tab-btn" onclick="showTab(event,'calc_aba')">
-      <i class="fas fa-calculator"></i>CALCULADORA
+
+    <button class="tab-btn menu-c6" onclick="showTab(event,'calc_aba')">
+      <div class="menu-orb"><i class="fas fa-calculator"></i></div>
+      <span class="menu-label">Calculadora</span>
+      <span class="menu-tag">TCH · ATR</span>
     </button>
-   
-   
+
   </nav>
+
+  <!-- ═══ SABEDORIA DE CAMPO — TELA INICIAL ═══ -->
+  <div id="sabedoria-home-wrap">
+    <div class="sabedoria-card" id="sabedoria-card">
+      <div class="sabedoria-inner">
+        <span class="sabedoria-tag">🌾 Sabedoria de Campo</span>
+        <div id="sabedoria-alert-badge-wrap"></div>
+        <p class="sabedoria-texto" id="sabedoria-texto">Carregando dica...</p>
+        <div class="sabedoria-nav">
+          <div class="sabedoria-dots" id="sabedoria-dots"></div>
+          <button class="sabedoria-btn" onclick="proximaSabedoria()">
+            <i class="fas fa-arrow-right"></i> Próxima
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="btn-voltar-menu">
     <span class="voltar-left">
@@ -1528,6 +1835,52 @@
       </div>
     </div>
 
+    <!-- 6. MÓDULO QUALIDADE E PRODUTIVIDADE: TCH e TAH -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-seedling"></i> Produtividade Real da Frente (TCH / TAH)</div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        Calcule o TCH (Toneladas de Cana por Hectare) e TAH (Toneladas de Açúcar por Hectare) com base nas toneladas efetivamente colhidas.
+      </p>
+      <div class="grid-inputs">
+        <div class="field">
+          <label>Toneladas Colhidas</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="tah_tons" placeholder="Ex: 4500" oninput="calcularTCH()">
+            <span class="input-unit">t</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Área Cortada</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="tah_area" placeholder="Ex: 55" oninput="calcularTCH()">
+            <span class="input-unit">ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>ATR Médio</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="tah_atr" placeholder="Ex: 135" oninput="calcularTCH()">
+            <span class="input-unit">kg/t</span>
+          </div>
+        </div>
+      </div>
+      <div class="calc-res-container" id="res_tch_container" style="display:none;">
+        <div class="res-box">
+          <span>TCH</span>
+          <b id="res_tch_val" style="color:var(--green-900)">— t/ha</b>
+        </div>
+        <div class="res-box" style="background:var(--amber-bg); border-color:#FFCC80;">
+          <span style="color:#BF360C;">TAH</span>
+          <b id="res_tah_val" style="color:var(--amber)">— t/ha</b>
+        </div>
+        <div class="res-box" style="background:var(--blue-bg); border-color:#90CAF9;">
+          <span style="color:#0D47A1;">Açúcar Total</span>
+          <b id="res_tah_acucar" style="color:var(--blue)">— t</b>
+        </div>
+      </div>
+      <div class="tch-insight" id="tch_insight"></div>
+    </div>
+
     <button class="btn-pdf-contextual" onclick="gerarPDF()">
       <i class="fas fa-print"></i> Gerar PDF desta aba
     </button>
@@ -1630,6 +1983,86 @@
         <div id="comparativo-cidades-result"></div>
       </div>
 
+    </div>
+
+    <!-- ═══ CARD: GRAUS-DIA ACUMULADOS (NASA POWER API) ═══ -->
+    <div class="card" id="card-gda">
+      <div class="gda-card-header">
+        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-thermometer-half"></i> Graus-Dia Acumulados (GDA)</div>
+        <span class="gda-status-badge carregando" id="gda-status-badge">⏳ Aguardando</span>
+      </div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        Calculado via <strong>NASA POWER API</strong>. O acúmulo de graus-dia (Base 18°C) indica o estágio de desenvolvimento e maturação da cana.
+      </p>
+
+      <!-- Coordenadas -->
+      <div class="gda-coord-inputs">
+        <div class="field">
+          <label>Latitude</label>
+          <input type="number" id="gda-lat" value="-20.72" step="0.01" placeholder="-20.72">
+        </div>
+        <div class="field">
+          <label>Longitude</label>
+          <input type="number" id="gda-lon" value="-46.61" step="0.01" placeholder="-46.61">
+        </div>
+        <button class="btn-clima" onclick="buscarGDA()"><i class="fas fa-satellite"></i> Calcular</button>
+      </div>
+
+      <!-- Resultado principal -->
+      <div id="gda-result-container">
+        <div class="eta-loading"><i class="fas fa-satellite-dish fa-spin"></i>Clique em "Calcular" para buscar dados da NASA POWER.</div>
+      </div>
+    </div>
+
+    <!-- ═══ CARD: LOGÍSTICA DE TRANSPORTE (OSRM API) ═══ -->
+    <div class="card" id="card-eta">
+      <div class="card-title"><i class="fas fa-truck"></i> Logística — ETA Transbordo para Usina</div>
+      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+        Calcula a distância rodoviária real e o ETA dos rodotrens via <strong>OSRM</strong> (OpenStreetMap Routing), sem chave de API.
+      </p>
+
+      <!-- Coordenadas da frente e usina -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div>
+          <p style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">📍 FRENTE DE CORTE</p>
+          <div class="field" style="margin-bottom:8px;">
+            <label>Latitude</label>
+            <input type="number" id="eta-frente-lat" value="-20.85" step="0.001" placeholder="-20.85">
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <input type="number" id="eta-frente-lon" value="-46.55" step="0.001" placeholder="-46.55">
+          </div>
+        </div>
+        <div>
+          <p style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">🏭 USINA (DESTINO)</p>
+          <div class="field" style="margin-bottom:8px;">
+            <label>Latitude</label>
+            <input type="number" id="eta-usina-lat" value="-20.72" step="0.001" placeholder="-20.72">
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <input type="number" id="eta-usina-lon" value="-46.61" step="0.001" placeholder="-46.61">
+          </div>
+        </div>
+      </div>
+
+      <!-- Dados da frota -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div class="field">
+          <label>Nº de Rodotrens</label>
+          <input type="number" id="eta-qtd-caminhoes" value="6" min="1" placeholder="Ex: 6" oninput="atualizarFrotaETA()">
+        </div>
+        <div class="field">
+          <label>Capacidade (t/viagem)</label>
+          <input type="number" id="eta-cap-caminhao" value="35" min="1" placeholder="Ex: 35" oninput="atualizarFrotaETA()">
+        </div>
+      </div>
+      <button class="btn-clima" style="width:100%; margin-bottom:0;" onclick="calcularETA()">
+        <i class="fas fa-route"></i> Calcular Rota e ETA
+      </button>
+
+      <div id="eta-result-container" style="margin-top:0;"></div>
     </div>
 
   </section>
@@ -1809,10 +2242,13 @@ function showTab(e, id) {
   nav.style.display = 'none';
   document.getElementById('btn-voltar-menu').style.display = 'flex';
 
+  // Oculta a Sabedoria de Campo (exclusiva da tela inicial)
+  document.body.classList.add('tab-open');
+
   // Indicador da aba ativa no botão voltar
   const nomes = {
     'simulador': 'SIMULADOR', 'liberacoes': 'LIBERAÇÕES',
-    'clima_aba': 'CLIMA', 'conf_os_aba': 'CONF. OS',
+    'clima_aba': 'CLIMA & AGRO', 'conf_os_aba': 'CONF. OS',
     'mapas_aba': 'MAPAS', 'calc_aba': 'CALCULADORA'
   };
   const nomeEl = document.getElementById('voltar-aba-nome');
@@ -1853,6 +2289,9 @@ function voltarParaHome() {
 
   document.getElementById('btn-voltar-menu').style.display = 'none';
   document.getElementById('btn-atualizar-global').style.display = 'none';
+
+  // Reexibe a Sabedoria de Campo
+  document.body.classList.remove('tab-open');
 
   // Limpa indicador de aba
   const nomeEl = document.getElementById('voltar-aba-nome');
@@ -3296,7 +3735,7 @@ document.addEventListener('keydown', function(e) {
       const btn = document.querySelectorAll('.tab-btn')[parseInt(e.key)-1];
       showTab({ currentTarget: btn }, mapa[e.key]);
       if (btn) { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
-      showToast(`⌨️ Aba ${e.key} — ${mapa[e.key].replace('_aba','').replace('clima','Clima').replace('calc','Calculadora').replace('mapas','Mapas').replace('liberacoes','Liberações').replace('simulador','Simulador')}`, 'info', 1800);
+      showToast(`⌨️ Aba ${e.key} — ${mapa[e.key].replace('_aba','').replace('clima','Clima & Agro').replace('calc','Calculadora').replace('mapas','Mapas').replace('liberacoes','Liberações').replace('simulador','Simulador')}`, 'info', 1800);
     }
   }
 });
@@ -3340,6 +3779,519 @@ document.getElementById('modal-cenario-nome').addEventListener('keydown', functi
 });
 
 /* ══════════════════════════════════════════════
+   MÓDULO 1 — TCH / TAH (Qualidade e Produtividade)
+══════════════════════════════════════════════ */
+function calcularTCH() {
+  const tons  = parseFloat(document.getElementById('tah_tons').value)  || 0;
+  const area  = parseFloat(document.getElementById('tah_area').value)  || 0;
+  const atr   = parseFloat(document.getElementById('tah_atr').value)   || 0;
+
+  if (!tons || !area) {
+    document.getElementById('res_tch_container').style.display = 'none';
+    document.getElementById('tch_insight').className = 'tch-insight';
+    return;
+  }
+
+  const tch = tons / area;                            // t/ha
+  const tah = atr > 0 ? (tch * atr) / 1000 : 0;     // t açúcar/ha
+  const acucarTotal = atr > 0 ? (tons * atr) / 1000 : 0;
+
+  document.getElementById('res_tch_val').innerText    = tch.toFixed(1) + ' t/ha';
+  document.getElementById('res_tah_val').innerText    = tah > 0 ? tah.toFixed(2) + ' t/ha' : '— t/ha';
+  document.getElementById('res_tah_acucar').innerText = acucarTotal > 0 ? Math.round(acucarTotal).toLocaleString('pt-BR') + ' t' : '— t';
+  document.getElementById('res_tch_container').style.display = 'grid';
+
+  // Insight contextualizado
+  const insEl = document.getElementById('tch_insight');
+  if (tch < 65) {
+    insEl.className = 'tch-insight alert-baixo';
+    insEl.innerHTML = '⚠️ <strong>Atenção: Produtividade abaixo da média regional (65 t/ha).</strong> Verifique a idade do canavial (possível soca velha), estresse hídrico nas últimas semanas ou falhas no stand de plantas. Considere uma avaliação de reforma do talhão.';
+    injetarSabedoriaAlerta(tch);
+  } else if (tch < 80) {
+    insEl.className = 'tch-insight alert-medio';
+    insEl.innerHTML = '🟡 <strong>Produtividade dentro da faixa intermediária (65–80 t/ha).</strong> Há espaço para melhoria. Avalie a possibilidade de adubação complementar de cobertura e o ajuste das condições de colheita (velocidade da colhedora vs perdas visíveis).';
+  } else {
+    insEl.className = 'tch-insight alert-bom';
+    insEl.innerHTML = '✅ <strong>Excelente produtividade (acima de 80 t/ha)!</strong> A frente está operando com alta eficiência. Mantenha o padrão de manejo, monitorando a qualidade da soqueira no pós-colheita para sustentar os resultados nos próximos cortes.';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   MÓDULO 2 — SABEDORIA DE CAMPO
+   IA (Claude API) + Fallback fixo
+══════════════════════════════════════════════ */
+
+/* ── Lista fixa de fallback (usada quando a API falha) ── */
+const SABEDORIAS_FALLBACK = [
+  { tag: '🌡️ Clima & Sacarose', alert: null,
+    texto: 'O acúmulo de sacarose (ATR) é diretamente influenciado pela amplitude térmica. Noites frescas (abaixo de 20°C) combinadas com dias secos intensificam a maturação natural da cana, elevando o ATR até 15% acima da média em variedades tardias. Aproveite essas janelas climáticas para priorizar os talhões mais maduros.' },
+  { tag: '🚜 Corte de Base', alert: null,
+    texto: 'O corte de base rente ao solo é o principal fator de longevidade da soqueira. Regulagens incorretas elevam a altura de corte e reduzem a brotação em até 20%, comprometendo os cortes seguintes. Calibre o corte de base com paquímetro após cada turno operacional.' },
+  { tag: '🏋️ Compactação do Solo', alert: null,
+    texto: 'O tráfego intenso de reboques e rodotrens compacta o solo a até 40 cm de profundidade. Solo compactado reduz a absorção de água em até 60% e pode provocar queda de 10–15 t/ha no próximo ciclo. Evite o tráfego em solos saturados e implante o conceito de Tráfego Controlado.' },
+  { tag: '💧 Estresse Hídrico', alert: null,
+    texto: 'A cana-de-açúcar demanda entre 1.200 e 1.500 mm de chuva bem distribuídos ao longo do ciclo. Déficits hídricos acima de 200 mm na fase vegetativa podem reduzir o TCH em até 25%. Use os dados da NASA POWER neste painel para monitorar e antecipar déficits.' },
+  { tag: '📊 Graus-Dia', alert: null,
+    texto: 'O modelo de Graus-Dia (base 18°C) é a ferramenta mais precisa para prever o estágio de maturação sem laboratório. Acúmulos entre 1.200 e 1.800 GDA indicam maturação ativa — o momento ideal para programar a colheita dos talhões prioritários.' },
+  { tag: '⚙️ Eficiência Operacional', alert: null,
+    texto: 'Cada 1% de ganho na eficiência da colhedora equivale, em uma frente de 5 máquinas com 12h/dia, a aproximadamente +270 toneladas por dia a custo zero. Pequenos ajustes de velocidade e eliminação de paradas desnecessárias superam o impacto da compra de máquinas novas.' },
+  { tag: '🌾 Variedades & Maturação', alert: null,
+    texto: 'Escalonar a colheita entre variedades precoces, médias e tardias garante ATR sustentado durante toda a safra. Iniciar sem maturidade mínima (ATR < 120 kg/t) prejudica a qualidade do caldo e pode gerar penalizações contratuais.' },
+  { tag: '🔬 Perdas na Colheita', alert: null,
+    texto: 'As perdas totais na colheita mecanizada ficam entre 3% e 8% da produção bruta, com 60% concentradas no tolete picado. Realize avaliações mensais conforme a metodologia do IAC para manter as perdas abaixo de 5% e proteger o resultado financeiro da frente.' },
+  { tag: '🌱 Soqueira Saudável', alert: null,
+    texto: 'Uma soqueira bem manejada pode produzir por 5 a 7 cortes com produtividade sustentada. Os pilares são: corte de base rente, mínimo compactação pós-colheita, adubação de cobertura no momento certo e controle da rebrota de plantas daninhas nas primeiras 4 semanas.' },
+  { tag: '🧪 Maturadores', alert: null,
+    texto: 'A aplicação de maturadores (etefom, sulfometuron-metil) pode elevar o ATR em 8–15 kg/t em variedades de maturação intermediária. O momento ideal é 45–60 dias antes da colheita prevista, com temperatura acima de 20°C e sem previsão de chuva por 24h após a aplicação.' }
+];
+
+/* ── Estado do módulo ── */
+let SABEDORIAS          = [...SABEDORIAS_FALLBACK]; // começa com fallback, IA substitui
+let sabedoriaAtual      = 0;
+let sabedoriaTimer      = null;
+let sabedoriaAlertaAtivo = false;
+let sabedoriaIACarregada = false;
+let sabedoriaIACarregando = false;
+
+/* ── Indicador visual de fonte (IA vs Fallback) ── */
+function setSabedoriaFonte(fonte) {
+  // 'ia' | 'fallback' | 'carregando'
+  const tag = document.querySelector('#sabedoria-card .sabedoria-tag');
+  if (!tag) return;
+  if (fonte === 'ia') {
+    tag.textContent = '✨ Sabedoria de Campo · IA';
+    tag.style.background = 'rgba(255,255,255,0.22)';
+  } else if (fonte === 'carregando') {
+    tag.textContent = '⏳ Sabedoria de Campo · Gerando...';
+    tag.style.background = 'rgba(255,255,255,0.14)';
+  } else {
+    tag.textContent = '🌾 Sabedoria de Campo';
+    tag.style.background = 'rgba(255,255,255,0.18)';
+  }
+}
+
+/* ── Busca dicas frescas na API do Claude ── */
+async function buscarSabedoriasIA() {
+  if (sabedoriaIACarregada || sabedoriaIACarregando) return;
+  sabedoriaIACarregando = true;
+  setSabedoriaFonte('carregando');
+
+  const mes = new Date().toLocaleString('pt-BR', { month: 'long' });
+  const ano = new Date().getFullYear();
+
+  const prompt = `Você é um agrônomo especialista em cana-de-açúcar no Centro-Sul do Brasil (região de Passos/MG).
+
+Gere exatamente 4 sabedorias técnicas ORIGINAIS sobre cana-de-açúcar para ${mes} de ${ano}.
+
+Regras obrigatórias:
+- Cada texto deve ter NO MÁXIMO 2 frases curtas (máximo 60 palavras por item)
+- Incluir pelo menos 1 dado numérico real por item
+- Temas variados: colheita mecanizada, ATR/qualidade, soqueira, logística, solo, pragas, clima
+- Linguagem direta, para supervisor de campo
+
+Responda APENAS com JSON válido e completo, sem markdown:
+[{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."}]`;
+
+  // Sem signal — AbortController/AbortSignal não podem ser clonados no contexto iframe do claude.ai
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!resp.ok) throw new Error(`API HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    // Extrai o texto da resposta
+    const raw = (data.content || [])
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    // Remove blocos de markdown residuais
+    const clean = raw.replace(/```json|```/gi, '').trim();
+
+    // Parser robusto: tenta JSON.parse normal; se falhar por truncamento,
+    // extrai os objetos completos que já chegaram com regex
+    let parsed = [];
+    try {
+      parsed = JSON.parse(clean);
+    } catch (_) {
+      // Extrai todos os objetos {"tag":...,"texto":...} completos que vieram
+      const matches = [...clean.matchAll(/\{\s*"tag"\s*:\s*"([^"]+)"\s*,\s*"texto"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g)];
+      parsed = matches.map(m => ({ tag: m[1], texto: m[2].replace(/\\n/g, ' ').replace(/\\"/g, '"') }));
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Nenhuma dica válida extraída');
+
+    // Converte para o formato interno — ignora itens sem texto
+    const novas = parsed
+      .filter(item => item.tag && item.texto && item.texto.length > 20)
+      .map(item => ({
+        tag:   item.tag,
+        alert: null,
+        texto: item.texto,
+        fonte: 'ia'
+      }));
+
+    if (novas.length === 0) throw new Error('Dicas extraídas estavam vazias');
+
+    // Mantém alertas críticos no topo, insere dicas IA após eles, preserva fallback no fim
+    const alertas = SABEDORIAS.filter(s => s.alert !== null);
+    SABEDORIAS = [...alertas, ...novas, ...SABEDORIAS_FALLBACK];
+
+    sabedoriaIACarregada = true;
+    setSabedoriaFonte('ia');
+
+    // Avança para a primeira dica nova gerada pela IA (após alertas)
+    sabedoriaAtual = alertas.length;
+    renderSabedoria(sabedoriaAtual);
+
+    console.log(`✅ Sabedoria de Campo: ${novas.length} dicas geradas pela IA.`);
+
+  } catch (err) {
+    // Silencioso: fallback já está ativo, o usuário não percebe a falha
+    setSabedoriaFonte('fallback');
+    sabedoriaIACarregando = false;
+    console.warn('⚠️ Sabedoria IA falhou, usando fallback:', err.message);
+  }
+}
+
+/* ── Renderiza o card atual ── */
+function renderSabedoria(idx) {
+  const s = SABEDORIAS[idx];
+  if (!s) return;
+
+  const textoEl   = document.getElementById('sabedoria-texto');
+  const badgeWrap = document.getElementById('sabedoria-alert-badge-wrap');
+  const dotsEl    = document.getElementById('sabedoria-dots');
+  const tagEl     = document.querySelector('#sabedoria-card .sabedoria-tag');
+
+  // Fade out suave
+  textoEl.classList.add('fadding');
+
+  setTimeout(() => {
+    textoEl.textContent = s.texto;
+
+    // Badge de alerta crítico
+    badgeWrap.innerHTML = s.alert
+      ? `<div class="sabedoria-alert-badge">⚠️ ${s.alert}</div>`
+      : '';
+
+    // Atualiza a tag com ícone de fonte
+    if (tagEl) {
+      if (s.alert) {
+        tagEl.textContent = '🚨 Alerta de Campo';
+        tagEl.style.background = 'rgba(255,80,0,0.35)';
+      } else if (s.fonte === 'ia') {
+        tagEl.textContent = `✨ ${s.tag}`;
+        tagEl.style.background = 'rgba(255,255,255,0.22)';
+      } else {
+        tagEl.textContent = `🌾 ${s.tag}`;
+        tagEl.style.background = 'rgba(255,255,255,0.18)';
+      }
+    }
+
+    // Dots de navegação (máx 10 visíveis para não poluir)
+    const total = SABEDORIAS.length;
+    const maxDots = Math.min(total, 10);
+    dotsEl.innerHTML = Array.from({ length: maxDots }, (_, i) => {
+      const real = Math.round(i * (total - 1) / (maxDots - 1 || 1));
+      return `<div class="sabedoria-dot${real === idx ? ' active' : ''}"></div>`;
+    }).join('');
+
+    textoEl.classList.remove('fadding');
+  }, 340);
+}
+
+/* ── Avança para a próxima dica ── */
+function proximaSabedoria() {
+  sabedoriaAtual = (sabedoriaAtual + 1) % SABEDORIAS.length;
+  renderSabedoria(sabedoriaAtual);
+  clearInterval(sabedoriaTimer);
+  sabedoriaTimer = setInterval(proximaSabedoria, 20000);
+}
+
+/* ── Injeta alerta de produtividade crítica no topo da fila ── */
+function injetarSabedoriaAlerta(tch) {
+  if (tch > 0 && tch < 65 && !sabedoriaAlertaAtivo) {
+    SABEDORIAS.unshift({
+      tag: '🚨 Alerta de Produtividade',
+      alert: `TCH Baixo: ${tch.toFixed(1)} t/ha`,
+      texto: `TCH calculado (${tch.toFixed(1)} t/ha) abaixo da média regional de 65 t/ha. Causas mais prováveis: (1) soqueira envelhecida com perda de stand, (2) estresse hídrico acumulado nos últimos 60 dias, (3) deficiência de N e K na cobertura. Recomenda-se avaliação agronômica de campo antes do próximo ciclo.`,
+      fonte: 'alerta'
+    });
+    sabedoriaAlertaAtivo = true;
+    sabedoriaAtual = 0;
+    renderSabedoria(0);
+  }
+}
+
+/* ── Inicia o módulo: exibe fallback imediatamente, busca IA em background ── */
+function iniciarSabedoria() {
+  // 1. Exibe fallback instantaneamente (sem esperar a IA)
+  renderSabedoria(0);
+  sabedoriaTimer = setInterval(proximaSabedoria, 20000);
+
+  // 2. Busca dicas da IA em background após 1.5s (para não competir com o carregamento da página)
+  setTimeout(buscarSabedoriasIA, 1500);
+}
+
+/* ══════════════════════════════════════════════
+   MÓDULO 3 — GDA (NASA POWER API)
+══════════════════════════════════════════════ */
+async function buscarGDA() {
+  const lat = parseFloat(document.getElementById('gda-lat').value) || -20.72;
+  const lon = parseFloat(document.getElementById('gda-lon').value) || -46.61;
+
+  const badge    = document.getElementById('gda-status-badge');
+  const container = document.getElementById('gda-result-container');
+
+  badge.className = 'gda-status-badge carregando';
+  badge.textContent = '⏳ Buscando NASA...';
+  container.innerHTML = '<div class="eta-loading"><i class="fas fa-satellite-dish fa-spin"></i>Consultando NASA POWER API...</div>';
+
+  try {
+    // Período: últimos 120 dias (para acumular GDA da safra recente)
+    const hoje = new Date();
+    const inicio = new Date(hoje);
+    inicio.setDate(hoje.getDate() - 120);
+
+    const fmtData = d => {
+      const yyyy = d.getFullYear();
+      const mm   = String(d.getMonth() + 1).padStart(2, '0');
+      const dd   = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}${mm}${dd}`;
+    };
+
+    const startStr = fmtData(inicio);
+    const endStr   = fmtData(new Date(hoje.getTime() - 86400000)); // ontem
+
+    const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,ALLSKY_SFC_SW_DWN&community=AG&longitude=${lon}&latitude=${lat}&start=${startStr}&end=${endStr}&format=JSON`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    const tmax = data.properties.parameter.T2M_MAX;
+    const tmin = data.properties.parameter.T2M_MIN;
+    const rad  = data.properties.parameter.ALLSKY_SFC_SW_DWN;
+
+    const BASE_TEMP = 18; // Base biológica da cana
+    let gdaTotal = 0;
+    let diasValidos = 0;
+    let tempMedia = 0;
+    let radMedia = 0;
+    let diasChuvosos = 0; // aproximado por radiação baixa
+
+    const datas = Object.keys(tmax).sort();
+    const nDias = datas.length;
+
+    datas.forEach(d => {
+      const mx = tmax[d], mn = tmin[d], r = rad[d];
+      if (mx <= -900 || mn <= -900) return; // missing data
+      const tmed = (mx + mn) / 2;
+      const gd = Math.max(0, tmed - BASE_TEMP);
+      gdaTotal  += gd;
+      tempMedia += tmed;
+      radMedia  += (r > 0 ? r : 0);
+      if (r >= 0 && r < 5) diasChuvosos++; // baixa radiação = nublado/chuva
+      diasValidos++;
+    });
+
+    if (diasValidos === 0) throw new Error('Sem dados válidos no período.');
+
+    tempMedia /= diasValidos;
+    radMedia  /= diasValidos;
+
+    // Fase fenológica estimada por GDA acumulado (120 dias)
+    let faseTexto, faseDescricao;
+    if (gdaTotal < 600)  { faseTexto = '🌱 Brotação / Perfilhamento'; faseDescricao = 'Fase inicial. Cana em desenvolvimento vegetativo precoce.'; }
+    else if (gdaTotal < 1000) { faseTexto = '📈 Crescimento Vegetativo'; faseDescricao = 'Máximo crescimento em altura. Alta demanda hídrica e nutricional.'; }
+    else if (gdaTotal < 1400) { faseTexto = '🔄 Transição / Pré-Maturação'; faseDescricao = 'Início do acúmulo de sacarose. Condições ideais para maturadores.'; }
+    else if (gdaTotal < 1800) { faseTexto = '🍬 Maturação Ativa'; faseDescricao = 'Excelente momento para colheita. ATR tende a estar no pico sazonal.'; }
+    else { faseTexto = '⏳ Maturação Plena / Sobrematuração'; faseDescricao = 'Cuidado: início da inversão de sacarose. Priorizar colheita imediata dos talhões.'; }
+
+    // Progresso da GDA (meta ~1800 para maturação plena)
+    const metaGDA = 1800;
+    const pctGDA  = Math.min((gdaTotal / metaGDA) * 100, 100);
+
+    badge.className = 'gda-status-badge ok';
+    badge.textContent = `✅ ${nDias} dias`;
+
+    container.innerHTML = `
+      <div class="gda-big-val">
+        <div class="gda-big-num">${Math.round(gdaTotal).toLocaleString('pt-BR')}</div>
+        <div class="gda-big-unit">Graus-Dia Acumulados (Base 18°C) — últimos ${diasValidos} dias</div>
+      </div>
+
+      <div style="margin: 10px 0 4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="font-size:10px; font-weight:700; color:var(--text-2);">Progresso até maturação plena (1800 GDA)</span>
+          <span style="font-size:10px; font-weight:800; color:var(--green-900);">${pctGDA.toFixed(1)}%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width:${pctGDA}%; background: linear-gradient(90deg, #43A047, #1B5E20);"></div>
+        </div>
+        <div class="gda-progress-labels">
+          <span>0 GDA</span><span>900</span><span>1400</span><span>1800 GDA</span>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin:10px 0;">
+        <div class="gda-fase-badge">${faseTexto}</div>
+        <p style="font-size:11px; color:var(--text-3); margin-top:8px; line-height:1.55;">${faseDescricao}</p>
+      </div>
+
+      <div class="gda-meta-grid">
+        <div class="gda-meta-item">
+          <span class="gda-mi-val">${tempMedia.toFixed(1)}°C</span>
+          <span class="gda-mi-lbl">Temp. Média</span>
+        </div>
+        <div class="gda-meta-item">
+          <span class="gda-mi-val">${radMedia.toFixed(1)}</span>
+          <span class="gda-mi-lbl">Rad. Solar (MJ/m²)</span>
+        </div>
+        <div class="gda-meta-item">
+          <span class="gda-mi-val">${diasChuvosos}</span>
+          <span class="gda-mi-lbl">Dias Nublados</span>
+        </div>
+      </div>
+      <p style="font-size:9px; color:var(--text-3); margin-top:10px; text-align:center;">
+        Fonte: NASA POWER API (LARC) · Lat ${lat.toFixed(3)}, Lon ${lon.toFixed(3)}
+      </p>`;
+
+    showToast('🛰️ GDA calculado com sucesso via NASA POWER!', 'success', 3000);
+
+  } catch (err) {
+    badge.className = 'gda-status-badge erro';
+    badge.textContent = '❌ Erro';
+    container.innerHTML = `
+      <div class="insight-item warn" style="margin-top:10px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Não foi possível acessar a NASA POWER API no momento. Verifique sua conexão ou tente novamente em alguns instantes. <br><small style="opacity:0.7;">Erro: ${err.message}</small></span>
+      </div>
+      <p style="font-size:10px; color:var(--text-3); margin-top:8px; padding: 0 2px;">O painel continua funcionando normalmente com dados manuais.</p>`;
+    showToast('❌ Erro ao buscar dados da NASA POWER', 'error');
+  }
+}
+
+/* ══════════════════════════════════════════════
+   MÓDULO 4 — LOGÍSTICA ETA (OSRM API)
+══════════════════════════════════════════════ */
+async function calcularETA() {
+  const frenteLat = parseFloat(document.getElementById('eta-frente-lat').value);
+  const frenteLon = parseFloat(document.getElementById('eta-frente-lon').value);
+  const usinaLat  = parseFloat(document.getElementById('eta-usina-lat').value);
+  const usinaLon  = parseFloat(document.getElementById('eta-usina-lon').value);
+  const qtdCam    = parseInt(document.getElementById('eta-qtd-caminhoes').value)  || 6;
+  const capCam    = parseInt(document.getElementById('eta-cap-caminhao').value)   || 35;
+
+  if (isNaN(frenteLat) || isNaN(frenteLon) || isNaN(usinaLat) || isNaN(usinaLon)) {
+    showToast('⚠️ Insira coordenadas válidas para frente e usina.', 'error');
+    return;
+  }
+
+  const container = document.getElementById('eta-result-container');
+  container.innerHTML = '<div class="eta-loading"><i class="fas fa-route fa-spin"></i>Calculando rota via OpenStreetMap (OSRM)...</div>';
+
+  try {
+    // OSRM API pública — sem key
+    const url = `https://router.project-osrm.org/route/v1/driving/${frenteLon},${frenteLat};${usinaLon},${usinaLat}?overview=false&annotations=false`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`OSRM HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+      throw new Error('Rota não encontrada pelo OSRM.');
+    }
+
+    const rota = data.routes[0];
+    const distKm   = (rota.distance / 1000).toFixed(1);
+    const duracaoS = rota.duration;
+
+    // Cálculos logísticos
+    const duracaoMin       = Math.round(duracaoS / 60);
+    const duracaoH         = Math.floor(duracaoMin / 60);
+    const duracaoResto     = duracaoMin % 60;
+    const etaLabel         = duracaoH > 0 ? `${duracaoH}h ${duracaoResto}min` : `${duracaoMin} min`;
+
+    // Ciclo completo do caminhão: ida + descarga (15 min estimados) + volta
+    const cicloCam_min = duracaoMin * 2 + 15;
+
+    // Capacidade da frota em 24h
+    const viagensPorCaminhao24h = Math.floor(1440 / cicloCam_min);
+    const capacidadeTotal24h    = viagensPorCaminhao24h * qtdCam * capCam;
+    const velocidadeMedia       = duracaoS > 0 ? ((rota.distance / 1000) / (duracaoS / 3600)).toFixed(1) : '—';
+
+    container.innerHTML = `
+      <div class="eta-result-card">
+        <div class="eta-main">
+          <div>
+            <div class="eta-tempo">${etaLabel}</div>
+            <div class="eta-tempo-unit">⏱️ Tempo estimado de viagem (ida)</div>
+          </div>
+          <div class="eta-dist-badge">
+            <div class="eta-dist-val">${distKm} km</div>
+            <div class="eta-dist-lbl">Distância Rodoviária</div>
+          </div>
+        </div>
+
+        <p style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">📦 Capacidade da Frota (${qtdCam} rodotrens × ${capCam} t)</p>
+        <div class="eta-frota-grid">
+          <div class="eta-frota-item">
+            <span class="ef-val">${cicloCam_min} min</span>
+            <span class="ef-lbl">Ciclo/Caminhão</span>
+          </div>
+          <div class="eta-frota-item">
+            <span class="ef-val">${viagensPorCaminhao24h}</span>
+            <span class="ef-lbl">Viagens/Cam./Dia</span>
+          </div>
+          <div class="eta-frota-item">
+            <span class="ef-val">${Math.round(capacidadeTotal24h).toLocaleString('pt-BR')} t</span>
+            <span class="ef-lbl">Capac. Frota/Dia</span>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; padding:10px 12px; background:var(--green-50); border:1px solid var(--green-100); border-radius:var(--radius-sm);">
+          <p style="font-size:11px; color:var(--green-900); font-weight:600; line-height:1.5;">
+            🚛 Velocidade média estimada: <strong>${velocidadeMedia} km/h</strong> &nbsp;·&nbsp;
+            Ciclo completo (ida + descarga + volta): <strong>${cicloCam_min} min</strong>
+          </p>
+        </div>
+        <p style="font-size:9px; color:var(--text-3); margin-top:8px; text-align:center;">
+          Fonte: OSRM (OpenStreetMap Routing Machine) · Rota real em asfalto estimada
+        </p>
+      </div>`;
+
+    showToast(`🗺️ Rota calculada: ${distKm} km — ETA ${etaLabel}`, 'success', 3500);
+
+  } catch (err) {
+    container.innerHTML = `
+      <div class="insight-item warn" style="margin-top:10px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>Não foi possível calcular a rota via OSRM. Verifique as coordenadas e a conexão com a internet.<br><small style="opacity:0.7;">Erro: ${err.message}</small></span>
+      </div>
+      <p style="font-size:10px; color:var(--text-3); margin-top:8px; padding:0 2px;">Use a estimativa manual: Distância ÷ 60 km/h para uma aproximação do ETA.</p>`;
+    showToast('❌ Erro ao calcular rota OSRM', 'error');
+  }
+}
+
+function atualizarFrotaETA() {
+  // Recalcula somente se já existe resultado exibido
+  const container = document.getElementById('eta-result-container');
+  if (container && container.querySelector('.eta-result-card')) {
+    calcularETA();
+  }
+}
+
+/* ══════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════ */
 
@@ -3370,6 +4322,9 @@ removeFrente = function(id) { _removeFrenteOrig(id); if (!modoSimulacao) salvarE
 
 // Verificar conexão ao iniciar
 atualizarStatusConexao();
+
+// Iniciar rotação de Sabedoria de Campo
+iniciarSabedoria();
 
 // Datas do histórico: máximo = ontem, mínimo = 1940
 (function() {
