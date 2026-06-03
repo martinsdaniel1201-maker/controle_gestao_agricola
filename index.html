@@ -652,7 +652,7 @@
       border: 1px solid #FFCC80;
     }
     .gda-meta-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px;
     }
     .gda-meta-item {
       background: var(--surface2); border: 1px solid var(--border);
@@ -4108,7 +4108,6 @@ async function buscarGDA() {
     let diasValidos = 0;
     let tempMedia = 0;
     let radMedia = 0;
-    let diasChuvosos = 0; // aproximado por radiação baixa
 
     const datas = Object.keys(tmax).sort();
     const nDias = datas.length;
@@ -4121,7 +4120,6 @@ async function buscarGDA() {
       gdaTotal  += gd;
       tempMedia += tmed;
       radMedia  += (r > 0 ? r : 0);
-      if (r >= 0 && r < 5) diasChuvosos++; // baixa radiação = nublado/chuva
       diasValidos++;
     });
 
@@ -4189,10 +4187,7 @@ async function buscarGDA() {
           <span class="gda-mi-val">${radMedia.toFixed(1)}</span>
           <span class="gda-mi-lbl">Rad. Solar (MJ/m²)</span>
         </div>
-        <div class="gda-meta-item">
-          <span class="gda-mi-val">${diasChuvosos}</span>
-          <span class="gda-mi-lbl">Dias Nublados</span>
-        </div>
+
       </div>
       <p style="font-size:9px; color:var(--text-3); margin-top:10px; text-align:center;">
         Fonte: NASA POWER API (LARC) · Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)} · Período: ${numDias} dias
