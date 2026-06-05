@@ -4526,6 +4526,29 @@ function toggleCard(id) {
   if (!card) return;
   card.classList.toggle('open');
 }
+  /* ══════════════════════════════════════════════
+   SERVICE WORKER — SUPORTE OFFLINE / PWA
+══════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        console.log('[SW] Registrado com sucesso. Escopo:', reg.scope);
+
+        // Notifica quando uma nova versão estiver disponível
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('🔄 Nova versão disponível! Recarregue o app para atualizar.', 'info', 6000);
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[SW] Falha no registro:', err));
+  });
+}
+
 
 // Iniciar rotação de Sabedoria de Campo
 iniciarSabedoria();
@@ -4540,6 +4563,7 @@ iniciarSabedoria();
   if (inpIni) { inpIni.max = ontemStr; inpIni.min = '1940-01-01'; }
   if (inpFim) { inpFim.max = ontemStr; inpFim.min = '1940-01-01'; inpFim.value = ontemStr; }
 })();
+  
 </script>
 </body>
 </html>
