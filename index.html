@@ -9,32 +9,28 @@
   <title>CONTROLE TÉCNICO AGRÍCOLA</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- jsPDF exposto como window.jspdf.jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- html2pdf (já inclui html2canvas internamente, mas agora usamos os globais acima) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     @media print {
-      /* Esconde tudo exceto a aba activa */
-      body { background: #fff !important; color: #111 !important; }
+      /* Mostra só a seção ativa, esconde navegação */
+      .section          { display: none !important; }
+      .section.active   { display: block !important; }
       #main-nav, #btn-voltar-menu, #btn-atualizar-global,
       #sabedoria-home-wrap, .tab-btn, .sub-tab-btn,
       .btn-pdf-contextual, #btn-pdf-flutuante,
       .collapse-hint, .collapse-chevron { display: none !important; }
 
-      /* Mostra só a seção ativa */
-      .section { display: none !important; }
-      .section.active { display: block !important; }
-
-      /* Abre cards colapsados na impressão */
+      /* Abre cards colapsados */
       .card-collapsible .card-collapse-body {
         max-height: none !important; opacity: 1 !important; overflow: visible !important;
       }
-      .card-collapse-trigger { border-bottom: 1px solid #ddd !important; }
-
-      /* Cores claras */
-      .card { background: #fff !important; border: 1px solid #ccc !important; color: #111 !important; }
-      td, th, span, input, select { color: #111 !important; }
-      .badge { border: 1px solid #555 !important; background: transparent !important; }
 
       /* Evita corte de cards entre páginas */
       .card { break-inside: avoid; page-break-inside: avoid; }
@@ -2379,103 +2375,116 @@ function voltarParaHome() {
 }
 
 /* ══════════════════════════════════════════════
-   PDF
+   PDF — screenshot fiel do elemento vivo
 ══════════════════════════════════════════════ */
-function gerarPDF() {
-  // 1. Descobre a aba activa
+async function gerarPDF() {
   const secaoAtiva = document.querySelector('.section.active');
   if (!secaoAtiva) {
-    showToast('⚠️ Nenhuma aba aberta para exportar.', 'error', 2500);
+    showToast('⚠️ Abra uma aba antes de exportar.', 'error', 2500);
     return;
   }
 
-  const nomeAba = secaoAtiva.id.replace('_aba','').replace('_','-') || 'relatorio';
-  const filename = `CTT_${nomeAba}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
+  showToast('📄 Gerando PDF… aguarde', 'info', 8000);
 
-  // 2. Clona a seção para não alterar a tela
-  const clone = secaoAtiva.cloneNode(true);
-
-  // 3. Estilos base do wrapper — fundo branco, texto preto, sem cortes
-  Object.assign(clone.style, {
-    display:         'block',
-    position:        'static',
-    background:      '#ffffff',
-    color:           '#111111',
-    padding:         '24px',
-    width:           '750px',
-    boxSizing:       'border-box',
-    fontFamily:      'system-ui, sans-serif',
-    fontSize:        '12px',
-  });
-
-  // 4. Abre todos os cards colapsados no clone
-  clone.querySelectorAll('.card-collapsible').forEach(card => {
-    card.classList.add('open');
+  /* ── 1. Abre cards colapsados temporariamente ── */
+  const colapsados = [];
+  secaoAtiva.querySelectorAll('.card-collapsible:not(.open)').forEach(card => {
     const body = card.querySelector('.card-collapse-body');
-    if (body) Object.assign(body.style, { maxHeight: 'none', opacity: '1', overflow: 'visible' });
-    const trigger = card.querySelector('.card-collapse-trigger');
-    if (trigger) trigger.style.borderBottom = '1px solid #ddd';
-  });
-
-  // 5. Remove elementos que não devem aparecer no PDF
-  clone.querySelectorAll(
-    '.btn-pdf-contextual, button, .tab-btn, .sub-tab-btn, ' +
-    '.sabedoria-nav, .gda-status-badge, .collapse-hint, ' +
-    '.collapse-chevron, [id$="-loading"]'
-  ).forEach(el => el.remove());
-
-  // 6. Força texto/fundo claros em todos os nós do clone
-  clone.querySelectorAll('*').forEach(el => {
-    const cs = window.getComputedStyle(el);
-    // Fundo escuro → branco
-    const bg = cs.backgroundColor;
-    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-      const rgb = bg.match(/\d+/g);
-      if (rgb) {
-        const [r,g,b] = rgb.map(Number);
-        const luminancia = (0.299*r + 0.587*g + 0.114*b);
-        if (luminancia < 80) el.style.backgroundColor = '#f8f8f8';
-        if (luminancia < 80) el.style.color = '#111111';
-      }
-    }
-    // Cor de texto escura (CSS vars que renderizaram escuras)
-    const c = cs.color;
-    if (c) {
-      const rgb2 = c.match(/\d+/g);
-      if (rgb2) {
-        const [r,g,b] = rgb2.map(Number);
-        if (r > 200 && g > 200 && b > 200) el.style.color = '#333333';
-      }
+    colapsados.push({ card, body });
+    card.classList.add('open');
+    if (body) {
+      body.style.transition = 'none';
+      body.style.maxHeight  = 'none';
+      body.style.opacity    = '1';
+      body.style.overflow   = 'visible';
     }
   });
 
-  // 7. Monta container temporário fora da tela e captura
-  const wrapper = document.createElement('div');
-  Object.assign(wrapper.style, {
-    position: 'fixed', top: '-9999px', left: '-9999px', zIndex: '-1',
-    background: '#ffffff', width: '800px',
+  /* ── 2. Esconde elementos que não devem aparecer no PDF ── */
+  const escondidos = [];
+  secaoAtiva.querySelectorAll(
+    '.btn-pdf-contextual, .collapse-hint, .collapse-chevron'
+  ).forEach(el => {
+    escondidos.push({ el, vis: el.style.visibility });
+    el.style.visibility = 'hidden';
   });
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
 
-  const opt = {
-    margin:      [10, 10, 10, 10],
-    filename,
-    image:       { type: 'jpeg', quality: 0.97 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak:   { mode: ['avoid-all', 'css', 'legacy'] }
-  };
+  /* Aguarda layout estabilizar após abrir os cards */
+  await new Promise(r => setTimeout(r, 220));
 
-  showToast('📄 Gerando PDF…', 'info', 3000);
+  try {
+    /* ── 3. html2canvas direto no elemento vivo (preserva todas as cores) ── */
+    const dpr   = Math.min(window.devicePixelRatio || 1, 2); // cap 2x
+    const scale = Math.max(dpr, 2);                           // mínimo 2x para nitidez
 
-  html2pdf()
-    .set(opt)
-    .from(clone)
-    .save()
-    .finally(() => {
-      document.body.removeChild(wrapper);
+    const canvas = await html2canvas(secaoAtiva, {
+      scale,
+      useCORS      : true,
+      allowTaint   : true,
+      logging      : false,
+      scrollX      : 0,
+      scrollY      : -window.scrollY,
+      windowWidth  : document.documentElement.scrollWidth,
+      windowHeight : secaoAtiva.scrollHeight,
+      /* backgroundColor null = usa o fundo computado do próprio elemento */
+      backgroundColor: window.getComputedStyle(secaoAtiva).backgroundColor || null,
     });
+
+    /* ── 4. Monta PDF A4 multi-página via fatiamento do canvas ── */
+    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    const pdf  = new jsPDFClass({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pgW  = pdf.internal.pageSize.getWidth();   // 210 mm
+    const pgH  = pdf.internal.pageSize.getHeight();  // 297 mm
+
+    /* Proporção: largura do canvas → largura da página */
+    const ratio     = pgW / canvas.width;
+    const fatiaHpx  = Math.floor(pgH / ratio);       // altura de 1 página em px do canvas
+    let   yPx       = 0;
+    let   pagina    = 0;
+
+    while (yPx < canvas.height) {
+      const restante = canvas.height - yPx;
+      const hPx      = Math.min(fatiaHpx, restante);
+
+      /* Fatia o canvas para esta página */
+      const fatia    = document.createElement('canvas');
+      fatia.width    = canvas.width;
+      fatia.height   = hPx;
+      fatia.getContext('2d').drawImage(canvas, 0, -yPx);
+
+      const imgData  = fatia.toDataURL('image/jpeg', 0.96);
+      const imgH     = hPx * ratio;
+
+      if (pagina > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, 0, pgW, imgH);
+
+      yPx    += fatiaHpx;
+      pagina += 1;
+    }
+
+    /* ── 5. Salva ── */
+    const nomeAba  = secaoAtiva.id.replace('_aba','').replace(/_/g,'-');
+    const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+    pdf.save(`CTT_${nomeAba}_${dataHoje}.pdf`);
+
+    showToast(`✅ PDF gerado! (${pagina} página${pagina > 1 ? 's' : ''})`, 'success', 3000);
+
+  } catch (err) {
+    showToast('❌ Erro ao gerar PDF: ' + (err.message || err), 'error', 4000);
+    console.error('[gerarPDF]', err);
+  } finally {
+    /* ── 6. Restaura estado original ── */
+    colapsados.forEach(({ card, body }) => {
+      card.classList.remove('open');
+      if (body) {
+        body.style.transition  = '';
+        body.style.maxHeight   = '';
+        body.style.opacity     = '';
+        body.style.overflow    = '';
+      }
+    });
+    escondidos.forEach(({ el, vis }) => { el.style.visibility = vis; });
+  }
 }
 
 /* ══════════════════════════════════════════════
@@ -3985,229 +3994,160 @@ function calcularTCH() {
 ══════════════════════════════════════════════ */
 
 /* ── Lista fixa de fallback (usada quando a API falha) ── */
-const SABEDORIAS_FALLBACK = [
-  { tag: '🌡️ Clima & Sacarose', alert: null,
-    texto: 'O acúmulo de sacarose (ATR) é diretamente influenciado pela amplitude térmica. Noites frescas (abaixo de 20°C) combinadas com dias secos intensificam a maturação natural da cana, elevando o ATR até 15% acima da média em variedades tardias. Aproveite essas janelas climáticas para priorizar os talhões mais maduros.' },
-  { tag: '🚜 Corte de Base', alert: null,
-    texto: 'O corte de base rente ao solo é o principal fator de longevidade da soqueira. Regulagens incorretas elevam a altura de corte e reduzem a brotação em até 20%, comprometendo os cortes seguintes. Calibre o corte de base com paquímetro após cada turno operacional.' },
-  { tag: '🏋️ Compactação do Solo', alert: null,
-    texto: 'O tráfego intenso de reboques e rodotrens compacta o solo a até 40 cm de profundidade. Solo compactado reduz a absorção de água em até 60% e pode provocar queda de 10–15 t/ha no próximo ciclo. Evite o tráfego em solos saturados e implante o conceito de Tráfego Controlado.' },
-  { tag: '💧 Estresse Hídrico', alert: null,
-    texto: 'A cana-de-açúcar demanda entre 1.200 e 1.500 mm de chuva bem distribuídos ao longo do ciclo. Déficits hídricos acima de 200 mm na fase vegetativa podem reduzir o TCH em até 25%. Use os dados da NASA POWER neste painel para monitorar e antecipar déficits.' },
-  { tag: '📊 Graus-Dia', alert: null,
-    texto: 'O modelo de Graus-Dia (base 18°C) é a ferramenta mais precisa para prever o estágio de maturação sem laboratório. Acúmulos entre 1.200 e 1.800 GDA indicam maturação ativa — o momento ideal para programar a colheita dos talhões prioritários.' },
-  { tag: '⚙️ Eficiência Operacional', alert: null,
-    texto: 'Cada 1% de ganho na eficiência da colhedora equivale, em uma frente de 5 máquinas com 12h/dia, a aproximadamente +270 toneladas por dia a custo zero. Pequenos ajustes de velocidade e eliminação de paradas desnecessárias superam o impacto da compra de máquinas novas.' },
-  { tag: '🌾 Variedades & Maturação', alert: null,
-    texto: 'Escalonar a colheita entre variedades precoces, médias e tardias garante ATR sustentado durante toda a safra. Iniciar sem maturidade mínima (ATR < 120 kg/t) prejudica a qualidade do caldo e pode gerar penalizações contratuais.' },
-  { tag: '🔬 Perdas na Colheita', alert: null,
-    texto: 'As perdas totais na colheita mecanizada ficam entre 3% e 8% da produção bruta, com 60% concentradas no tolete picado. Realize avaliações mensais conforme a metodologia do IAC para manter as perdas abaixo de 5% e proteger o resultado financeiro da frente.' },
-  { tag: '🌱 Soqueira Saudável', alert: null,
-    texto: 'Uma soqueira bem manejada pode produzir por 5 a 7 cortes com produtividade sustentada. Os pilares são: corte de base rente, mínimo compactação pós-colheita, adubação de cobertura no momento certo e controle da rebrota de plantas daninhas nas primeiras 4 semanas.' },
-  { tag: '🧪 Maturadores', alert: null,
-    texto: 'A aplicação de maturadores (etefom, sulfometuron-metil) pode elevar o ATR em 8–15 kg/t em variedades de maturação intermediária. O momento ideal é 45–60 dias antes da colheita prevista, com temperatura acima de 20°C e sem previsão de chuva por 24h após a aplicação.' }
+/* ══════════════════════════════════════════════
+   BANCO DE SABEDORIAS — Cana-de-Açúcar (100 itens)
+   Seleção aleatória de 5 por sessão, sem API externa
+══════════════════════════════════════════════ */
+const BANCO_SABEDORIAS = [
+  /* ── MATURAÇÃO & QUALIDADE ── */
+  { tag: '🍬 ATR & Maturação', texto: 'O ATR (Açúcar Total Recuperável) ideal para colheita está acima de 130 kg/t. Iniciar o corte com ATR abaixo de 120 kg/t pode gerar descontos contratuais e reduzir a receita em até R$ 8/t.' },
+  { tag: '🌡️ Amplitude Térmica', texto: 'Noites frescas (abaixo de 20°C) combinadas com dias secos aceleram o acúmulo de sacarose. Variedades tardias podem elevar o ATR em até 15% nessas condições — priorize esses talhões na programação de corte.' },
+  { tag: '📊 Graus-Dia', texto: 'O modelo de Graus-Dia (base 18°C) estima o estágio de maturação sem laboratório. Acúmulos entre 1.200 e 1.800 GDA indicam maturação ativa — momento ideal para programar a colheita prioritária.' },
+  { tag: '🔬 Brix de Campo', texto: 'O Brix medido com refratômetro portátil deve ser acima de 18° para confirmar maturação. Amostras abaixo de 16° Brix indicam colheita prematura, reduzindo a eficiência industrial e o pagamento por qualidade.' },
+  { tag: '🧪 Aplicação de Maturadores', texto: 'Maturadores como etefom e sulfometuron-metil podem elevar o ATR em 8–15 kg/t em variedades intermediárias. Aplique 45–60 dias antes da colheita com temperatura acima de 20°C e sem chuva prevista por 24h.' },
+  { tag: '📅 Janela de Colheita', texto: 'Cada variedade tem uma janela ideal de colheita de 45 a 90 dias. Coletar fora dessa janela — precoce ou tardiamente — reduz o ATR e pode iniciar a inversão de sacarose em glicose e frutose.' },
+  { tag: '⚗️ Pureza do Caldo', texto: 'A pureza do caldo (relação Pol/Brix) deve ficar acima de 85% para eficiência industrial máxima. Valores abaixo indicam contaminação por impurezas ou maturação inadequada, impactando diretamente o rendimento da usina.' },
+  { tag: '🌾 Pol da Cana', texto: 'A Pol (teor de sacarose aparente) é o principal indicador de pagamento. Variedades bem manejadas atingem Pol acima de 15%, enquanto talhões com estresse hídrico ou soqueiras velhas ficam abaixo de 12%.' },
+  { tag: '🍬 Inversão de Sacarose', texto: 'Acima de 1.800 GDA ou após florescimento, a sacarose começa a se inverter em açúcares redutores. Priorize a colheita imediata dos talhões nessa fase para evitar perdas irreversíveis de qualidade.' },
+  { tag: '📐 Amostragem de Maturidade', texto: 'Realize amostragem de maturidade em pelo menos 5% dos talhões a cada 15 dias durante a safra. Amostras do terço médio do colmo são as mais representativas para determinar o ponto ótimo de colheita.' },
+
+  /* ── SOQUEIRA & LONGEVIDADE ── */
+  { tag: '🌱 Longevidade da Soqueira', texto: 'Uma soqueira bem manejada produz por 5 a 7 cortes com produtividade sustentada. Os pilares são: corte de base rente, mínimo tráfego pós-colheita, adubação no tempo certo e controle de invasoras nas primeiras 4 semanas.' },
+  { tag: '✂️ Corte de Base', texto: 'O corte de base rente ao solo é o maior fator de longevidade da soqueira. Regulagens incorretas elevam a altura de corte e reduzem a brotação em até 20%, comprometendo todos os cortes seguintes.' },
+  { tag: '📏 Altura de Corte', texto: 'Calibre o corte de base com paquímetro após cada turno operacional. A altura ideal é de 0 a 5 cm acima do nível do solo. Cada centímetro excedente acima de 5 cm pode reduzir o stand em 8–12%.' },
+  { tag: '🌿 Brotação Pós-Colheita', texto: 'A taxa de brotação da soqueira é avaliada 30 dias após o corte. Brotação abaixo de 70% indica necessidade de replantio parcial. Déficit hídrico nos primeiros 21 dias pós-corte é a principal causa de falhas.' },
+  { tag: '🔄 Ciclo de Reforma', texto: 'Talhões com produtividade abaixo de 65 t/ha por dois cortes consecutivos devem ser considerados para reforma. O custo de manutenção de soqueiras improdutivas supera o investimento no replantio em 2 a 3 anos.' },
+  { tag: '🌱 Stand de Colmos', texto: 'O stand ideal é de 12 a 18 colmos moíveis por metro linear. Contagens abaixo de 8 colmos/m indicam soqueira comprometida. Realize avaliações de stand aos 60 dias após cada corte para decisões de reforma.' },
+  { tag: '🌾 Variedades Precoces', texto: 'Escalonar a colheita entre variedades precoces (P), médias (M) e tardias (T) mantém o ATR sustentado durante toda a safra. A proporção ideal é 30% P, 40% M e 30% T para equalizar o calendário de colheita.' },
+
+  /* ── SOLO & NUTRIÇÃO ── */
+  { tag: '🏋️ Compactação do Solo', texto: 'O tráfego intenso de reboques e rodotrens compacta o solo a até 40 cm de profundidade. Solo compactado reduz a absorção de água em até 60% e causa queda de 10–15 t/ha no próximo ciclo.' },
+  { tag: '🚜 Tráfego Controlado', texto: 'Implementar o conceito de Tráfego Controlado (TCA) restringe o tráfego pesado a linhas fixas, preservando 85% da área sem compactação. Produtividades 12–18% maiores são relatadas em fazendas com TCA consolidado.' },
+  { tag: '🧪 Calcário & pH', texto: 'O pH ideal para a cana-de-açúcar está entre 5,5 e 6,5. Solos com pH abaixo de 5,0 bloqueiam a absorção de N, P e K mesmo com adubação correta. Realize calagem com 6 a 12 meses de antecedência ao plantio.' },
+  { tag: '💊 Adubação de Cobertura', texto: 'O N e K em cobertura devem ser aplicados entre 30 e 60 dias após o corte, quando a soqueira está em pleno perfilhamento. Atrasos de mais de 90 dias reduzem a eficiência da adubação em até 40%.' },
+  { tag: '🌍 Matéria Orgânica', texto: 'Cada 1% de aumento na matéria orgânica do solo eleva a capacidade de retenção de água em 20 L/m³. A incorporação de palha pós-colheita é a estratégia mais econômica para aumentar a MO no sistema cana-de-açúcar.' },
+  { tag: '🧂 Micronutrientes', texto: 'Deficiências de Boro (B) e Zinco (Zn) são frequentes em solos arenosos de cerrado. O Boro participa diretamente na translocação de sacarose — sua deficiência pode reduzir o ATR em 5–8 kg/t mesmo com macronutrientes em equilíbrio.' },
+  { tag: '📊 Análise de Solo', texto: 'Realize análise de solo a cada 2 anos por talhão, coletando amostras em grid de 1 ha. A fertilidade variável dentro da mesma fazenda pode justificar recomendações de adubação com variação de até 200% entre pontos.' },
+  { tag: '🌿 Vinhaça & Torta', texto: 'A vinhaça (bioestimulante líquido da destilação) fornece K, Ca e matéria orgânica. Aplicada corretamente (até 150 m³/ha/ano), substitui até 60% da adubação potássica, reduzindo custo sem comprometer a qualidade do solo.' },
+
+  /* ── CLIMA & ÁGUA ── */
+  { tag: '💧 Necessidade Hídrica', texto: 'A cana-de-açúcar demanda 1.200 a 1.500 mm bem distribuídos no ciclo. Déficits acima de 200 mm na fase vegetativa (3–7 meses) reduzem o TCH em até 25%. Monitore a evapotranspiração semanal para tomada de decisão em irrigação.' },
+  { tag: '☔ Veranico', texto: 'Veranicos superiores a 21 dias durante o perfilhamento reduzem o número de colmos permanentes de forma irreversível. Sistemas de irrigação suplementar com 40 mm de lâmina por semana eliminam esse risco em regiões semiáridas.' },
+  { tag: '❄️ Geada', texto: 'Geadas com temperatura abaixo de -2°C por mais de 4 horas destroem os meristemas apicais da cana. Talhões afetados devem ser avaliados em 15 dias: se a brotação lateral for superior a 60%, a colheita pode ser acelerada.' },
+  { tag: '🌤️ Radiação Solar', texto: 'A cana-de-açúcar é altamente eficiente na conversão de radiação solar (C4). Dias com radiação acima de 20 MJ/m²/dia favorecem a fotossíntese máxima. Períodos nublados prolongados (>15 dias) reduzem o acúmulo de biomassa em até 18%.' },
+  { tag: '🌡️ Temperatura Ideal', texto: 'A temperatura ótima para crescimento da cana está entre 28 e 34°C. Temperaturas acima de 38°C causam fechamento estomático e paralisia do crescimento. Temperaturas abaixo de 15°C reduzem o metabolismo e travam o perfilhamento.' },
+  { tag: '🌊 Drenagem', texto: 'O encharcamento do solo por mais de 48h causa asfixia radicular e abertura de porta para patógenos de solo. Em áreas de várzea, drenos espaçados a cada 40 m e com declividade mínima de 0,1% são essenciais para a produtividade.' },
+
+  /* ── PRAGAS & DOENÇAS ── */
+  { tag: '🐛 Broca da Cana', texto: 'A Diatraea saccharalis (broca) é a praga de maior impacto econômico — cada 1% de intensidade de infestação reduz o TCH em 0,7 t/ha e o ATR em 1 kg/t. Monitore com amostragem mensal de 10 colmos por talhão durante a safra.' },
+  { tag: '🦗 Cigarrinha das Raízes', texto: 'A cigarrinha Mahanarva fimbriolata injeta toxinas enquanto se alimenta, causando o sintoma de "cana-de-fogo". Infestações acima de 5 ninfas/m² justificam controle biológico com Metarhizium anisopliae (Boveril).' },
+  { tag: '🔴 Carvão da Cana', texto: 'O carvão (Ustilago scitaminea) é a principal doença fúngica — identifique pelo chicote negro que emerge no ápice da planta. Elimine plantas doentes imediatamente e substitua por variedades resistentes nas próximas reformas.' },
+  { tag: '🟡 Escaldadura', texto: 'A escaldadura das folhas (Xanthomonas albilineans) causa listras amarelas e pode matar a soqueira inteira. A doença se espalha pelo maquinário de colheita — desinfete os corte-toletes com hipoclorito de sódio a 10% entre talhões.' },
+  { tag: '🦠 Raquitismo', texto: 'O raquitismo da soqueira (Leifsonia xyli) é sistêmico e reduz a produção em 10–30% sem sintomas visuais claros. Utilize sempre mudas tratadas termicamente (50°C por 2h) ou provenientes de viveiros certificados.' },
+  { tag: '🐜 Cupins', texto: 'Cupins subterrâneos (Heterotermes tenuis) atacam as raízes e a base dos colmos, especialmente em áreas de reforma. Tratamento do sulco de plantio com inseticidas granulados é a medida preventiva mais eficaz e econômica.' },
+  { tag: '🐞 Controle Biológico', texto: 'O controle biológico com Cotesia flavipes (parasitoide da broca) é uma das tecnologias mais rentáveis da canavicultura: custo de R$ 15–25/ha contra perdas evitadas de R$ 150–400/ha. Libere em até 30 dias após a detecção da praga.' },
+  { tag: '🔍 MIP Cana', texto: 'O Manejo Integrado de Pragas (MIP) combina monitoramento periódico, nível de dano econômico e controle racional. Evite pulverizações preventivas — elas eliminam inimigos naturais e aumentam o custo de produção sem necessidade.' },
+
+  /* ── COLHEITA & OPERAÇÕES ── */
+  { tag: '⚙️ Eficiência Operacional', texto: 'Cada 1% de ganho na eficiência da colhedora equivale, em uma frente de 5 máquinas com 12h/dia, a +270 toneladas por dia a custo zero. Elimine paradas por ajuste mecânico, troca de picadores e falta de transbordo — são os maiores vilões.' },
+  { tag: '📉 Perdas na Colheita', texto: 'Perdas totais na colheita mecanizada ficam entre 3% e 8% da produção bruta. Realize avaliações mensais pela metodologia do IAC para manter abaixo de 5%. Perdas no tolete picado respondem por 60% do total e são as mais controláveis.' },
+  { tag: '🕐 Tempo de Fila', texto: 'Fila de reboques acima de 20 minutos indica gargalo logístico e reduz a eficiência da colhedora em cascata. Dimensione a frota de transbordo com 20% de margem operacional para absorver imprevistos mecânicos e de pesagem.' },
+  { tag: '🌙 Operação Noturna', texto: 'Colheita noturna reduz o estresse térmico das máquinas e dos operadores, mas exige iluminação adequada (mínimo 200 lux na cabine) e monitoramento de fadiga. Rotação de turno com descanso mínimo de 11h é obrigatória por NR-31.' },
+  { tag: '🚛 Tempo Cana-Moagem', texto: 'O intervalo entre o corte e a moagem deve ser inferior a 48h para qualidade máxima. Cada hora adicional após 24h reduz o ATR em 0,3–0,5 kg/t por inversão microbiológica. Priorize talhões próximos à usina no fim de turno.' },
+  { tag: '🔧 Manutenção Preventiva', texto: 'Picadores desgastados aumentam os fragmentos abaixo de 15 cm em até 30%, prejudicando a eficiência de extração na usina. Troque os picadores a cada 600–800 t colhidas — a perda de ATR supera o custo das facas novas em 3:1.' },
+  { tag: '📐 Regulagem de Extratores', texto: 'Os extratores primário e secundário regulados corretamente mantêm as impurezas vegetais abaixo de 3%. Impurezas acima de 5% geram penalização de desconto na pesagem e sobrecarregam o processo industrial da usina.' },
+  { tag: '🗺️ Planejamento de Frentes', texto: 'O planejamento semanal de frentes de colheita deve considerar maturidade, distância, capacidade logística e previsão climática. Frentes mal planejadas geram ociosidade de colhedoras de até 35% — o maior custo oculto da operação.' },
+
+  /* ── LOGÍSTICA & TRANSPORTE ── */
+  { tag: '🚚 Dimensionamento de Frota', texto: 'A relação ideal entre colhedoras e transbordos é de 3 a 4 transbordos por colhedora em terreno plano. Em áreas com distância interna acima de 5 km, adicione 1 transbordo por colhedora para manter o fluxo contínuo.' },
+  { tag: '⚖️ Controle de Pesagem', texto: 'Implante dupla pesagem (entrada e saída da usina) com rastreabilidade por talhão. Divergências acima de 0,5% devem gerar auditoria imediata — erros sistemáticos na pesagem acumulam prejuízo de centenas de toneladas por safra.' },
+  { tag: '🛣️ Condição das Estradas', texto: 'Estradas internas em mau estado aumentam o consumo de combustível dos rodotrens em até 25% e provocam perdas por derramamento de cana. Reserve 2–3% do orçamento de custeio para manutenção viária interna.' },
+  { tag: '📦 Carga Útil', texto: 'Rodotrens operando abaixo de 90% da carga útil legal representam ineficiência logística direta. Audite a carga média por viagem mensalmente — um desvio de 5 t/viagem em 50 viagens/dia equivale a 250 t não transportadas.' },
+  { tag: '🔄 Rotatividade de Transbordo', texto: 'O ciclo ideal do transbordo (colhedora → balança) deve ser inferior a 45 minutos em fazendas de porte médio. Ciclos acima de 60 minutos indicam desbalanceamento entre colheita e transporte — revise o layout de frentes.' },
+
+  /* ── SEGURANÇA DO TRABALHO ── */
+  { tag: '⛑️ EPI Obrigatório', texto: 'O uso completo de EPI é obrigatório em todas as operações de campo: capacete, óculos, luvas, botina com biqueira e protetor auricular em operações com máquinas. Supervisores respondem legalmente por colaboradores sem EPI em atividade.' },
+  { tag: '🔥 Risco de Incêndio', texto: 'Em épocas de seca, a palha da cana crua é altamente inflamável. Mantenha aceiros de 6 m nas divisas e pontos de acesso. Proíba fumar e realizar solda a menos de 50 m de cana em pé. Um incêndio de 50 ha pode causar prejuízo acima de R$ 150 mil.' },
+  { tag: '😴 Fadiga Operacional', texto: 'Operadores de colhedora com mais de 10h contínuas de operação têm risco de acidente 4x maior. Implante pausas obrigatórias de 15 min a cada 3h e rodízio de funções. A NR-31 é clara quanto à responsabilidade do empregador.' },
+  { tag: '🚨 Parada de Emergência', texto: 'Todos os operadores de maquinário agrícola devem saber localizar e acionar o botão de parada de emergência em menos de 5 segundos. Realize simulações mensais — a ausência desse treinamento é autuada pelo MTE com multas a partir de R$ 8 mil.' },
+  { tag: '🧯 Extintor nas Máquinas', texto: 'Colhedoras, transbordos e tratores devem ter extintor ABC de 6 kg em local visível e acessível. Verifique a validade e o lacre a cada 30 dias. Um incêndio elétrico em uma colhedora sem extintor operacional pode resultar em perda total de R$ 1,5 mi.' },
+  { tag: '⚠️ Sinalização de Campo', texto: 'Implante sinalização de velocidade máxima (20 km/h) e obrigatoriedade de buzina em cruzamentos de estradas internas. Acidentes envolvendo rodotrens em cruzamentos de fazenda são os mais frequentes e com maior gravidade.' },
+  { tag: '🩺 PCMSO Agrícola', texto: 'O Programa de Controle Médico de Saúde Ocupacional (PCMSO) é obrigatório para todo trabalhador rural. Exames periódicos detectam doenças ocupacionais precocemente — lombalgia e perda auditiva são as mais comuns em operadores de máquinas.' },
+  { tag: '🌡️ Golpe de Calor', texto: 'Com temperatura acima de 32°C e umidade relativa alta, o risco de insolação é crítico para trabalhadores de campo. Garanta água potável em abundância (500ml/hora por trabalhador), pausas na sombra e identifique sinais de exaustão térmica precocemente.' },
+  { tag: '⚡ Risco Elétrico', texto: 'A operação de colhedoras e guindautos próximo a linhas de transmissão exige distância mínima de 10 m para redes de baixa tensão e 15 m para alta tensão. Acidente elétrico é a principal causa de morte por acidente de trabalho no campo.' },
+  { tag: '🛡️ DDS Diário', texto: 'O Diálogo Diário de Segurança (DDS) de 5 minutos antes do turno reduz acidentes em até 40%. Temas como estado de conservação dos EPI, condições climáticas e check-list das máquinas são os mais relevantes para a rotina agrícola.' },
+
+  /* ── MEIO AMBIENTE & SUSTENTABILIDADE ── */
+  { tag: '🌿 Palha na Superfície', texto: 'A manutenção da palha sobre o solo (colheita crua) aumenta a retenção de umidade em até 35%, reduz a erosão em 80% e eleva a matéria orgânica em 0,2% por ciclo. É a prática mais impactante para sustentabilidade do sistema.' },
+  { tag: '🌊 APP e Nascentes', texto: 'A preservação de APPs (Áreas de Preservação Permanente) ao redor de córregos e nascentes é obrigatória por lei — 30 m para rios de até 10 m de largura. Plantios em APP geram embargos, multas e impossibilidade de obter financiamento rural.' },
+  { tag: '♻️ Vinhoto como Fertilizante', texto: 'Cada litro de etanol produz 10–15 L de vinhaça. Aplicada dentro da taxa legal (até 150 m³/ha/ano), a vinhaça reduz o custo com fertilizantes potássicos em até 60% e melhora a estrutura do solo ao longo dos ciclos.' },
+  { tag: '🌱 Sequestro de Carbono', texto: 'Um hectare de cana-de-açúcar sequestra em média 15–20 t de CO₂/ano, considerando o sistema raiz+palha+colmo. A cana é uma das culturas com melhor balanço de carbono entre as culturas energéticas globais — use isso a seu favor na rastreabilidade.' },
+  { tag: '💧 Uso Eficiente da Água', texto: 'A cana irrigada consome 150–200 m³/t de colmo — menos que o arroz e o algodão. Sistemas de gotejo subsuperficial reduzem esse consumo em até 40%. Outorgas de irrigação devem estar regulares antes do início de qualquer sistema.' },
+  { tag: '🐝 Polinizadores', texto: 'Embora a cana seja uma gramínea de polinização pelo vento, a biodiversidade de polinizadores nas bordas do canavial indica saúde ambiental da propriedade. Projetos com corredores ecológicos melhoram a imagem da fazenda junto a certificadoras.' },
+
+  /* ── MECANIZAÇÃO & TECNOLOGIA ── */
+  { tag: '🛰️ Agricultura de Precisão', texto: 'Mapas de produtividade por NDVI permitem identificar bolsões de baixa produção com precisão de 10 m. Cruzar esses mapas com análise de solo e histórico de safra reduz o custo de reforma ao tratar apenas as áreas críticas.' },
+  { tag: '📡 Telemetria de Máquinas', texto: 'Sistemas de telemetria em colhedoras fornecem dados em tempo real de consumo, produtividade e falhas. Fazendas que utilizam telemetria reduzem o custo de manutenção corretiva em 22% e aumentam a disponibilidade mecânica em 15%.' },
+  { tag: '🤖 Autoguidagem', texto: 'Sistemas de autoguidagem por RTK reduzem a sobreposição de linhas de colheita de 8–12% para menos de 2%. Menos sobreposição significa maior área efetivamente colhida e menor compactação nas entrelinhas.' },
+  { tag: '📱 App de Monitoramento', texto: 'A digitalização do monitoramento de pragas, falhas de brotação e avaliação de perdas permite tomadas de decisão 3x mais rápidas que o registro em papel. Dados históricos por talhão são a base para qualquer sistema de gestão por resultado.' },
+  { tag: '🔋 Eletrificação de Frotas', texto: 'Transbordos elétricos já operam em alguns grupos no Brasil com redução de 60% no custo de combustível por tonelada transportada. A tendência de eletrificação agrícola chegará ao segmento de cana até 2030 — prepare a infraestrutura elétrica da fazenda.' },
+  { tag: '📊 Dashboard Operacional', texto: 'Indicadores-chave de desempenho (KPIs) devem ser acompanhados diariamente: TCH médio, eficiência de colhedoras (%), perdas (%), e tempo de ciclo logístico. O que não é medido não é gerenciado.' },
+
+  /* ── FITOTECNIA & VARIEDADES ── */
+  { tag: '🌾 Escolha de Variedades', texto: 'A escolha de variedades deve considerar o tipo de solo, o ciclo (precoce/médio/tardio) e a resistência às principais doenças da região. Um mapa varietal bem estruturado é tão importante quanto o plano de adubação.' },
+  { tag: '🧬 Renovação Varietal', texto: 'Talhões com mais de 15 anos na mesma variedade acumulam vírus, nematóides e declínio de produtividade. A renovação varietal com materiais genéticos recentes do RB ou CTC pode elevar o TCH em 12–20% nas áreas reformadas.' },
+  { tag: '🌱 Plantio de Mudas Sadias', texto: 'Mudas provenientes de viveiros certificados com tratamento térmico (50°C por 2h) eliminam o raquitismo e a escaldadura desde o início do ciclo. O custo extra do muda tratada é recuperado no primeiro corte com ganho mínimo de 8 t/ha.' },
+  { tag: '📏 Espaçamento de Plantio', texto: 'O espaçamento duplo alternado (1,40 m x 0,90 m) é a configuração mais adotada para colheita mecanizada no Brasil. Garante passagem adequada dos rodados sem esmagar touceiras e otimiza a captação solar no dossel.' },
+  { tag: '🌿 Adubação de Plantio', texto: 'O fósforo no sulco de plantio é o nutriente mais crítico para o estabelecimento das raízes. Aplique no mínimo 80 kg de P₂O₅/ha no plantio — o fósforo tem mobilidade mínima no solo e não pode ser corrigido em cobertura.' },
+
+  /* ── GESTÃO & ECONOMIA ── */
+  { tag: '💰 Custo por Tonelada', texto: 'O custo total de produção da cana no Centro-Sul varia de R$ 75 a R$ 130/t colhida, dependendo do perfil de mecanização e distância da usina. Conhecer seu custo por talhão é o primeiro passo para a gestão por resultado.' },
+  { tag: '📈 ATR × Receita', texto: 'Um aumento de 5 kg/t no ATR médio da safra equivale, em uma fazenda de 3.000 ha com produtividade de 80 t/ha, a uma receita adicional de aproximadamente R$ 720 mil. A qualidade é tão importante quanto o volume.' },
+  { tag: '🤝 Contrato com Usina', texto: 'Entenda os gatilhos de bonificação e penalização do seu contrato com a usina. ATR, impurezas, horário de entrega e prazo de permanência na fila são os principais fatores que impactam o preço final recebido por tonelada.' },
+  { tag: '📋 Planejamento de Safra', texto: 'O planejamento da safra deve começar 90 dias antes do início da moagem. Cronograma de reforma, mapa varietal, programação de manutenção das máquinas e dimensionamento de pessoal são os quatro pilares de um plano robusto.' },
+  { tag: '📉 Gestão de Riscos', texto: 'Principais riscos na canavicultura: climático (seca/geada), de mercado (preço do açúcar e etanol), fitossanitário (epidemias) e operacional (quebra de máquinas). Tenha pelo menos os riscos climático e operacional cobertos por seguro ou reserva de capital.' },
+  { tag: '👥 Gestão de Pessoas', texto: 'O turnover elevado de operadores de colhedora é um dos maiores custos ocultos da operação mecanizada. Programas de capacitação, plano de carreira e participação nos resultados operacionais reduzem a rotatividade em até 50%.' },
+
+  /* ── IRRIGAÇÃO ── */
+  { tag: '💧 Irrigação de Salvação', texto: 'Uma lâmina de 40 mm aplicada em até 10 dias após o corte evita a mortalidade de gemas em veranicos críticos. O custo da irrigação de salvação (R$ 120–180/ha) é 10x menor que o custo de um replantio emergencial.' },
+  { tag: '🌊 Gotejo Subsuperficial', texto: 'O gotejo subsuperficial instalado a 30–40 cm de profundidade entrega água diretamente na zona radicular, eliminando perdas por evaporação. Redução de 40% no consumo de água e ganhos de 15–25% em TCH são documentados em condições de déficit hídrico.' },
+  { tag: '📡 Monitoramento de Umidade', texto: 'Sensores de umidade do solo (tensiômetros ou TDR) instalados a 20 cm e 40 cm de profundidade permitem irrigar com precisão, evitando tanto o déficit quanto o excesso. Irrigação em excesso lixivia nutrientes e compacta o solo.' },
+  { tag: '⏰ Turno de Irrigação', texto: 'A irrigação por aspersão deve ser programada preferencialmente no período noturno para reduzir perdas por evaporação em até 30%. Evite irrigar com vento acima de 3 m/s — a uniformidade de distribuição cai abaixo de 70%.' },
+
+  /* ── REGULAMENTAÇÃO & BOAS PRÁTICAS ── */
+  { tag: '📜 NR-31 Rural', texto: 'A NR-31 (Norma Regulamentadora de Segurança no Trabalho Rural) estabelece obrigações sobre treinamento, EPI, maquinário e condições de trabalho. Fiscalizações do MTE podem gerar multas de R$ 2 mil a R$ 200 mil por infração.' },
+  { tag: '🏅 Certificação Bonsucro', texto: 'A certificação Bonsucro exige rastreabilidade por talhão, balanço de GEE, cumprimento trabalhista e boas práticas agrícolas. Empresas certificadas têm acesso a mercados premium de açúcar e etanol com prêmio de até 15% sobre o preço base.' },
+  { tag: '📋 CAR e Regularidade', texto: 'O Cadastro Ambiental Rural (CAR) é obrigatório para todos os imóveis rurais. Propriedades irregulares perdem acesso a crédito rural, seguro agrícola e possibilidade de comercialização com usinas exigentes no critério socioambiental.' },
+  { tag: '🌿 Queima Controlada', texto: 'A queima pré-colheita está proibida em mais de 80% da área cultivável do Centro-Sul desde 2021. Além da ilegalidade, a queima destrói a matéria orgânica da palha e eleva o risco de incêndio não controlado nas propriedades vizinhas.' },
+  { tag: '🔍 Rastreabilidade', texto: 'Sistemas de rastreabilidade por talhão (origem, data de corte, variedade, ATR e insumos aplicados) são exigidos por certificadoras e já são critério de seleção para contratos com usinas exportadoras. Implante agora — o mercado vai exigir em breve.' },
+
+  /* ── BOAS PRÁTICAS GERAIS ── */
+  { tag: '🌟 Produtor de Referência', texto: 'Produtores de referência no Centro-Sul alcançam 120–150 t/ha de TCH com manejo integrado de solo, água, nutrição e pragas. A diferença para a média regional (75–85 t/ha) não está nas máquinas, mas na qualidade das decisões agronômicas.' },
+  { tag: '📚 Capacitação Contínua', texto: 'Supervisores de campo que participam de pelo menos 40h de treinamento/ano tomam decisões 30% mais assertivas em situações de crise operacional. Invista em capacitação técnica da equipe como ativo estratégico da fazenda.' },
+  { tag: '🌐 Benchmarking', texto: 'Compare seus indicadores com a média do setor (UNICA, CTC, RIDESA) pelo menos uma vez por safra. Benchmarking estruturado identifica os gaps de maior oportunidade e evita desperdício de recursos em áreas já otimizadas.' },
+  { tag: '🤝 Assistência Técnica', texto: 'Fazendas com visita técnica mensal de agrônomo especializado em cana apresentam produtividade média 18% superior às que operam sem assistência técnica regular. O retorno sobre o investimento em AT supera 10:1 em propriedades acima de 500 ha.' },
+  { tag: '🔭 Olho no Futuro', texto: 'O etanol de 2ª geração (a partir de palha e bagaço) já é realidade comercial no Brasil. Fazendas que preservam a palha e registram o balanço de biomassa por talhão estarão posicionadas para contratos de fornecimento de biomassa além da cana convencional.' },
+  { tag: '📖 Registro de Campo', texto: 'Mantenha o caderno de campo atualizado com data, talhão, prática realizada, produto, dose e operador responsável. Esse registro é a base para rastreabilidade, resolução de disputas contratuais e aprendizado entre safras.' },
+  { tag: '💡 Melhoria Contínua', texto: 'A metodologia Kaizen aplicada à operação agrícola — pequenas melhorias diárias e sistemáticas — gera resultados superiores a grandes investimentos pontuais. Incentive operadores a propor melhorias: quem opera a máquina conhece o problema melhor que o gestor.' },
+  { tag: '🌱 Próxima Geração', texto: 'A cana-de-açúcar brasileira é exemplo global de eficiência energética e agroindustrial. Preservar esse legado passa por adotar práticas sustentáveis hoje: solo saudável, água preservada e trabalhadores valorizados são a base da cana do futuro.' },
 ];
 
-/* ── Estado do módulo ── */
-let SABEDORIAS          = [...SABEDORIAS_FALLBACK]; // começa com fallback, IA substitui
-let sabedoriaAtual      = 0;
-let sabedoriaTimer      = null;
+/* ══════════════════════════════════════════════
+   ESTADO DO MÓDULO SABEDORIA
+══════════════════════════════════════════════ */
+let SABEDORIAS        = [];   // 5 frases sorteadas para esta sessão
+let sabedoriaAtual    = 0;
+let sabedoriaTimer    = null;
 let sabedoriaAlertaAtivo = false;
-let sabedoriaIACarregada = false;
-let sabedoriaIACarregando = false;
 
-/* ── Indicador visual de fonte (IA vs Fallback) ── */
-function setSabedoriaFonte(fonte) {
-  // 'ia' | 'fallback' | 'carregando'
-  const tag = document.querySelector('#sabedoria-card .sabedoria-tag');
-  if (!tag) return;
-  if (fonte === 'ia') {
-    tag.textContent = '✨ Sabedoria de Campo · IA';
-    tag.style.background = 'rgba(255,255,255,0.22)';
-  } else if (fonte === 'carregando') {
-    tag.textContent = '⏳ Sabedoria de Campo · Gerando...';
-    tag.style.background = 'rgba(255,255,255,0.14)';
-  } else {
-    tag.textContent = '🌾 Sabedoria de Campo';
-    tag.style.background = 'rgba(255,255,255,0.18)';
+/* ── Sorteia N itens únicos do banco ── */
+function sortearSabedorias(n) {
+  const copia = [...BANCO_SABEDORIAS];
+  for (let i = copia.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
   }
-}
-
-/* ── Busca dicas frescas na API do Claude ── */
-/* ── Cache key: inclui mês/ano para renovar automaticamente todo mês ── */
-function _sabedoriaCacheKey() {
-  const d = new Date();
-  return `sabedoria_ia_${d.getFullYear()}_${d.getMonth()}`;
-}
-
-async function _chamarAPIComRetry(body, tentativas = 3) {
-  for (let i = 0; i < tentativas; i++) {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (resp.ok) return resp;
-    if (resp.status === 429) {
-      // Backoff exponencial: 4s, 8s, 16s
-      const espera = Math.pow(2, i + 2) * 1000;
-      console.warn(`⏳ Rate limit (429). Tentativa ${i + 1}/${tentativas}. Aguardando ${espera / 1000}s...`);
-      await new Promise(r => setTimeout(r, espera));
-      continue;
-    }
-    throw new Error(`API HTTP ${resp.status}`);
-  }
-  throw new Error('API HTTP 429 — rate limit após todas as tentativas');
-}
-
-async function buscarSabedoriasIA() {
-  if (sabedoriaIACarregada || sabedoriaIACarregando) return;
-
-  // ── 1. Verifica cache da sessão (evita re-chamar API em recarregamentos) ──
-  const cacheKey = _sabedoriaCacheKey();
-  try {
-    const cached = sessionStorage.getItem(cacheKey);
-    if (cached) {
-      const novas = JSON.parse(cached);
-      if (Array.isArray(novas) && novas.length > 0) {
-        const alertas = SABEDORIAS.filter(s => s.alert !== null);
-        SABEDORIAS = [...alertas, ...novas, ...SABEDORIAS_FALLBACK];
-        sabedoriaIACarregada = true;
-        sabedoriaIACarregando = false;
-        setSabedoriaFonte('ia');
-        sabedoriaAtual = alertas.length;
-        renderSabedoria(sabedoriaAtual);
-        console.log(`✅ Sabedoria de Campo: ${novas.length} dicas carregadas do cache.`);
-        return;
-      }
-    }
-  } catch (_) { /* sessionStorage indisponível — segue para API */ }
-
-  sabedoriaIACarregando = true;
-  setSabedoriaFonte('carregando');
-
-  const mes = new Date().toLocaleString('pt-BR', { month: 'long' });
-  const ano = new Date().getFullYear();
-
-  const prompt = `Você é um agrônomo especialista em cana-de-açúcar no Centro-Sul do Brasil (região de Passos/MG).
-
-Gere exatamente 4 sabedorias técnicas ORIGINAIS sobre cana-de-açúcar para ${mes} de ${ano}.
-
-Regras obrigatórias:
-- Cada texto deve ter NO MÁXIMO 2 frases curtas (máximo 60 palavras por item)
-- Incluir pelo menos 1 dado numérico real por item
-- Temas variados: colheita mecanizada, ATR/qualidade, soqueira, logística, solo, pragas, clima
-- Linguagem direta, para supervisor de campo
-
-Responda APENAS com JSON válido e completo, sem markdown:
-[{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."},{"tag":"emoji Título","texto":"Conteúdo."}]`;
-
-  try {
-    // ── 2. Chama API com retry automático em caso de 429 ──
-    const resp = await _chamarAPIComRetry({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }]
-    });
-
-    const data = await resp.json();
-
-    const raw = (data.content || [])
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('');
-
-    const clean = raw.replace(/```json|```/gi, '').trim();
-
-    let parsed = [];
-    try {
-      parsed = JSON.parse(clean);
-    } catch (_) {
-      const matches = [...clean.matchAll(/\{\s*"tag"\s*:\s*"([^"]+)"\s*,\s*"texto"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g)];
-      parsed = matches.map(m => ({ tag: m[1], texto: m[2].replace(/\\n/g, ' ').replace(/\\"/g, '"') }));
-    }
-
-    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Nenhuma dica válida extraída');
-
-    const novas = parsed
-      .filter(item => item.tag && item.texto && item.texto.length > 20)
-      .map(item => ({ tag: item.tag, alert: null, texto: item.texto, fonte: 'ia' }));
-
-    if (novas.length === 0) throw new Error('Dicas extraídas estavam vazias');
-
-    // ── 3. Salva no cache da sessão ──
-    try { sessionStorage.setItem(cacheKey, JSON.stringify(novas)); } catch (_) {}
-
-    const alertas = SABEDORIAS.filter(s => s.alert !== null);
-    SABEDORIAS = [...alertas, ...novas, ...SABEDORIAS_FALLBACK];
-
-    sabedoriaIACarregada = true;
-    setSabedoriaFonte('ia');
-    sabedoriaAtual = alertas.length;
-    renderSabedoria(sabedoriaAtual);
-
-    console.log(`✅ Sabedoria de Campo: ${novas.length} dicas geradas pela IA.`);
-
-  } catch (err) {
-    setSabedoriaFonte('fallback');
-    sabedoriaIACarregando = false;
-    console.warn('⚠️ Sabedoria IA falhou, usando fallback:', err.message);
-  }
-}
-
-/* ── Renderiza o card atual ── */
-function renderSabedoria(idx) {
-  const s = SABEDORIAS[idx];
-  if (!s) return;
-
-  const textoEl   = document.getElementById('sabedoria-texto');
-  const badgeWrap = document.getElementById('sabedoria-alert-badge-wrap');
-  const dotsEl    = document.getElementById('sabedoria-dots');
-  const tagEl     = document.querySelector('#sabedoria-card .sabedoria-tag');
-
-  // Fade out suave
-  textoEl.classList.add('fadding');
-
-  setTimeout(() => {
-    textoEl.textContent = s.texto;
-
-    // Badge de alerta crítico
-    badgeWrap.innerHTML = s.alert
-      ? `<div class="sabedoria-alert-badge">⚠️ ${s.alert}</div>`
-      : '';
-
-    // Atualiza a tag com ícone de fonte
-    if (tagEl) {
-      if (s.alert) {
-        tagEl.textContent = '🚨 Alerta de Campo';
-        tagEl.style.background = 'rgba(255,80,0,0.35)';
-      } else if (s.fonte === 'ia') {
-        tagEl.textContent = `✨ ${s.tag}`;
-        tagEl.style.background = 'rgba(255,255,255,0.22)';
-      } else {
-        tagEl.textContent = `🌾 ${s.tag}`;
-        tagEl.style.background = 'rgba(255,255,255,0.18)';
-      }
-    }
-
-    // Dots de navegação (máx 10 visíveis para não poluir)
-    const total = SABEDORIAS.length;
-    const maxDots = Math.min(total, 10);
-    dotsEl.innerHTML = Array.from({ length: maxDots }, (_, i) => {
-      const real = Math.round(i * (total - 1) / (maxDots - 1 || 1));
-      return `<div class="sabedoria-dot${real === idx ? ' active' : ''}"></div>`;
-    }).join('');
-
-    textoEl.classList.remove('fadding');
-  }, 340);
-}
-
-/* ── Avança para a próxima dica ── */
-function proximaSabedoria() {
-  sabedoriaAtual = (sabedoriaAtual + 1) % SABEDORIAS.length;
-  renderSabedoria(sabedoriaAtual);
-  clearInterval(sabedoriaTimer);
-  sabedoriaTimer = setInterval(proximaSabedoria, 20000);
+  return copia.slice(0, n).map(s => ({ ...s, alert: null }));
 }
 
 /* ── Injeta alerta de produtividade crítica no topo da fila ── */
@@ -4217,7 +4157,6 @@ function injetarSabedoriaAlerta(tch) {
       tag: '🚨 Alerta de Produtividade',
       alert: `TCH Baixo: ${tch.toFixed(1)} t/ha`,
       texto: `TCH calculado (${tch.toFixed(1)} t/ha) abaixo da média regional de 65 t/ha. Causas mais prováveis: (1) soqueira envelhecida com perda de stand, (2) estresse hídrico acumulado nos últimos 60 dias, (3) deficiência de N e K na cobertura. Recomenda-se avaliação agronômica de campo antes do próximo ciclo.`,
-      fonte: 'alerta'
     });
     sabedoriaAlertaAtivo = true;
     sabedoriaAtual = 0;
@@ -4225,14 +4164,63 @@ function injetarSabedoriaAlerta(tch) {
   }
 }
 
-/* ── Inicia o módulo: exibe fallback imediatamente, busca IA em background ── */
+function renderSabedoria(idx) {
+  const s = SABEDORIAS[idx];
+  if (!s) return;
+
+  const textoEl   = document.getElementById('sabedoria-texto');
+  const badgeWrap = document.getElementById('sabedoria-alert-badge-wrap');
+  const dotsEl    = document.getElementById('sabedoria-dots');
+  const tagEl     = document.querySelector('#sabedoria-card .sabedoria-tag');
+
+  textoEl.classList.add('fadding');
+
+  setTimeout(() => {
+    textoEl.textContent = s.texto;
+
+    badgeWrap.innerHTML = s.alert
+      ? `<div class="sabedoria-alert-badge">⚠️ ${s.alert}</div>`
+      : '';
+
+    if (tagEl) {
+      if (s.alert) {
+        tagEl.textContent = '🚨 Alerta de Campo';
+        tagEl.style.background = 'rgba(255,80,0,0.35)';
+      } else {
+        tagEl.textContent = `🌾 ${s.tag}`;
+        tagEl.style.background = 'rgba(255,255,255,0.18)';
+      }
+    }
+
+    // Dots de navegação (um por frase sorteada)
+    const total = SABEDORIAS.length;
+    dotsEl.innerHTML = Array.from({ length: total }, (_, i) =>
+      `<div class="sabedoria-dot${i === idx ? ' active' : ''}"></div>`
+    ).join('');
+
+    textoEl.classList.remove('fadding');
+  }, 340);
+}
+
+/* ── Avança para a próxima dica; ao completar o ciclo, sorteia 5 novas ── */
+function proximaSabedoria() {
+  sabedoriaAtual++;
+  if (sabedoriaAtual >= SABEDORIAS.length) {
+    // Resorteio mantendo alerta no topo se existir
+    const alertas = SABEDORIAS.filter(s => s.alert !== null);
+    SABEDORIAS = [...alertas, ...sortearSabedorias(5)];
+    sabedoriaAtual = 0;
+  }
+  renderSabedoria(sabedoriaAtual);
+  clearInterval(sabedoriaTimer);
+  sabedoriaTimer = setInterval(proximaSabedoria, 20000);
+}
+
+/* ── Inicia o módulo com 5 frases aleatórias ── */
 function iniciarSabedoria() {
-  // 1. Exibe fallback instantaneamente (sem esperar a IA)
+  SABEDORIAS = sortearSabedorias(5);
   renderSabedoria(0);
   sabedoriaTimer = setInterval(proximaSabedoria, 20000);
-
-  // 2. Busca dicas da IA em background após 1.5s (para não competir com o carregamento da página)
-  setTimeout(buscarSabedoriasIA, 1500);
 }
 
 /* ══════════════════════════════════════════════
