@@ -1,16 +1,28 @@
 {
-  "name": "Gestão - PAS",
-  "short_name": "Gestão - PAS",
-  "start_url": "index.html",
+  "name": "Controle Técnico Agrícola",
+  "short_name": "Controle Agrícola",
+  "description": "Painel de controle técnico para gestão agrícola de campo",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#121412",
-  "theme_color": "#4C9E31",
+  "orientation": "portrait-primary",
+  "background_color": "#1B5E20",
+  "theme_color": "#1B5E20",
+  "lang": "pt-BR",
+  "categories": ["productivity", "agriculture"],
   "icons": [
+    {
+      "src": "./icone_agro.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "./icone_agro.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
 }
