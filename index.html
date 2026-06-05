@@ -1459,6 +1459,9 @@
       <button class="sub-tab-btn active" onclick="showSubTab(event,'sub_entrada')">
         <i class="fas fa-edit"></i>COLHEDORAS
       </button>
+      <button class="sub-tab-btn" onclick="showSubTab(event,'sub_eta')">
+        <i class="fas fa-truck"></i>LOGÍSTICA ETA
+      </button>
       <button class="sub-tab-btn" onclick="showSubTab(event,'sub_dash')">
         <i class="fas fa-chart-pie"></i>CONTROLE FRENTES
       </button>
@@ -1526,6 +1529,59 @@
     </div>
 
     <!-- SUB: CONTROLE FRENTES (DASHBOARD) -->
+    <!-- SUB: LOGÍSTICA ETA -->
+    <div id="sub_eta" class="sub-section">
+      <div class="card" style="margin-top:0;">
+        <div class="card-title"><i class="fas fa-truck"></i> Logística — ETA Transbordo para Usina</div>
+        <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
+          Calcula a distância rodoviária real e o tempo estimado de chegada dos rodotrens via <strong>OSRM</strong> (OpenStreetMap Routing), sem necessidade de chave de API.
+        </p>
+
+        <!-- Coordenadas da frente e usina -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div>
+            <p style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">📍 FRENTE DE CORTE</p>
+            <div class="field" style="margin-bottom:8px;">
+              <label>Latitude</label>
+              <input type="number" id="eta-frente-lat" value="-20.85" step="0.0001" placeholder="-20.85">
+            </div>
+            <div class="field">
+              <label>Longitude</label>
+              <input type="number" id="eta-frente-lon" value="-46.55" step="0.0001" placeholder="-46.55">
+            </div>
+          </div>
+          <div>
+            <p style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">🏭 USINA (DESTINO)</p>
+            <div class="field" style="margin-bottom:8px;">
+              <label>Latitude</label>
+              <input type="number" id="eta-usina-lat" value="-20.72" step="0.0001" placeholder="-20.72">
+            </div>
+            <div class="field">
+              <label>Longitude</label>
+              <input type="number" id="eta-usina-lon" value="-46.61" step="0.0001" placeholder="-46.61">
+            </div>
+          </div>
+        </div>
+
+        <!-- Dados da frota -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div class="field">
+            <label>Nº de Rodotrens</label>
+            <input type="number" id="eta-qtd-caminhoes" value="6" min="1" placeholder="Ex: 6" oninput="atualizarFrotaETA()">
+          </div>
+          <div class="field">
+            <label>Capacidade (t/viagem)</label>
+            <input type="number" id="eta-cap-caminhao" value="35" min="1" placeholder="Ex: 35" oninput="atualizarFrotaETA()">
+          </div>
+        </div>
+        <button class="btn-clima" style="width:100%; margin-bottom:0;" onclick="calcularETA()">
+          <i class="fas fa-route"></i> Calcular Rota e ETA
+        </button>
+
+        <div id="eta-result-container" style="margin-top:0;"></div>
+      </div>
+    </div>
+
     <div id="sub_dash" class="sub-section">
 
       <!-- Jornada do Dia -->
@@ -2082,61 +2138,6 @@
       </div><!-- /card-collapse-body GDA -->
     </div>
 
-    <!-- ═══ CARD: LOGÍSTICA DE TRANSPORTE (OSRM API) ═══ -->
-    <div class="card card-collapsible" id="card-eta">
-      <div class="card-collapse-trigger" onclick="toggleCard('card-eta')">
-        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-truck"></i> Logística — ETA Transbordo para Usina</div>
-        <div class="collapse-chevron"><span class="collapse-hint">toque para expandir</span><i class="fas fa-chevron-down"></i></div>
-      </div>
-      <div class="card-collapse-body">
-      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; margin-top:4px; line-height:1.6;">
-        Calcula a distância rodoviária real e o ETA dos rodotrens via <strong>OSRM</strong> (OpenStreetMap Routing), sem chave de API.
-      </p>
-
-      <!-- Coordenadas da frente e usina -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
-        <div>
-          <p style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">📍 FRENTE DE CORTE</p>
-          <div class="field" style="margin-bottom:8px;">
-            <label>Latitude</label>
-            <input type="number" id="eta-frente-lat" value="-20.85" step="0.001" placeholder="-20.85">
-          </div>
-          <div class="field">
-            <label>Longitude</label>
-            <input type="number" id="eta-frente-lon" value="-46.55" step="0.001" placeholder="-46.55">
-          </div>
-        </div>
-        <div>
-          <p style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">🏭 USINA (DESTINO)</p>
-          <div class="field" style="margin-bottom:8px;">
-            <label>Latitude</label>
-            <input type="number" id="eta-usina-lat" value="-20.72" step="0.001" placeholder="-20.72">
-          </div>
-          <div class="field">
-            <label>Longitude</label>
-            <input type="number" id="eta-usina-lon" value="-46.61" step="0.001" placeholder="-46.61">
-          </div>
-        </div>
-      </div>
-
-      <!-- Dados da frota -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <div class="field">
-          <label>Nº de Rodotrens</label>
-          <input type="number" id="eta-qtd-caminhoes" value="6" min="1" placeholder="Ex: 6" oninput="atualizarFrotaETA()">
-        </div>
-        <div class="field">
-          <label>Capacidade (t/viagem)</label>
-          <input type="number" id="eta-cap-caminhao" value="35" min="1" placeholder="Ex: 35" oninput="atualizarFrotaETA()">
-        </div>
-      </div>
-      <button class="btn-clima" style="width:100%; margin-bottom:0;" onclick="calcularETA()">
-        <i class="fas fa-route"></i> Calcular Rota e ETA
-      </button>
-
-      <div id="eta-result-container" style="margin-top:0;"></div>
-      </div><!-- /card-collapse-body ETA -->
-    </div>
 
   </section>
 
