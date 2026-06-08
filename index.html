@@ -99,7 +99,9 @@
     .app-sub { font-size: 11px; opacity: 0.75; margin-top: 4px; font-weight: 500; }
 
     /* ── CONTAINER ── */
-    .container { max-width: 800px; margin: 0 auto; padding: 0 14px; }
+    /* ── CONTAINER ── */
+.container { max-width: 800px; margin: 0 auto; padding: 0 14px; transition: max-width 0.2s ease-in-out; }
+.container.container-larga { max-width: 1300px; } /* Largura maior apenas para as liberações no desktop */
 
 
     /* ── TABS ── */
@@ -2567,6 +2569,16 @@ function showTab(e, id) {
   if (id === 'conf_os_aba' && !window._confOsDados) {
     carregarDadosConfOS();
   }
+
+  // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
+  const containerPrincipal = document.querySelector('.container');
+  if (containerPrincipal) {
+    if (id === 'liberacoes') {
+      containerPrincipal.classList.add('container-larga');
+    } else {
+      containerPrincipal.classList.remove('container-larga');
+    }
+  }
 }
 
 function showSubTab(e, id) {
@@ -2599,6 +2611,12 @@ function voltarParaHome() {
   // Limpa indicador de aba
   const nomeEl = document.getElementById('voltar-aba-nome');
   if (nomeEl) nomeEl.textContent = '';
+
+  // ── ALTERAÇÃO AQUI: Remove a largura total ao voltar para a Home ──
+  const containerPrincipal = document.querySelector('.container');
+  if (containerPrincipal) {
+    containerPrincipal.classList.remove('container-larga');
+  }
 
   // Scrolla para o topo
   window.scrollTo({ top: 0, behavior: 'smooth' });
