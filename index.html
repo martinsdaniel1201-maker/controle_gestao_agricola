@@ -2743,25 +2743,50 @@ function kebabAcao(acao) {
 
 async function sincronizarApp() {
   showToast('🔄 Verificando atualização…', 'info', 3000);
-  if ('serviceWorker' in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        await reg.update();
-        showToast('✅ App verificado! Se houver nova versão, recarregue a página.', 'success', 5000);
-        // se há um SW aguardando, ativa imediatamente
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          setTimeout(() => window.location.reload(), 800);
-        }
-      } else {
-        showToast('ℹ️ Service Worker não registrado. Recarregue manualmente.', 'info', 4000);
-      }
-    } catch (err) {
-      showToast('❌ Erro ao verificar atualização: ' + err.message, 'error', 4000);
+  
+  if (!('serviceWorker' in navigator)) {
+    showToast('ℹ️ Seu navegador não suporta atualização automática.', 'info', 4000);
+    return;
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    
+    if (!reg) {
+      showToast('ℹ️ Service Worker não registrado. Recarregue manualmente.', 'info', 4000);
+      return;
     }
-  } else {
-    showToast('ℹ️ Seu navegador não suporta atualização automática. Recarregue a página.', 'info', 4000);
+
+    // Executa a busca por um sw.js novo no servidor
+    await reg.update();
+
+    // Cenário 1: Já existia uma atualização baixada esperando o app fechar/reiniciar
+    if (reg.waiting) {
+      showToast('⚡ Nova versão encontrada! Atualizando...', 'success', 3000);
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      setTimeout(() => window.location.reload(), 500);
+      return;
+    }
+
+    // Cenário 2: O reg.update() achou algo novo e está baixando AGORA
+    if (reg.installing) {
+      showToast('⏳ Baixando nova versão...', 'info', 3000);
+      
+      reg.installing.addEventListener('statechange', (event) => {
+        if (event.target.state === 'installed') {
+          showToast('🚀 Nova versão instalada! Atualizando app...', 'success', 3000);
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          setTimeout(() => window.location.reload(), 500);
+        }
+      });
+      return;
+    }
+
+    // Cenário 3: O sw.js do servidor é idêntico ao que está rodando
+    showToast('✅ Seu app já está na versão mais recente!', 'success', 4000);
+
+  } catch (err) {
+    showToast('❌ Erro ao verificar atualização: ' + err.message, 'error', 4000);
   }
 }
 
