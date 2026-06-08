@@ -101,6 +101,14 @@
     /* ── CONTAINER ── */
     .container { max-width: 800px; margin: 0 auto; padding: 0 14px; }
 
+    /* Liberações tem 9 colunas — expande o container no desktop */
+    #liberacoes.active ~ * #app-root,
+    body:has(#liberacoes.active) #app-root { max-width: 1200px; }
+    body:has(#liberacoes.active) .container { max-width: 1200px; }
+
+    /* Células numéricas da tabela de liberações não quebram linha */
+    #corpo-tabela-gatec td { white-space: nowrap; }
+
     /* ── TABS ── */
     .tabs-nav {
       display: flex; gap: 6px;
@@ -309,6 +317,7 @@
       tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
       #liberacoes table { min-width: unset !important; }
       #liberacoes td { white-space: normal !important; text-align: right !important; }
+      #corpo-tabela-gatec td { white-space: normal !important; }
     }
     @media screen and (max-width: 768px) {
   .tabs-nav {
@@ -1930,20 +1939,20 @@
         </button>
       </div>
       
-      <!-- Tabela responsiva: layout fixo no desktop, cards no mobile -->
+      <!-- Tabela responsiva: layout auto no desktop (container expandido), cards no mobile -->
       <div id="gatec-table-wrapper">
-      <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
+      <table style="width: 100%; table-layout: auto; border-collapse: collapse;">
         <thead>
           <tr>
-            <th style="width: 11%; padding: 8px 6px; font-size:11px;">Liberação</th>
-            <th style="width: 7%;  padding: 8px 4px; font-size:11px;">Frente</th>
-            <th style="width: 19%; padding: 8px 6px; font-size:11px;">Fazenda</th>
-            <th style="width: 15%; padding: 8px 6px; font-size:11px;">Talhões</th>
-            <th style="width: 10%; padding: 8px 4px; font-size:11px; text-align:right;">Prod. Est.</th>
-            <th style="width: 10%; padding: 8px 4px; font-size:11px; text-align:right;">Prod. Real</th>
-            <th style="width: 7%;  padding: 8px 4px; font-size:11px; text-align:right;">TCH</th>
-            <th style="width: 10%; padding: 8px 4px; font-size:11px; text-align:right;">Dif. Prod.</th>
-            <th style="width: 11%; padding: 8px 4px; font-size:11px; text-align:center;">Status</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap;">Liberação</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap;">Frente</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap;">Fazenda</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap;">Talhões</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap; text-align:right;">Prod. Est.</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap; text-align:right;">Prod. Real</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap; text-align:right;">TCH</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap; text-align:right;">Dif. Prod.</th>
+            <th style="padding: 8px 8px; font-size:11px; white-space:nowrap; text-align:center;">Status</th>
           </tr>
         </thead>
         <tbody id="corpo-tabela-gatec" style="font-size: 12px;"></tbody>
