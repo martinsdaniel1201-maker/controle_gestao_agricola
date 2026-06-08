@@ -298,33 +298,18 @@
     }
     tbody tr { transition: background 0.12s; }
     tbody tr:hover { background: var(--green-50); }
-    tbody td { 
-  padding: 11px 12px; 
-  border-bottom: 1px solid var(--border); 
-  font-size: 12px; 
-  color: var(--text-2); 
-  white-space: nowrap; /* Impede a quebra de linha em todas as colunas */
-}
-
-/* Regra exclusiva aplicada apenas na coluna dos Talhões */
-tbody td.quebra-talhao { 
-  white-space: normal; 
-  word-break: break-word; 
-  overflow-wrap: break-word; 
-}
+    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); word-break: break-word; overflow-wrap: break-word; }
     .badge { padding: 4px 10px; border-radius: 50px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; }
 
     @media screen and (max-width: 768px) {
       thead { display: none; }
       tbody tr { display: block; margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
       tbody tr:hover { background: var(--green-50); }
-      tbody td { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px !important; border-bottom: 1px solid var(--border) !important; font-size: 12px; white-space: nowrap; } /* Adicionado nowrap aqui */
+      tbody td { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px !important; border-bottom: 1px solid var(--border) !important; font-size: 12px; }
       tbody td:last-child { border-bottom: none !important; }
       tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
       #liberacoes table { min-width: unset !important; }
-      
-      /* Aqui forçamos apenas a coluna com class quebra-talhao a quebrar a linha */
-      #liberacoes td.quebra-talhao { white-space: normal !important; text-align: right !important; }
+      #liberacoes td { white-space: normal !important; text-align: right !important; }
     }
     @media screen and (max-width: 768px) {
   .tabs-nav {
@@ -1951,15 +1936,15 @@ tbody td.quebra-talhao {
       <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
         <thead>
           <tr>
-            <th style="width:12%; padding:8px 6px; font-size:11px;">Liberação</th>
-            <th style="width:7%;  padding:8px 4px; font-size:11px;">Frente</th>
-            <th style="width:18%; padding:8px 6px; font-size:11px;">Fazenda</th>
-            <th style="width:16%; padding:8px 6px; font-size:11px;">Talhões</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:right;">Prod. Est.</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:right;">Prod. Real</th>
-            <th style="width:7%;  padding:8px 4px; font-size:11px; text-align:right;">TCH</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:right;">Dif. Prod.</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:center;">Status</th>
+            <th style="width:11%; padding:8px 6px; font-size:11px;">Liberação</th>
+            <th style="width:6%;  padding:8px 4px; font-size:11px;">Frente</th>
+            <th style="width:14%; padding:8px 6px; font-size:11px;">Fazenda</th>
+            <th style="width:13%; padding:8px 6px; font-size:11px;">Talhões</th>
+            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:center;">Prod. Est.</th>
+            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:center;">Prod. Real</th>
+            <th style="width:8%;  padding:8px 4px; font-size:11px; text-align:center;">TCH</th>
+            <th style="width:11%; padding:8px 4px; font-size:11px; text-align:center;">Dif. Prod.</th>
+            <th style="width:11%; padding:8px 4px; font-size:11px; text-align:center;">Status</th>
           </tr>
         </thead>
         <tbody id="corpo-tabela-gatec" style="font-size: 12px;"></tbody>
@@ -3431,15 +3416,15 @@ async function carregarDadosGATEC() {
         const difNum = parseFloat(String(difProd).replace(",", "."));
         const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
         return `<tr class="linha-tabela">
-         <td data-label="Talhões" class="quebra-talhao">${item.talhoes}</td>
-          <td data-label="Frente:">${row["FRENTE"] || ""}</td>
-          <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
+          <td data-label="Liberação:" style="white-space:nowrap;">${row["LIBERAÇÃO"] || ""}</td>
+          <td data-label="Frente:" style="white-space:nowrap;">${row["FRENTE"] || ""}</td>
+          <td data-label="Fazenda:" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${row["DESC.FAZENDA"] || ""}</td>
           <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
-          <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
-          <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
-          <td data-label="TCH:" style="text-align:right;">${tch}</td>
-          <td data-label="Dif. Prod.:" style="text-align:right; font-weight:600; color:${difColor};">${difProd}</td>
-          <td data-label="Status:" style="text-align:center;">
+          <td data-label="Prod. Est.:" style="text-align:right; white-space:nowrap;">${prodEst}</td>
+          <td data-label="Prod. Real:" style="text-align:right; white-space:nowrap;">${prodReal}</td>
+          <td data-label="TCH:" style="text-align:right; white-space:nowrap;">${tch}</td>
+          <td data-label="Dif. Prod.:" style="text-align:right; white-space:nowrap; font-weight:600; color:${difColor};">${difProd}</td>
+          <td data-label="Status:" style="text-align:center; white-space:nowrap;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
               ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
             </span>
