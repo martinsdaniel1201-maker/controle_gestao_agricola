@@ -1493,48 +1493,105 @@
     .lock-icon.unlocked .lock-body {
       fill: var(--green-500);
     }
-	.resumo-cards {
+	/* ── NOVO BLOCO: RESUMO POR FRENTE COM RANKING (INTEGRADO) ── */
+.resumo-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
   margin-top: 14px;
   margin-bottom: 14px;
+  font-family: 'Inter', sans-serif; /* Garante o uso da tipografia do app */
 }
 
+/* Reaproveita o estilo dos seus widgets/cards padrão */
 .resumo-cards .frente-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 14px;
-  text-align: center;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   position: relative;
   overflow: hidden;
   box-shadow: none;
-}
-.resumo-cards .frente-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: var(--grad);
-  border-radius: 99px 99px 0 0;
+  transition: transform 0.2s ease;
 }
 
-.resumo-cards .frente-card h4 {
-  font-size: 9px;
-  text-transform: uppercase;
-  color: var(--text-3);
+/* Indicadores visuais discretos no topo de cada card para o pódio */
+.resumo-cards .frente-card.rank-1 { border-top: 3px solid #FFD700; }
+.resumo-cards .frente-card.rank-2 { border-top: 3px solid #C0C0C0; }
+.resumo-cards .frente-card.rank-3 { border-top: 3px solid #CD7F32; }
+
+/* Cabeçalho do Card (Medalha + Título alinhados) */
+.resumo-cards .frente-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 4px;
+}
+
+/* Título identificador da Frente */
+.resumo-cards .frente-title {
+  font-size: 11px;
   font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
 }
 
-.resumo-cards .frente-card p {
+/* Valor Numérico da Produção (Igual aos seus outros dashboards) */
+.resumo-cards .frente-value {
   font-size: 20px;
   font-weight: 800;
-  color: var(--green-900);
+  color: var(--green-900); /* Verde padrão do seu tema claro */
   line-height: 1.2;
 }
 
+/* Unidade de medida (t) */
+.resumo-cards .frente-unit {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* ── ESTILIZAÇÃO DAS MEDALHAS E RANKING ── */
+.resumo-cards .medal {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.resumo-cards .medal.gold {
+  background: rgba(255, 215, 0, 0.15);
+  color: #D4AF37;
+}
+
+.resumo-cards .medal.silver {
+  background: rgba(192, 192, 192, 0.2);
+  color: #7F8C8D;
+}
+
+.resumo-cards .medal.bronze {
+  background: rgba(205, 127, 50, 0.15);
+  color: #A0522D;
+}
+
+.resumo-cards .medal-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* ── CONTAINER DE TOTAIS INFERIOR ── */
 .resumo-total {
   display: flex;
   justify-content: space-between;
@@ -1543,6 +1600,7 @@
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
+
 .resumo-total div {
   font-size: 11px;
   font-weight: 700;
@@ -1571,17 +1629,23 @@
   border-radius: var(--radius-md);
 }
 
-/* Garante compatibilidade do novo bloco com o seu Dark Mode */
+/* ── COMPATIBILIDADE COM O SEU DARK MODE OBRIGATÓRIO ── */
 body.dark-mode .resumo-cards .frente-card {
-  background: var(--surface);
+  background: #242424; /* Combina perfeitamente com os blocos escuros do app */
   border-color: var(--border);
 }
+
 body.dark-mode .resumo-total {
   border-top-color: var(--border);
 }
-body.dark-mode .resumo-cards .frente-card p,
+
+body.dark-mode .resumo-cards .frente-value,
 body.dark-mode .resumo-total div span {
   color: var(--text) !important;
+}
+
+body.dark-mode .resumo-cards .medal-text {
+  background: rgba(255, 255, 255, 0.05);
 }
 
   </style>
@@ -3561,11 +3625,19 @@ async function carregarDadosGATEC() {
     download: true, header: true, skipEmptyLines: true,
     complete: function(results) {
       window._gatecDados = results.data; // salva para exportação
-	  const resumoFrentes = {};
+	 const resumoFrentes = {};
 let totalProduzido = 0;
+
+// Lista de frentes permitidas (mantida do filtro anterior)
+const frentesPermitidas = ["401", "402", "403", "404", "451"];
 
 results.data.forEach(row => {
     const frente = (row["FRENTE"] || "Sem Frente").trim();
+
+    // Filtro para somar apenas as frentes desejadas
+    if (!frentesPermitidas.includes(frente)) {
+        return; 
+    }
 
     const prodReal = parseFloat(
         String(row["PROD. REAL"] || "0")
@@ -3585,22 +3657,47 @@ if (resumoCards) {
     let frenteLider = "-";
     let maiorValor = 0;
 
+    // Ordena do maior valor para o menor e passa o parâmetro 'index' para o ranking
     Object.entries(resumoFrentes)
         .sort((a, b) => b[1] - a[1])
-        .forEach(([frente, valor]) => {
+        .forEach(([frente, valor], index) => {
 
             if (valor > maiorValor) {
                 maiorValor = valor;
                 frenteLider = frente;
             }
 
+            // Define visualmente as medalhas ou posições conforme o ranking (index inicia em 0)
+            let medalhaHtml = "";
+            let rankClass = "";
+            
+            if (index === 0) {
+                medalhaHtml = '<span class="medal gold"><i class="fas fa-medal"></i> 1º</span>';
+                rankClass = "rank-1";
+            } else if (index === 1) {
+                medalhaHtml = '<span class="medal silver"><i class="fas fa-medal"></i> 2º</span>';
+                rankClass = "rank-2";
+            } else if (index === 2) {
+                medalhaHtml = '<span class="medal bronze"><i class="fas fa-medal"></i> 3º</span>';
+                rankClass = "rank-3";
+            } else {
+                medalhaHtml = `<span class="medal-text">${index + 1}º</span>`;
+                rankClass = "rank-others";
+            }
+
+            // Injeta o HTML com as classes CSS mapeadas para a fonte Inter e o layout do app
             resumoCards.innerHTML += `
-                <div class="resumo-card">
-                    <strong>Frente ${frente}</strong>
-                    <div>${valor.toLocaleString('pt-BR', {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                    })} t</div>
+                <div class="frente-card ${rankClass}">
+                    <div class="frente-card-header">
+                        ${medalhaHtml}
+                        <span class="frente-title">Frente ${frente}</span>
+                    </div>
+                    <div class="frente-value">
+                        ${valor.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0
+                        })} <span class="frente-unit">t</span>
+                    </div>
                 </div>
             `;
         });
