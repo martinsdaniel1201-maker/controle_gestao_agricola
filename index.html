@@ -3507,11 +3507,20 @@ async function carregarDadosGATEC() {
     download: true, header: true, skipEmptyLines: true,
     complete: function(results) {
       window._gatecDados = results.data; // salva para exportação
-	  const resumoFrentes = {};
+		
+	 const resumoFrentes = {};
 let totalProduzido = 0;
+
+// 1. Defina a lista de frentes permitidas (como strings para bater com os dados)
+const frentesPermitidas = ["401", "402", "403", "404", "451"];
 
 results.data.forEach(row => {
     const frente = (row["FRENTE"] || "Sem Frente").trim();
+
+    // 2. FILTRO: Se a frente não estiver na lista permitida, pula para a próxima linha
+    if (!frentesPermitidas.includes(frente)) {
+        return; 
+    }
 
     const prodReal = parseFloat(
         String(row["PROD. REAL"] || "0")
@@ -3531,6 +3540,7 @@ if (resumoCards) {
     let frenteLider = "-";
     let maiorValor = 0;
 
+    // O restante do seu código permanece exatamente o mesmo...
     Object.entries(resumoFrentes)
         .sort((a, b) => b[1] - a[1])
         .forEach(([frente, valor]) => {
