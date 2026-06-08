@@ -1493,6 +1493,42 @@
     .lock-icon.unlocked .lock-body {
       fill: var(--green-500);
     }
+	.resumo-cards{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:15px;
+    margin-bottom:15px;
+}
+
+.frente-card{
+    background:#fff;
+    border:1px solid #ddd;
+    border-radius:10px;
+    padding:12px;
+    min-width:160px;
+    box-shadow:0 2px 5px rgba(0,0,0,.08);
+}
+
+.frente-card h4{
+    margin:0;
+    color:#2e7d32;
+}
+
+.frente-card p{
+    margin:5px 0 0;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.resumo-total{
+    display:flex;
+    justify-content:space-between;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid #ddd;
+    font-size:16px;
+}
   </style>
 </head>
 <body>
@@ -1917,6 +1953,26 @@
  <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
     <div class="card" style="width: 100%; box-sizing: border-box;">
+	<!-- RESUMO POR FRENTE -->
+<div id="resumoFrentes" class="card">
+    <div class="card-header">
+        📊 Resumo de Produção por Frente
+    </div>
+
+    <div id="resumoCards" class="resumo-cards"></div>
+
+    <div class="resumo-total">
+        <div>
+            <strong>Total Produzido:</strong>
+            <span id="totalProduzido">0</span>
+        </div>
+
+        <div>
+            <strong>Frente Líder:</strong>
+            <span id="frenteLider">-</span>
+        </div>
+    </div>
+</div>
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
       <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
         <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
@@ -3451,6 +3507,64 @@ async function carregarDadosGATEC() {
     download: true, header: true, skipEmptyLines: true,
     complete: function(results) {
       window._gatecDados = results.data; // salva para exportação
+	  const resumoFrentes = {};
+let totalProduzido = 0;
+
+results.data.forEach(row => {
+    const frente = (row["FRENTE"] || "Sem Frente").trim();
+
+    const prodReal = parseFloat(
+        String(row["PROD. REAL"] || "0")
+            .replace(/\./g, "")
+            .replace(",", ".")
+    ) || 0;
+
+    resumoFrentes[frente] = (resumoFrentes[frente] || 0) + prodReal;
+    totalProduzido += prodReal;
+});
+
+const resumoCards = document.getElementById("resumoCards");
+
+if (resumoCards) {
+    resumoCards.innerHTML = "";
+
+    let frenteLider = "-";
+    let maiorValor = 0;
+
+    Object.entries(resumoFrentes)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([frente, valor]) => {
+
+            if (valor > maiorValor) {
+                maiorValor = valor;
+                frenteLider = frente;
+            }
+
+            resumoCards.innerHTML += `
+                <div class="resumo-card">
+                    <strong>Frente ${frente}</strong>
+                    <div>${valor.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    })} t</div>
+                </div>
+            `;
+        });
+
+    const totalEl = document.getElementById("totalProduzido");
+    const liderEl = document.getElementById("frenteLider");
+
+    if (totalEl) {
+        totalEl.textContent = totalProduzido.toLocaleString('pt-BR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }) + " t";
+    }
+
+    if (liderEl) {
+        liderEl.textContent = frenteLider;
+    }
+}
       const corpo = document.getElementById('corpo-tabela-gatec');
       corpo.innerHTML = results.data.map(row => {
         const status = (row["STATUS OS"] || "").toUpperCase().trim();
