@@ -3457,8 +3457,9 @@ async function carregarDadosGATEC() {
         const isEncerrada = status.includes("ENCERRADA");
         const prodEst  = row["PROD. ESTIMADA"] || "";
         const prodReal = row["PROD. REAL"]     || "";
-        const tch      = row["TCH"]            || "";
         const difProd  = row["DIF PROD."]      || "";
+        const tch      = row["TCH"]            || "";
+        
         // Colorir DIF PROD.: positivo = verde, negativo = vermelho
         const difNum = parseFloat(String(difProd).replace(",", "."));
         const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
@@ -3469,8 +3470,8 @@ async function carregarDadosGATEC() {
           <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
           <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
           <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
+           <td data-label="Dif. Prod.:" style="text-align:right; font-weight:600; color:${difColor};">${difProd}</td>
           <td data-label="TCH:" style="text-align:right;">${tch}</td>
-          <td data-label="Dif. Prod.:" style="text-align:right; font-weight:600; color:${difColor};">${difProd}</td>
           <td data-label="Status:" style="text-align:center;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
               ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
