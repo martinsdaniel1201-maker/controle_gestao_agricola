@@ -298,18 +298,33 @@
     }
     tbody tr { transition: background 0.12s; }
     tbody tr:hover { background: var(--green-50); }
-    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); word-break: break-word; overflow-wrap: break-word; }
+    tbody td { 
+  padding: 11px 12px; 
+  border-bottom: 1px solid var(--border); 
+  font-size: 12px; 
+  color: var(--text-2); 
+  white-space: nowrap; /* Impede a quebra de linha em todas as colunas */
+}
+
+/* Regra exclusiva aplicada apenas na coluna dos Talhões */
+tbody td.quebra-talhao { 
+  white-space: normal; 
+  word-break: break-word; 
+  overflow-wrap: break-word; 
+}
     .badge { padding: 4px 10px; border-radius: 50px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; }
 
     @media screen and (max-width: 768px) {
       thead { display: none; }
       tbody tr { display: block; margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
       tbody tr:hover { background: var(--green-50); }
-      tbody td { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px !important; border-bottom: 1px solid var(--border) !important; font-size: 12px; }
+      tbody td { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px !important; border-bottom: 1px solid var(--border) !important; font-size: 12px; white-space: nowrap; } /* Adicionado nowrap aqui */
       tbody td:last-child { border-bottom: none !important; }
       tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
       #liberacoes table { min-width: unset !important; }
-      #liberacoes td { white-space: normal !important; text-align: right !important; }
+      
+      /* Aqui forçamos apenas a coluna com class quebra-talhao a quebrar a linha */
+      #liberacoes td.quebra-talhao { white-space: normal !important; text-align: right !important; }
     }
     @media screen and (max-width: 768px) {
   .tabs-nav {
@@ -3416,7 +3431,7 @@ async function carregarDadosGATEC() {
         const difNum = parseFloat(String(difProd).replace(",", "."));
         const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
         return `<tr class="linha-tabela">
-          <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
+         <td data-label="Talhões" class="quebra-talhao">${item.talhoes}</td>
           <td data-label="Frente:">${row["FRENTE"] || ""}</td>
           <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
           <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
