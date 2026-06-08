@@ -4,7 +4,7 @@
    Versão: incrementar CACHE_NAME sempre que publicar nova versão do app
 ══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'agro-v4.4';
+const CACHE_NAME = 'agro-v4.5';
 
 /* Assets do próprio repositório — sempre em cache */
 const ASSETS_LOCAIS = [
@@ -26,11 +26,13 @@ const ASSETS_CDN = [
 ];
 
 /* APIs externas — network first, sem fallback offline (retorna erro amigável) */
+/* APIs externas — network first, sem fallback offline (retorna erro amigável) */
 const API_HOSTS_ONLINE = [
   'power.larc.nasa.gov',           // NASA POWER (GDA)
   'router.project-osrm.org',       // OSRM (ETA logística)
   'fonts.gstatic.com',             // Google Fonts arquivos de fonte
   'ka-f.fontawesome.com',          // Font Awesome kits
+  'docs.google.com'                // 👈 ADICIONADO: Google Sheets (Planilha Atualizada)
 ];
 
 // ── INSTALL: pré-cacheia tudo ──────────────────────────────────
