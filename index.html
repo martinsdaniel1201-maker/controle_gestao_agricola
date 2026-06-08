@@ -1413,8 +1413,8 @@
     #kebab-btn:hover { border-color: var(--green-500); color: var(--green-700); background: var(--green-50); }
 
     #kebab-menu {
-      position: absolute;
-      top: calc(100% + 8px); right: 0;
+      position: fixed;
+      top: 58px; right: 16px;
       min-width: 210px;
       background: var(--surface);
       border: 1.5px solid var(--border);
@@ -1927,7 +1927,11 @@
           <option value="ENCERRADA">Encerradas</option>
         </select>
       </div>
-      <div style="display:flex; justify-content:flex-end; margin-bottom:10px; margin-top:10px;">
+      <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; margin-top:10px;">
+        <span id="gatec-sync-status" style="font-size:10px; color:var(--text-3); font-weight:600; display:none;">
+          <i class="fas fa-circle" style="font-size:7px; color:var(--green-500); margin-right:4px;"></i>
+          <span id="gatec-sync-label">—</span>
+        </span>
         <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec">
           <i class="fas fa-sync-alt"></i> Atualizar dados
         </button>
@@ -3485,6 +3489,18 @@ async function carregarDadosGATEC() {
         badge.textContent = abertas;
         badge.style.display = abertas > 0 ? 'inline-flex' : 'none';
       }
+
+      // Atualizar indicador de última sincronização
+      const syncStatus = document.getElementById('gatec-sync-status');
+      const syncLabel  = document.getElementById('gatec-sync-label');
+      if (syncStatus && syncLabel) {
+        const agora = new Date();
+        const hh = String(agora.getHours()).padStart(2,'0');
+        const mm = String(agora.getMinutes()).padStart(2,'0');
+        syncLabel.textContent = `Sync ${hh}:${mm}`;
+        syncStatus.style.display = 'inline-flex';
+        syncStatus.style.alignItems = 'center';
+      }
     }
   });
 }
@@ -4988,6 +5004,15 @@ const _addFrenteOrig = addFrente;
 addFrente = function() { _addFrenteOrig(); if (!modoSimulacao) salvarEstadoReal(); };
 const _removeFrenteOrig = removeFrente;
 removeFrente = function(id) { _removeFrenteOrig(id); if (!modoSimulacao) salvarEstadoReal(); };
+
+// Polling automático: re-carrega planilha GATEC a cada 5 minutos
+const GATEC_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutos em ms
+setInterval(async () => {
+  // Só sincroniza se online — evita tentativas desnecessárias offline
+  if (!navigator.onLine) return;
+  await carregarDadosGATEC();
+  await carregarDadosConfOS();
+}, GATEC_POLL_INTERVAL);
 
 // Verificar conexão ao iniciar
 atualizarStatusConexao();
