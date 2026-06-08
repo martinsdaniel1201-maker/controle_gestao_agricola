@@ -297,7 +297,7 @@
     }
     tbody tr { transition: background 0.12s; }
     tbody tr:hover { background: var(--green-50); }
-    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-2); word-break: break-word; overflow-wrap: break-word; }
     .badge { padding: 4px 10px; border-radius: 50px; font-weight: 700; font-size: 10px; letter-spacing: 0.3px; }
 
     @media screen and (max-width: 768px) {
@@ -1930,23 +1930,23 @@
         </button>
       </div>
       
-      <!-- Tabela responsiva: scroll horizontal no desktop, cards no mobile -->
-      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-      <table style="width: 100%; min-width: 700px; table-layout: auto; border-collapse: collapse;">
+      <!-- Tabela responsiva: layout fixo no desktop, cards no mobile -->
+      <div id="gatec-table-wrapper">
+      <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
         <thead>
           <tr>
-            <th style="min-width: 100px; padding: 8px 8px; white-space: nowrap;">Liberação</th>
-            <th style="min-width: 60px;  padding: 8px 8px; white-space: nowrap;">Frente</th>
-            <th style="min-width: 140px; padding: 8px 8px; white-space: nowrap;">Fazenda</th>
-            <th style="min-width: 100px; padding: 8px 8px; white-space: nowrap;">Talhões</th>
-            <th style="min-width: 90px;  padding: 8px 8px; white-space: nowrap; text-align:right;">Prod. Est.</th>
-            <th style="min-width: 90px;  padding: 8px 8px; white-space: nowrap; text-align:right;">Prod. Real</th>
-            <th style="min-width: 60px;  padding: 8px 8px; white-space: nowrap; text-align:right;">TCH</th>
-            <th style="min-width: 80px;  padding: 8px 8px; white-space: nowrap; text-align:right;">Dif. Prod.</th>
-            <th style="min-width: 80px;  padding: 8px 8px; white-space: nowrap; text-align:center;">Status</th>
+            <th style="width: 11%; padding: 8px 6px; font-size:11px;">Liberação</th>
+            <th style="width: 7%;  padding: 8px 4px; font-size:11px;">Frente</th>
+            <th style="width: 19%; padding: 8px 6px; font-size:11px;">Fazenda</th>
+            <th style="width: 15%; padding: 8px 6px; font-size:11px;">Talhões</th>
+            <th style="width: 10%; padding: 8px 4px; font-size:11px; text-align:right;">Prod. Est.</th>
+            <th style="width: 10%; padding: 8px 4px; font-size:11px; text-align:right;">Prod. Real</th>
+            <th style="width: 7%;  padding: 8px 4px; font-size:11px; text-align:right;">TCH</th>
+            <th style="width: 10%; padding: 8px 4px; font-size:11px; text-align:right;">Dif. Prod.</th>
+            <th style="width: 11%; padding: 8px 4px; font-size:11px; text-align:center;">Status</th>
           </tr>
         </thead>
-        <tbody id="corpo-tabela-gatec" style="font-size: 13px;"></tbody>
+        <tbody id="corpo-tabela-gatec" style="font-size: 12px;"></tbody>
       </table>
       </div>
     </div>
@@ -3419,11 +3419,11 @@ async function carregarDadosGATEC() {
           <td data-label="Frente:">${row["FRENTE"] || ""}</td>
           <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
           <td data-label="Talhões:">${row["LISTAGEM TALHAO"] || ""}</td>
-          <td data-label="Prod. Est.:" style="text-align:right; white-space:nowrap;">${prodEst}</td>
-          <td data-label="Prod. Real:" style="text-align:right; white-space:nowrap;">${prodReal}</td>
-          <td data-label="TCH:" style="text-align:right; white-space:nowrap;">${tch}</td>
-          <td data-label="Dif. Prod.:" style="text-align:right; white-space:nowrap; font-weight:600; color:${difColor};">${difProd}</td>
-          <td data-label="Status:" style="text-align:center; white-space:nowrap;">
+          <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
+          <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
+          <td data-label="TCH:" style="text-align:right;">${tch}</td>
+          <td data-label="Dif. Prod.:" style="text-align:right; font-weight:600; color:${difColor};">${difProd}</td>
+          <td data-label="Status:" style="text-align:center;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'}; white-space:nowrap;">
               ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
             </span>
