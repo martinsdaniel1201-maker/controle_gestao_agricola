@@ -3416,16 +3416,16 @@ async function carregarDadosGATEC() {
         const difNum = parseFloat(String(difProd).replace(",", "."));
         const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
         return `<tr class="linha-tabela">
-          <td data-label="Liberação:" style="white-space:nowrap;">${row["LIBERAÇÃO"] || ""}</td>
-          <td data-label="Frente:" style="white-space:nowrap;">${row["FRENTE"] || ""}</td>
-          <td data-label="Fazenda:" style="white-space:nowrap;">${row["DESC.FAZENDA"] || ""}</td>
-          <td data-label="Talhões:" style="word-break:break-all; white-space:normal;">${row["LISTAGEM TALHAO"] || ""}</td>
-          <td data-label="Prod. Est.:" style="text-align:right; white-space:nowrap;">${prodEst}</td>
-          <td data-label="Prod. Real:" style="text-align:right; white-space:nowrap;">${prodReal}</td>
-          <td data-label="TCH:" style="text-align:right; white-space:nowrap;">${tch}</td>
-          <td data-label="Dif. Prod.:" style="text-align:right; white-space:nowrap; font-weight:600; color:${difColor};">${difProd}</td>
-          <td data-label="Status:" style="text-align:center; white-space:nowrap;">
-            <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'}; white-space:nowrap;">
+          <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
+          <td data-label="Frente:">${row["FRENTE"] || ""}</td>
+          <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
+          <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
+          <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
+          <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
+          <td data-label="TCH:" style="text-align:right;">${tch}</td>
+          <td data-label="Dif. Prod.:" style="text-align:right; font-weight:600; color:${difColor};">${difProd}</td>
+          <td data-label="Status:" style="text-align:center;">
+            <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
               ${isEncerrada ? 'ENCERRADA' : 'ABERTA'}
             </span>
           </td>
