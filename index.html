@@ -1493,42 +1493,97 @@
     .lock-icon.unlocked .lock-body {
       fill: var(--green-500);
     }
-	.resumo-cards{
-    display:flex;
-    flex-wrap:wrap;
-    gap:12px;
-    margin-top:15px;
-    margin-bottom:15px;
+	.resumo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+  margin-bottom: 14px;
 }
 
-.frente-card{
-    background:#fff;
-    border:1px solid #ddd;
-    border-radius:10px;
-    padding:12px;
-    min-width:160px;
-    box-shadow:0 2px 5px rgba(0,0,0,.08);
+.resumo-cards .frente-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: none;
+}
+.resumo-cards .frente-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: var(--grad);
+  border-radius: 99px 99px 0 0;
 }
 
-.frente-card h4{
-    margin:0;
-    color:#2e7d32;
+.resumo-cards .frente-card h4 {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
 }
 
-.frente-card p{
-    margin:5px 0 0;
-    font-size:18px;
-    font-weight:bold;
+.resumo-cards .frente-card p {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--green-900);
+  line-height: 1.2;
 }
 
-.resumo-total{
-    display:flex;
-    justify-content:space-between;
-    margin-top:10px;
-    padding-top:10px;
-    border-top:1px solid #ddd;
-    font-size:16px;
+.resumo-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
+.resumo-total div {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resumo-total div span {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--green-900);
+  margin-left: 4px;
+  text-transform: none;
+}
+
+/* Ajuste fino para a tabela interna do wrapper da GATEC */
+#gatec-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 10px;
+}
+
+#gatec-table-wrapper table {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+}
+
+/* Garante compatibilidade do novo bloco com o seu Dark Mode */
+body.dark-mode .resumo-cards .frente-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+body.dark-mode .resumo-total {
+  border-top-color: var(--border);
+}
+body.dark-mode .resumo-cards .frente-card p,
+body.dark-mode .resumo-total div span {
+  color: var(--text) !important;
+}
+
   </style>
 </head>
 <body>
@@ -1955,23 +2010,22 @@
     <div class="card" style="width: 100%; box-sizing: border-box;">
 	<!-- RESUMO POR FRENTE -->
 <div id="resumoFrentes" class="card">
-    <div class="card-header">
-        📊 Resumo de Produção por Frente
+  <div class="card-title">
+    <i class="fas fa-chart-pie"></i> Resumo de Produção por Frente
+  </div>
+
+  <div id="resumoCards" class="resumo-cards">
+    <!-- Os cards dinâmicos injetados via JS ficarão aqui -->
+  </div>
+
+  <div class="resumo-total">
+    <div>
+      Total Produzido: <span id="totalProduzido">0 t</span>
     </div>
-
-    <div id="resumoCards" class="resumo-cards"></div>
-
-    <div class="resumo-total">
-        <div>
-            <strong>Total Produzido:</strong>
-            <span id="totalProduzido">0</span>
-        </div>
-
-        <div>
-            <strong>Frente Líder:</strong>
-            <span id="frenteLider">-</span>
-        </div>
+    <div>
+      Frente Líder: <span id="frenteLider">-</span>
     </div>
+  </div>
 </div>
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
       <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
@@ -3507,20 +3561,11 @@ async function carregarDadosGATEC() {
     download: true, header: true, skipEmptyLines: true,
     complete: function(results) {
       window._gatecDados = results.data; // salva para exportação
-		
-	 const resumoFrentes = {};
+	  const resumoFrentes = {};
 let totalProduzido = 0;
-
-// 1. Defina a lista de frentes permitidas (como strings para bater com os dados)
-const frentesPermitidas = ["401", "402", "403", "404", "451"];
 
 results.data.forEach(row => {
     const frente = (row["FRENTE"] || "Sem Frente").trim();
-
-    // 2. FILTRO: Se a frente não estiver na lista permitida, pula para a próxima linha
-    if (!frentesPermitidas.includes(frente)) {
-        return; 
-    }
 
     const prodReal = parseFloat(
         String(row["PROD. REAL"] || "0")
@@ -3540,7 +3585,6 @@ if (resumoCards) {
     let frenteLider = "-";
     let maiorValor = 0;
 
-    // O restante do seu código permanece exatamente o mesmo...
     Object.entries(resumoFrentes)
         .sort((a, b) => b[1] - a[1])
         .forEach(([frente, valor]) => {
