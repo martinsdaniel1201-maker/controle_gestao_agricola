@@ -17,6 +17,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @media print {
       /* Mostra só a seção ativa, esconde navegação */
@@ -1344,57 +1345,6 @@
     }
     #btn-copiar-resumo:hover { border-color: var(--green-500); background: var(--green-50); }
 
-    /* ── MODAL SENHA ── */
-    .senha-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
-      z-index: 20000;
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.22s ease;
-    }
-    .senha-overlay.open { opacity: 1; pointer-events: all; }
-    .senha-box {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      padding: 28px 24px 22px;
-      width: 100%; max-width: 340px;
-      box-shadow: 0 12px 48px rgba(0,0,0,0.28);
-      text-align: center;
-      animation: senhaEntra 0.25s cubic-bezier(.4,0,.2,1) both;
-    }
-    @keyframes senhaEntra {
-      from { opacity:0; transform: translateY(18px) scale(0.96); }
-      to   { opacity:1; transform: translateY(0)    scale(1); }
-    }
-    .senha-icon {
-      width: 54px; height: 54px;
-      background: var(--green-50);
-      border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 14px;
-      font-size: 22px; color: var(--green-700);
-    }
-    .senha-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
-    .senha-desc  { font-size: 11px; color: var(--text-3); margin-bottom: 18px; line-height: 1.5; }
-    .senha-input {
-      width: 100%; padding: 12px 14px; text-align: center;
-      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface2); color: var(--text);
-      font-size: 15px; font-weight: 700; letter-spacing: 3px;
-      outline: none; margin-bottom: 4px;
-      transition: border-color 0.18s;
-    }
-    .senha-input:focus { border-color: var(--green-500); }
-    .senha-erro {
-      font-size: 11px; font-weight: 700; color: var(--red);
-      min-height: 18px; margin-bottom: 12px;
-      transition: opacity 0.18s;
-    }
-    .senha-btns { display: flex; gap: 8px; }
-    .senha-btns button { flex: 1; }
-
     /* ── KEBAB MENU ── */
     #kebab-btn {
       display: flex; align-items: center; justify-content: center;
@@ -1457,42 +1407,6 @@
     }
     #kebab-btn-wrap { position: relative; }
 
-    /* ── CADEADO DINÂMICO NOS BOTÕES ── */
-    .lock-icon {
-      position: absolute;
-      bottom: -5px; right: -5px;
-      width: 18px; height: 18px;
-      background: var(--surface);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.22);
-      transition: background 0.35s ease, transform 0.35s ease;
-      z-index: 2;
-    }
-    .lock-svg {
-      width: 11px; height: 11px;
-      color: var(--green-700);
-      transition: color 0.35s ease;
-      display: block;
-    }
-    /* shackle aberto: rotação + translação */
-    .lock-shackle {
-      transform-origin: 8px 11px;
-      transition: transform 0.4s cubic-bezier(.4,0,.2,1), stroke 0.35s ease;
-    }
-    .lock-icon.unlocked {
-      background: var(--green-100);
-      transform: scale(1.18);
-    }
-    .lock-icon.unlocked .lock-svg {
-      color: var(--green-500);
-    }
-    .lock-icon.unlocked .lock-shackle {
-      transform: translateY(-3px) rotate(-30deg);
-    }
-    .lock-icon.unlocked .lock-body {
-      fill: var(--green-500);
-    }
 	/* ── NOVO BLOCO: RESUMO POR FRENTE COM RANKING (INTEGRADO) ── */
 .resumo-cards {
   display: grid;
@@ -1648,9 +1562,249 @@ body.dark-mode .resumo-cards .medal-text {
   background: rgba(255, 255, 255, 0.05);
 }
 
+  /* ── TELA DE LOGIN SUPABASE ── */
+  #login-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--grad);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    flex-direction: column;
+  }
+  #login-screen.visible { display: flex; }
+
+  .login-box {
+    background: var(--surface);
+    border-radius: 24px;
+    padding: 36px 28px 28px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: senhaEntra 0.3s cubic-bezier(.4,0,.2,1) both;
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .login-logo .login-orb {
+    width: 64px; height: 64px;
+    background: var(--grad);
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: white;
+    margin-bottom: 12px;
+    box-shadow: 0 8px 24px rgba(27,94,32,0.35);
+  }
+  .login-logo h1 {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+  .login-logo p {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 3px;
+    font-weight: 500;
+  }
+  .login-field { margin-bottom: 14px; }
+  .login-field label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 5px;
+  }
+  .login-field input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.18s;
+  }
+  .login-field input:focus { border-color: var(--green-500); }
+  .login-erro {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+    min-height: 18px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .btn-login {
+    width: 100%;
+    padding: 14px;
+    background: var(--grad);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-login:hover { opacity: 0.9; }
+  .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Botão logout na barra superior */
+  #btn-logout {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-3);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.18s;
+    flex-shrink: 0;
+  }
+  #btn-logout:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
+  /* Badge do usuário logado */
+  #user-badge {
+    display: none;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-3);
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   </style>
 </head>
 <body>
+
+<!-- ══ TELA DE LOGIN / CADASTRO ══ -->
+<div id="login-screen" class="visible">
+  <div class="login-box">
+
+    <div class="login-logo">
+      <div class="login-orb"><i class="fas fa-tractor"></i></div>
+      <h1>CONTROLE TÉCNICO AGRÍCOLA</h1>
+      <p>Gestão Operacional · Passos/MG</p>
+    </div>
+
+    <!-- ── PAINEL LOGIN ── -->
+    <div id="painel-login">
+      <div class="login-field">
+        <label>E-mail</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email"
+          onkeydown="if(event.key==='Enter') document.getElementById('login-senha').focus()">
+      </div>
+      <div class="login-field">
+        <label>Senha</label>
+        <div style="position:relative;">
+          <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password"
+            style="padding-right:42px;"
+            onkeydown="if(event.key==='Enter') fazerLogin()">
+          <button type="button" onclick="toggleSenhaVisivel('login-senha','olho-login')"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
+            <i class="fas fa-eye" id="olho-login"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lembrar de mim -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <input type="checkbox" id="login-lembrar" style="width:16px;height:16px;accent-color:var(--green-700);cursor:pointer;">
+        <label for="login-lembrar" style="font-size:11px;font-weight:600;color:var(--text-3);cursor:pointer;user-select:none;">
+          Lembrar de mim neste dispositivo
+        </label>
+      </div>
+
+      <div class="login-erro" id="login-erro"></div>
+      <button class="btn-login" id="btn-login-submit" onclick="fazerLogin()">
+        <i class="fas fa-sign-in-alt"></i> Entrar
+      </button>
+      <div style="text-align:center;margin-top:16px;">
+        <span style="font-size:11px;color:var(--text-3);">Não tem conta? </span>
+        <button onclick="mostrarCadastro()" style="background:none;border:none;color:var(--green-700);font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;">
+          Criar conta
+        </button>
+      </div>
+    </div>
+
+    <!-- ── PAINEL CADASTRO ── -->
+    <div id="painel-cadastro" style="display:none;">
+      <div class="login-field">
+        <label>E-mail</label>
+        <input type="email" id="cad-email" placeholder="seu@email.com" autocomplete="email"
+          onkeydown="if(event.key==='Enter') document.getElementById('cad-senha').focus()">
+      </div>
+      <div class="login-field">
+        <label>Senha</label>
+        <div style="position:relative;">
+          <input type="password" id="cad-senha" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
+            style="padding-right:42px;"
+            onkeydown="if(event.key==='Enter') document.getElementById('cad-confirma').focus()">
+          <button type="button" onclick="toggleSenhaVisivel('cad-senha','olho-cad')"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
+            <i class="fas fa-eye" id="olho-cad"></i>
+          </button>
+        </div>
+      </div>
+      <div class="login-field">
+        <label>Confirmar senha</label>
+        <div style="position:relative;">
+          <input type="password" id="cad-confirma" placeholder="Repita a senha" autocomplete="new-password"
+            style="padding-right:42px;"
+            onkeydown="if(event.key==='Enter') fazerCadastro()">
+          <button type="button" onclick="toggleSenhaVisivel('cad-confirma','olho-conf')"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
+            <i class="fas fa-eye" id="olho-conf"></i>
+          </button>
+        </div>
+      </div>
+      <div class="login-erro" id="cad-erro"></div>
+      <button class="btn-login" id="btn-cad-submit" onclick="fazerCadastro()">
+        <i class="fas fa-user-plus"></i> Criar conta
+      </button>
+      <div style="text-align:center;margin-top:16px;">
+        <span style="font-size:11px;color:var(--text-3);">Já tem conta? </span>
+        <button onclick="mostrarLogin()" style="background:none;border:none;color:var(--green-700);font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;">
+          Entrar
+        </button>
+      </div>
+    </div>
+
+    <!-- ── PAINEL CONFIRMAÇÃO ── -->
+    <div id="painel-confirmacao" style="display:none;text-align:center;">
+      <div style="font-size:44px;margin-bottom:16px;">📧</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:8px;">Confirme seu e-mail</div>
+      <div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:20px;">
+        Enviamos um link de confirmação para <strong id="cad-email-label"></strong>.<br>
+        Acesse seu e-mail, clique no link e depois volte aqui para entrar.
+      </div>
+      <button onclick="mostrarLogin()" class="btn-login">
+        <i class="fas fa-arrow-left"></i> Voltar para o login
+      </button>
+    </div>
+
+  </div>
+</div>
 
 <!-- Offline Banner -->
 <div id="offline-banner">
@@ -1666,26 +1820,6 @@ body.dark-mode .resumo-cards .medal-text {
   <i class="fas fa-moon" id="dark-mode-icon"></i>
 </button>
 
-
-<!-- Modal Senha -->
-<div class="senha-overlay" id="modal-senha">
-  <div class="senha-box">
-    <div class="senha-icon"><i class="fas fa-lock"></i></div>
-    <div class="senha-title" id="senha-titulo">Área Restrita</div>
-    <div class="senha-desc">Digite a senha para acessar este módulo.</div>
-    <input class="senha-input" type="password" id="senha-input"
-      placeholder="••••••••" maxlength="20"
-      onkeydown="if(event.key==='Enter') confirmarSenha()"
-      oninput="document.getElementById('senha-erro').textContent=''">
-    <div class="senha-erro" id="senha-erro"></div>
-    <div class="senha-btns">
-      <button class="btn-secondary" onclick="fecharModalSenha()">Cancelar</button>
-      <button class="btn-main" style="margin:0" onclick="confirmarSenha()">
-        <i class="fas fa-unlock" style="margin-right:6px"></i>Entrar
-      </button>
-    </div>
-  </div>
-</div>
 
 <!-- Modal Salvar Cenário -->
 <div class="modal-overlay" id="modal-cenario">
@@ -1718,17 +1852,10 @@ body.dark-mode .resumo-cards .medal-text {
       <span class="menu-tag">Colheita</span>
     </button>
 
-    <button class="tab-btn menu-c2" data-aba="liberacoes" onclick="abrirComSenha(event,'liberacoes','Liberações')">
+    <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes')">
       <span class="home-badge" id="badge-liberacoes" style="display:none"></span>
-      <div class="menu-orb" style="position:relative;">
+      <div class="menu-orb">
         <i class="fas fa-table"></i>
-        <span class="lock-icon" title="Área restrita">
-          <svg class="lock-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect class="lock-body" x="3" y="11" width="18" height="11" rx="2.5" fill="currentColor" opacity="0.92"/>
-            <path class="lock-shackle" d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-            <circle class="lock-hole" cx="12" cy="16" r="1.5" fill="white" opacity="0.85"/>
-          </svg>
-        </span>
       </div>
       <span class="menu-label">Liberações</span>
       <span class="menu-tag">GATEC</span>
@@ -1740,31 +1867,17 @@ body.dark-mode .resumo-cards .medal-text {
       <span class="menu-tag">GDA · ETA</span>
     </button>
 
-    <button class="tab-btn menu-c4" data-aba="conf_os_aba" onclick="abrirComSenha(event,'conf_os_aba','Conferências')">
-      <div class="menu-orb" style="position:relative;">
+    <button class="tab-btn menu-c4" onclick="showTab(event,'conf_os_aba')">
+      <div class="menu-orb">
         <i class="fas fa-clipboard-check"></i>
-        <span class="lock-icon" title="Área restrita">
-          <svg class="lock-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect class="lock-body" x="3" y="11" width="18" height="11" rx="2.5" fill="currentColor" opacity="0.92"/>
-            <path class="lock-shackle" d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-            <circle class="lock-hole" cx="12" cy="16" r="1.5" fill="white" opacity="0.85"/>
-          </svg>
-        </span>
       </div>
       <span class="menu-label">Conferências</span>
       <span class="menu-tag">Operadores x O.S</span>
     </button>
 
-    <button class="tab-btn menu-c5" data-aba="mapas_aba" onclick="abrirComSenha(event,'mapas_aba','Mapas')">
-      <div class="menu-orb" style="position:relative;">
+    <button class="tab-btn menu-c5" onclick="showTab(event,'mapas_aba')">
+      <div class="menu-orb">
         <i class="fas fa-map"></i>
-        <span class="lock-icon" title="Área restrita">
-          <svg class="lock-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect class="lock-body" x="3" y="11" width="18" height="11" rx="2.5" fill="currentColor" opacity="0.92"/>
-            <path class="lock-shackle" d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-            <circle class="lock-hole" cx="12" cy="16" r="1.5" fill="white" opacity="0.85"/>
-          </svg>
-        </span>
       </div>
       <span class="menu-label">Mapas</span>
       <span class="menu-tag">Estimativas</span>
@@ -1805,6 +1918,10 @@ body.dark-mode .resumo-cards .medal-text {
     <span class="voltar-aba-nome" id="voltar-aba-nome"></span>
     <!-- Área para botões futuros -->
     <span class="voltar-right" id="voltar-acoes">
+      <span id="user-badge"></span>
+      <button id="btn-logout" onclick="fazerLogout()" title="Sair">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
       <span id="kebab-btn-wrap">
         <button id="kebab-btn" onclick="toggleKebab(event)" title="Opções">
           <i class="fas fa-ellipsis-v"></i>
@@ -2786,80 +2903,6 @@ function voltarParaHome() {
   // Scrolla para o topo
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
-/* ══════════════════════════════════════════════
-   SENHA — MÓDULOS RESTRITOS
-   (senha armazenada como hash SHA-256, nunca em texto puro)
-══════════════════════════════════════════════ */
-const _HASH_SENHA = 'e71f8120f0ce5c3e063e3ac3f93f7142ce69e612dc6ae3f63bd6e952365451e7';
-async function _hashStr(s) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-// abas liberadas na sessão (sem precisar digitar novamente)
-const _abasLiberadas = new Set();
-let _senhaTargetId  = null;
-let _senhaTargetEvt = null;
-
-function abrirComSenha(evt, abaId, titulo) {
-  if (_abasLiberadas.has(abaId)) {
-    showTab(evt, abaId);
-    return;
-  }
-  _senhaTargetId  = abaId;
-  _senhaTargetEvt = evt;
-  document.getElementById('senha-titulo').textContent = titulo || 'Área Restrita';
-  document.getElementById('senha-input').value = '';
-  document.getElementById('senha-erro').textContent = '';
-  document.getElementById('modal-senha').classList.add('open');
-  setTimeout(() => document.getElementById('senha-input').focus(), 220);
-}
-
-function fecharModalSenha() {
-  document.getElementById('modal-senha').classList.remove('open');
-  _senhaTargetId  = null;
-  _senhaTargetEvt = null;
-}
-
-async function confirmarSenha() {
-  const val  = document.getElementById('senha-input').value;
-  const hash = await _hashStr(val);
-  if (hash === _HASH_SENHA) {
-    // captura antes de fechar (fecharModalSenha zera as variáveis)
-    const abaId = _senhaTargetId;
-    const evt   = _senhaTargetEvt;
-    _abasLiberadas.add(abaId);
-    // atualiza cadeados dinamicamente para essa aba
-    _atualizarCadeados(abaId);
-    fecharModalSenha();
-    // abre direto, sem setTimeout que dependia de variáveis já zeradas
-    showTab(evt, abaId);
-  } else {
-    const erroEl = document.getElementById('senha-erro');
-    erroEl.textContent = '❌ Senha incorreta. Tente novamente.';
-    const input = document.getElementById('senha-input');
-    input.value = '';
-    input.focus();
-    input.style.borderColor = 'var(--red)';
-    setTimeout(() => { input.style.borderColor = ''; }, 1200);
-  }
-}
-
-function _atualizarCadeados(abaId) {
-  // mapeamento abaId → data-aba no botão
-  const btn = document.querySelector(`[data-aba="${abaId}"]`);
-  if (!btn) return;
-  const icon = btn.querySelector('.lock-icon');
-  if (!icon) return;
-  icon.classList.add('unlocked');
-  icon.title = 'Desbloqueado nesta sessão';
-}
-
-// Fecha modal de senha ao clicar fora
-document.getElementById('modal-senha').addEventListener('click', function(e) {
-  if (e.target === this) fecharModalSenha();
-});
 
 /* ══════════════════════════════════════════════
    KEBAB MENU
@@ -5469,6 +5512,204 @@ iniciarSabedoria();
   if (inpIni) { inpIni.max = ontemStr; inpIni.min = '1940-01-01'; }
   if (inpFim) { inpFim.max = ontemStr; inpFim.min = '1940-01-01'; inpFim.value = ontemStr; }
 })();
+
+/* ══════════════════════════════════════════════
+   SUPABASE — AUTENTICAÇÃO
+══════════════════════════════════════════════ */
+const _SB_URL  = 'https://umlwcilvhpoxhnqaalqn.supabase.co';
+const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtbHdjaWx2aHBveGhucWFhbHFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODExNjUsImV4cCI6MjA5NjU1NzE2NX0.HMw-vhMYDf6zfUrHiNNDZ1xBMNt3J0FGo2mW1IHeT2Q';
+const _sbClient = supabase.createClient(_SB_URL, _SB_KEY, {
+  auth: {
+    persistSession: true,          // mantém sessão no localStorage
+    autoRefreshToken: true,        // renova token automaticamente
+    storageKey: 'ctt_sb_session',  // chave isolada do resto do app
+  }
+});
+
+/* ── Verifica sessão ao carregar ── */
+(async function iniciarAuth() {
+  // Restaura "lembrar de mim" salvo
+  const lembrar = localStorage.getItem('ctt_lembrar') === '1';
+  if (lembrar) {
+    const emailSalvo = localStorage.getItem('ctt_email_salvo') || '';
+    if (emailSalvo) document.getElementById('login-email').value = emailSalvo;
+    document.getElementById('login-lembrar').checked = true;
+  }
+
+  const { data: { session } } = await _sbClient.auth.getSession();
+  if (session) {
+    _onLoginSuccess(session.user);
+  }
+
+  _sbClient.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+      _onLoginSuccess(session.user);
+    } else {
+      _onLogout();
+    }
+  });
+})();
+
+/* ── Navegação entre painéis ── */
+function mostrarLogin() {
+  document.getElementById('painel-login').style.display      = 'block';
+  document.getElementById('painel-cadastro').style.display   = 'none';
+  document.getElementById('painel-confirmacao').style.display = 'none';
+  document.getElementById('login-erro').textContent = '';
+}
+
+function mostrarCadastro() {
+  document.getElementById('painel-login').style.display      = 'none';
+  document.getElementById('painel-cadastro').style.display   = 'block';
+  document.getElementById('painel-confirmacao').style.display = 'none';
+  document.getElementById('cad-erro').textContent = '';
+  setTimeout(() => document.getElementById('cad-email').focus(), 100);
+}
+
+function mostrarConfirmacao(email) {
+  document.getElementById('painel-login').style.display      = 'none';
+  document.getElementById('painel-cadastro').style.display   = 'none';
+  document.getElementById('painel-confirmacao').style.display = 'block';
+  document.getElementById('cad-email-label').textContent     = email;
+}
+
+/* ── Mostrar/ocultar senha ── */
+function toggleSenhaVisivel(inputId, iconeId) {
+  const input = document.getElementById(inputId);
+  const icone = document.getElementById(iconeId);
+  if (!input || !icone) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    icone.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icone.className = 'fas fa-eye';
+  }
+}
+
+/* ── Login ── */
+async function fazerLogin() {
+  const email  = (document.getElementById('login-email').value || '').trim();
+  const senha  = document.getElementById('login-senha').value || '';
+  const lembrar = document.getElementById('login-lembrar').checked;
+  const erroEl = document.getElementById('login-erro');
+  const btn    = document.getElementById('btn-login-submit');
+
+  erroEl.textContent = '';
+
+  if (!email || !senha) {
+    erroEl.textContent = '⚠️ Preencha e-mail e senha.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando…';
+
+  const { error } = await _sbClient.auth.signInWithPassword({ email, password: senha });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+
+  if (error) {
+    erroEl.textContent = '❌ E-mail ou senha incorretos.';
+    document.getElementById('login-senha').value = '';
+    document.getElementById('login-senha').focus();
+    return;
+  }
+
+  // Salva preferência "lembrar de mim"
+  if (lembrar) {
+    localStorage.setItem('ctt_lembrar', '1');
+    localStorage.setItem('ctt_email_salvo', email);
+  } else {
+    localStorage.removeItem('ctt_lembrar');
+    localStorage.removeItem('ctt_email_salvo');
+  }
+  // sucesso: onAuthStateChange dispara _onLoginSuccess automaticamente
+}
+
+/* ── Cadastro ── */
+async function fazerCadastro() {
+  const email    = (document.getElementById('cad-email').value || '').trim();
+  const senha    = document.getElementById('cad-senha').value || '';
+  const confirma = document.getElementById('cad-confirma').value || '';
+  const erroEl   = document.getElementById('cad-erro');
+  const btn      = document.getElementById('btn-cad-submit');
+
+  erroEl.textContent = '';
+
+  if (!email || !senha || !confirma) {
+    erroEl.textContent = '⚠️ Preencha todos os campos.';
+    return;
+  }
+  if (senha.length < 6) {
+    erroEl.textContent = '⚠️ A senha deve ter pelo menos 6 caracteres.';
+    return;
+  }
+  if (senha !== confirma) {
+    erroEl.textContent = '❌ As senhas não coincidem.';
+    document.getElementById('cad-confirma').value = '';
+    document.getElementById('cad-confirma').focus();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando conta…';
+
+  const { error } = await _sbClient.auth.signUp({
+    email,
+    password: senha,
+    options: {
+      emailRedirectTo: 'https://martinsdaniel1201-maker.github.io/controle_gestao_agricola'
+    }
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-user-plus"></i> Criar conta';
+
+  if (error) {
+    if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+      erroEl.textContent = '⚠️ Este e-mail já está cadastrado. Faça login.';
+    } else {
+      erroEl.textContent = '❌ Erro ao criar conta: ' + error.message;
+    }
+    return;
+  }
+
+  // Limpa campos e mostra painel de confirmação
+  document.getElementById('cad-senha').value    = '';
+  document.getElementById('cad-confirma').value = '';
+  mostrarConfirmacao(email);
+}
+
+/* ── Logout ── */
+async function fazerLogout() {
+  await _sbClient.auth.signOut();
+  // onAuthStateChange dispara _onLogout automaticamente
+}
+
+/* ── Callbacks de estado ── */
+function _onLoginSuccess(user) {
+  document.getElementById('login-screen').classList.remove('visible');
+  const badge = document.getElementById('user-badge');
+  if (badge) {
+    badge.textContent = user.email.split('@')[0];
+    badge.style.display = 'block';
+  }
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) btnLogout.style.display = 'flex';
+}
+
+function _onLogout() {
+  voltarParaHome();
+  document.getElementById('login-screen').classList.add('visible');
+  mostrarLogin();
+  const badge = document.getElementById('user-badge');
+  if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) btnLogout.style.display = 'none';
+  document.getElementById('login-senha').value = '';
+}
   
 </script>
 </body>
