@@ -1810,23 +1810,7 @@ body.dark-mode .resumo-cards .medal-text {
           <i class="fas fa-ellipsis-v"></i>
         </button>
         <div id="kebab-menu">
-          <div class="kebab-section-label">Exportar</div>
-          <div class="kebab-item" onclick="kebabAcao('pdf')">
-            <i class="fas fa-file-pdf"></i> Exportar PDF
-          </div>
-          <div class="kebab-item" onclick="kebabAcao('excel')">
-            <i class="fas fa-file-excel"></i> Exportar Excel (tabela)
-          </div>
-          <div class="kebab-item" onclick="kebabAcao('whatsapp')">
-            <i class="fab fa-whatsapp"></i> Copiar resumo WhatsApp
-          </div>
-          <div class="kebab-section-label">App</div>
-          <div class="kebab-item" onclick="kebabAcao('atualizar')">
-            <i class="fas fa-sync-alt"></i> Sincronizar atualização
-          </div>
-          <div class="kebab-item" onclick="kebabAcao('darkmode')">
-            <i class="fas fa-moon"></i> Alternar modo escuro
-          </div>
+          <!-- Itens dinâmicos injetados por atualizarKebabMenu() conforme a aba ativa -->
         </div>
       </span>
     </span>
@@ -2091,6 +2075,9 @@ body.dark-mode .resumo-cards .medal-text {
     </div>
   </div>
 </div>
+      <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
+        <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Resumo por Frente para WhatsApp
+      </button>
       <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
       <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
         <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
@@ -2880,6 +2867,8 @@ document.getElementById('modal-senha').addEventListener('click', function(e) {
 function toggleKebab(e) {
   e.stopPropagation();
   const menu = document.getElementById('kebab-menu');
+  const isOpen = menu.classList.contains('open');
+  if (!isOpen) atualizarKebabMenu(); // monta itens contextuais antes de abrir
   menu.classList.toggle('open');
 }
 
@@ -2892,14 +2881,71 @@ document.addEventListener('click', function(e) {
   if (wrap && !wrap.contains(e.target)) fecharKebab();
 });
 
+/* ── Monta os itens do kebab conforme a aba ativa ── */
+function atualizarKebabMenu() {
+  const menu = document.getElementById('kebab-menu');
+  if (!menu) return;
+  const sec = document.querySelector('.section.active');
+  const abaId = sec ? sec.id : null;
+
+  // Configuração por aba: cada entrada = { label, icon, acao }
+  const itensComuns = [
+    { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+  ];
+  const itensExcelLib  = { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' };
+  const itensExcelConf = { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' };
+  const itensSincronizar = { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' };
+
+  let itens = [];
+
+  if (abaId === 'simulador') {
+    itens = [
+      { secao: 'Exportar' },
+      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
+  } else if (abaId === 'liberacoes') {
+    itens = [
+      { secao: 'Exportar' },
+      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
+  } else if (abaId === 'conf_os_aba') {
+    itens = [
+      { secao: 'Exportar' },
+      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
+  } else {
+    // Clima, Mapas, Calculadora — só PDF e sincronizar
+    itens = [
+      { secao: 'Exportar' },
+      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
+  }
+
+  menu.innerHTML = itens.map(item => {
+    if (item.secao) return `<div class="kebab-section-label">${item.secao}</div>`;
+    return `<div class="kebab-item" onclick="kebabAcao('${item.acao}')">
+      <i class="${item.icon}"></i> ${item.label}
+    </div>`;
+  }).join('');
+}
+
 function kebabAcao(acao) {
   fecharKebab();
   switch (acao) {
     case 'pdf':
       gerarPDF();
       break;
-    case 'excel':
-      // tenta exportar a tabela da aba ativa
+    case 'excel': {
       const secAtiva = document.querySelector('.section.active');
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
@@ -2907,16 +2953,113 @@ function kebabAcao(acao) {
       else if (sid === 'conf_os_aba') exportarConfOsExcel();
       else showToast('ℹ️ Exportação Excel disponível em Liberações e Conferências.', 'info', 3000);
       break;
-    case 'whatsapp':
-      copiarResumoOperacional();
-      break;
+    }
     case 'atualizar':
       sincronizarApp();
       break;
-    case 'darkmode':
-      toggleDarkMode();
-      break;
   }
+}
+
+/* ══════════════════════════════════════════════
+   COPIAR RESUMO LIBERAÇÕES (por frente filtrada)
+══════════════════════════════════════════════ */
+function copiarResumoLiberacoes() {
+  if (!window._gatecDados || window._gatecDados.length === 0) {
+    showToast('⚠️ Nenhum dado carregado. Clique em "Atualizar dados" primeiro.', 'error', 3000);
+    return;
+  }
+
+  // Lê os filtros ativos
+  const bFrente  = (document.getElementById('filtroFrente')?.value  || '').toLowerCase().trim();
+  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase().trim();
+  const bStatus  = (document.getElementById('filtroStatus')?.value  || '');
+
+  // Aplica os mesmos filtros da tabela
+  const filtrados = window._gatecDados.filter(row => {
+    const frente  = (row['FRENTE']       || '').toLowerCase();
+    const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
+    const status  = (row['STATUS OS']    || '').toUpperCase();
+    const statusOk = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
+    return frente.includes(bFrente) && fazenda.includes(bFazenda) && statusOk;
+  });
+
+  if (filtrados.length === 0) {
+    showToast('⚠️ Nenhum registro com o filtro atual.', 'error', 2500);
+    return;
+  }
+
+  // Agrupa produção real por frente (somente frentes permitidas)
+  const frentesPermitidas = ["401", "402", "403", "404", "451"];
+  const resumo = {};
+  let totalGeral = 0;
+
+  filtrados.forEach(row => {
+    const frente = (row['FRENTE'] || 'Sem Frente').trim();
+    const prodReal = parseFloat(
+      String(row['PROD. REAL'] || '0').replace(/\./g, '').replace(',', '.')
+    ) || 0;
+    if (!resumo[frente]) resumo[frente] = { prodReal: 0, abertas: 0, encerradas: 0 };
+    resumo[frente].prodReal += prodReal;
+    const status = (row['STATUS OS'] || '').toUpperCase();
+    if (status.includes('ENCERRADA')) resumo[frente].encerradas++;
+    else resumo[frente].abertas++;
+    if (frentesPermitidas.includes(frente)) totalGeral += prodReal;
+  });
+
+  // Ordena por produção real decrescente
+  const frentesOrdenadas = Object.entries(resumo).sort((a, b) => b[1].prodReal - a[1].prodReal);
+
+  const now = new Date();
+  const dataHora = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+  // Monta descrição dos filtros aplicados
+  const filtrosDesc = [
+    bFrente  ? `Frente: "${bFrente.toUpperCase()}"` : null,
+    bFazenda ? `Fazenda: "${bFazenda.toUpperCase()}"` : null,
+    bStatus  ? `Status: ${bStatus}` : null,
+  ].filter(Boolean);
+  const filtroLabel = filtrosDesc.length > 0 ? `🔍 Filtros: ${filtrosDesc.join(' · ')}` : '📋 Todos os registros';
+
+  const medalhoes = ['🥇','🥈','🥉'];
+  const linhasFrente = frentesOrdenadas.map(([frente, dados], idx) => {
+    const medalha = idx < 3 ? medalhoes[idx] : `  ${idx+1}º`;
+    const prodFmt = dados.prodReal > 0
+      ? dados.prodReal.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' t'
+      : '—';
+    const statusInfo = dados.abertas > 0 && dados.encerradas > 0
+      ? `${dados.abertas} aberta(s) · ${dados.encerradas} encerrada(s)`
+      : dados.abertas > 0 ? `${dados.abertas} aberta(s)` : `${dados.encerradas} encerrada(s)`;
+    return `${medalha} *Frente ${frente}:* ${prodFmt}  _(${statusInfo})_`;
+  }).join('\n');
+
+  const totalFmt = totalGeral > 0
+    ? totalGeral.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' t'
+    : '—';
+
+  const texto =
+`🌾 *LIBERAÇÕES — RESUMO POR FRENTE*
+📅 ${dataHora}
+${filtroLabel}
+${'─'.repeat(32)}
+${linhasFrente}
+${'─'.repeat(32)}
+📦 *Total Produzido (frentes monitoradas):* ${totalFmt}
+${'─'.repeat(32)}
+_Gerado pelo CTT Controle Agrícola_`;
+
+  navigator.clipboard.writeText(texto)
+    .then(() => showToast('✅ Resumo de Liberações copiado! Cole no WhatsApp.'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('✅ Resumo de Liberações copiado! Cole no WhatsApp.');
+    });
 }
 
 async function sincronizarApp() {
