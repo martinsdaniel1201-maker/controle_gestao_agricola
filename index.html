@@ -1681,7 +1681,7 @@ body.dark-mode .resumo-cards .medal-text {
   }
   #btn-logout:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
-  /* Badge do usuário logado */
+  /* Badge do usuário logado (barra de navegação) */
   #user-badge {
     display: none;
     font-size: 10px;
@@ -1691,6 +1691,42 @@ body.dark-mode .resumo-cards .medal-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* Badge do usuário no header do topo */
+  #user-badge-header {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  #user-badge-header.logado { display: flex; }
+  #user-badge-header .ubh-nome {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.80);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #user-badge-header .ubh-logout {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 50px;
+    padding: 3px 10px;
+    font-size: 10px; font-weight: 700;
+    color: rgba(255,255,255,0.90);
+    cursor: pointer;
+    transition: background 0.18s;
+    white-space: nowrap;
+  }
+  #user-badge-header .ubh-logout:hover { background: rgba(255,255,255,0.22); }
+
+  @media (max-width: 600px) {
+    /* No mobile: oculta badge de texto da barra de navegação */
+    #user-badge { display: none !important; }
   }
 
   </style>
@@ -1837,8 +1873,13 @@ body.dark-mode .resumo-cards .medal-text {
   <div class="app-header-inner">
     <div class="app-badge">Gestão Operacional</div>
     <div class="app-title">CONTROLE TÉCNICO AGRÍCOLA</div>
-    
     <div class="header-datetime" id="header-datetime">—</div>
+    <div id="user-badge-header">
+      <span class="ubh-nome"></span>
+      <button class="ubh-logout" onclick="fazerLogout()">
+        <i class="fas fa-sign-out-alt"></i> Sair
+      </button>
+    </div>
   </div>
 </header>
 
@@ -3871,24 +3912,6 @@ if (resumoCards) {
                 rankClass = "rank-others";
             }
 
-            // Metas de safra por frente
-            const metasSafra = {
-                "401": 330490.62,
-                "402": 280186.42,
-                "403": 258189.22,
-                "404": 277888.36,
-                "451": 280133.10
-            };
-
-            const meta = metasSafra[frente] || null;
-            const aderencia = meta ? Math.min((valor / meta) * 100, 999) : null;
-            const aderenciaFormatada = aderencia !== null ? aderencia.toFixed(1) + "%" : "—";
-            const aderenciaCor = aderencia === null ? "var(--text-3)"
-                : aderencia >= 90 ? "#1B5E20"
-                : aderencia >= 70 ? "#E65100"
-                : "#C62828";
-            const metaFormatada = meta ? meta.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + " t" : "—";
-
             // Injeta o HTML com as classes CSS mapeadas para a fonte Inter e o layout do app
             resumoCards.innerHTML += `
                 <div class="frente-card ${rankClass}">
@@ -3901,10 +3924,6 @@ if (resumoCards) {
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 0
                         })} <span class="frente-unit">t</span>
-                    </div>
-                    <div style="margin-top:8px; border-top:1px solid var(--border); padding-top:7px; display:flex; justify-content:space-between; align-items:center; gap:4px;">
-                        <span style="font-size:9px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px;">Meta: ${metaFormatada}</span>
-                        <span style="font-size:11px; font-weight:800; color:${aderenciaCor};">${aderenciaFormatada}</span>
                     </div>
                 </div>
             `;
@@ -5713,10 +5732,17 @@ async function fazerLogout() {
 /* ── Callbacks de estado ── */
 function _onLoginSuccess(user) {
   document.getElementById('login-screen').classList.remove('visible');
+  const nomeUsuario = user.email.split('@')[0];
   const badge = document.getElementById('user-badge');
   if (badge) {
-    badge.textContent = user.email.split('@')[0];
+    badge.textContent = nomeUsuario;
     badge.style.display = 'block';
+  }
+  const badgeHeader = document.getElementById('user-badge-header');
+  if (badgeHeader) {
+    const nomeEl = badgeHeader.querySelector('.ubh-nome');
+    if (nomeEl) nomeEl.textContent = '👤 ' + nomeUsuario;
+    badgeHeader.classList.add('logado');
   }
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) btnLogout.style.display = 'flex';
@@ -5728,6 +5754,12 @@ function _onLogout() {
   mostrarLogin();
   const badge = document.getElementById('user-badge');
   if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
+  const badgeHeader = document.getElementById('user-badge-header');
+  if (badgeHeader) {
+    const nomeEl = badgeHeader.querySelector('.ubh-nome');
+    if (nomeEl) nomeEl.textContent = '';
+    badgeHeader.classList.remove('logado');
+  }
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) btnLogout.style.display = 'none';
   document.getElementById('login-senha').value = '';
