@@ -3871,6 +3871,24 @@ if (resumoCards) {
                 rankClass = "rank-others";
             }
 
+            // Metas de safra por frente
+            const metasSafra = {
+                "401": 330490.62,
+                "402": 280186.42,
+                "403": 258189.22,
+                "404": 277888.36,
+                "451": 280133.10
+            };
+
+            const meta = metasSafra[frente] || null;
+            const aderencia = meta ? Math.min((valor / meta) * 100, 999) : null;
+            const aderenciaFormatada = aderencia !== null ? aderencia.toFixed(1) + "%" : "—";
+            const aderenciaCor = aderencia === null ? "var(--text-3)"
+                : aderencia >= 90 ? "#1B5E20"
+                : aderencia >= 70 ? "#E65100"
+                : "#C62828";
+            const metaFormatada = meta ? meta.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + " t" : "—";
+
             // Injeta o HTML com as classes CSS mapeadas para a fonte Inter e o layout do app
             resumoCards.innerHTML += `
                 <div class="frente-card ${rankClass}">
@@ -3883,6 +3901,10 @@ if (resumoCards) {
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 0
                         })} <span class="frente-unit">t</span>
+                    </div>
+                    <div style="margin-top:8px; border-top:1px solid var(--border); padding-top:7px; display:flex; justify-content:space-between; align-items:center; gap:4px;">
+                        <span style="font-size:9px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px;">Meta: ${metaFormatada}</span>
+                        <span style="font-size:11px; font-weight:800; color:${aderenciaCor};">${aderenciaFormatada}</span>
                     </div>
                 </div>
             `;
