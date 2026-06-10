@@ -5522,7 +5522,7 @@ const _removeFrenteOrig = removeFrente;
 removeFrente = function(id) { _removeFrenteOrig(id); if (!modoSimulacao) salvarEstadoReal(); };
 
 // Polling automático: re-carrega planilha GATEC a cada 5 minutos
-const GATEC_POLL_INTERVAL = 1 * 60 * 1000; // 1 minutos em ms
+const GATEC_POLL_INTERVAL = 3 * 60 * 1000; // 1 minutos em ms
 setInterval(async () => {
   // Só sincroniza se online — evita tentativas desnecessárias offline
   if (!navigator.onLine) return;
