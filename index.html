@@ -313,6 +313,8 @@
       tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
       #liberacoes table { min-width: unset !important; }
       #liberacoes td { white-space: normal !important; text-align: right !important; }
+      #tabela-tratos { min-width: unset !important; }
+      #tabela-tratos td { white-space: normal !important; text-align: right !important; }
     }
     @media screen and (max-width: 768px) {
   .tabs-nav {
@@ -2757,6 +2759,18 @@ body.dark-mode .resumo-cards .medal-text {
   <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
   <section id="conf_os_aba" class="section">
 
+    <!-- SUB-TABS: CONF. OS + TRATOS CULTURAIS -->
+    <nav class="sub-tabs-nav">
+      <button class="sub-tab-btn active" onclick="showSubTab(event,'sub_conf_os')">
+        <i class="fas fa-clipboard-check"></i>CONF. OS
+      </button>
+      <button class="sub-tab-btn" onclick="showSubTab(event,'sub_tratos'); iniciarModuloTratos()">
+        <i class="fas fa-spray-can"></i>TRATOS CULTURAIS
+      </button>
+    </nav>
+
+    <!-- ══ SUB: CONFERÊNCIA DE OS ══ -->
+    <div id="sub_conf_os" class="sub-section active">
     <div class="card">
       <div class="card-title">
         <i class="fas fa-clipboard-check"></i> CONFERÊNCIA OPERADORES × O.S
@@ -2830,6 +2844,103 @@ body.dark-mode .resumo-cards .medal-text {
     <button class="btn-pdf-contextual" onclick="gerarPDF()">
       <i class="fas fa-print"></i> Gerar PDF desta aba
     </button>
+    </div><!-- /sub_conf_os -->
+
+    <!-- ══ SUB: TRATOS CULTURAIS ══ -->
+    <div id="sub_tratos" class="sub-section">
+
+      <!-- CARD: Filtros -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-filter"></i> Filtros — Tratos Culturais</div>
+        <div class="grid-inputs" style="margin-bottom:10px;">
+          <div class="field">
+            <label>Produto</label>
+            <input type="text" id="tratos-filtro-produto" placeholder="Buscar produto..." oninput="filtrarTratos()">
+          </div>
+          <div class="field">
+            <label>Operação Agrícola</label>
+            <select id="tratos-filtro-operacao" onchange="filtrarTratos()">
+              <option value="">— Todas —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nº O.S.</label>
+            <input type="text" id="tratos-filtro-os" placeholder="Nº da O.S..." oninput="filtrarTratos()">
+          </div>
+          <div class="field">
+            <label>Data De</label>
+            <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
+          </div>
+          <div class="field">
+            <label>Data Até</label>
+            <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
+          </div>
+          <div class="field" style="align-self:flex-end;">
+            <label>&nbsp;</label>
+            <button class="btn-clima" onclick="carregarDadosTratos()" style="width:100%; padding:9px 14px;">
+              <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
+          <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            <i class="fas fa-file-excel"></i> Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- CARD: Resumo por Produto × Operação -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-layer-group"></i> Resumo por Produto × Operação</div>
+        <div id="tratos-resumo-produto-op">
+          <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+        </div>
+      </div>
+
+      <!-- CARD: Comparativo de Dosagem -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-vials"></i> Comparativo de Dosagem por Produto</div>
+        <div id="tratos-comparativo-dose">
+          <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+        </div>
+      </div>
+
+      <!-- CARD: Área Total por Operação -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-map-marked-alt"></i> Área Total por Operação Agrícola</div>
+        <div id="tratos-area-operacao">
+          <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+        </div>
+      </div>
+
+      <!-- CARD: Tabela Completa -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-table"></i> Registros Filtrados</div>
+        <div style="overflow-x:auto;">
+          <table id="tabela-tratos" style="min-width:780px;">
+            <thead>
+              <tr>
+                <th>Data Aplic.</th>
+                <th>Nº O.S.</th>
+                <th>Cód. Prod.</th>
+                <th>Desc. Produto</th>
+                <th>Cód. Op.</th>
+                <th>Desc. Operação Agr.</th>
+                <th style="text-align:right;">Área Aplic. (ha)</th>
+                <th style="text-align:right;">Dose Rec.</th>
+                <th style="text-align:right;">Dose Aplic.</th>
+                <th style="text-align:right;">Dif. (%)</th>
+              </tr>
+            </thead>
+            <tbody id="corpo-tabela-tratos">
+              <tr><td colspan="10" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /sub_tratos -->
 
   </section>
 
@@ -3034,7 +3145,12 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarExcelLiberacoes();
-      else if (sid === 'conf_os_aba') exportarConfOsExcel();
+      else if (sid === 'conf_os_aba') {
+        // Verifica qual sub-tab está ativa
+        const subAtiva = document.querySelector('#conf_os_aba .sub-section.active');
+        if (subAtiva && subAtiva.id === 'sub_tratos') exportarTratosExcel();
+        else exportarConfOsExcel();
+      }
       else showToast('ℹ️ Exportação Excel disponível em Liberações e Conferências.', 'info', 3000);
       break;
     }
@@ -5576,6 +5692,482 @@ iniciarSabedoria();
   if (inpIni) { inpIni.max = ontemStr; inpIni.min = '1940-01-01'; }
   if (inpFim) { inpFim.max = ontemStr; inpFim.min = '1940-01-01'; inpFim.value = ontemStr; }
 })();
+
+/* ══════════════════════════════════════════════
+   MÓDULO TRATOS CULTURAIS
+   Fonte: aba PCP da planilha publicada como CSV
+══════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  // URL da aba PCP publicada como CSV
+  const URL_TRATOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv';
+
+  // Limiar de alerta de dosagem (%)
+  const ALERTA_DOSE_PCT = 10;
+
+  // Dados globais do módulo
+  window._tratosDados     = null;  // array bruto do CSV
+  window._tratosFiltrados = null;  // array após filtros
+  window._tratosCols      = null;  // mapeamento de colunas
+  let _tratosIniciado     = false; // flag para carregar só 1 vez por sessão
+
+  /* ── Exporta as funções para escopo global ── */
+  window.iniciarModuloTratos  = iniciarModuloTratos;
+  window.carregarDadosTratos  = carregarDadosTratos;
+  window.filtrarTratos        = filtrarTratos;
+  window.exportarTratosExcel  = exportarTratosExcel;
+
+  /* ── Inicia o módulo (chamado ao abrir o sub-tab) ── */
+  function iniciarModuloTratos() {
+    if (!_tratosIniciado) {
+      _tratosIniciado = true;
+      carregarDadosTratos();
+    }
+  }
+
+  /* ── Converte string de data para objeto Date ── */
+  function parseData(str) {
+    if (!str) return null;
+    // Suporta dd/mm/yyyy e yyyy-mm-dd
+    str = str.trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+      const [d, m, y] = str.split('/');
+      return new Date(+y, +m - 1, +d);
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      return new Date(str.substring(0, 10));
+    }
+    return null;
+  }
+
+  /* ── Formata número com 2 casas, tolerante a vírgula ── */
+  function parseNum(v) {
+    if (v === null || v === undefined || v === '') return NaN;
+    return parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+  }
+
+  /* ── Carrega dados CSV ── */
+  function carregarDadosTratos() {
+    const contador = document.getElementById('tratos-contador');
+    const corpoTabela = document.getElementById('corpo-tabela-tratos');
+    if (contador) contador.textContent = 'Carregando...';
+    if (corpoTabela) corpoTabela.innerHTML =
+      `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados PCP...</td></tr>`;
+
+    Papa.parse(URL_TRATOS, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        if (!results.data || results.data.length === 0) {
+          if (corpoTabela) corpoTabela.innerHTML =
+            `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>Nenhum dado encontrado na aba PCP.</td></tr>`;
+          if (contador) contador.textContent = '0 registros';
+          return;
+        }
+
+        // Detecta colunas flexivelmente
+        const cols = results.meta.fields || [];
+        function findCol(keywords) {
+          return cols.find(c =>
+            keywords.some(k => c.toUpperCase().replace(/\s+/g,'').includes(k.toUpperCase().replace(/\s+/g,'')))
+          ) || '';
+        }
+
+        const colData      = findCol(['DATA','APLICACAO','APLIC']);
+        const colOS        = findCol(['NR','OS','O.S','NUMERO','ORDEM']);
+        const colCodProd   = findCol(['COD','CODI','PRODUTO']);
+        const colDescProd  = findCol(['DESC','PRODUTO','DESCRICAO']);
+        const colCodOp     = findCol(['COD','OPERA','CODI','OPERACAO']);
+        const colDescOp    = findCol(['DESC','OPERA','AGRICOLA','AGRÍCOLA','DESCRICAO']);
+        const colArea      = findCol(['AREA','APLICADA','HA']);
+        const colDoseRec   = findCol(['DOSE','RECO','REC']);
+        const colDoseAplic = findCol(['DOSE','APLIC','APLICADA']);
+
+        window._tratosCols = {
+          colData, colOS, colCodProd, colDescProd,
+          colCodOp, colDescOp, colArea, colDoseRec, colDoseAplic
+        };
+
+        window._tratosDados = results.data;
+        window._tratosFiltrados = results.data;
+
+        // População do dropdown de Operações
+        popularDropdownOperacoes(results.data);
+
+        // Primeira renderização
+        renderizarTratos(results.data);
+
+        if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
+      },
+      error: function() {
+        if (corpoTabela) corpoTabela.innerHTML =
+          `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;"><i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Erro ao carregar dados. Verifique sua conexão.</td></tr>`;
+        if (contador) contador.textContent = 'Erro';
+      }
+    });
+  }
+
+  /* ── Popula dropdown de operações com valores únicos ── */
+  function popularDropdownOperacoes(dados) {
+    const sel = document.getElementById('tratos-filtro-operacao');
+    if (!sel) return;
+    const { colDescOp } = window._tratosCols || {};
+    const unicas = [...new Set(dados.map(r => (r[colDescOp] || '').trim()))].filter(Boolean).sort();
+    sel.innerHTML = '<option value="">— Todas —</option>';
+    unicas.forEach(op => {
+      const o = document.createElement('option');
+      o.value = op;
+      o.textContent = op;
+      sel.appendChild(o);
+    });
+  }
+
+  /* ── Aplica filtros e re-renderiza ── */
+  function filtrarTratos() {
+    if (!window._tratosDados) return;
+    const { colData, colOS, colDescProd, colDescOp } = window._tratosCols || {};
+
+    const bProd    = (document.getElementById('tratos-filtro-produto')?.value   || '').toLowerCase().trim();
+    const bOp      = (document.getElementById('tratos-filtro-operacao')?.value  || '').trim();
+    const bOS      = (document.getElementById('tratos-filtro-os')?.value        || '').toLowerCase().trim();
+    const bDataIni = document.getElementById('tratos-filtro-data-ini')?.value || '';
+    const bDataFim = document.getElementById('tratos-filtro-data-fim')?.value || '';
+
+    const dIni = bDataIni ? new Date(bDataIni + 'T00:00:00') : null;
+    const dFim = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
+
+    const filtrados = window._tratosDados.filter(row => {
+      const prod  = (row[colDescProd] || '').toLowerCase();
+      const op    = (row[colDescOp]   || '').trim();
+      const os    = (row[colOS]       || '').toLowerCase();
+      const dRow  = parseData(row[colData]);
+
+      if (bProd && !prod.includes(bProd)) return false;
+      if (bOp   && op !== bOp)            return false;
+      if (bOS   && !os.includes(bOS))     return false;
+      if (dIni  && dRow && dRow < dIni)   return false;
+      if (dFim  && dRow && dRow > dFim)   return false;
+      return true;
+    });
+
+    window._tratosFiltrados = filtrados;
+    renderizarTratos(filtrados);
+  }
+
+  /* ── Renderiza todos os cards e tabela ── */
+  function renderizarTratos(dados) {
+    renderTabelaTratos(dados);
+    renderResumoTratos(dados);
+    renderComparativoDose(dados);
+    renderAreaOperacao(dados);
+
+    const contador = document.getElementById('tratos-contador');
+    if (contador) contador.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+  }
+
+  /* ─────────────────────────────────────────────
+     TABELA COMPLETA
+  ───────────────────────────────────────────── */
+  function renderTabelaTratos(dados) {
+    const corpo = document.getElementById('corpo-tabela-tratos');
+    if (!corpo) return;
+    const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+
+    if (!dados || dados.length === 0) {
+      corpo.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:20px;font-size:12px;">Nenhum registro encontrado para os filtros aplicados.</td></tr>`;
+      return;
+    }
+
+    corpo.innerHTML = dados.map(row => {
+      const doseRec   = parseNum(row[colDoseRec]);
+      const doseAplic = parseNum(row[colDoseAplic]);
+      let difPct = '—', difStyle = '';
+      if (!isNaN(doseRec) && doseRec > 0 && !isNaN(doseAplic)) {
+        const pct = ((doseAplic - doseRec) / doseRec) * 100;
+        difPct = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+        if (Math.abs(pct) > ALERTA_DOSE_PCT) {
+          difStyle = 'color:var(--red);font-weight:800;';
+        } else {
+          difStyle = 'color:var(--green-700);font-weight:700;';
+        }
+      }
+
+      const esc = v => {
+        const s = String(v || '—');
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      };
+
+      return `<tr>
+        <td data-label="Data Aplic.">${esc(row[colData])}</td>
+        <td data-label="Nº O.S." style="font-weight:700;color:var(--green-900);">${esc(row[colOS])}</td>
+        <td data-label="Cód. Prod." style="color:var(--text-3);font-size:11px;">${esc(row[colCodProd])}</td>
+        <td data-label="Desc. Produto" style="font-weight:600;">${esc(row[colDescProd])}</td>
+        <td data-label="Cód. Op." style="color:var(--text-3);font-size:11px;">${esc(row[colCodOp])}</td>
+        <td data-label="Desc. Operação Agr.">${esc(row[colDescOp])}</td>
+        <td data-label="Área Aplic. (ha)" style="text-align:right;font-weight:600;">${esc(row[colArea])}</td>
+        <td data-label="Dose Rec." style="text-align:right;">${esc(row[colDoseRec])}</td>
+        <td data-label="Dose Aplic." style="text-align:right;">${esc(row[colDoseAplic])}</td>
+        <td data-label="Dif. (%)" style="text-align:right;${difStyle}">${difPct}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* ─────────────────────────────────────────────
+     CARD 1 — RESUMO POR PRODUTO × OPERAÇÃO
+  ───────────────────────────────────────────── */
+  function renderResumoTratos(dados) {
+    const el = document.getElementById('tratos-resumo-produto-op');
+    if (!el) return;
+    const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+
+    if (!dados || dados.length === 0) {
+      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
+      return;
+    }
+
+    // Agrupa por Produto × Operação
+    const grupos = {};
+    dados.forEach(row => {
+      const prod  = (row[colDescProd] || 'Sem Produto').trim();
+      const op    = (row[colDescOp]   || 'Sem Operação').trim();
+      const chave = prod + '|||' + op;
+      if (!grupos[chave]) grupos[chave] = { prod, op, area: 0, somaRec: 0, somaAplic: 0, cnt: 0, cntRec: 0 };
+      const g = grupos[chave];
+      const area      = parseNum(row[colArea])      || 0;
+      const doseRec   = parseNum(row[colDoseRec]);
+      const doseAplic = parseNum(row[colDoseAplic]);
+      g.area += area;
+      g.cnt++;
+      if (!isNaN(doseAplic)) { g.somaAplic += doseAplic; }
+      if (!isNaN(doseRec))   { g.somaRec   += doseRec; g.cntRec++; }
+    });
+
+    const linhas = Object.values(grupos).sort((a, b) => b.area - a.area);
+
+    let html = `<div style="overflow-x:auto;"><table style="min-width:560px;">
+      <thead><tr>
+        <th>Produto</th><th>Operação Agrícola</th>
+        <th style="text-align:right;">Área Total (ha)</th>
+        <th style="text-align:right;">Dose Média Rec.</th>
+        <th style="text-align:right;">Dose Média Aplic.</th>
+        <th style="text-align:right;">Diferença</th>
+      </tr></thead><tbody>`;
+
+    linhas.forEach(g => {
+      const doseRecMedia   = g.cntRec > 0 ? g.somaRec   / g.cntRec   : NaN;
+      const doseAplicMedia = g.cnt    > 0 ? g.somaAplic / g.cnt       : NaN;
+      let difStr = '—', difStyle = '', rowStyle = '';
+
+      if (!isNaN(doseRecMedia) && doseRecMedia > 0 && !isNaN(doseAplicMedia)) {
+        const pct = ((doseAplicMedia - doseRecMedia) / doseRecMedia) * 100;
+        difStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+        if (Math.abs(pct) > ALERTA_DOSE_PCT) {
+          difStyle  = 'color:var(--red);font-weight:800;';
+          rowStyle  = 'background:var(--red-bg);';
+        } else {
+          difStyle  = 'color:var(--green-700);font-weight:700;';
+        }
+      }
+
+      const esc = v => String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      html += `<tr style="${rowStyle}">
+        <td data-label="Produto" style="font-weight:600;">${esc(g.prod)}</td>
+        <td data-label="Operação">${esc(g.op)}</td>
+        <td data-label="Área (ha)" style="text-align:right;font-weight:700;color:var(--green-900);">${g.area.toLocaleString('pt-BR',{maximumFractionDigits:2})} ha</td>
+        <td data-label="Dose Rec." style="text-align:right;">${isNaN(doseRecMedia)   ? '—' : doseRecMedia.toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
+        <td data-label="Dose Aplic." style="text-align:right;">${isNaN(doseAplicMedia) ? '—' : doseAplicMedia.toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
+        <td data-label="Diferença" style="text-align:right;${difStyle}">${difStr}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    if (linhas.some(g => {
+      const dr = g.cntRec > 0 ? g.somaRec/g.cntRec : NaN;
+      const da = g.cnt > 0    ? g.somaAplic/g.cnt   : NaN;
+      return !isNaN(dr) && dr > 0 && !isNaN(da) && Math.abs((da-dr)/dr*100) > ALERTA_DOSE_PCT;
+    })) {
+      html += `<div style="margin-top:10px;padding:10px 14px;background:var(--red-bg);border-left:3px solid var(--red);border-radius:var(--radius-sm);font-size:11px;color:var(--red);font-weight:700;"><i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Linhas em vermelho: diferença de dosagem superior a ${ALERTA_DOSE_PCT}%.</div>`;
+    }
+    el.innerHTML = html;
+  }
+
+  /* ─────────────────────────────────────────────
+     CARD 2 — COMPARATIVO DE DOSAGEM POR PRODUTO
+  ───────────────────────────────────────────── */
+  function renderComparativoDose(dados) {
+    const el = document.getElementById('tratos-comparativo-dose');
+    if (!el) return;
+    const { colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
+
+    if (!dados || dados.length === 0) {
+      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
+      return;
+    }
+
+    // Agrupa por Produto
+    const produtos = {};
+    dados.forEach(row => {
+      const prod      = (row[colDescProd] || 'Sem Produto').trim();
+      const doseRec   = parseNum(row[colDoseRec]);
+      const doseAplic = parseNum(row[colDoseAplic]);
+      if (!produtos[prod]) produtos[prod] = { rec: [], aplic: [] };
+      if (!isNaN(doseRec))   produtos[prod].rec.push(doseRec);
+      if (!isNaN(doseAplic)) produtos[prod].aplic.push(doseAplic);
+    });
+
+    const produtosOrdenados = Object.keys(produtos).sort();
+    if (produtosOrdenados.length === 0) {
+      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado de dosagem disponível.</p>';
+      return;
+    }
+
+    let html = `<div style="overflow-x:auto;"><table style="min-width:480px;">
+      <thead><tr>
+        <th>Produto</th>
+        <th style="text-align:right;">Dose Rec. (média)</th>
+        <th style="text-align:right;">Dose Aplic. Mín.</th>
+        <th style="text-align:right;">Dose Aplic. Média</th>
+        <th style="text-align:right;">Dose Aplic. Máx.</th>
+        <th style="text-align:right;">Amostras</th>
+      </tr></thead><tbody>`;
+
+    const avg = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : NaN;
+    const fmt = v => isNaN(v) ? '—' : v.toLocaleString('pt-BR',{maximumFractionDigits:3});
+    const esc = v => String(v || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    produtosOrdenados.forEach(prod => {
+      const g    = produtos[prod];
+      const rec  = avg(g.rec);
+      const min  = g.aplic.length ? Math.min(...g.aplic) : NaN;
+      const med  = avg(g.aplic);
+      const max  = g.aplic.length ? Math.max(...g.aplic) : NaN;
+
+      // Destaque se variação min-max > ALERTA_DOSE_PCT em relação à média
+      let rowStyle = '';
+      if (!isNaN(med) && med > 0 && !isNaN(min) && !isNaN(max)) {
+        const varPct = ((max - min) / med) * 100;
+        if (varPct > ALERTA_DOSE_PCT) rowStyle = 'background:rgba(255,235,238,0.5);';
+      }
+
+      html += `<tr style="${rowStyle}">
+        <td data-label="Produto" style="font-weight:600;">${esc(prod)}</td>
+        <td data-label="Dose Rec." style="text-align:right;">${fmt(rec)}</td>
+        <td data-label="Mín." style="text-align:right;color:var(--blue);font-weight:700;">${fmt(min)}</td>
+        <td data-label="Média" style="text-align:right;font-weight:700;">${fmt(med)}</td>
+        <td data-label="Máx." style="text-align:right;color:var(--amber);font-weight:700;">${fmt(max)}</td>
+        <td data-label="Amostras" style="text-align:right;color:var(--text-3);">${g.aplic.length}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    html += `<p style="font-size:9px;color:var(--text-3);margin-top:8px;">Fundo rosado = variação entre mínimo e máximo supera ${ALERTA_DOSE_PCT}% da média aplicada.</p>`;
+    el.innerHTML = html;
+  }
+
+  /* ─────────────────────────────────────────────
+     CARD 3 — ÁREA TOTAL POR OPERAÇÃO
+  ───────────────────────────────────────────── */
+  function renderAreaOperacao(dados) {
+    const el = document.getElementById('tratos-area-operacao');
+    if (!el) return;
+    const { colDescOp, colArea, colOS } = window._tratosCols || {};
+
+    if (!dados || dados.length === 0) {
+      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
+      return;
+    }
+
+    const operacoes = {};
+    dados.forEach(row => {
+      const op  = (row[colDescOp] || 'Sem Operação').trim();
+      const os  = (row[colOS]     || '').trim();
+      const ar  = parseNum(row[colArea]) || 0;
+      if (!operacoes[op]) operacoes[op] = { area: 0, oss: new Set() };
+      operacoes[op].area += ar;
+      if (os) operacoes[op].oss.add(os);
+    });
+
+    const lista = Object.entries(operacoes).sort((a, b) => b[1].area - a[1].area);
+    const totalArea = lista.reduce((s, [, v]) => s + v.area, 0);
+
+    let html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">`;
+    const cores = ['var(--green-900)','var(--blue)','var(--amber)','var(--red)'];
+
+    lista.forEach(([op, g], idx) => {
+      const pct    = totalArea > 0 ? (g.area / totalArea) * 100 : 0;
+      const cor    = cores[idx % cores.length];
+      const esc    = v => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html += `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">${esc(op)}</div>
+          <div style="font-size:22px;font-weight:800;color:${cor};line-height:1;">${g.area.toLocaleString('pt-BR',{maximumFractionDigits:1})} ha</div>
+          <div style="font-size:10px;color:var(--text-3);margin-top:4px;">${g.oss.size} O.S. distinta${g.oss.size !== 1 ? 's' : ''}</div>
+          <div style="margin-top:8px;background:var(--border);height:6px;border-radius:99px;overflow:hidden;">
+            <div style="height:100%;width:${pct.toFixed(1)}%;background:${cor};border-radius:99px;"></div>
+          </div>
+          <div style="font-size:9px;color:var(--text-3);margin-top:3px;font-weight:700;">${pct.toFixed(1)}% do total</div>
+        </div>`;
+    });
+
+    html += `</div>`;
+    html += `<div style="margin-top:10px;padding:10px 14px;background:var(--green-50);border:1px solid var(--green-100);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11px;font-weight:700;color:var(--green-900);">Área Total Filtrada</span>
+      <span style="font-size:18px;font-weight:800;color:var(--green-900);">${totalArea.toLocaleString('pt-BR',{maximumFractionDigits:1})} ha</span>
+    </div>`;
+
+    el.innerHTML = html;
+  }
+
+  /* ─────────────────────────────────────────────
+     EXPORTAR EXCEL (CSV com BOM)
+  ───────────────────────────────────────────── */
+  function exportarTratosExcel() {
+    const dados = window._tratosFiltrados;
+    if (!dados || dados.length === 0) {
+      if (typeof showToast === 'function') showToast('⚠️ Nenhum dado para exportar.', 'error', 2500);
+      return;
+    }
+    const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+
+    const cab = ['Data Aplicação','Nº O.S.','Cód. Produto','Desc. Produto','Cód. Operação','Desc. Operação Agr.','Área Aplicada (ha)','Dose Recomendada','Dose Aplicada','Diferença (%)'];
+    const linhas = dados.map(row => {
+      const doseRec   = parseNum(row[colDoseRec]);
+      const doseAplic = parseNum(row[colDoseAplic]);
+      let difPct = '';
+      if (!isNaN(doseRec) && doseRec > 0 && !isNaN(doseAplic)) {
+        difPct = (((doseAplic - doseRec) / doseRec) * 100).toFixed(1) + '%';
+      }
+      return [
+        row[colData]      || '',
+        row[colOS]        || '',
+        row[colCodProd]   || '',
+        row[colDescProd]  || '',
+        row[colCodOp]     || '',
+        row[colDescOp]    || '',
+        row[colArea]      || '',
+        row[colDoseRec]   || '',
+        row[colDoseAplic] || '',
+        difPct
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';');
+    });
+
+    const csv  = '\uFEFF' + cab.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `tratos_culturais_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (typeof showToast === 'function') showToast(`✅ ${dados.length} registros exportados!`, 'success', 2500);
+  }
+
+})(); /* fim IIFE TRATOS CULTURAIS */
 
 /* ══════════════════════════════════════════════
    SUPABASE — AUTENTICAÇÃO
