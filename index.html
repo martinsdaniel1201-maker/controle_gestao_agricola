@@ -2947,8 +2947,8 @@ body.dark-mode .resumo-cards .medal-text {
                 <th>Data Aplic.</th>
                 <th>Nº O.S.</th>
                 <th>Fazenda</th>
-                <th>Desc. Produto</th>
-                <th>Desc. Operação Agr.</th>
+                <th>Produto</th>
+                <th>Operação Agr.</th>
                 <th style="text-align:right;">Área Aplic. (ha)</th>
                 <th style="text-align:right;">Dose Rec.</th>
                 <th style="text-align:right;">Dose Aplic.</th>
@@ -6097,12 +6097,14 @@ iniciarSabedoria();
           ? 'color:var(--red);font-weight:800;'
           : 'color:var(--green-700);font-weight:700;';
       }
+      const prodLabel = [row[colCodProd], row[colDescProd]].filter(v => v && v.trim()).join(' · ');
+      const opLabel   = [row[colCodOp],   row[colDescOp]  ].filter(v => v && v.trim()).join(' · ');
       return `<tr>
         <td data-label="Data Aplic.">${esc(row[colData])}</td>
         <td data-label="Nº O.S." style="font-weight:700;color:var(--green-900);">${esc(row[colOS])}</td>
         <td data-label="Fazenda" style="font-weight:600;">${esc(row[colFazenda])}</td>
-        <td data-label="Desc. Produto" style="font-weight:600;">${esc(row[colDescProd])}</td>
-        <td data-label="Desc. Operação Agr.">${esc(row[colDescOp])}</td>
+        <td data-label="Produto" style="font-weight:600;">${esc(prodLabel)}</td>
+        <td data-label="Operação Agr.">${esc(opLabel)}</td>
         <td data-label="Área Aplic. (ha)" style="text-align:right;font-weight:600;">${esc(row[colArea])}</td>
         <td data-label="Dose Rec." style="text-align:right;">${esc(row[colDoseRec])}</td>
         <td data-label="Dose Aplic." style="text-align:right;">${esc(row[colDoseAplic])}</td>
@@ -6115,7 +6117,7 @@ iniciarSabedoria();
   function renderResumoTratos(dados) {
     const el = document.getElementById('tratos-resumo-produto-op');
     if (!el) return;
-    const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const { colDescProd, colCodProd, colDescOp, colCodOp, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
@@ -6124,10 +6126,12 @@ iniciarSabedoria();
 
     const grupos = {};
     dados.forEach(row => {
+      const codP = (row[colCodProd] || '').trim();
       const prod  = (row[colDescProd] || 'Sem Produto').trim();
+      const codO = (row[colCodOp]   || '').trim();
       const op    = (row[colDescOp]   || 'Sem Operação').trim();
       const chave = prod + '|||' + op;
-      if (!grupos[chave]) grupos[chave] = { prod, op, area:0, somaRec:0, somaAplic:0, cnt:0, cntRec:0 };
+      if (!grupos[chave]) grupos[chave] = { codP, prod, codO, op, area:0, somaRec:0, somaAplic:0, cnt:0, cntRec:0 };
       const g  = grupos[chave];
       g.area  += parseNum(row[colArea]) || 0;
       g.cnt++;
@@ -6167,9 +6171,12 @@ iniciarSabedoria();
         }
       }
 
+      const prodLabel = g.codP ? `<span style="font-size:10px;color:var(--text-3);font-weight:700;">${esc(g.codP)}</span> ${esc(g.prod)}` : esc(g.prod);
+      const opLabel   = g.codO ? `<span style="font-size:10px;color:var(--text-3);font-weight:700;">${esc(g.codO)}</span> ${esc(g.op)}`   : esc(g.op);
+
       html += `<tr style="${rowStyle}">
-        <td data-label="Produto" style="font-weight:600;">${esc(g.prod)}</td>
-        <td data-label="Operação">${esc(g.op)}</td>
+        <td data-label="Produto" style="font-weight:600;">${prodLabel}</td>
+        <td data-label="Operação">${opLabel}</td>
         <td data-label="Área (ha)" style="text-align:right;font-weight:700;color:var(--green-900);">
           ${g.area.toLocaleString('pt-BR',{maximumFractionDigits:2})} ha</td>
         <td data-label="Dose Rec." style="text-align:right;">
@@ -6196,7 +6203,7 @@ iniciarSabedoria();
   function renderComparativoDose(dados) {
     const el = document.getElementById('tratos-comparativo-dose');
     if (!el) return;
-    const { colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const { colDescProd, colCodProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
@@ -6205,12 +6212,14 @@ iniciarSabedoria();
 
     const prods = {};
     dados.forEach(row => {
-      const p  = (row[colDescProd] || 'Sem Produto').trim();
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      if (!prods[p]) prods[p] = { rec:[], aplic:[] };
-      if (!isNaN(dr)) prods[p].rec.push(dr);
-      if (!isNaN(da)) prods[p].aplic.push(da);
+      const cod = (row[colCodProd]  || '').trim();
+      const p   = (row[colDescProd] || 'Sem Produto').trim();
+      const key = cod ? cod + ' · ' + p : p;
+      const dr  = parseNum(row[colDoseRec]);
+      const da  = parseNum(row[colDoseAplic]);
+      if (!prods[key]) prods[key] = { rec:[], aplic:[] };
+      if (!isNaN(dr)) prods[key].rec.push(dr);
+      if (!isNaN(da)) prods[key].aplic.push(da);
     });
 
     const lista = Object.keys(prods).sort();
@@ -6263,7 +6272,7 @@ iniciarSabedoria();
   function renderAreaOperacao(dados) {
     const el = document.getElementById('tratos-area-operacao');
     if (!el) return;
-    const { colDescOp, colArea, colOS } = window._tratosCols || {};
+    const { colDescOp, colCodOp, colArea, colOS } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
@@ -6272,12 +6281,14 @@ iniciarSabedoria();
 
     const ops = {};
     dados.forEach(row => {
-      const op = (row[colDescOp] || 'Sem Operação').trim();
-      const os = (row[colOS]     || '').trim();
-      const ar = parseNum(row[colArea]) || 0;
-      if (!ops[op]) ops[op] = { area:0, oss:new Set() };
-      ops[op].area += ar;
-      if (os) ops[op].oss.add(os);
+      const cod = (row[colCodOp]  || '').trim();
+      const op  = (row[colDescOp] || 'Sem Operação').trim();
+      const key = cod ? cod + ' · ' + op : op;
+      const os  = (row[colOS]     || '').trim();
+      const ar  = parseNum(row[colArea]) || 0;
+      if (!ops[key]) ops[key] = { area:0, oss:new Set() };
+      ops[key].area += ar;
+      if (os) ops[key].oss.add(os);
     });
 
     const lista     = Object.entries(ops).sort((a,b) => b[1].area - a[1].area);
