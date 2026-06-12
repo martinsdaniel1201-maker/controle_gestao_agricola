@@ -315,6 +315,19 @@
       #liberacoes td { white-space: normal !important; text-align: right !important; }
       #tabela-tratos { min-width: unset !important; }
       #tabela-tratos td { white-space: normal !important; text-align: right !important; }
+      /* Tabelas dinâmicas dos cards de Tratos Culturais e Conf. OS */
+      #tratos-resumo-produto-op table,
+      #tratos-comparativo-dose table,
+      #gatec-table-wrapper table,
+      #tabela-conf-os { min-width: unset !important; }
+      #tratos-resumo-produto-op td,
+      #tratos-comparativo-dose td,
+      #gatec-table-wrapper td,
+      #tabela-conf-os td { white-space: normal !important; text-align: right !important; }
+      /* Remove overflow-x dos wrappers no mobile — não precisa mais */
+      #tratos-resumo-produto-op > div,
+      #tratos-comparativo-dose > div,
+      #gatec-table-wrapper { overflow-x: unset !important; }
     }
     @media screen and (max-width: 768px) {
   .tabs-nav {
@@ -5823,6 +5836,30 @@ iniciarSabedoria();
     });
   }
 
+  // ── Popula <select> com "Cód · Desc" como label, mas value = desc (compatível com filtro) ──
+  function popularSelectCodDesc(id, dados, colCod, colDesc, defaultLabel) {
+    const sel = document.getElementById(id);
+    if (!sel || !colDesc) return;
+    const anterior = sel.value;
+    // Monta mapa desc → cod (primeiro encontrado por desc)
+    const mapa = {};
+    dados.forEach(r => {
+      const desc = (r[colDesc] || '').trim();
+      const cod  = (r[colCod]  || '').trim();
+      if (desc && !mapa[desc]) mapa[desc] = cod;
+    });
+    const descs = Object.keys(mapa).sort();
+    sel.innerHTML = `<option value="">${defaultLabel}</option>`;
+    descs.forEach(desc => {
+      const o = document.createElement('option');
+      o.value = desc; // value continua sendo só a descrição — filtrarTratos não precisa mudar
+      const cod = mapa[desc];
+      o.textContent = cod ? `${cod} · ${desc}` : desc;
+      if (desc === anterior) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
   // ── Carrega CSV ──────────────────────────────────────────────────────────
   function carregarDadosTratos() {
     _tratosIniciado = true;
@@ -5859,9 +5896,9 @@ iniciarSabedoria();
         window._tratosFiltrados = results.data;
 
         // Popula os 3 dropdowns de filtro com valores únicos reais
-        popularSelect('tratos-filtro-produto',  results.data, cols.colDescProd, '— Todos —');
-        popularSelect('tratos-filtro-fazenda',  results.data, cols.colFazenda,  '— Todas —');
-        popularSelect('tratos-filtro-operacao', results.data, cols.colDescOp,   '— Todas —');
+        popularSelectCodDesc('tratos-filtro-produto',  results.data, cols.colCodProd, cols.colDescProd, '— Todos —');
+        popularSelect       ('tratos-filtro-fazenda',  results.data, cols.colFazenda,                   '— Todas —');
+        popularSelectCodDesc('tratos-filtro-operacao', results.data, cols.colCodOp,   cols.colDescOp,   '— Todas —');
 
         renderizarTratos(results.data);
         if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
