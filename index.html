@@ -2907,6 +2907,12 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
       </div>
 
+      <!-- CARD: Insights Operacionais -->
+      <div class="card" id="card-tratos-insights" style="display:none;">
+        <div class="card-title"><i class="fas fa-lightbulb"></i> Insights Operacionais</div>
+        <div id="tratos-insights-container"></div>
+      </div>
+
       <!-- CARD: Resumo por Produto × Operação -->
       <div class="card">
         <div class="card-title"><i class="fas fa-layer-group"></i> Resumo por Produto × Operação</div>
@@ -5711,14 +5717,14 @@ iniciarSabedoria();
 
 /* ══════════════════════════════════════════════
    MÓDULO TRATOS CULTURAIS
-   Fonte: aba PCP — terceira aba da planilha (gid=1369358716)
+   Fonte: aba PCP — terceira aba da planilha (gid=724202507)
 ══════════════════════════════════════════════ */
 (function() {
   'use strict';
 
   // ── URL da aba PCP (3ª aba da planilha) ──────────────────────────────────
   // Se não carregar, confirme o gid em: Arquivo → Publicar na web → selecione "PCP" → copie o link CSV.
-  const URL_TRATOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=1369358716&single=true&output=csv';
+  const URL_TRATOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=724202507&single=true&output=csv';
 
   const ALERTA_DOSE_PCT = 10;
 
@@ -5905,6 +5911,7 @@ iniciarSabedoria();
 
   // ── Orquestra renderização ───────────────────────────────────────────────
   function renderizarTratos(dados) {
+    renderInsightsTratos(dados);
     renderTabelaTratos(dados);
     renderResumoTratos(dados);
     renderComparativoDose(dados);
@@ -5913,6 +5920,155 @@ iniciarSabedoria();
     if (contador)
       contador.textContent =
         `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+  }
+
+  // ── CARD INSIGHTS ────────────────────────────────────────────────────────
+  function renderInsightsTratos(dados) {
+    const card = document.getElementById('card-tratos-insights');
+    const el   = document.getElementById('tratos-insights-container');
+    if (!card || !el) return;
+
+    if (!dados || dados.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+    const { colDescProd, colDescOp, colFazenda, colArea,
+            colDoseRec, colDoseAplic, colOS, colData } = window._tratosCols || {};
+
+    const insights = [];
+
+    // ── Agrega por produto para análise de dosagem ──
+    const porProd = {};
+    dados.forEach(row => {
+      const p  = (row[colDescProd] || 'Sem Produto').trim();
+      const dr = parseNum(row[colDoseRec]);
+      const da = parseNum(row[colDoseAplic]);
+      if (!porProd[p]) porProd[p] = { difs: [], rec: [], aplic: [] };
+      if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
+        const pct = ((da - dr) / dr) * 100;
+        porProd[p].difs.push(pct);
+      }
+      if (!isNaN(dr)) porProd[p].rec.push(dr);
+      if (!isNaN(da)) porProd[p].aplic.push(da);
+    });
+
+    // ── Insight 1: produto com maior desvio médio de dosagem ──
+    let piorProd = null, piorDesvio = 0;
+    Object.entries(porProd).forEach(([p, g]) => {
+      if (!g.difs.length) return;
+      const med = g.difs.reduce((s, v) => s + v, 0) / g.difs.length;
+      if (Math.abs(med) > Math.abs(piorDesvio)) { piorDesvio = med; piorProd = p; }
+    });
+    if (piorProd && Math.abs(piorDesvio) > ALERTA_DOSE_PCT) {
+      const sinal = piorDesvio > 0 ? 'acima' : 'abaixo';
+      const cor   = piorDesvio > 0 ? 'warn' : 'warn';
+      insights.push({ type: 'warn',
+        msg: `<b>${esc(piorProd)}</b> apresenta dose média aplicada <b>${Math.abs(piorDesvio).toFixed(1)}% ${sinal}</b> da dose recomendada (média de ${porProd[piorProd].difs.length} aplicação${porProd[piorProd].difs.length !== 1 ? 'ões' : ''}). Verifique calibração do equipamento e apontamento de campo.`,
+        icon: 'fas fa-exclamation-triangle'
+      });
+    }
+
+    // ── Insight 2: produto com alta dispersão mín→máx (inconsistência) ──
+    let prodDisperso = null, maiorDisp = 0;
+    Object.entries(porProd).forEach(([p, g]) => {
+      if (g.aplic.length < 3) return;
+      const mn  = Math.min(...g.aplic);
+      const mx  = Math.max(...g.aplic);
+      const med = g.aplic.reduce((s, v) => s + v, 0) / g.aplic.length;
+      if (med > 0) {
+        const disp = ((mx - mn) / med) * 100;
+        if (disp > maiorDisp) { maiorDisp = disp; prodDisperso = { nome: p, mn, mx, med, disp, n: g.aplic.length }; }
+      }
+    });
+    if (prodDisperso && prodDisperso.disp > 20) {
+      const fmt = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+      insights.push({ type: 'warn',
+        msg: `<b>${esc(prodDisperso.nome)}</b> tem alta variação de dose aplicada: mín. <b>${fmt(prodDisperso.mn)}</b> → máx. <b>${fmt(prodDisperso.mx)}</b> (dispersão de ${prodDisperso.disp.toFixed(0)}% sobre a média). Possível inconsistência entre operadores ou lotes.`,
+        icon: 'fas fa-chart-bar'
+      });
+    }
+
+    // ── Insight 3: operação / produto dominante em área ──
+    const porCombo = {};
+    dados.forEach(row => {
+      const p  = (row[colDescProd] || 'Sem Produto').trim();
+      const op = (row[colDescOp]   || 'Sem Operação').trim();
+      const k  = p + '|||' + op;
+      const ar = parseNum(row[colArea]) || 0;
+      if (!porCombo[k]) porCombo[k] = { prod: p, op, area: 0 };
+      porCombo[k].area += ar;
+    });
+    const combos    = Object.values(porCombo).sort((a, b) => b.area - a.area);
+    const totalArea = combos.reduce((s, c) => s + c.area, 0);
+    if (combos.length > 0 && totalArea > 0) {
+      const top = combos[0];
+      const pct = (top.area / totalArea * 100).toFixed(0);
+      if (combos.length === 1) {
+        insights.push({ type: 'tip',
+          msg: `Filtro atual mostra <b>somente uma combinação</b>: <b>${esc(top.prod)}</b> via <b>${esc(top.op)}</b> — ${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha no total.`,
+          icon: 'fas fa-filter'
+        });
+      } else if (+pct >= 60) {
+        insights.push({ type: 'tip',
+          msg: `<b>${esc(top.prod)}</b> / <b>${esc(top.op)}</b> representa <b>${pct}%</b> da área filtrada (${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha de ${totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha totais). Operação predominante no período.`,
+          icon: 'fas fa-seedling'
+        });
+      }
+    }
+
+    // ── Insight 4: concentração fazenda ──
+    const porFaz = {};
+    dados.forEach(row => {
+      const f  = (row[colFazenda] || 'Sem Fazenda').trim();
+      const ar = parseNum(row[colArea]) || 0;
+      if (!porFaz[f]) porFaz[f] = { area: 0, oss: new Set() };
+      porFaz[f].area += ar;
+      if (row[colOS]) porFaz[f].oss.add((row[colOS] || '').trim());
+    });
+    const fazendas   = Object.entries(porFaz).sort((a, b) => b[1].area - a[1].area);
+    const nFazendas  = fazendas.length;
+    if (nFazendas >= 3 && totalArea > 0) {
+      const top1area = fazendas[0][1].area;
+      const top1pct  = (top1area / totalArea * 100).toFixed(0);
+      if (+top1pct >= 50) {
+        insights.push({ type: 'tip',
+          msg: `A fazenda <b>${esc(fazendas[0][0])}</b> concentra <b>${top1pct}%</b> da área aplicada (${top1area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha) entre as ${nFazendas} fazendas no filtro atual.`,
+          icon: 'fas fa-map-marker-alt'
+        });
+      }
+    }
+
+    // ── Insight 5: janela de datas (se filtro ativo) ──
+    const dIni = document.getElementById('tratos-filtro-data-ini')?.value;
+    const dFim = document.getElementById('tratos-filtro-data-fim')?.value;
+    if (dIni || dFim) {
+      const fmt = s => s ? s.split('-').reverse().join('/') : '—';
+      const totalOS = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean)).size;
+      insights.push({ type: 'tip',
+        msg: `Período filtrado: <b>${fmt(dIni)}</b> a <b>${fmt(dFim)}</b> — <b>${dados.length}</b> registro${dados.length !== 1 ? 's' : ''} · <b>${totalOS}</b> O.S. distinta${totalOS !== 1 ? 's' : ''} · <b>${totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b> aplicados.`,
+        icon: 'fas fa-calendar-alt'
+      });
+    }
+
+    // ── Insight 6: tudo OK ──
+    if (insights.length === 0) {
+      const totalOS = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean)).size;
+      const nProds  = Object.keys(porProd).length;
+      insights.push({ type: 'ok',
+        msg: `<b>${dados.length} registro${dados.length !== 1 ? 's' : ''}</b> analisados — Todas as dosagens dentro dos limites aceitáveis (&lt;${ALERTA_DOSE_PCT}% de desvio). <b>${nProds} produto${nProds !== 1 ? 's' : ''}</b> · <b>${totalOS} O.S.</b> · <b>${totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b>.`,
+        icon: 'fas fa-check-circle'
+      });
+    }
+
+    el.innerHTML = `<div class="insights-box">` +
+      insights.map(ins => `
+        <div class="insight-item ${ins.type}">
+          <i class="${ins.icon}"></i>
+          <span>${ins.msg}</span>
+        </div>`).join('') +
+      `</div>`;
   }
 
   // ── TABELA COMPLETA ──────────────────────────────────────────────────────
