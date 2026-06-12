@@ -184,6 +184,70 @@
 
     /* ── INPUTS ── */
     .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; }
+
+    /* ── FILTROS TRATOS — layout mobile melhorado ── */
+    .tratos-filtros-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .tratos-filtros-grid .field-full { grid-column: 1 / -1; }
+    .tratos-filtros-datas {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .tratos-filtros-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    @media (max-width: 480px) {
+      .tratos-filtros-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── CARDS COLAPSÁVEIS TRATOS ── */
+    .tratos-card-collapsible .tratos-card-body {
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;
+    }
+    .tratos-card-collapsible.open .tratos-card-body {
+      max-height: 6000px;
+      opacity: 1;
+    }
+    .tratos-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    .tratos-card-collapsible.open .tratos-card-header {
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .tratos-chevron {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-3);
+      transition: transform 0.3s ease;
+      flex-shrink: 0;
+    }
+    .tratos-card-collapsible.open .tratos-chevron { transform: rotate(180deg); }
+    .tratos-chevron-hint {
+      font-size: 10px; color: var(--text-3); font-weight: 400;
+      transition: opacity 0.2s;
+    }
+    .tratos-card-collapsible.open .tratos-chevron-hint { opacity: 0; pointer-events: none; }
     .field label {
       font-size: 9px; font-weight: 700; color: var(--text-3);
       text-transform: uppercase; letter-spacing: 0.5px;
@@ -1964,7 +2028,7 @@ body.dark-mode .resumo-cards .medal-text {
         <i class="fas fa-clipboard-check"></i>
       </div>
       <span class="menu-label">Conferências</span>
-      <span class="menu-tag">OP x O.S · Tratos Culturais</span>
+      <span class="menu-tag">Operadores x O.S</span>
     </button>
 
     <button class="tab-btn menu-c5" onclick="showTab(event,'mapas_aba')">
@@ -2901,114 +2965,134 @@ body.dark-mode .resumo-cards .medal-text {
       <!-- CARD: Filtros -->
       <div class="card">
         <div class="card-title"><i class="fas fa-filter"></i> Filtros — Tratos Culturais</div>
-        <div class="grid-inputs" style="margin-bottom:10px;">
 
-          <!-- Produto: dropdown com opções únicas -->
+        <!-- Linha 1: Produto + Fazenda -->
+        <div class="tratos-filtros-grid">
           <div class="field">
             <label>Produto</label>
             <select id="tratos-filtro-produto" onchange="filtrarTratos()">
               <option value="">— Todos —</option>
             </select>
           </div>
-
-          <!-- Fazenda: dropdown com opções únicas -->
           <div class="field">
             <label>Fazenda</label>
             <select id="tratos-filtro-fazenda" onchange="filtrarTratos()">
               <option value="">— Todas —</option>
             </select>
           </div>
-
-          <!-- Operação Agrícola: dropdown com opções únicas -->
-          <div class="field">
+          <!-- Linha 2: Operação (full width em mobile) -->
+          <div class="field field-full">
             <label>Operação Agrícola</label>
             <select id="tratos-filtro-operacao" onchange="filtrarTratos()">
               <option value="">— Todas —</option>
             </select>
           </div>
+        </div>
 
-          <!-- Data De -->
+        <!-- Linha 3: Datas lado a lado -->
+        <div class="tratos-filtros-datas">
           <div class="field">
             <label>Data De</label>
             <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
           </div>
-
-          <!-- Data Até -->
           <div class="field">
             <label>Data Até</label>
             <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
           </div>
+        </div>
 
-          <!-- Botão Atualizar -->
-          <div class="field" style="align-self:flex-end;">
-            <label>&nbsp;</label>
-            <button class="btn-clima" onclick="carregarDadosTratos()" style="width:100%; padding:9px 14px;">
+        <!-- Linha 4: contador + botões -->
+        <div class="tratos-filtros-actions">
+          <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
               <i class="fas fa-sync-alt"></i> Atualizar
             </button>
+            <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+              <i class="fas fa-file-excel"></i> Exportar
+            </button>
           </div>
-
-        </div>
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-          <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
-          <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-            <i class="fas fa-file-excel"></i> Exportar Excel
-          </button>
         </div>
       </div>
 
-      <!-- CARD: Insights Operacionais -->
-      <div class="card" id="card-tratos-insights" style="display:none;">
-        <div class="card-title"><i class="fas fa-lightbulb"></i> Insights Operacionais</div>
-        <div id="tratos-insights-container"></div>
-      </div>
-
-      <!-- CARD: Resumo por Produto × Operação -->
-      <div class="card">
-        <div class="card-title"><i class="fas fa-layer-group"></i> Resumo por Produto × Operação</div>
-        <div id="tratos-resumo-produto-op">
-          <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+      <!-- CARD: Insights Operacionais (colapsável) -->
+      <div class="card tratos-card-collapsible open" id="card-tratos-insights" style="display:none;">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-lightbulb"></i> Insights Operacionais</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+          <div id="tratos-insights-container"></div>
         </div>
       </div>
 
-      <!-- CARD: Comparativo de Dosagem -->
-      <div class="card">
-        <div class="card-title"><i class="fas fa-vials"></i> Comparativo de Dosagem por Produto</div>
-        <div id="tratos-comparativo-dose">
-          <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+      <!-- CARD: Resumo por Produto × Operação (colapsável) -->
+      <div class="card tratos-card-collapsible open">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-layer-group"></i> Resumo por Produto × Operação</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+          <div id="tratos-resumo-produto-op">
+            <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+          </div>
         </div>
       </div>
 
-      <!-- CARD: Área Total por Operação -->
-      <div class="card">
-        <div class="card-title"><i class="fas fa-map-marked-alt"></i> Área Total por Operação Agrícola</div>
-        <div id="tratos-area-operacao">
-          <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+      <!-- CARD: Comparativo de Dosagem (colapsável) -->
+      <div class="card tratos-card-collapsible">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-vials"></i> Comparativo de Dosagem por Produto</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+          <div id="tratos-comparativo-dose">
+            <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+          </div>
         </div>
       </div>
 
-      <!-- CARD: Tabela Completa -->
-      <div class="card">
-        <div class="card-title"><i class="fas fa-table"></i> Registros Filtrados</div>
-        <div style="overflow-x:auto;">
-          <table id="tabela-tratos">
-            <thead>
-              <tr>
-                <th>Data Aplic.</th>
-                <th>Nº O.S.</th>
-                <th>Cód. Fazenda</th>
-                <th>Desc. Fazenda</th>
-                <th>Produto</th>
-                <th>Operação Agr.</th>
-                <th style="text-align:right;">Área Aplic. (ha)</th>
-                <th style="text-align:right;">Dose Rec.</th>
-                <th style="text-align:right;">Dose Aplic.</th>
-                <th style="text-align:right;">Dif. (%)</th>
-              </tr>
-            </thead>
-            <tbody id="corpo-tabela-tratos">
-              <tr><td colspan="10" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>
-            </tbody>
-          </table>
+      <!-- CARD: Área Total por Operação (colapsável) -->
+      <div class="card tratos-card-collapsible">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-map-marked-alt"></i> Área Total por Operação Agrícola</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+          <div id="tratos-area-operacao">
+            <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD: Registros Filtrados (colapsável) -->
+      <div class="card tratos-card-collapsible open">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-table"></i> Registros Filtrados</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+          <div style="overflow-x:auto;">
+            <table id="tabela-tratos">
+              <thead>
+                <tr>
+                  <th>Data Aplic.</th>
+                  <th>Nº O.S.</th>
+                  <th>Cód. Fazenda</th>
+                  <th>Desc. Fazenda</th>
+                  <th>Produto</th>
+                  <th>Operação Agr.</th>
+                  <th style="text-align:right;">Área Aplic. (ha)</th>
+                  <th style="text-align:right;">Dose Rec.</th>
+                  <th style="text-align:right;">Dose Aplic.</th>
+                  <th style="text-align:right;">Dif. (%)</th>
+                </tr>
+              </thead>
+              <tbody id="corpo-tabela-tratos">
+                <tr><td colspan="10" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -5727,6 +5811,13 @@ function toggleCard(id) {
   if (!card) return;
   card.classList.toggle('open');
 }
+
+// Colapsável para cards de Tratos Culturais — acionado pelo header clicável
+function toggleTratosCard(headerEl) {
+  const card = headerEl.closest('.tratos-card-collapsible');
+  if (!card) return;
+  card.classList.toggle('open');
+}
   /* ══════════════════════════════════════════════
    SERVICE WORKER — SUPORTE OFFLINE / PWA
 ══════════════════════════════════════════════ */
@@ -5874,32 +5965,41 @@ iniciarSabedoria();
     });
   }
 
-  // ── Popula <select> com "Cód · Desc" como label, mas value = desc (compatível com filtro) ──
-  // Se colDesc estiver vazio (coluna não detectada), usa colCod como fallback de descrição
+  // ── Popula <select> com "Cód · Desc" como label e value = valor exato da coluna ──
+  // Se colDesc não detectada, usa colCod como fallback.
+  // value sempre = o valor RAW da coluna usada — filtrarTratos compara direto com o mesmo campo.
   function popularSelectCodDesc(id, dados, colCod, colDesc, defaultLabel) {
     const sel = document.getElementById(id);
     if (!sel) return;
-    // Se não temos coluna de descrição, usa a de código como fallback
-    const colDescEfetivo = colDesc || colCod;
-    if (!colDescEfetivo) return;
+    const colValor = colDesc || colCod; // coluna cujo valor vai para o filtro
+    if (!colValor) return;
     const anterior = sel.value;
-    // Monta mapa desc → cod (primeiro encontrado por desc)
+    // mapa: valorFiltro → cod (para montar label visual)
     const mapa = {};
     dados.forEach(r => {
-      const desc = (r[colDescEfetivo] || '').trim();
-      const cod  = (colCod && colCod !== colDescEfetivo) ? (r[colCod] || '').trim() : '';
-      if (desc && !mapa[desc]) mapa[desc] = cod;
+      const val = (r[colValor] || '').trim();
+      const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
+      if (val && !mapa[val]) mapa[val] = cod;
     });
-    const descs = Object.keys(mapa).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const vals = Object.keys(mapa).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     sel.innerHTML = `<option value="">${defaultLabel}</option>`;
-    descs.forEach(desc => {
+    vals.forEach(val => {
       const o = document.createElement('option');
-      o.value = desc; // value = descrição — filtrarTratos compara por descrição
-      const cod = mapa[desc];
-      o.textContent = cod ? `${cod} · ${desc}` : desc;
-      if (desc === anterior) o.selected = true;
+      o.value = val;                              // value = valor exato da linha — sem transformação
+      const cod = mapa[val];
+      o.textContent = cod ? `${cod} · ${val}` : val;
+      if (val === anterior) o.selected = true;
       sel.appendChild(o);
     });
+    // Garante que o select não fique em estado inconsistente após repopular
+    if (anterior && !vals.includes(anterior)) sel.value = '';
+  }
+
+  // Lê o value de um select de forma segura (sem depender de comportamento nativo variável)
+  function selectVal(id) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    return (el.options[el.selectedIndex]?.value || '').trim();
   }
 
   // ── Carrega CSV ──────────────────────────────────────────────────────────
@@ -5966,21 +6066,22 @@ iniciarSabedoria();
   function filtrarTratos() {
     if (!window._tratosDados) return;
     const { colData, colDescProd, colFazenda, colCodFazenda, colDescOp } = window._tratosCols || {};
-    // Usa descrição de fazenda se disponível, caso contrário usa código (mesmo fallback do dropdown)
+    // Mesma coluna usada pelo popularSelectCodDesc para montar os values
     const colFazEfetiva = colFazenda || colCodFazenda;
 
-    const bProd    = (document.getElementById('tratos-filtro-produto')?.value   || '').trim();
-    const bFaz     = (document.getElementById('tratos-filtro-fazenda')?.value   || '').trim();
-    const bOp      = (document.getElementById('tratos-filtro-operacao')?.value  || '').trim();
-    const bDataIni = document.getElementById('tratos-filtro-data-ini')?.value  || '';
-    const bDataFim = document.getElementById('tratos-filtro-data-fim')?.value  || '';
+    // selectVal lê o value real da option selecionada, evitando bugs em browsers mobile
+    const bProd    = selectVal('tratos-filtro-produto');
+    const bFaz     = selectVal('tratos-filtro-fazenda');
+    const bOp      = selectVal('tratos-filtro-operacao');
+    const bDataIni = (document.getElementById('tratos-filtro-data-ini')?.value || '').trim();
+    const bDataFim = (document.getElementById('tratos-filtro-data-fim')?.value || '').trim();
     const dIni     = bDataIni ? new Date(bDataIni + 'T00:00:00') : null;
     const dFim     = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
 
     const filtrados = window._tratosDados.filter(row => {
       if (bProd && (row[colDescProd]    || '').trim() !== bProd) return false;
-      if (bFaz  && (row[colFazEfetiva] || '').trim() !== bFaz)  return false;
-      if (bOp   && (row[colDescOp]     || '').trim() !== bOp)   return false;
+      if (bFaz  && (row[colFazEfetiva]  || '').trim() !== bFaz)  return false;
+      if (bOp   && (row[colDescOp]      || '').trim() !== bOp)   return false;
       if (dIni || dFim) {
         const dRow = parseData(row[colData]);
         if (dRow) {
@@ -5992,6 +6093,14 @@ iniciarSabedoria();
     });
 
     window._tratosFiltrados = filtrados;
+    // Atualiza contador
+    const contador = document.getElementById('tratos-contador');
+    if (contador) {
+      const total = window._tratosDados.length;
+      contador.textContent = filtrados.length === total
+        ? `${total} registros`
+        : `${filtrados.length} de ${total} registros`;
+    }
     renderizarTratos(filtrados);
   }
 
@@ -6095,7 +6204,7 @@ iniciarSabedoria();
       if (!porCombo[k]) porCombo[k] = { prod: p, op, area: 0 };
       porCombo[k].area += ar;
     });
-    const combos    = Object.values(porCombo).sort((a, b) => b.area - a.area);
+    const combos         = Object.values(porCombo).sort((a, b) => b.area - a.area);
     const totalAreaCombos = combos.reduce((s, c) => s + c.area, 0);
     if (combos.length > 0 && totalAreaCombos > 0) {
       const top = combos[0];
