@@ -2959,7 +2959,8 @@ body.dark-mode .resumo-cards .medal-text {
               <tr>
                 <th>Data Aplic.</th>
                 <th>Nº O.S.</th>
-                <th>Fazenda</th>
+                <th>Cód. Fazenda</th>
+                <th>Desc. Fazenda</th>
                 <th>Produto</th>
                 <th>Operação Agr.</th>
                 <th style="text-align:right;">Área Aplic. (ha)</th>
@@ -2969,7 +2970,7 @@ body.dark-mode .resumo-cards .medal-text {
               </tr>
             </thead>
             <tbody id="corpo-tabela-tratos">
-              <tr><td colspan="9" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>
+              <tr><td colspan="10" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>
             </tbody>
           </table>
         </div>
@@ -5807,16 +5808,17 @@ iniciarSabedoria();
 
     // Candidatos ordenados por especificidade (mais específico primeiro)
     return {
-      colData     : findCol(['DATA APLICACAO','DATAAPLIC','DT APLIC','DATA']),
-      colOS       : findCol(['NR OS','NROS','NR. O.S.','N OS','NUMEROOS','OS']),
-      colCodProd  : findCol(['COD PRODUTO','CODPROD','CODIGO PRODUTO','COD PROD']),
-      colDescProd : findCol(['DESC PRODUTO','DESCPROD','DESCRICAO PRODUTO','NOME PRODUTO','PRODUTO']),
-      colCodOp    : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
-      colDescOp   : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
-      colFazenda  : findCol(['FAZENDA','FARM','PROPRIEDADE','UNIDADE','LOCAL']),
-      colArea     : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
-      colDoseRec  : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
-      colDoseAplic: findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
+      colData      : findCol(['DATA APLICACAO','DATAAPLIC','DT APLIC','DATA']),
+      colOS        : findCol(['NR OS','NROS','NR. O.S.','N OS','NUMEROOS','OS']),
+      colCodProd   : findCol(['COD PRODUTO','CODPROD','CODIGO PRODUTO','COD PROD']),
+      colDescProd  : findCol(['DESC PRODUTO','DESCPROD','DESCRICAO PRODUTO','NOME PRODUTO','PRODUTO']),
+      colCodOp     : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
+      colDescOp    : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
+      colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ']),
+      colFazenda   : findCol(['DESC FAZENDA','DESCFAZENDA','DESCRICAO FAZENDA','FAZENDA','FARM','PROPRIEDADE','UNIDADE','LOCAL']),
+      colArea      : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
+      colDoseRec   : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
+      colDoseAplic : findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
     };
   }
 
@@ -5867,7 +5869,7 @@ iniciarSabedoria();
     const corpoTabela = document.getElementById('corpo-tabela-tratos');
     if (contador)    contador.textContent = 'Carregando...';
     if (corpoTabela) corpoTabela.innerHTML =
-      `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
+      `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
         <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados PCP...
       </td></tr>`;
 
@@ -5878,7 +5880,7 @@ iniciarSabedoria();
       complete: function(results) {
         if (!results.data || results.data.length === 0) {
           if (corpoTabela) corpoTabela.innerHTML =
-            `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
+            `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
               <i class="fas fa-info-circle" style="margin-right:6px;"></i>
               Nenhum dado encontrado na aba PCP.
             </td></tr>`;
@@ -5896,9 +5898,9 @@ iniciarSabedoria();
         window._tratosFiltrados = results.data;
 
         // Popula os 3 dropdowns de filtro com valores únicos reais
-        popularSelectCodDesc('tratos-filtro-produto',  results.data, cols.colCodProd, cols.colDescProd, '— Todos —');
-        popularSelect       ('tratos-filtro-fazenda',  results.data, cols.colFazenda,                   '— Todas —');
-        popularSelectCodDesc('tratos-filtro-operacao', results.data, cols.colCodOp,   cols.colDescOp,   '— Todas —');
+        popularSelectCodDesc('tratos-filtro-produto',  results.data, cols.colCodProd,    cols.colDescProd, '— Todos —');
+        popularSelectCodDesc('tratos-filtro-fazenda',  results.data, cols.colCodFazenda, cols.colFazenda,  '— Todas —');
+        popularSelectCodDesc('tratos-filtro-operacao', results.data, cols.colCodOp,      cols.colDescOp,   '— Todas —');
 
         renderizarTratos(results.data);
         if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
@@ -5906,7 +5908,7 @@ iniciarSabedoria();
       error: function(err) {
         console.error('[Tratos] Erro CSV:', err);
         if (corpoTabela) corpoTabela.innerHTML =
-          `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
+          `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
             <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
             Erro ao carregar dados. Verifique a conexão ou o gid da aba PCP.
           </td></tr>`;
@@ -5975,6 +5977,14 @@ iniciarSabedoria();
             colDoseRec, colDoseAplic, colOS, colData } = window._tratosCols || {};
 
     const insights = [];
+
+    // ── Área real: conta UMA VEZ por O.S. ──
+    const areaOS = {};
+    dados.forEach(row => {
+      const os = (row[colOS] || '').trim();
+      if (os && !(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
+    });
+    const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
 
     // ── Agrega por produto para análise de dosagem ──
     const porProd = {};
@@ -6113,15 +6123,18 @@ iniciarSabedoria();
     const corpo = document.getElementById('corpo-tabela-tratos');
     if (!corpo) return;
     const { colData, colOS, colCodProd, colDescProd, colCodOp,
-            colDescOp, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       corpo.innerHTML =
-      `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:20px;font-size:12px;">
+      `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:20px;font-size:12px;">
           Nenhum registro encontrado para os filtros aplicados.
         </td></tr>`;
       return;
     }
+
+    // Rastreia quais O.S. já tiveram a área contabilizada para indicação visual
+    const ossAreaVista = new Set();
 
     corpo.innerHTML = dados.map(row => {
       const dr = parseNum(row[colDoseRec]);
@@ -6134,15 +6147,31 @@ iniciarSabedoria();
           ? 'color:var(--red);font-weight:800;'
           : 'color:var(--green-700);font-weight:700;';
       }
+      const codFaz    = esc((row[colCodFazenda] || '').trim());
+      const descFaz   = esc((row[colFazenda]    || '').trim());
       const prodLabel = [row[colCodProd], row[colDescProd]].filter(v => v && v.trim()).join(' · ');
       const opLabel   = [row[colCodOp],   row[colDescOp]  ].filter(v => v && v.trim()).join(' · ');
+
+      // Indicação visual de área: se a mesma O.S. já apareceu antes, marca como "compartilhada"
+      const osKey = (row[colOS] || '').trim();
+      const areaJaContada = ossAreaVista.has(osKey) && osKey !== '';
+      if (osKey) ossAreaVista.add(osKey);
+      const areaVal   = esc(row[colArea]);
+      const areaStyle = areaJaContada
+        ? 'text-align:right;font-weight:600;color:var(--text-3);font-style:italic;'
+        : 'text-align:right;font-weight:600;color:var(--green-900);';
+      const areaTip   = areaJaContada
+        ? ` title="Mesma O.S. — área não duplicada nos totais"`
+        : '';
+
       return `<tr>
         <td data-label="Data Aplic.">${esc(row[colData])}</td>
         <td data-label="Nº O.S." style="font-weight:700;color:var(--green-900);">${esc(row[colOS])}</td>
-        <td data-label="Fazenda" style="font-weight:600;">${esc(row[colFazenda])}</td>
+        <td data-label="Cód. Fazenda" style="font-weight:600;color:var(--text-3);">${codFaz || '—'}</td>
+        <td data-label="Desc. Fazenda" style="font-weight:600;">${descFaz || '—'}</td>
         <td data-label="Produto" style="font-weight:600;">${esc(prodLabel)}</td>
         <td data-label="Operação Agr.">${esc(opLabel)}</td>
-        <td data-label="Área Aplic. (ha)" style="text-align:right;font-weight:600;">${esc(row[colArea])}</td>
+        <td data-label="Área Aplic. (ha)" style="${areaStyle}"${areaTip}>${areaVal}${areaJaContada ? ' <span style="font-size:9px;vertical-align:middle;" title="Mesma O.S.">⚠</span>' : ''}</td>
         <td data-label="Dose Rec." style="text-align:right;">${esc(row[colDoseRec])}</td>
         <td data-label="Dose Aplic." style="text-align:right;">${esc(row[colDoseAplic])}</td>
         <td data-label="Dif. (%)" style="text-align:right;${difStyle}">${difPct}</td>
@@ -6154,12 +6183,20 @@ iniciarSabedoria();
   function renderResumoTratos(dados) {
     const el = document.getElementById('tratos-resumo-produto-op');
     if (!el) return;
-    const { colDescProd, colCodProd, colDescOp, colCodOp, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const { colDescProd, colCodProd, colDescOp, colCodOp, colOS, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
       return;
     }
+
+    // Área deve ser contada UMA VEZ por O.S. (mesmo OS com 3 produtos = mesma área)
+    // Mapa OS → área real (primeira ocorrência)
+    const areaOS = {};
+    dados.forEach(row => {
+      const os = (row[colOS] || '').trim();
+      if (os && !(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
+    });
 
     const grupos = {};
     dados.forEach(row => {
@@ -6167,10 +6204,15 @@ iniciarSabedoria();
       const prod  = (row[colDescProd] || 'Sem Produto').trim();
       const codO = (row[colCodOp]   || '').trim();
       const op    = (row[colDescOp]   || 'Sem Operação').trim();
+      const os    = (row[colOS]       || '').trim();
       const chave = prod + '|||' + op;
-      if (!grupos[chave]) grupos[chave] = { codP, prod, codO, op, area:0, somaRec:0, somaAplic:0, cnt:0, cntRec:0 };
+      if (!grupos[chave]) grupos[chave] = { codP, prod, codO, op, ossVistas: new Set(), area:0, somaRec:0, somaAplic:0, cnt:0, cntRec:0 };
       const g  = grupos[chave];
-      g.area  += parseNum(row[colArea]) || 0;
+      // Soma área só na primeira vez que essa O.S. aparece neste grupo produto×op
+      if (os && !g.ossVistas.has(os)) {
+        g.ossVistas.add(os);
+        g.area += areaOS[os] || 0;
+      }
       g.cnt++;
       const dr = parseNum(row[colDoseRec]);
       const da = parseNum(row[colDoseAplic]);
@@ -6316,16 +6358,24 @@ iniciarSabedoria();
       return;
     }
 
+    // Área contada uma vez por O.S. (evita duplicação quando OS tem vários produtos)
+    const areaOS = {};
+    dados.forEach(row => {
+      const os = (row[colOS] || '').trim();
+      if (os && !(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
+    });
+
     const ops = {};
     dados.forEach(row => {
       const cod = (row[colCodOp]  || '').trim();
       const op  = (row[colDescOp] || 'Sem Operação').trim();
       const key = cod ? cod + ' · ' + op : op;
       const os  = (row[colOS]     || '').trim();
-      const ar  = parseNum(row[colArea]) || 0;
       if (!ops[key]) ops[key] = { area:0, oss:new Set() };
-      ops[key].area += ar;
-      if (os) ops[key].oss.add(os);
+      if (os && !ops[key].oss.has(os)) {
+        ops[key].oss.add(os);
+        ops[key].area += areaOS[os] || 0;
+      }
     });
 
     const lista     = Object.entries(ops).sort((a,b) => b[1].area - a[1].area);
@@ -6373,9 +6423,10 @@ iniciarSabedoria();
       return;
     }
     const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp,
-            colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+            colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
 
-    const cab = ['Data Aplicação','Nº O.S.','Fazenda','Cód. Produto','Desc. Produto',
+    const cab = ['Data Aplicação','Nº O.S.','Cód. Fazenda','Desc. Fazenda',
+                 'Cód. Produto','Desc. Produto',
                  'Cód. Operação','Desc. Operação Agr.','Área Aplic. (ha)',
                  'Dose Recomendada','Dose Aplicada','Diferença (%)'];
 
@@ -6385,16 +6436,17 @@ iniciarSabedoria();
       const dif = (!isNaN(dr) && dr > 0 && !isNaN(da))
         ? (((da-dr)/dr)*100).toFixed(1)+'%' : '';
       return [
-        row[colData]      || '',
-        row[colOS]        || '',
-        row[colFazenda]   || '',
-        row[colCodProd]   || '',
-        row[colDescProd]  || '',
-        row[colCodOp]     || '',
-        row[colDescOp]    || '',
-        row[colArea]      || '',
-        row[colDoseRec]   || '',
-        row[colDoseAplic] || '',
+        row[colData]         || '',
+        row[colOS]           || '',
+        row[colCodFazenda]   || '',
+        row[colFazenda]      || '',
+        row[colCodProd]      || '',
+        row[colDescProd]     || '',
+        row[colCodOp]        || '',
+        row[colDescOp]       || '',
+        row[colArea]         || '',
+        row[colDoseRec]      || '',
+        row[colDoseAplic]    || '',
         dif
       ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';');
     });
