@@ -310,7 +310,7 @@
       tbody tr:hover { background: var(--green-50); }
       tbody td { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px !important; border-bottom: 1px solid var(--border) !important; font-size: 12px; }
       tbody td:last-child { border-bottom: none !important; }
-      tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+      tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-3); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; margin-right: 8px; }
       #liberacoes table { min-width: unset !important; }
       #liberacoes td { white-space: normal !important; text-align: right !important; }
       #tabela-tratos { min-width: unset !important; }
@@ -328,6 +328,42 @@
       #tratos-resumo-produto-op > div,
       #tratos-comparativo-dose > div,
       #gatec-table-wrapper { overflow-x: unset !important; }
+
+      /* ── Tabelas dinâmicas responsivas (classe .tratos-resumo-table) ── */
+      .tratos-table-wrap { overflow-x: unset !important; }
+      .tratos-resumo-table { min-width: unset !important; width: 100% !important; }
+      .tratos-resumo-table thead { display: none !important; }
+      .tratos-resumo-table tbody tr {
+        display: block !important;
+        margin-bottom: 12px !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius-md) !important;
+        overflow: hidden !important;
+        background: var(--surface) !important;
+      }
+      .tratos-resumo-table tbody td {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 9px 14px !important;
+        border-bottom: 1px solid var(--border) !important;
+        font-size: 12px !important;
+        white-space: normal !important;
+        text-align: right !important;
+        gap: 8px !important;
+      }
+      .tratos-resumo-table tbody td:last-child { border-bottom: none !important; }
+      .tratos-resumo-table tbody td::before {
+        content: attr(data-label) !important;
+        font-weight: 700 !important;
+        color: var(--text-3) !important;
+        font-size: 10px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        flex-shrink: 0 !important;
+        margin-right: 8px !important;
+        text-align: left !important;
+      }
     }
     @media screen and (max-width: 768px) {
   .tabs-nav {
@@ -5814,8 +5850,8 @@ iniciarSabedoria();
       colDescProd  : findCol(['DESC PRODUTO','DESCPROD','DESCRICAO PRODUTO','NOME PRODUTO','PRODUTO']),
       colCodOp     : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
       colDescOp    : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
-      colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ']),
-      colFazenda   : findCol(['DESC FAZENDA','DESCFAZENDA','DESCRICAO FAZENDA','FAZENDA','FARM','PROPRIEDADE','UNIDADE','LOCAL']),
+      colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ','CODFAZ']),
+      colFazenda   : findCol(['DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','DESC FAZENDA','DESCFAZENDA','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE','UNIDADE','LOCAL']),
       colArea      : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
       colDoseRec   : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
       colDoseAplic : findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
@@ -5839,22 +5875,26 @@ iniciarSabedoria();
   }
 
   // ── Popula <select> com "Cód · Desc" como label, mas value = desc (compatível com filtro) ──
+  // Se colDesc estiver vazio (coluna não detectada), usa colCod como fallback de descrição
   function popularSelectCodDesc(id, dados, colCod, colDesc, defaultLabel) {
     const sel = document.getElementById(id);
-    if (!sel || !colDesc) return;
+    if (!sel) return;
+    // Se não temos coluna de descrição, usa a de código como fallback
+    const colDescEfetivo = colDesc || colCod;
+    if (!colDescEfetivo) return;
     const anterior = sel.value;
     // Monta mapa desc → cod (primeiro encontrado por desc)
     const mapa = {};
     dados.forEach(r => {
-      const desc = (r[colDesc] || '').trim();
-      const cod  = (r[colCod]  || '').trim();
+      const desc = (r[colDescEfetivo] || '').trim();
+      const cod  = (colCod && colCod !== colDescEfetivo) ? (r[colCod] || '').trim() : '';
       if (desc && !mapa[desc]) mapa[desc] = cod;
     });
-    const descs = Object.keys(mapa).sort();
+    const descs = Object.keys(mapa).sort((a, b) => a.localeCompare(b, 'pt-BR'));
     sel.innerHTML = `<option value="">${defaultLabel}</option>`;
     descs.forEach(desc => {
       const o = document.createElement('option');
-      o.value = desc; // value continua sendo só a descrição — filtrarTratos não precisa mudar
+      o.value = desc; // value = descrição — filtrarTratos compara por descrição
       const cod = mapa[desc];
       o.textContent = cod ? `${cod} · ${desc}` : desc;
       if (desc === anterior) o.selected = true;
@@ -5893,6 +5933,11 @@ iniciarSabedoria();
 
         const cols = detectarColunas(results.meta.fields || []);
         console.log('[Tratos] Mapeamento detectado:', cols);
+        // Diagnóstico específico de fazenda
+        console.log('[Tratos] Fazenda — colCodFazenda:', cols.colCodFazenda || '(não encontrada)',
+                    '| colFazenda (desc):', cols.colFazenda || '(não encontrada)',
+                    '\n  → Colunas da planilha que contêm "FAZ" ou "FAZENDA":',
+                    (results.meta.fields || []).filter(f => f.toUpperCase().includes('FAZ')));
         window._tratosCols      = cols;
         window._tratosDados     = results.data;
         window._tratosFiltrados = results.data;
@@ -5920,7 +5965,9 @@ iniciarSabedoria();
   // ── Aplica filtros ───────────────────────────────────────────────────────
   function filtrarTratos() {
     if (!window._tratosDados) return;
-    const { colData, colDescProd, colFazenda, colDescOp } = window._tratosCols || {};
+    const { colData, colDescProd, colFazenda, colCodFazenda, colDescOp } = window._tratosCols || {};
+    // Usa descrição de fazenda se disponível, caso contrário usa código (mesmo fallback do dropdown)
+    const colFazEfetiva = colFazenda || colCodFazenda;
 
     const bProd    = (document.getElementById('tratos-filtro-produto')?.value   || '').trim();
     const bFaz     = (document.getElementById('tratos-filtro-fazenda')?.value   || '').trim();
@@ -5931,9 +5978,9 @@ iniciarSabedoria();
     const dFim     = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
 
     const filtrados = window._tratosDados.filter(row => {
-      if (bProd && (row[colDescProd] || '').trim() !== bProd) return false;
-      if (bFaz  && (row[colFazenda]  || '').trim() !== bFaz)  return false;
-      if (bOp   && (row[colDescOp]   || '').trim() !== bOp)   return false;
+      if (bProd && (row[colDescProd]    || '').trim() !== bProd) return false;
+      if (bFaz  && (row[colFazEfetiva] || '').trim() !== bFaz)  return false;
+      if (bOp   && (row[colDescOp]     || '').trim() !== bOp)   return false;
       if (dIni || dFim) {
         const dRow = parseData(row[colData]);
         if (dRow) {
@@ -5973,8 +6020,9 @@ iniciarSabedoria();
     }
 
     card.style.display = 'block';
-    const { colDescProd, colDescOp, colFazenda, colArea,
+    const { colDescProd, colDescOp, colFazenda, colCodFazenda, colArea,
             colDoseRec, colDoseAplic, colOS, colData } = window._tratosCols || {};
+    const colFazEfetiva = colFazenda || colCodFazenda;
 
     const insights = [];
 
@@ -6068,7 +6116,7 @@ iniciarSabedoria();
     // ── Insight 4: concentração fazenda ──
     const porFaz = {};
     dados.forEach(row => {
-      const f  = (row[colFazenda] || 'Sem Fazenda').trim();
+      const f  = (row[colFazEfetiva] || 'Sem Fazenda').trim();
       const ar = parseNum(row[colArea]) || 0;
       if (!porFaz[f]) porFaz[f] = { area: 0, oss: new Set() };
       porFaz[f].area += ar;
@@ -6147,8 +6195,11 @@ iniciarSabedoria();
           ? 'color:var(--red);font-weight:800;'
           : 'color:var(--green-700);font-weight:700;';
       }
-      const codFaz    = esc((row[colCodFazenda] || '').trim());
-      const descFaz   = esc((row[colFazenda]    || '').trim());
+      const codFazRaw  = (row[colCodFazenda] || '').trim();
+      // Se colFazenda (descrição) não foi detectada, mostra o código na coluna de descrição também
+      const descFazRaw = colFazenda ? (row[colFazenda] || '').trim() : '';
+      const codFaz     = esc(codFazRaw);
+      const descFaz    = esc(descFazRaw || codFazRaw); // fallback: usa código se sem descrição
       const prodLabel = [row[colCodProd], row[colDescProd]].filter(v => v && v.trim()).join(' · ');
       const opLabel   = [row[colCodOp],   row[colDescOp]  ].filter(v => v && v.trim()).join(' · ');
 
@@ -6223,7 +6274,7 @@ iniciarSabedoria();
     const linhas    = Object.values(grupos).sort((a,b) => b.area - a.area);
     let   temAlerta = false;
 
-    let html = `<div style="overflow-x:auto;"><table style="min-width:560px;">
+    let html = `<div class="tratos-table-wrap"><table class="tratos-resumo-table">
       <thead><tr>
         <th>Produto</th>
         <th>Operação Agrícola</th>
@@ -6255,12 +6306,12 @@ iniciarSabedoria();
 
       html += `<tr style="${rowStyle}">
         <td data-label="Produto" style="font-weight:600;">${prodLabel}</td>
-        <td data-label="Operação">${opLabel}</td>
-        <td data-label="Área (ha)" style="text-align:right;font-weight:700;color:var(--green-900);">
+        <td data-label="Operação Agr.">${opLabel}</td>
+        <td data-label="Área Total (ha)" style="text-align:right;font-weight:700;color:var(--green-900);">
           ${g.area.toLocaleString('pt-BR',{maximumFractionDigits:2})} ha</td>
-        <td data-label="Dose Rec." style="text-align:right;">
+        <td data-label="Dose Méd. Rec." style="text-align:right;">
           ${isNaN(drm) ? '—' : drm.toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
-        <td data-label="Dose Aplic." style="text-align:right;">
+        <td data-label="Dose Méd. Aplic." style="text-align:right;">
           ${isNaN(dam) ? '—' : dam.toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
         <td data-label="Diferença" style="text-align:right;${difStyle}">${difStr}</td>
       </tr>`;
@@ -6310,7 +6361,7 @@ iniciarSabedoria();
     const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : NaN;
     const fmt = v   => isNaN(v)  ? '—' : v.toLocaleString('pt-BR',{maximumFractionDigits:3});
 
-    let html = `<div style="overflow-x:auto;"><table style="min-width:480px;">
+    let html = `<div class="tratos-table-wrap"><table class="tratos-resumo-table">
       <thead><tr>
         <th>Produto</th>
         <th style="text-align:right;">Dose Rec. (média)</th>
@@ -6424,6 +6475,8 @@ iniciarSabedoria();
     }
     const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp,
             colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    // Fallback: se não há coluna de descrição, usa o código como descrição também
+    const colFazDescExport = colFazenda || colCodFazenda;
 
     const cab = ['Data Aplicação','Nº O.S.','Cód. Fazenda','Desc. Fazenda',
                  'Cód. Produto','Desc. Produto',
@@ -6436,17 +6489,17 @@ iniciarSabedoria();
       const dif = (!isNaN(dr) && dr > 0 && !isNaN(da))
         ? (((da-dr)/dr)*100).toFixed(1)+'%' : '';
       return [
-        row[colData]         || '',
-        row[colOS]           || '',
-        row[colCodFazenda]   || '',
-        row[colFazenda]      || '',
-        row[colCodProd]      || '',
-        row[colDescProd]     || '',
-        row[colCodOp]        || '',
-        row[colDescOp]       || '',
-        row[colArea]         || '',
-        row[colDoseRec]      || '',
-        row[colDoseAplic]    || '',
+        row[colData]             || '',
+        row[colOS]               || '',
+        row[colCodFazenda]       || '',
+        row[colFazDescExport]    || '',
+        row[colCodProd]          || '',
+        row[colDescProd]         || '',
+        row[colCodOp]            || '',
+        row[colDescOp]           || '',
+        row[colArea]             || '',
+        row[colDoseRec]          || '',
+        row[colDoseAplic]        || '',
         dif
       ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';');
     });
