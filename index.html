@@ -6096,10 +6096,10 @@ iniciarSabedoria();
       porCombo[k].area += ar;
     });
     const combos    = Object.values(porCombo).sort((a, b) => b.area - a.area);
-    const totalArea = combos.reduce((s, c) => s + c.area, 0);
-    if (combos.length > 0 && totalArea > 0) {
+    const totalAreaCombos = combos.reduce((s, c) => s + c.area, 0);
+    if (combos.length > 0 && totalAreaCombos > 0) {
       const top = combos[0];
-      const pct = (top.area / totalArea * 100).toFixed(0);
+      const pct = (top.area / totalAreaCombos * 100).toFixed(0);
       if (combos.length === 1) {
         insights.push({ type: 'tip',
           msg: `Filtro atual mostra <b>somente uma combinação</b>: <b>${esc(top.prod)}</b> via <b>${esc(top.op)}</b> — ${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha no total.`,
@@ -6107,7 +6107,7 @@ iniciarSabedoria();
         });
       } else if (+pct >= 60) {
         insights.push({ type: 'tip',
-          msg: `<b>${esc(top.prod)}</b> / <b>${esc(top.op)}</b> representa <b>${pct}%</b> da área filtrada (${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha de ${totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha totais). Operação predominante no período.`,
+          msg: `<b>${esc(top.prod)}</b> / <b>${esc(top.op)}</b> representa <b>${pct}%</b> da área filtrada (${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha de ${totalAreaCombos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha totais). Operação predominante no período.`,
           icon: 'fas fa-seedling'
         });
       }
