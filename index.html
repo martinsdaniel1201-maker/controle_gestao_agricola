@@ -132,33 +132,55 @@
     .section.active { display: block; }
     @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ── SUB-TABS ── */
+    /* ── SUB-TABS — visual card style ── */
     .sub-tabs-nav {
-      display: flex; gap: 6px; margin-bottom: 18px;
-      padding: 4px;
-      background: var(--green-50);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--green-100);
+      display: flex; gap: 8px; margin-bottom: 20px;
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+      border: none;
     }
     .sub-tab-btn {
-      flex: 1; padding: 10px 8px; border: none; border-radius: var(--radius-sm);
-      background: transparent; color: var(--green-700);
-      font-weight: 700; font-size: 10px; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      transition: all 0.2s ease;
-      box-shadow: none;
+      flex: 1; padding: 14px 10px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface); color: var(--text-3);
+      font-weight: 700; font-size: 11px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: all 0.22s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      position: relative; overflow: hidden;
+      letter-spacing: 0.3px; text-align: center; line-height: 1.25;
     }
-    .sub-tab-btn i { font-size: 15px; }
+    .sub-tab-btn::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad); border-radius: 99px 99px 0 0;
+      transform: scaleX(0); transition: transform 0.22s ease;
+    }
+    .sub-tab-btn i { font-size: 18px; transition: transform 0.2s ease; }
     .sub-tab-btn.active {
-      background: var(--green-900); color: white;
-      box-shadow: 0 3px 10px rgba(27,94,32,0.35);
+      background: var(--surface);
+      border-color: var(--green-500);
+      color: var(--green-900);
+      box-shadow: 0 4px 14px rgba(27,94,32,0.18);
     }
+    .sub-tab-btn.active::before { transform: scaleX(1); }
+    .sub-tab-btn.active i { color: var(--green-700); transform: scale(1.1); }
     .sub-tab-btn:hover:not(.active) {
-      background: var(--green-100);
-      box-shadow: 0 2px 6px rgba(27,94,32,0.15);
+      background: var(--green-50);
+      border-color: var(--green-100);
+      color: var(--green-700);
+      box-shadow: 0 4px 12px rgba(27,94,32,0.10);
     }
     .sub-section { display: none; animation: fadeSlide 0.25s ease-out; }
     .sub-section.active { display: block; }
+
+    /* Desktop: sub-tabs maiores */
+    @media (min-width: 769px) {
+      .sub-tabs-nav { gap: 10px; }
+      .sub-tab-btn { padding: 16px 14px; font-size: 12px; gap: 8px; }
+      .sub-tab-btn i { font-size: 20px; }
+    }
 
     /* ── CARDS ── */
     .card {
@@ -463,24 +485,96 @@
     min-width: 75px !important; /* Garante que eles fiquem organizados */
   }
 }
-    /* ── PDF BUTTON (CONTEXTUAL) ── */
+    /* ── PDF BUTTON (CONTEXTUAL) — MELHORADO ── */
     .btn-pdf-contextual {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       width: 100%; margin: 4px 0 18px;
       padding: 14px 20px;
-      background: transparent;
-      color: var(--green-900);
-      border: 1.5px solid var(--green-100);
+      background: var(--green-900);
+      color: white;
+      border: none;
       border-radius: var(--radius-md);
       font-size: 12px; font-weight: 700;
       cursor: pointer; letter-spacing: 0.3px;
       transition: all 0.18s;
+      box-shadow: 0 4px 14px rgba(27,94,32,0.25);
     }
-    .btn-pdf-contextual i { font-size: 14px; color: var(--green-700); }
+    .btn-pdf-contextual i { font-size: 14px; color: rgba(255,255,255,0.8); }
     .btn-pdf-contextual:hover {
-      background: var(--green-50);
-      border-color: var(--green-500);
-      color: var(--green-700);
+      background: var(--green-700);
+      box-shadow: 0 6px 20px rgba(27,94,32,0.35);
+      transform: translateY(-1px);
+    }
+
+    /* ── CALCULADORA SUB-TABS ── */
+    .calc-sub-tabs-nav {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .calc-sub-btn {
+      flex: 1; padding: 12px 8px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-md); background: var(--surface);
+      color: var(--text-3); font-weight: 700; font-size: 10px;
+      cursor: pointer; text-align: center; transition: all 0.22s;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      position: relative; overflow: hidden; line-height: 1.3;
+    }
+    .calc-sub-btn i { font-size: 16px; }
+    .calc-sub-btn::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad); border-radius: 99px 99px 0 0;
+      transform: scaleX(0); transition: transform 0.22s ease;
+    }
+    .calc-sub-btn.active {
+      color: var(--green-900); border-color: var(--green-500);
+      box-shadow: 0 4px 14px rgba(27,94,32,0.14);
+    }
+    .calc-sub-btn.active::before { transform: scaleX(1); }
+    .calc-sub-btn:hover:not(.active) {
+      background: var(--green-50); color: var(--green-700);
+      border-color: var(--green-100);
+    }
+    .calc-sub-panel { display: none; animation: fadeSlide 0.25s ease-out; }
+    .calc-sub-panel.active { display: block; }
+
+    /* ── WIDGET BOAS-VINDAS (HOME) ── */
+    .home-welcome-bar {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      animation: cardEntrada 0.32s cubic-bezier(.4,0,.2,1) 0.05s both;
+    }
+    body.tab-open .home-welcome-bar { display: none; }
+    .home-welcome-avatar {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: var(--grad); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .home-welcome-text { flex: 1; min-width: 0; }
+    .home-welcome-greeting {
+      font-size: 13px; font-weight: 800; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .home-welcome-sub {
+      font-size: 10px; color: var(--text-3); font-weight: 600;
+      margin-top: 2px;
+    }
+    .home-welcome-clima {
+      display: flex; flex-direction: column; align-items: flex-end;
+      flex-shrink: 0; gap: 2px;
+    }
+    .home-welcome-temp {
+      font-size: 18px; font-weight: 800; color: var(--green-900);
+      line-height: 1;
+    }
+    .home-welcome-cond {
+      font-size: 9px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.4px;
     }
 
     /* ── CALCULADORA EXTRAS ── */
@@ -650,17 +744,32 @@
 
     /* Clima sub-tabs */
     .clima-sub-tabs {
-      display: flex; gap: 6px; margin-bottom: 16px;
+      display: flex; gap: 8px; margin-bottom: 18px;
     }
     .clima-sub-btn {
-      flex: 1; padding: 9px 6px; border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm); background: var(--surface2);
-      color: var(--text-3); font-weight: 700; font-size: 10px;
-      cursor: pointer; text-align: center; transition: all 0.18s;
+      flex: 1; padding: 12px 8px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-md); background: var(--surface);
+      color: var(--text-3); font-weight: 700; font-size: 11px;
+      cursor: pointer; text-align: center; transition: all 0.22s;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      position: relative; overflow: hidden;
+    }
+    .clima-sub-btn i { font-size: 17px; }
+    .clima-sub-btn::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad); border-radius: 99px 99px 0 0;
+      transform: scaleX(0); transition: transform 0.22s ease;
     }
     .clima-sub-btn.active {
-      background: var(--green-50); color: var(--green-900);
+      background: var(--surface); color: var(--green-900);
       border-color: var(--green-500);
+      box-shadow: 0 4px 14px rgba(27,94,32,0.14);
+    }
+    .clima-sub-btn.active::before { transform: scaleX(1); }
+    .clima-sub-btn:hover:not(.active) {
+      background: var(--green-50); color: var(--green-700);
+      border-color: var(--green-100);
     }
     .clima-sub-panel { display: none; }
     .clima-sub-panel.active { display: block; }
@@ -964,22 +1073,38 @@
 
     /* ── CADERNO DE MAPAS ── */
     .mapas-sub-tabs {
-      display: flex; gap: 5px; margin-bottom: 16px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-bottom: 18px;
+    }
+    @media (min-width: 600px) {
+      .mapas-sub-tabs { grid-template-columns: repeat(4, 1fr); }
     }
     .mapas-sub-btn {
-      flex: 1; min-width: 120px; padding: 10px 8px;
-      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--surface2); color: var(--text-3);
-      font-weight: 700; font-size: 9px; cursor: pointer;
-      text-align: center; transition: all 0.18s; line-height: 1.4;
+      padding: 14px 10px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-md);
+      background: var(--surface); color: var(--text-3);
+      font-weight: 700; font-size: 10px; cursor: pointer;
+      text-align: center; transition: all 0.22s; line-height: 1.4;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      position: relative; overflow: hidden;
+    }
+    .mapas-sub-btn i { font-size: 18px; }
+    .mapas-sub-btn::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad); border-radius: 99px 99px 0 0;
+      transform: scaleX(0); transition: transform 0.22s ease;
     }
     .mapas-sub-btn.active {
-      background: var(--green-50); color: var(--green-900);
+      background: var(--surface); color: var(--green-900);
       border-color: var(--green-500);
+      box-shadow: 0 4px 14px rgba(27,94,32,0.15);
     }
+    .mapas-sub-btn.active::before { transform: scaleX(1); }
     .mapas-sub-btn:hover:not(.active) {
-      background: var(--green-100); border-color: var(--green-500);
+      background: var(--green-50); color: var(--green-700);
+      border-color: var(--green-100);
     }
     .mapas-viewer-wrap {
       border-radius: var(--radius-md); overflow: hidden;
@@ -1045,14 +1170,132 @@
       border-color: var(--border) !important;
     }
     body.dark-mode .res-highlight { background: linear-gradient(135deg,#1B5E20,#2E7D32); }
+    body.dark-mode .home-welcome-bar {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    body.dark-mode .sub-tab-btn {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    body.dark-mode .calc-sub-btn {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    body.dark-mode .mapas-sub-btn {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    body.dark-mode .clima-sub-btn {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    body.dark-mode .btn-pdf-contextual {
+      background: var(--green-100);
+      color: #81C784;
+    }
 
     /* ══════════════════════════════════════════════
-       HOME MENU — PROPOSTA D (Orbs Coloridos)
+       RESPONSIVIDADE DESKTOP — MELHORADA
+    ══════════════════════════════════════════════ */
+
+    /* Container maior no desktop */
+    @media (min-width: 769px) {
+      .container {
+        max-width: 860px !important;
+        padding: 0 24px !important;
+      }
+      .container.container-larga {
+        max-width: 1100px !important;
+      }
+
+      /* Cards em 2 colunas na dashboard */
+      .grid-inputs {
+        grid-template-columns: repeat(3, 1fr) !important;
+      }
+
+      /* Simulador sub-tabs mais confortáveis */
+      .sub-tabs-nav {
+        gap: 12px;
+      }
+
+      /* Barra de volta com mais espaço */
+      #btn-voltar-menu {
+        margin: 0 -24px 22px;
+        width: calc(100% + 48px);
+        padding: 0 24px;
+      }
+
+      /* Calc sub-tabs em desktop */
+      .calc-sub-tabs-nav { gap: 10px; }
+      .calc-sub-btn { padding: 16px 14px; font-size: 11px; gap: 8px; }
+      .calc-sub-btn i { font-size: 20px; }
+
+      /* Forecast grid maior no desktop */
+      .forecast-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      }
+
+      /* Res-grid maior */
+      .res-grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      /* Tendência — mais colunas */
+      .tendencia-grid {
+        grid-template-columns: repeat(10, 1fr);
+      }
+    }
+
+    /* Tablet (768px) */
+    @media (min-width: 600px) and (max-width: 768px) {
+      .sub-tabs-nav { gap: 8px; }
+      .calc-sub-tabs-nav { gap: 8px; }
+    }
+
+    /* Mobile fine-tuning */
+    @media (max-width: 599px) {
+      .sub-tabs-nav {
+        gap: 6px;
+      }
+      .sub-tab-btn {
+        padding: 12px 6px;
+        font-size: 10px;
+        gap: 5px;
+      }
+      .sub-tab-btn i { font-size: 16px; }
+
+      .clima-sub-btn {
+        padding: 10px 6px;
+        font-size: 10px;
+      }
+      .clima-sub-btn i { font-size: 15px; }
+
+      .calc-sub-btn {
+        padding: 10px 5px;
+        font-size: 9px;
+      }
+      .calc-sub-btn i { font-size: 14px; }
+
+      /* Home welcome bar menor */
+      .home-welcome-bar {
+        padding: 11px 14px;
+        gap: 10px;
+      }
+      .home-welcome-avatar {
+        width: 38px; height: 38px;
+        border-radius: 12px; font-size: 17px;
+      }
+      .home-welcome-greeting { font-size: 12px; }
+    }
+
+    /* ══════════════════════════════════════════════
+       HOME MENU — PROPOSTA D (Orbs Coloridos) — MELHORADO
     ══════════════════════════════════════════════ */
     #main-nav.home-mode {
       display: grid !important;
       grid-template-columns: 1fr 1fr;
-      gap: 11px;
+      gap: 12px;
       background: transparent;
       border: none;
       padding: 0;
@@ -1060,18 +1303,26 @@
       margin-bottom: 26px;
     }
 
+    /* Desktop: 3 colunas */
+    @media (min-width: 600px) {
+      #main-nav.home-mode {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+      }
+    }
+
     /* Card base */
     #main-nav.home-mode .tab-btn {
       flex: unset;
       min-width: unset;
       width: 100%;
-      min-height: 122px;
-      padding: 20px 12px 16px;
+      min-height: 132px;
+      padding: 22px 14px 18px;
       border-radius: 22px;
       background: var(--surface);
       border: 1.5px solid var(--border);
       color: var(--text);
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
       line-height: 1.25;
       text-align: center;
@@ -1085,7 +1336,7 @@
       align-items: center;
       justify-content: center;
       gap: 0;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+      box-shadow: 0 3px 14px rgba(0,0,0,0.06);
       transition: transform 0.22s cubic-bezier(.4,0,.2,1),
                   box-shadow 0.22s cubic-bezier(.4,0,.2,1),
                   border-color 0.22s ease;
@@ -1093,14 +1344,14 @@
 
     /* Orb — bolha do ícone */
     #main-nav.home-mode .tab-btn .menu-orb {
-      width: 52px;
-      height: 52px;
-      border-radius: 16px;
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
-      margin-bottom: 11px;
+      font-size: 24px;
+      margin-bottom: 12px;
       flex-shrink: 0;
       transition: transform 0.22s cubic-bezier(.4,0,.2,1);
     }
@@ -1108,14 +1359,14 @@
     /* Label principal */
     #main-nav.home-mode .tab-btn .menu-label {
       display: block;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
       color: var(--text);
       line-height: 1.25;
       letter-spacing: 0.1px;
     }
 
-    /* Pill de contexto — aparece no hover */
+    /* Pill de contexto — SEMPRE visível (não só no hover) */
     #main-nav.home-mode .tab-btn .menu-tag {
       display: inline-block;
       margin-top: 7px;
@@ -1125,8 +1376,8 @@
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      opacity: 0;
-      transform: translateY(4px);
+      opacity: 1;
+      transform: translateY(0);
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
@@ -1138,10 +1389,6 @@
     }
     #main-nav.home-mode .tab-btn:hover .menu-orb {
       transform: scale(1.1);
-    }
-    #main-nav.home-mode .tab-btn:hover .menu-tag {
-      opacity: 1;
-      transform: translateY(0);
     }
 
     /* Estado active (ao clicar — feedback tátil) */
@@ -1286,7 +1533,7 @@
     #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
     #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.34s; }
 
-    /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) ── */
+    /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) — MELHORADA ── */
     #btn-voltar-menu {
       display: none;
       position: sticky;
@@ -1294,8 +1541,8 @@
       z-index: 9990;
       height: 58px;
       background: var(--surface);
-      border-bottom: 1.5px solid var(--border);
-      box-shadow: 0 3px 14px rgba(0,0,0,0.10);
+      border-bottom: 2px solid var(--green-100);
+      box-shadow: 0 3px 20px rgba(27,94,32,0.10);
       padding: 0 16px;
       align-items: center;
       justify-content: space-between;
@@ -1333,10 +1580,17 @@
     /* Centro: nome da aba */
     #btn-voltar-menu .voltar-aba-nome {
       position: absolute; left: 50%; transform: translateX(-50%);
-      font-size: 12px; font-weight: 800;
-      color: var(--text); letter-spacing: 0.6px;
+      font-size: 11px; font-weight: 800;
+      color: var(--green-900); letter-spacing: 0.8px;
       text-transform: uppercase; white-space: nowrap;
       pointer-events: none;
+      display: flex; align-items: center; gap: 7px;
+    }
+    #btn-voltar-menu .voltar-aba-nome .vab-icon {
+      width: 24px; height: 24px;
+      background: var(--green-50); border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--green-700); flex-shrink: 0;
     }
 
     /* Lado direito: área para botões futuros */
@@ -2000,6 +2254,19 @@ body.dark-mode .resumo-cards .medal-text {
 
 <div class="container" id="app-root">
 
+  <!-- ══ BARRA DE BOAS-VINDAS (HOME) ══ -->
+  <div class="home-welcome-bar" id="home-welcome-bar">
+    <div class="home-welcome-avatar"><i class="fas fa-seedling"></i></div>
+    <div class="home-welcome-text">
+      <div class="home-welcome-greeting" id="home-welcome-greeting">Olá! 🌾</div>
+      <div class="home-welcome-sub" id="home-welcome-sub">Carregando...</div>
+    </div>
+    <div class="home-welcome-clima" id="home-welcome-clima" style="display:none">
+      <div class="home-welcome-temp" id="home-welcome-temp">—°</div>
+      <div class="home-welcome-cond" id="home-welcome-cond">—</div>
+    </div>
+  </div>
+
   <nav class="tabs-nav home-mode" id="main-nav">
 
     <button class="tab-btn menu-c1" onclick="showTab(event,'simulador')">
@@ -2400,6 +2667,22 @@ body.dark-mode .resumo-cards .medal-text {
   <!-- ══ ABA CALCULADORA ══ -->
   <section id="calc_aba" class="section">
 
+    <!-- Sub-tabs Calculadora -->
+    <nav class="calc-sub-tabs-nav">
+      <button class="calc-sub-btn active" onclick="showCalcTab('calc_safra')">
+        <i class="fas fa-seedling"></i>SAFRA<br>& PLANTIO
+      </button>
+      <button class="calc-sub-btn" onclick="showCalcTab('calc_qualidade')">
+        <i class="fas fa-flask"></i>ATR<br>& QUALIDADE
+      </button>
+      <button class="calc-sub-btn" onclick="showCalcTab('calc_custos')">
+        <i class="fas fa-dollar-sign"></i>CUSTOS<br>& TCH
+      </button>
+    </nav>
+
+    <!-- PAINEL: SAFRA & PLANTIO -->
+    <div id="calc_safra" class="calc-sub-panel active">
+
     <!-- 1. ESTIMATIVA DE SAFRA -->
     <div class="card">
       <div class="card-title"><i class="fas fa-chart-line"></i> Estimativa de Safra</div>
@@ -2478,6 +2761,11 @@ body.dark-mode .resumo-cards .medal-text {
       </div>
     </div>
 
+    </div><!-- /calc_safra -->
+
+    <!-- PAINEL: ATR & QUALIDADE -->
+    <div id="calc_qualidade" class="calc-sub-panel">
+
     <!-- 3. CALCULADORA DE ATR -->
     <div class="card">
       <div class="card-title"><i class="fas fa-flask"></i> Calculadora de ATR — Qualidade da Cana</div>
@@ -2532,6 +2820,50 @@ body.dark-mode .resumo-cards .medal-text {
       <p style="font-size:10px; color:var(--text-3); margin-top:10px;">* Receita calculada com base no preço de referência CONSECANA (R$ 1,10/kg ATR)</p>
     </div>
 
+    <!-- 5. PRODUTIVIDADE POTENCIAL -->
+    <div class="card">
+      <div class="card-title"><i class="fas fa-leaf"></i> Produtividade Potencial por Variedade</div>
+      <div class="grid-inputs">
+        <div class="field">
+          <label>Área</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="vr_area" placeholder="Ex: 200" oninput="calcularVariedade()">
+            <span class="input-unit">ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Variedade / Ciclo</label>
+          <select id="vr_tipo" onchange="calcularVariedade()">
+            <option value="120">Precoce (TCH ref. 85)</option>
+            <option value="150">Médio (TCH ref. 95)</option>
+            <option value="180">Tardio (TCH ref. 105)</option>
+            <option value="0">Personalizado</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>TCH Personalizado</label>
+          <div class="input-unit-wrap">
+            <input type="number" id="vr_tch_custom" placeholder="Só se Personalizado" oninput="calcularVariedade()">
+            <span class="input-unit">t/ha</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Cortes Previstos</label>
+          <input type="number" id="vr_cortes" placeholder="Ex: 5" oninput="calcularVariedade()">
+        </div>
+      </div>
+      <div class="res-grid-3" id="res_vr_container" style="display:none;">
+        <div class="res-card rc-green"><div class="rc-lbl">Prod. 1º Corte</div><div class="rc-val" id="res_vr_1corte">—</div></div>
+        <div class="res-card rc-blue"><div class="rc-lbl">Prod. Ciclo Total</div><div class="rc-val" id="res_vr_total">—</div></div>
+        <div class="res-card rc-amber"><div class="rc-lbl">Média/Corte</div><div class="rc-val" id="res_vr_media">—</div></div>
+      </div>
+    </div>
+
+    </div><!-- /calc_qualidade -->
+
+    <!-- PAINEL: CUSTOS & TCH -->
+    <div id="calc_custos" class="calc-sub-panel">
+
     <!-- 4. CUSTO DE COLHEITA -->
     <div class="card">
       <div class="card-title"><i class="fas fa-dollar-sign"></i> Análise de Custo de Colheita</div>
@@ -2569,45 +2901,6 @@ body.dark-mode .resumo-cards .medal-text {
         <div class="res-card rc-green"><div class="rc-lbl">Produção Total</div><div class="rc-val" id="res_cc_prod">—</div></div>
         <div class="res-card rc-red"><div class="rc-lbl">Custo Total (R$)</div><div class="rc-val" id="res_cc_total">—</div></div>
         <div class="res-card rc-amber"><div class="rc-lbl">Custo/Ton (R$)</div><div class="rc-val" id="res_cc_ton">—</div></div>
-      </div>
-    </div>
-
-    <!-- 5. PRODUTIVIDADE POTENCIAL -->
-    <div class="card">
-      <div class="card-title"><i class="fas fa-leaf"></i> Produtividade Potencial por Variedade</div>
-      <div class="grid-inputs">
-        <div class="field">
-          <label>Área</label>
-          <div class="input-unit-wrap">
-            <input type="number" id="vr_area" placeholder="Ex: 200" oninput="calcularVariedade()">
-            <span class="input-unit">ha</span>
-          </div>
-        </div>
-        <div class="field">
-          <label>Variedade / Ciclo</label>
-          <select id="vr_tipo" onchange="calcularVariedade()">
-            <option value="120">Precoce (TCH ref. 85)</option>
-            <option value="150">Médio (TCH ref. 95)</option>
-            <option value="180">Tardio (TCH ref. 105)</option>
-            <option value="0">Personalizado</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>TCH Personalizado</label>
-          <div class="input-unit-wrap">
-            <input type="number" id="vr_tch_custom" placeholder="Só se Personalizado" oninput="calcularVariedade()">
-            <span class="input-unit">t/ha</span>
-          </div>
-        </div>
-        <div class="field">
-          <label>Cortes Previstos</label>
-          <input type="number" id="vr_cortes" placeholder="Ex: 5" oninput="calcularVariedade()">
-        </div>
-      </div>
-      <div class="res-grid-3" id="res_vr_container" style="display:none;">
-        <div class="res-card rc-green"><div class="rc-lbl">Prod. 1º Corte</div><div class="rc-val" id="res_vr_1corte">—</div></div>
-        <div class="res-card rc-blue"><div class="rc-lbl">Prod. Ciclo Total</div><div class="rc-val" id="res_vr_total">—</div></div>
-        <div class="res-card rc-amber"><div class="rc-lbl">Média/Corte</div><div class="rc-val" id="res_vr_media">—</div></div>
       </div>
     </div>
 
@@ -2656,6 +2949,8 @@ body.dark-mode .resumo-cards .medal-text {
       </div>
       <div class="tch-insight" id="tch_insight"></div>
     </div>
+
+    </div><!-- /calc_custos -->
 
     <button class="btn-pdf-contextual" onclick="gerarPDF()">
       <i class="fas fa-print"></i> Gerar PDF desta aba
@@ -3140,14 +3435,20 @@ function showTab(e, id) {
   // Oculta a Sabedoria de Campo (exclusiva da tela inicial)
   document.body.classList.add('tab-open');
 
-  // Indicador da aba ativa no botão voltar
-  const nomes = {
-    'simulador': 'SIMULADOR', 'liberacoes': 'LIBERAÇÕES',
-    'clima_aba': 'CLIMA & AGRO', 'conf_os_aba': 'CONFERÊNCIAS',
-    'mapas_aba': 'MAPAS', 'calc_aba': 'CALCULADORA'
+  // Indicador da aba ativa no botão voltar — com ícone
+  const abaConfig = {
+    'simulador':   { nome: 'SIMULADOR',    icon: 'fa-tractor' },
+    'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
+    'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
+    'conf_os_aba': { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
+    'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
+    'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' }
   };
+  const cfg = abaConfig[id] || { nome: '', icon: 'fa-circle' };
   const nomeEl = document.getElementById('voltar-aba-nome');
-  if (nomeEl) nomeEl.textContent = nomes[id] || '';
+  if (nomeEl) {
+    nomeEl.innerHTML = `<span class="vab-icon"><i class="fas ${cfg.icon}"></i></span>${cfg.nome}`;
+  }
 
   // Botão "Atualizar Indicadores" só aparece no Simulador
   const mostrarBtnAtualizar = (id === 'simulador');
@@ -3169,6 +3470,20 @@ function showTab(e, id) {
       containerPrincipal.classList.remove('container-larga');
     }
   }
+}
+
+/* Sub-tab da Calculadora */
+function showCalcTab(id) {
+  document.querySelectorAll('.calc-sub-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.calc-sub-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById(id);
+  if (panel) panel.classList.add('active');
+  // Ativa o botão correspondente
+  document.querySelectorAll('.calc-sub-btn').forEach(b => {
+    if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(id)) {
+      b.classList.add('active');
+    }
+  });
 }
 
 function showSubTab(e, id) {
@@ -3576,6 +3891,53 @@ async function gerarPDF() {
     });
     escondidos.forEach(({ el, vis }) => { el.style.visibility = vis; });
   }
+}
+
+/* ══════════════════════════════════════════════
+   BARRA DE BOAS-VINDAS (HOME)
+══════════════════════════════════════════════ */
+function iniciarWelcomeBar(nomeUsuario) {
+  const greeting = document.getElementById('home-welcome-greeting');
+  const sub = document.getElementById('home-welcome-sub');
+  if (!greeting || !sub) return;
+
+  const hora = new Date().getHours();
+  let saudacao = 'Boa noite';
+  if (hora >= 5 && hora < 12) saudacao = 'Bom dia';
+  else if (hora >= 12 && hora < 18) saudacao = 'Boa tarde';
+
+  const nome = nomeUsuario ? nomeUsuario.charAt(0).toUpperCase() + nomeUsuario.slice(1) : '';
+  greeting.textContent = `${saudacao}${nome ? ', ' + nome : ''}! 🌾`;
+
+  const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const agora = new Date();
+  sub.textContent = `${diasSemana[agora.getDay()]}, ${agora.getDate()} de ${meses[agora.getMonth()]} · Passos/MG`;
+
+  // Clima rápido da home (Open-Meteo, cidade padrão Passos)
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=-20.72&longitude=-46.61&current_weather=true&timezone=America%2FSao_Paulo')
+    .then(r => r.json())
+    .then(d => {
+      if (!d.current_weather) return;
+      const temp = Math.round(d.current_weather.temperature);
+      const wc = d.current_weather.weathercode;
+      const condicoes = {
+        0:'Céu limpo', 1:'Quase limpo', 2:'Parcialmente nublado', 3:'Nublado',
+        45:'Neblina', 48:'Neblina', 51:'Garoa', 53:'Garoa', 55:'Garoa',
+        61:'Chuva fraca', 63:'Chuva', 65:'Chuva forte',
+        71:'Neve', 80:'Pancadas', 81:'Pancadas', 82:'Tempestade',
+        95:'Trovoada', 96:'Trovoada', 99:'Trovoada'
+      };
+      const cond = condicoes[wc] || 'Passos/MG';
+      const climaEl = document.getElementById('home-welcome-clima');
+      const tempEl = document.getElementById('home-welcome-temp');
+      const condEl = document.getElementById('home-welcome-cond');
+      if (climaEl && tempEl && condEl) {
+        tempEl.textContent = temp + '°C';
+        condEl.textContent = cond;
+        climaEl.style.display = 'flex';
+      }
+    }).catch(() => {}); // silencioso se offline
 }
 
 /* ══════════════════════════════════════════════
@@ -6821,6 +7183,15 @@ function _onLoginSuccess(user) {
   }
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) btnLogout.style.display = 'flex';
+
+  // ── Boas-vindas ──
+  iniciarWelcomeBar(nomeUsuario);
+
+  // Toast de boas-vindas
+  const hora = new Date().getHours();
+  let saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  const nomeFormatado = nomeUsuario.charAt(0).toUpperCase() + nomeUsuario.slice(1);
+  showToast(`🌱 ${saud}, ${nomeFormatado}! Bem-vindo ao CTT.`, 'success', 3500);
 }
 
 function _onLogout() {
