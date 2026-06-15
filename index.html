@@ -7191,7 +7191,7 @@ function _onLoginSuccess(user) {
   const hora = new Date().getHours();
   let saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   const nomeFormatado = nomeUsuario.charAt(0).toUpperCase() + nomeUsuario.slice(1);
-  showToast(`🌱 ${saud}, ${nomeFormatado}! Bem-vindo ao CTT.`, 'success', 3500);
+  showToast(`🌱 ${saud}, ${nomeFormatado}! Bem-vindo!`, 'success', 3500);
 }
 
 function _onLogout() {
