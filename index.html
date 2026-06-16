@@ -2098,6 +2098,233 @@ body.dark-mode .resumo-cards .medal-text {
     #user-badge { display: none !important; }
   }
 
+  /* ══════════════════════════════════════════════
+     MELHORIA 1 — RESUMO EXECUTIVO DO DIA (HOME)
+  ══════════════════════════════════════════════ */
+  #home-resumo-executivo {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 0 0 10px 0;
+  }
+  .hre-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hre-card .hre-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .hre-card .hre-val {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--green-900);
+    line-height: 1.1;
+  }
+  .hre-card .hre-sub {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+  .hre-card.hre-chuva .hre-val { color: var(--blue); }
+  body.dark-mode .hre-card { background: #1e1e1e; }
+
+  /* ══════════════════════════════════════════════
+     MELHORIA 2 — STATUS SINCRONIZAÇÃO NA HOME
+  ══════════════════════════════════════════════ */
+  #home-sync-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin: -4px 0 8px 0;
+    min-height: 18px;
+  }
+  #home-sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green-500);
+    flex-shrink: 0;
+  }
+  #home-sync-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+
+  /* ══════════════════════════════════════════════
+     MELHORIA 4 — CHIPS DE FRENTE NA HOME
+  ══════════════════════════════════════════════ */
+  #home-frentes-chips {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 0 0 6px 0;
+    margin-bottom: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  #home-frentes-chips::-webkit-scrollbar { display: none; }
+  .home-frente-chip {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 50px;
+    padding: 5px 13px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--green-900);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .home-frente-chip:hover, .home-frente-chip:active {
+    background: var(--green-50);
+    border-color: var(--green-500);
+  }
+  body.dark-mode .home-frente-chip { background: #1e1e1e; color: var(--green-500); }
+
+  /* ══════════════════════════════════════════════
+     MELHORIA 5 — SELETOR GLOBAL DE FRENTE
+  ══════════════════════════════════════════════ */
+  #global-frente-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 7px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+  #global-frente-bar.visible { display: flex; }
+  #global-frente-bar label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-3);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  #global-frente-select {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 8px;
+    outline: none;
+  }
+  #global-frente-select:focus { border-color: var(--green-500); }
+  #global-frente-clear {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  /* ══════════════════════════════════════════════
+     MELHORIA 6 — HISTÓRICO DE SINCRONIZAÇÃO
+  ══════════════════════════════════════════════ */
+  #home-sync-historico {
+    margin: 0 0 10px 0;
+  }
+  #home-sync-historico .sync-hist-title {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .sync-hist-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-2);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .sync-hist-item .shi-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sync-hist-item .shi-dot.ok { background: var(--green-500); }
+  .sync-hist-item .shi-dot.err { background: var(--red); }
+  .sync-hist-item .shi-time { color: var(--text-3); flex-shrink: 0; }
+
+  /* ══════════════════════════════════════════════
+     MELHORIA 7 — MODO COMPACTO DE TABELA
+  ══════════════════════════════════════════════ */
+  .compact-mode table td,
+  .compact-mode table th {
+    padding: 3px 4px !important;
+    font-size: 10px !important;
+  }
+  #btn-compact-toggle {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-2);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+  }
+  #btn-compact-toggle.active {
+    background: var(--green-50);
+    border-color: var(--green-500);
+    color: var(--green-900);
+  }
+
+  /* ══════════════════════════════════════════════
+     MELHORIA 8 — RESUMO SEMANAL WHATSAPP
+  ══════════════════════════════════════════════ */
+  #btn-resumo-semanal {
+    background: var(--surface2);
+    color: #1B8E1B;
+    border: 1.5px solid var(--border);
+    padding: 9px 14px;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    font-size: 11px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
   </style>
 </head>
 <body>
@@ -2267,6 +2494,52 @@ body.dark-mode .resumo-cards .medal-text {
     </div>
   </div>
 
+  <!-- MELHORIA 2: Status de sincronização discreto -->
+  <div id="home-sync-bar">
+    <div id="home-sync-dot"></div>
+    <span id="home-sync-label">Aguardando sincronização...</span>
+  </div>
+
+  <!-- MELHORIA 1: Resumo executivo do dia -->
+  <div id="home-resumo-executivo">
+    <div class="hre-card">
+      <span class="hre-label"><i class="fas fa-weight" style="margin-right:3px"></i>Produção (Safra)</span>
+      <span class="hre-val" id="hre-producao">—</span>
+      <span class="hre-sub">toneladas acumuladas</span>
+    </div>
+    <div class="hre-card">
+      <span class="hre-label"><i class="fas fa-bullseye" style="margin-right:3px"></i>Aderência Geral</span>
+      <span class="hre-val" id="hre-aderencia">—</span>
+      <span class="hre-sub">meta safra</span>
+    </div>
+    <div class="hre-card">
+      <span class="hre-label"><i class="fas fa-tractor" style="margin-right:3px"></i>Frentes Ativas</span>
+      <span class="hre-val" id="hre-frentes">—</span>
+      <span class="hre-sub">com OS abertas</span>
+    </div>
+    <div class="hre-card hre-chuva">
+      <span class="hre-label"><i class="fas fa-sun" style="margin-right:3px"></i>Dias Sem Chuva</span>
+      <span class="hre-val" id="hre-dias-sem-chuva">—</span>
+      <span class="hre-sub" id="hre-chuva-sub">verificando...</span>
+    </div>
+  </div>
+
+  <!-- MELHORIA 4: Chips de frente -->
+  <div id="home-frentes-chips" style="display:none">
+    <!-- chips injetados via JS -->
+  </div>
+
+  <!-- MELHORIA 5: Seletor global de frente (visível dentro das abas) -->
+  <div id="global-frente-bar">
+    <label><i class="fas fa-filter" style="margin-right:4px"></i>Frente:</label>
+    <select id="global-frente-select" onchange="aplicarFiltroGlobalFrente()">
+      <option value="">— Todas —</option>
+    </select>
+    <button id="global-frente-clear" onclick="limparFiltroGlobalFrente()" title="Limpar filtro">
+      <i class="fas fa-times-circle"></i>
+    </button>
+  </div>
+
   <nav class="tabs-nav home-mode" id="main-nav">
 
     <button class="tab-btn menu-c1" onclick="showTab(event,'simulador')">
@@ -2327,6 +2600,21 @@ body.dark-mode .resumo-cards .medal-text {
             <i class="fas fa-arrow-right"></i> Próxima
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- MELHORIA 8: Resumo semanal automático para WhatsApp -->
+    <button id="btn-resumo-semanal" onclick="copiarResumoSemanal()">
+      <i class="fab fa-whatsapp" style="font-size:15px;"></i> Resumo Semanal para WhatsApp
+    </button>
+
+    <!-- MELHORIA 6: Histórico de sincronização -->
+    <div id="home-sync-historico" style="display:none">
+      <div class="sync-hist-title">
+        <i class="fas fa-history"></i> Histórico de Sincronização
+      </div>
+      <div id="sync-hist-lista">
+        <!-- itens injetados via JS -->
       </div>
     </div>
   </div>
@@ -2629,6 +2917,9 @@ body.dark-mode .resumo-cards .medal-text {
         </select>
       </div>
       <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; margin-top:10px;">
+        <button id="btn-compact-toggle" onclick="toggleModoCompacto()" title="Modo compacto de tabela">
+          <i class="fas fa-compress-alt"></i> Compacto
+        </button>
         <span id="gatec-sync-status" style="font-size:10px; color:var(--text-3); font-weight:600; display:none;">
           <i class="fas fa-circle" style="font-size:7px; color:var(--green-500); margin-right:4px;"></i>
           <span id="gatec-sync-label">—</span>
@@ -3461,6 +3752,20 @@ function showTab(e, id) {
     carregarDadosConfOS();
   }
 
+  // MELHORIA 5: exibe seletor global de frente nas abas relevantes
+  const gBar = document.getElementById('global-frente-bar');
+  if (gBar) {
+    const abasComFiltro = ['liberacoes', 'conf_os_aba'];
+    gBar.classList.toggle('visible', abasComFiltro.includes(id));
+    // Aplica filtro global já definido ao entrar na aba de liberações
+    if (id === 'liberacoes' && window._filtroGlobalFrente) {
+      setTimeout(() => {
+        const inp = document.getElementById('filtroFrente');
+        if (inp) { inp.value = window._filtroGlobalFrente; filtrarTabela(); }
+      }, 100);
+    }
+  }
+
   // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
   const containerPrincipal = document.querySelector('.container');
   if (containerPrincipal) {
@@ -3525,6 +3830,10 @@ function voltarParaHome() {
 
   // Scrolla para o topo
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // MELHORIA 5: oculta seletor global ao voltar para home
+  const gBar = document.getElementById('global-frente-bar');
+  if (gBar) gBar.classList.remove('visible');
 }
 
 /* ══════════════════════════════════════════════
@@ -3938,6 +4247,270 @@ function iniciarWelcomeBar(nomeUsuario) {
         climaEl.style.display = 'flex';
       }
     }).catch(() => {}); // silencioso se offline
+
+  // MELHORIA 3: Buscar dias sem chuva via Open-Meteo
+  buscarDiasSemChuva();
+}
+
+/* ══════════════════════════════════════════════
+   MELHORIA 1+2+3 — RESUMO EXECUTIVO, SYNC E CHUVA
+══════════════════════════════════════════════ */
+
+// Registro de histórico de sincronização (máx 5)
+window._syncHistorico = [];
+
+function registrarSync(status, fonte) {
+  const agora = new Date();
+  const hh = String(agora.getHours()).padStart(2,'0');
+  const mm = String(agora.getMinutes()).padStart(2,'0');
+  const entrada = { hora: `${hh}:${mm}`, status, fonte };
+  window._syncHistorico.unshift(entrada);
+  if (window._syncHistorico.length > 5) window._syncHistorico.pop();
+
+  // MELHORIA 2: atualiza label da home
+  const label = document.getElementById('home-sync-label');
+  const dot   = document.getElementById('home-sync-dot');
+  if (label) label.textContent = `Sync às ${hh}:${mm}`;
+  if (dot)   dot.style.background = status === 'ok' ? 'var(--green-500)' : 'var(--red)';
+
+  // MELHORIA 6: atualiza lista do histórico
+  renderSyncHistorico();
+}
+
+function renderSyncHistorico() {
+  const wrap = document.getElementById('home-sync-historico');
+  const lista = document.getElementById('sync-hist-lista');
+  if (!wrap || !lista) return;
+  if (window._syncHistorico.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  lista.innerHTML = window._syncHistorico.map(e => `
+    <div class="sync-hist-item">
+      <div class="shi-dot ${e.status === 'ok' ? 'ok' : 'err'}"></div>
+      <span>${e.status === 'ok' ? '✅' : '❌'} ${e.fonte || 'Planilha'}</span>
+      <span class="shi-time">${e.hora}</span>
+    </div>`).join('');
+}
+
+function atualizarResumoExecutivo() {
+  if (!window._gatecDados || window._gatecDados.length === 0) return;
+
+  const frentesPermitidas = ["401", "402", "403", "404", "451"];
+  const metasSafra = { "401": 330490.62, "402": 280186.42, "403": 258189.22, "404": 277888.36, "451": 280133.10 };
+  const metaTotal = Object.values(metasSafra).reduce((a, b) => a + b, 0);
+
+  let totalProd = 0;
+  const frentesComAbertas = new Set();
+
+  window._gatecDados.forEach(row => {
+    const frente = (row["FRENTE"] || "").trim();
+    if (!frentesPermitidas.includes(frente)) return;
+    const prodReal = parseFloat(String(row["PROD. REAL"] || "0").replace(/\./g, "").replace(",", ".")) || 0;
+    totalProd += prodReal;
+    const status = (row["STATUS OS"] || "").toUpperCase();
+    if (!status.includes("ENCERRADA")) frentesComAbertas.add(frente);
+  });
+
+  const aderenciaGeral = metaTotal > 0 ? (totalProd / metaTotal) * 100 : 0;
+  const corAder = aderenciaGeral >= 90 ? '#1B5E20' : aderenciaGeral >= 70 ? '#E65100' : '#C62828';
+
+  const elProd  = document.getElementById('hre-producao');
+  const elAder  = document.getElementById('hre-aderencia');
+  const elFrent = document.getElementById('hre-frentes');
+  if (elProd)  elProd.textContent  = totalProd.toLocaleString('pt-BR', {maximumFractionDigits:0}) + ' t';
+  if (elAder)  { elAder.textContent = aderenciaGeral.toFixed(1) + '%'; elAder.style.color = corAder; }
+  if (elFrent) elFrent.textContent  = frentesComAbertas.size;
+
+  // MELHORIA 4: preencher chips de frente
+  const chips = document.getElementById('home-frentes-chips');
+  if (chips && frentesComAbertas.size > 0) {
+    chips.style.display = 'flex';
+    chips.innerHTML = Array.from(frentesComAbertas).sort().map(f =>
+      `<button class="home-frente-chip" onclick="irParaFrente('${f}')">
+        <i class="fas fa-tractor" style="font-size:9px; margin-right:4px; opacity:0.7;"></i>${f}
+      </button>`
+    ).join('');
+  }
+
+  // MELHORIA 5: preencher seletor global
+  popularSeletorGlobalFrente();
+}
+
+// MELHORIA 3: Dias sem chuva via Open-Meteo
+async function buscarDiasSemChuva() {
+  const elVal = document.getElementById('hre-dias-sem-chuva');
+  const elSub = document.getElementById('hre-chuva-sub');
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=-20.72&longitude=-46.61&daily=precipitation_sum&timezone=America%2FSao_Paulo&past_days=30&forecast_days=1';
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data.daily || !data.daily.precipitation_sum) throw new Error('sem dados');
+    const precip = data.daily.precipitation_sum;
+    const datas  = data.daily.time;
+    // Conta da data mais recente para trás, dias com < 0.1mm
+    let dias = 0;
+    for (let i = precip.length - 1; i >= 0; i--) {
+      if ((precip[i] || 0) < 0.1) dias++;
+      else break;
+    }
+    if (elVal) { elVal.textContent = dias; }
+    if (elSub) {
+      elSub.textContent = dias === 0 ? 'chuva hoje' : dias === 1 ? 'desde ontem' : `sem chuva (Passos/MG)`;
+      // Cor: verde se sem chuva (bom pra colheita), azul se choveu recentemente
+      const card = elVal?.closest('.hre-card');
+      if (card) card.style.borderColor = dias >= 3 ? 'var(--green-500)' : '#90CAF9';
+    }
+  } catch(e) {
+    if (elVal) elVal.textContent = '—';
+    if (elSub) elSub.textContent = 'indisponível';
+  }
+}
+
+/* ══════════════════════════════════════════════
+   MELHORIA 4 — ATALHO CHIP → ABA PRODUÇÃO
+══════════════════════════════════════════════ */
+function irParaFrente(frente) {
+  // Navega para Liberações e pré-filtra a frente
+  const btn = document.querySelector('[onclick*="liberacoes"]');
+  if (btn) btn.click();
+  setTimeout(() => {
+    const inp = document.getElementById('filtroFrente');
+    if (inp) { inp.value = frente; filtrarTabela(); }
+  }, 150);
+}
+
+/* ══════════════════════════════════════════════
+   MELHORIA 5 — SELETOR GLOBAL DE FRENTE
+══════════════════════════════════════════════ */
+window._filtroGlobalFrente = '';
+
+function popularSeletorGlobalFrente() {
+  const sel = document.getElementById('global-frente-select');
+  if (!sel || !window._gatecDados) return;
+  const frentesPermitidas = ["401", "402", "403", "404", "451"];
+  const anterior = sel.value;
+  sel.innerHTML = '<option value="">— Todas —</option>';
+  frentesPermitidas.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f;
+    o.textContent = `Frente ${f}`;
+    if (f === anterior) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function aplicarFiltroGlobalFrente() {
+  const val = document.getElementById('global-frente-select')?.value || '';
+  window._filtroGlobalFrente = val;
+  // Aplica nos inputs de filtro de frente existentes
+  const inpLib = document.getElementById('filtroFrente');
+  if (inpLib) { inpLib.value = val; filtrarTabela(); }
+  showToast(val ? `🔍 Filtrando: Frente ${val}` : '✅ Filtro de frente removido', 'info', 2000);
+}
+
+function limparFiltroGlobalFrente() {
+  window._filtroGlobalFrente = '';
+  const sel = document.getElementById('global-frente-select');
+  if (sel) sel.value = '';
+  const inpLib = document.getElementById('filtroFrente');
+  if (inpLib) { inpLib.value = ''; filtrarTabela(); }
+  showToast('✅ Filtro global removido', 'info', 1500);
+}
+
+/* ══════════════════════════════════════════════
+   MELHORIA 7 — MODO COMPACTO DE TABELA
+══════════════════════════════════════════════ */
+window._modoCompacto = false;
+function toggleModoCompacto() {
+  window._modoCompacto = !window._modoCompacto;
+  const wrapper = document.getElementById('gatec-table-wrapper');
+  const btn = document.getElementById('btn-compact-toggle');
+  if (wrapper) wrapper.classList.toggle('compact-mode', window._modoCompacto);
+  if (btn) {
+    btn.classList.toggle('active', window._modoCompacto);
+    btn.innerHTML = window._modoCompacto
+      ? '<i class="fas fa-expand-alt"></i> Normal'
+      : '<i class="fas fa-compress-alt"></i> Compacto';
+  }
+  showToast(window._modoCompacto ? '📋 Modo compacto ativado' : '📋 Modo normal ativado', 'info', 1500);
+}
+
+/* ══════════════════════════════════════════════
+   MELHORIA 8 — RESUMO SEMANAL PARA WHATSAPP
+══════════════════════════════════════════════ */
+function copiarResumoSemanal() {
+  if (!window._gatecDados || window._gatecDados.length === 0) {
+    showToast('⚠️ Aguarde o carregamento dos dados.', 'error', 2500);
+    return;
+  }
+
+  const frentesPermitidas = ["401", "402", "403", "404", "451"];
+  const metasSafra = { "401": 330490.62, "402": 280186.42, "403": 258189.22, "404": 277888.36, "451": 280133.10 };
+
+  const resumo = {};
+  let totalGeral = 0;
+  frentesPermitidas.forEach(f => { resumo[f] = { prod: 0, abertas: 0, encerradas: 0 }; });
+
+  window._gatecDados.forEach(row => {
+    const frente = (row["FRENTE"] || "").trim();
+    if (!frentesPermitidas.includes(frente)) return;
+    const prodReal = parseFloat(String(row["PROD. REAL"] || "0").replace(/\./g, "").replace(",", ".")) || 0;
+    resumo[frente].prod += prodReal;
+    totalGeral += prodReal;
+    const status = (row["STATUS OS"] || "").toUpperCase();
+    if (status.includes("ENCERRADA")) resumo[frente].encerradas++;
+    else resumo[frente].abertas++;
+  });
+
+  // Aderência média ponderada
+  let somaAder = 0, contAder = 0;
+  let frenteLider = { id: '', prod: 0 };
+  frentesPermitidas.forEach(f => {
+    const meta = metasSafra[f];
+    if (meta && resumo[f].prod > 0) {
+      somaAder += (resumo[f].prod / meta) * 100;
+      contAder++;
+    }
+    if (resumo[f].prod > frenteLider.prod) frenteLider = { id: f, prod: resumo[f].prod };
+  });
+  const aderMedia = contAder > 0 ? (somaAder / contAder).toFixed(1) : '—';
+
+  const now = new Date();
+  const dataHora = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+  const linhas = frentesPermitidas.map(f => {
+    const d = resumo[f];
+    const meta = metasSafra[f];
+    const ader = meta ? ((d.prod / meta) * 100).toFixed(1) + '%' : '—';
+    const prodFmt = d.prod.toLocaleString('pt-BR', {maximumFractionDigits:0});
+    return `  • *Frente ${f}:* ${prodFmt} t — Ader. ${ader}`;
+  }).join('\n');
+
+  const texto =
+`🌾 *RESUMO SEMANAL — CTT CONTROLE AGRÍCOLA*
+📅 Gerado em: ${dataHora}
+${'─'.repeat(32)}
+📦 *Produção Acumulada por Frente:*
+${linhas}
+${'─'.repeat(32)}
+📊 *Total Acumulado:* ${totalGeral.toLocaleString('pt-BR', {maximumFractionDigits:0})} t
+🎯 *Aderência Média:* ${aderMedia}%
+🏆 *Frente Destaque:* Frente ${frenteLider.id || '—'} (${frenteLider.prod.toLocaleString('pt-BR', {maximumFractionDigits:0})} t)
+${'─'.repeat(32)}
+_Gerado pelo CTT Controle Agrícola_`;
+
+  navigator.clipboard.writeText(texto)
+    .then(() => showToast('✅ Resumo Semanal copiado! Cole no WhatsApp.', 'success', 3000))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = texto;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('✅ Resumo Semanal copiado! Cole no WhatsApp.', 'success', 3000);
+    });
 }
 
 /* ══════════════════════════════════════════════
@@ -4651,6 +5224,10 @@ if (resumoCards) {
         syncStatus.style.display = 'inline-flex';
         syncStatus.style.alignItems = 'center';
       }
+      // MELHORIA 2+6: registra sincronização no histórico
+      registrarSync('ok', 'GATEC/Liberações');
+      // MELHORIA 1+4+5: atualiza resumo executivo da home
+      atualizarResumoExecutivo();
     }
   });
 }
@@ -7187,11 +7764,16 @@ function _onLoginSuccess(user) {
   // ── Boas-vindas ──
   iniciarWelcomeBar(nomeUsuario);
 
-  // Toast de boas-vindas
-  const hora = new Date().getHours();
-  let saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
-  const nomeFormatado = nomeUsuario.charAt(0).toUpperCase() + nomeUsuario.slice(1);
-  showToast(`🌱 ${saud}, ${nomeFormatado}! Bem-vindo!`, 'success', 3500);
+  // Toast de boas-vindas — exibe apenas 1x por dia
+  const _hoje = new Date().toISOString().slice(0, 10);
+  const _chave = 'ctt_toast_bv_' + (user.id || nomeUsuario);
+  if (localStorage.getItem(_chave) !== _hoje) {
+    localStorage.setItem(_chave, _hoje);
+    const hora = new Date().getHours();
+    let saud = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+    const nomeFormatado = nomeUsuario.charAt(0).toUpperCase() + nomeUsuario.slice(1);
+    showToast(`🌱 ${saud}, ${nomeFormatado}! Bem-vindo!`, 'success', 3500);
+  }
 }
 
 function _onLogout() {
