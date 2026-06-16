@@ -1914,32 +1914,33 @@
 
 /* ══════════════════════════════════════════════
    DESKTOP — Aba Liberações: somente a coluna
-   "Talhões" quebra linha; as demais ficam em
-   uma única linha (nowrap), mesmo que a tabela
-   precise crescer/rolar horizontalmente.
+   "Talhões" quebra linha. A tabela NUNCA ultrapassa
+   a largura do card (sem scroll horizontal); as
+   demais colunas continuam compactas (nowrap) e a
+   coluna Talhões cresce em altura quando precisar.
    Não afeta o layout Mobile (cards).
 ══════════════════════════════════════════════ */
 @media (min-width: 769px) {
   #liberacoes #gatec-table-wrapper {
-    overflow-x: auto;
+    overflow-x: hidden;
   }
   #liberacoes #tabela-liberacoes-gatec {
-    table-layout: auto !important;
-    width: auto !important;
-    min-width: 100%;
+    table-layout: fixed !important;
+    width: 100% !important;
   }
   #liberacoes #tabela-liberacoes-gatec th,
   #liberacoes #tabela-liberacoes-gatec td {
     white-space: nowrap !important;
-    width: auto !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* 4ª coluna = Talhões: única que pode quebrar linha e crescer em altura */
   #liberacoes #tabela-liberacoes-gatec th:nth-child(4),
   #liberacoes #tabela-liberacoes-gatec td:nth-child(4) {
     white-space: normal !important;
     word-break: break-word;
-    min-width: 220px;
-    max-width: 360px;
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 
