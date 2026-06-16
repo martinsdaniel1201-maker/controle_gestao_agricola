@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.1</title>
+  <title>Controle Técnico Agrícola v7.2</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -2175,18 +2175,35 @@ body.dark-mode .resumo-cards .medal-text {
   .hre-card.hre-chuva .hre-val { color: var(--blue); }
   body.dark-mode .hre-card { background: #1e1e1e; }
 
-  /* Mini-seletor de cidade discreto, embutido no label do card "Dias Sem Chuva" */
-  .hre-chuva-cidade-mini {
-    appearance: none; -webkit-appearance: none; -moz-appearance: none;
-    border: none; background: none; outline: none;
-    color: var(--text-3); font-size: 8px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.3px;
-    cursor: pointer; padding: 0 2px 0 0; margin-left: 3px;
-    max-width: 64px; vertical-align: middle;
+  /* ── Card "Dias Sem Chuva": cabeçalho com chip de cidade bem visível ── */
+  .hre-chuva-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 6px; position: relative; margin-bottom: 1px;
   }
-  .hre-chuva-cidade-mini:hover, .hre-chuva-cidade-mini:focus { color: var(--blue); }
-  body.dark-mode .hre-chuva-cidade-mini { color: var(--text-3); }
-  body.dark-mode .hre-chuva-cidade-mini option { background: #1e1e1e; color: var(--text); }
+  .hre-chuva-cidade-chip {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--blue-bg); border: 1px solid #BBDEFB;
+    color: var(--blue); border-radius: 99px;
+    padding: 2px 7px; font-size: 9px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .hre-chuva-cidade-chip:hover { background: #D2E8FB; border-color: var(--blue); }
+  .hre-chuva-cidade-chip i.fa-location-dot { font-size: 8px; }
+  .hre-chuva-chip-caret { font-size: 7px; opacity: 0.7; }
+  body.dark-mode .hre-chuva-cidade-chip {
+    background: rgba(33,150,243,0.15); border-color: rgba(33,150,243,0.35); color: #64B5F6;
+  }
+  /* Select real fica posicionado por cima do chip, transparente — clique abre o dropdown nativo */
+  .hre-chuva-cidade-select-real {
+    position: absolute; top: 0; right: 0; height: 100%;
+    width: 78px; opacity: 0; cursor: pointer; border: none;
+  }
+  .hre-chuva-mes {
+    display: block; font-size: 9px; font-weight: 700;
+    color: var(--green-700); margin-top: 3px;
+  }
+  body.dark-mode .hre-chuva-mes { color: var(--green-100); }
 
   /* Esses blocos pertencem SOMENTE à tela inicial — somem ao abrir qualquer aba */
   body.tab-open #home-resumo-executivo,
@@ -2631,12 +2648,16 @@ body.dark-mode .resumo-cards .medal-text {
       <span class="hre-sub">com OS abertas</span>
     </div>
     <div class="hre-card hre-chuva">
-      <span class="hre-label">
-        <i class="fas fa-sun" style="margin-right:3px"></i>Dias Sem Chuva
-        <select id="hre-chuva-cidade-select" class="hre-chuva-cidade-mini" title="Trocar cidade"></select>
-      </span>
+      <div class="hre-chuva-head">
+        <span class="hre-label"><i class="fas fa-sun" style="margin-right:3px"></i>Dias Sem Chuva</span>
+        <button type="button" class="hre-chuva-cidade-chip" id="hre-chuva-cidade-chip" onclick="abrirSeletorCidadeChuva()" title="Trocar cidade">
+          <i class="fas fa-location-dot"></i><span id="hre-chuva-cidade-label">Passos</span><i class="fas fa-chevron-down hre-chuva-chip-caret"></i>
+        </button>
+        <select id="hre-chuva-cidade-select" class="hre-chuva-cidade-select-real" title="Trocar cidade"></select>
+      </div>
       <span class="hre-val" id="hre-dias-sem-chuva">—</span>
       <span class="hre-sub" id="hre-chuva-sub">verificando...</span>
+      <span class="hre-chuva-mes" id="hre-chuva-mes"></span>
     </div>
   </div>
 
@@ -2683,7 +2704,7 @@ body.dark-mode .resumo-cards .medal-text {
       <div class="menu-orb">
         <i class="fas fa-clipboard-check"></i>
       </div>
-      <span class="menu-label">Conferências</span>
+      <span class="menu-label">Relatórios</span>
       <span class="menu-tag">O.S & Tratos Culturais</span>
     </button>
 
@@ -4354,9 +4375,9 @@ function iniciarWelcomeBar(nomeUsuario) {
   buscarDiasSemChuva();
 }
 
-/* Popula o mini-seletor de cidade do card "Dias Sem Chuva" (discreto, na home)
-   com as mesmas cidades configuradas na aba Clima & Agro. Mantém a escolha
-   anterior do usuário (salva em localStorage) entre sessões. */
+/* Popula o seletor de cidade (oculto, sobreposto ao chip visível) do card
+   "Dias Sem Chuva" com as mesmas cidades configuradas na aba Clima & Agro.
+   Mantém a escolha anterior do usuário (salva em localStorage) entre sessões. */
 function popularSeletorChuvaCidade() {
   const sel = document.getElementById('hre-chuva-cidade-select');
   if (!sel || typeof CIDADES_COORDS === 'undefined') return;
@@ -4375,10 +4396,33 @@ function popularSeletorChuvaCidade() {
     const padrao = Object.keys(CIDADES_COORDS).find(k => CIDADES_COORDS[k].nome === 'Passos');
     if (padrao) sel.value = padrao;
   }
+  atualizarChipCidadeChuva();
   sel.onchange = () => {
     localStorage.setItem('ctt_chuva_cidade', sel.value);
+    atualizarChipCidadeChuva();
     buscarDiasSemChuva();
   };
+}
+
+/* Sincroniza o texto do chip visível ("📍 Passos ▾") com a opção
+   selecionada no <select> real (que fica invisível por cima do chip). */
+function atualizarChipCidadeChuva() {
+  const sel = document.getElementById('hre-chuva-cidade-select');
+  const label = document.getElementById('hre-chuva-cidade-label');
+  if (sel && label && sel.selectedOptions[0]) {
+    label.textContent = sel.selectedOptions[0].textContent;
+  }
+}
+
+/* Dá foco/abre o <select> nativo de cidade quando o usuário toca no chip visível
+   (o select real fica posicionado de forma invisível por cima do botão). */
+function abrirSeletorCidadeChuva() {
+  const sel = document.getElementById('hre-chuva-cidade-select');
+  if (!sel) return;
+  sel.focus();
+  if (typeof sel.showPicker === 'function') {
+    try { sel.showPicker(); } catch(e) {}
+  }
 }
 
 /* Busca o clima atual (Open-Meteo) e popula a welcome-bar. Assíncrona e silenciosa. */
@@ -4564,6 +4608,7 @@ function atualizarResumoExecutivo() {
 async function buscarDiasSemChuva() {
   const elVal = document.getElementById('hre-dias-sem-chuva');
   const elSub = document.getElementById('hre-chuva-sub');
+  const elMes = document.getElementById('hre-chuva-mes');
   const selCidade = document.getElementById('hre-chuva-cidade-select');
   const cidade = (selCidade && typeof CIDADES_COORDS !== 'undefined' && CIDADES_COORDS[selCidade.value])
     ? CIDADES_COORDS[selCidade.value]
@@ -4575,15 +4620,20 @@ async function buscarDiasSemChuva() {
     const hoje = new Date();
     const ontem = new Date(hoje);
     ontem.setDate(hoje.getDate() - 1);
-    const inicio = new Date(hoje);
-    inicio.setDate(hoje.getDate() - 30);
+    // Início sempre no 1º dia do mês corrente, para garantir o acumulado
+    // mensal completo (independente de cair nos primeiros dias do mês).
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const inicio30 = new Date(hoje);
+    inicio30.setDate(hoje.getDate() - 30);
+    const inicioBusca = inicioMes.getTime() < inicio30.getTime() ? inicioMes : inicio30;
 
     const fmt = d => d.toISOString().slice(0, 10);
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${cidade.lat}&longitude=${cidade.lon}&start_date=${fmt(inicio)}&end_date=${fmt(ontem)}&daily=precipitation_sum&timezone=America%2FSao_Paulo`;
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${cidade.lat}&longitude=${cidade.lon}&start_date=${fmt(inicioBusca)}&end_date=${fmt(ontem)}&daily=precipitation_sum&timezone=America%2FSao_Paulo`;
     const resp = await fetch(url);
     const data = await resp.json();
     if (!data.daily || !data.daily.precipitation_sum) throw new Error('sem dados');
     const precip = data.daily.precipitation_sum;
+    const datas  = data.daily.time;
     // Conta do dia mais recente (ontem) para trás, dias com < 0.1mm
     let dias = 0;
     for (let i = precip.length - 1; i >= 0; i--) {
@@ -4597,9 +4647,24 @@ async function buscarDiasSemChuva() {
       const card = elVal?.closest('.hre-card');
       if (card) card.style.borderColor = dias >= 3 ? 'var(--green-500)' : '#90CAF9';
     }
+    // Acumulado de chuva do mês corrente (ex.: "Junho: 25mm até o momento")
+    if (elMes) {
+      const mesAtual = hoje.getMonth();
+      const anoAtual = hoje.getFullYear();
+      let acumuladoMes = 0;
+      datas.forEach((d, i) => {
+        const dt = new Date(d + 'T00:00:00');
+        if (dt.getMonth() === mesAtual && dt.getFullYear() === anoAtual) {
+          acumuladoMes += (precip[i] ?? 0);
+        }
+      });
+      const nomesMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      elMes.textContent = `${nomesMeses[mesAtual]}: ${acumuladoMes.toFixed(1).replace('.', ',')}mm até o momento`;
+    }
   } catch(e) {
     if (elVal) elVal.textContent = '—';
     if (elSub) elSub.textContent = 'indisponível';
+    if (elMes) elMes.textContent = '';
   }
 }
 
