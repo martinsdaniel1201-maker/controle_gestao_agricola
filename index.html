@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola</title>
+  <title>Controle Técnico Agrícola v6.9</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -1934,6 +1934,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* Coluna Status (9ª): nunca corta o texto do badge (ENCERRADA/ABERTA) */
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(9),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(9) {
+    overflow: visible;
+    text-overflow: clip;
+  }
   /* 4ª coluna = Talhões: única que pode quebrar linha e crescer em altura */
   #liberacoes #tabela-liberacoes-gatec th:nth-child(4),
   #liberacoes #tabela-liberacoes-gatec td:nth-child(4) {
@@ -3028,15 +3034,15 @@ body.dark-mode .resumo-cards .medal-text {
       <table id="tabela-liberacoes-gatec" style="width: 100%; table-layout: fixed; border-collapse: collapse;">
         <thead>
           <tr>
-            <th style="width:12%; padding:8px 6px; font-size:11px;">Liberação</th>
-            <th style="width:7%;  padding:8px 4px; font-size:11px;">Frente</th>
+            <th style="width:11%; padding:8px 6px; font-size:11px;">Liberação</th>
+            <th style="width:6%;  padding:8px 4px; font-size:11px;">Frente</th>
             <th style="width:18%; padding:8px 6px; font-size:11px;">Fazenda</th>
-            <th style="width:16%; padding:8px 6px; font-size:11px;">Talhões</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:right;">Prod. Est.</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:right;">Prod. Real</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:right;">Dif. Prod.</th>
-            <th style="width:7%;  padding:8px 4px; font-size:11px; text-align:right;">TCH</th>
-            <th style="width:10%; padding:8px 4px; font-size:11px; text-align:center;">Status</th>
+            <th style="width:17%; padding:8px 6px; font-size:11px;">Talhões</th>
+            <th style="width:9%; padding:8px 4px; font-size:11px; text-align:right;">Prod. Est.</th>
+            <th style="width:9%; padding:8px 4px; font-size:11px; text-align:right;">Prod. Real</th>
+            <th style="width:9%; padding:8px 4px; font-size:11px; text-align:right;">Dif. Prod.</th>
+            <th style="width:6%;  padding:8px 4px; font-size:11px; text-align:right;">TCH</th>
+            <th style="width:15%; padding:8px 4px; font-size:11px; text-align:center;">Status</th>
           </tr>
         </thead>
         <tbody id="corpo-tabela-gatec" style="font-size: 12px;"></tbody>
