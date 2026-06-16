@@ -1912,6 +1912,37 @@
   border-radius: var(--radius-md);
 }
 
+/* ══════════════════════════════════════════════
+   DESKTOP — Aba Liberações: somente a coluna
+   "Talhões" quebra linha; as demais ficam em
+   uma única linha (nowrap), mesmo que a tabela
+   precise crescer/rolar horizontalmente.
+   Não afeta o layout Mobile (cards).
+══════════════════════════════════════════════ */
+@media (min-width: 769px) {
+  #liberacoes #gatec-table-wrapper {
+    overflow-x: auto;
+  }
+  #liberacoes #tabela-liberacoes-gatec {
+    table-layout: auto !important;
+    width: auto !important;
+    min-width: 100%;
+  }
+  #liberacoes #tabela-liberacoes-gatec th,
+  #liberacoes #tabela-liberacoes-gatec td {
+    white-space: nowrap !important;
+    width: auto !important;
+  }
+  /* 4ª coluna = Talhões: única que pode quebrar linha e crescer em altura */
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(4),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(4) {
+    white-space: normal !important;
+    word-break: break-word;
+    min-width: 220px;
+    max-width: 360px;
+  }
+}
+
 /* ── COMPATIBILIDADE COM O SEU DARK MODE OBRIGATÓRIO ── */
 body.dark-mode .resumo-cards .frente-card {
   background: #242424; /* Combina perfeitamente com os blocos escuros do app */
@@ -2137,6 +2168,13 @@ body.dark-mode .resumo-cards .medal-text {
   .hre-card.hre-chuva .hre-val { color: var(--blue); }
   body.dark-mode .hre-card { background: #1e1e1e; }
 
+  /* Esses blocos pertencem SOMENTE à tela inicial — somem ao abrir qualquer aba */
+  body.tab-open #home-resumo-executivo,
+  body.tab-open #home-sync-bar,
+  body.tab-open #home-frentes-chips {
+    display: none !important;
+  }
+
   /* ══════════════════════════════════════════════
      MELHORIA 2 — STATUS SINCRONIZAÇÃO NA HOME
   ══════════════════════════════════════════════ */
@@ -2325,6 +2363,40 @@ body.dark-mode .resumo-cards .medal-text {
     justify-content: center;
     margin-bottom: 10px;
   }
+
+  /* ══════════════════════════════════════════════
+     NOVA FUNCIONALIDADE 2 — NOME PERSONALIZADO
+  ══════════════════════════════════════════════ */
+  .home-welcome-text { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .home-welcome-text .hwt-col { flex: 1; min-width: 0; }
+  #btn-editar-nome {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-3); font-size: 11px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s;
+  }
+  #btn-editar-nome:hover { border-color: var(--green-500); color: var(--green-700); background: var(--green-50); }
+
+  /* Modal "Como você prefere ser chamado?" — vira bottom-sheet no mobile */
+  #modal-nome-overlay .modal-box { max-width: 340px; }
+  #modal-nome-overlay .modal-input { margin-bottom: 10px; }
+  #modal-nome-overlay .modal-hint { font-size: 10px; color: var(--text-3); margin-bottom: 14px; line-height: 1.5; }
+
+  /* ══════════════════════════════════════════════
+     NOVA FUNCIONALIDADE 3 — FORÇAR ATUALIZAÇÃO
+  ══════════════════════════════════════════════ */
+  #btn-forcar-atualizacao {
+    flex-shrink: 0;
+    width: 34px; height: 34px; border-radius: var(--radius-sm);
+    background: var(--surface2); border: 1.5px solid var(--border);
+    color: var(--text-2); font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.18s;
+  }
+  #btn-forcar-atualizacao:hover { border-color: var(--green-500); color: var(--green-700); background: var(--green-50); }
+  #btn-forcar-atualizacao.girando i { animation: girarAtualizar 0.7s linear infinite; }
+  @keyframes girarAtualizar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -2452,6 +2524,19 @@ body.dark-mode .resumo-cards .medal-text {
   <i class="fas fa-moon" id="dark-mode-icon"></i>
 </button>
 
+<!-- ══ MODAL — Como você prefere ser chamado? ══ -->
+<div class="modal-overlay" id="modal-nome-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Como você prefere ser chamado?</div>
+    <p class="modal-hint">Esse nome será usado na sua saudação na tela inicial.</p>
+    <input type="text" class="modal-input" id="input-nome-personalizado" placeholder="Ex.: Daniel" maxlength="30">
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="fecharModalNome()" style="background:var(--surface2); border:1.5px solid var(--border); border-radius:var(--radius-md); padding:11px; font-weight:700; color:var(--text-2); cursor:pointer;">Cancelar</button>
+      <button class="btn-main" onclick="salvarNomePersonalizado()" style="background:var(--grad); color:#fff; border:none; border-radius:var(--radius-md); padding:11px; font-weight:800; cursor:pointer;">Salvar</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- Modal Salvar Cenário -->
 <div class="modal-overlay" id="modal-cenario">
@@ -2485,13 +2570,21 @@ body.dark-mode .resumo-cards .medal-text {
   <div class="home-welcome-bar" id="home-welcome-bar">
     <div class="home-welcome-avatar"><i class="fas fa-seedling"></i></div>
     <div class="home-welcome-text">
-      <div class="home-welcome-greeting" id="home-welcome-greeting">Olá! 🌾</div>
-      <div class="home-welcome-sub" id="home-welcome-sub">Carregando...</div>
+      <div class="hwt-col">
+        <div class="home-welcome-greeting" id="home-welcome-greeting">Olá! 🌾</div>
+        <div class="home-welcome-sub" id="home-welcome-sub">Carregando...</div>
+      </div>
+      <button id="btn-editar-nome" title="Como você prefere ser chamado?" onclick="abrirModalNome()">
+        <i class="fas fa-gear"></i>
+      </button>
     </div>
     <div class="home-welcome-clima" id="home-welcome-clima" style="display:none">
       <div class="home-welcome-temp" id="home-welcome-temp">—°</div>
       <div class="home-welcome-cond" id="home-welcome-cond">—</div>
     </div>
+    <button id="btn-forcar-atualizacao" title="Forçar atualização (limpa cache)" onclick="forcarAtualizacao()">
+      <i class="fas fa-rotate"></i>
+    </button>
   </div>
 
   <!-- MELHORIA 2: Status de sincronização discreto -->
@@ -2931,7 +3024,7 @@ body.dark-mode .resumo-cards .medal-text {
       
       <!-- Tabela: layout fixo, Talhões quebra linha, resto nowrap -->
       <div id="gatec-table-wrapper">
-      <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
+      <table id="tabela-liberacoes-gatec" style="width: 100%; table-layout: fixed; border-collapse: collapse;">
         <thead>
           <tr>
             <th style="width:12%; padding:8px 6px; font-size:11px;">Liberação</th>
@@ -4210,12 +4303,18 @@ function iniciarWelcomeBar(nomeUsuario) {
   const sub = document.getElementById('home-welcome-sub');
   if (!greeting || !sub) return;
 
+  // NOVA FUNCIONALIDADE 2: guarda o nome do login como fallback
+  // e usa o nome personalizado salvo no localStorage, se existir.
+  window._nomeLoginAtual = nomeUsuario || '';
+  const nomeSalvo = localStorage.getItem('ctt_nome_preferido');
+  const nomeExibir = nomeSalvo || nomeUsuario;
+
   const hora = new Date().getHours();
   let saudacao = 'Boa noite';
   if (hora >= 5 && hora < 12) saudacao = 'Bom dia';
   else if (hora >= 12 && hora < 18) saudacao = 'Boa tarde';
 
-  const nome = nomeUsuario ? nomeUsuario.charAt(0).toUpperCase() + nomeUsuario.slice(1) : '';
+  const nome = nomeExibir ? nomeExibir.charAt(0).toUpperCase() + nomeExibir.slice(1) : '';
   greeting.textContent = `${saudacao}${nome ? ', ' + nome : ''}! 🌾`;
 
   const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
@@ -4223,33 +4322,108 @@ function iniciarWelcomeBar(nomeUsuario) {
   const agora = new Date();
   sub.textContent = `${diasSemana[agora.getDay()]}, ${agora.getDate()} de ${meses[agora.getMonth()]} · Passos/MG`;
 
-  // Clima rápido da home (Open-Meteo, cidade padrão Passos)
-  fetch('https://api.open-meteo.com/v1/forecast?latitude=-20.72&longitude=-46.61&current_weather=true&timezone=America%2FSao_Paulo')
-    .then(r => r.json())
-    .then(d => {
-      if (!d.current_weather) return;
-      const temp = Math.round(d.current_weather.temperature);
-      const wc = d.current_weather.weathercode;
-      const condicoes = {
-        0:'Céu limpo', 1:'Quase limpo', 2:'Parcialmente nublado', 3:'Nublado',
-        45:'Neblina', 48:'Neblina', 51:'Garoa', 53:'Garoa', 55:'Garoa',
-        61:'Chuva fraca', 63:'Chuva', 65:'Chuva forte',
-        71:'Neve', 80:'Pancadas', 81:'Pancadas', 82:'Tempestade',
-        95:'Trovoada', 96:'Trovoada', 99:'Trovoada'
-      };
-      const cond = condicoes[wc] || 'Passos/MG';
-      const climaEl = document.getElementById('home-welcome-clima');
-      const tempEl = document.getElementById('home-welcome-temp');
-      const condEl = document.getElementById('home-welcome-cond');
-      if (climaEl && tempEl && condEl) {
-        tempEl.textContent = temp + '°C';
-        condEl.textContent = cond;
-        climaEl.style.display = 'flex';
-      }
-    }).catch(() => {}); // silencioso se offline
+  // NOVA FUNCIONALIDADE 4: dispara a busca do clima de forma assíncrona
+  // e automática, imediatamente após o boot/login — sem exigir clique.
+  atualizarClimaHomeAutomatico();
 
   // MELHORIA 3: Buscar dias sem chuva via Open-Meteo
   buscarDiasSemChuva();
+}
+
+/* Busca o clima atual (Open-Meteo) e popula a welcome-bar. Assíncrona e silenciosa. */
+async function atualizarClimaHomeAutomatico() {
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=-20.72&longitude=-46.61&current_weather=true&timezone=America%2FSao_Paulo');
+    const d = await r.json();
+    if (!d.current_weather) return;
+    const temp = Math.round(d.current_weather.temperature);
+    const wc = d.current_weather.weathercode;
+    const condicoes = {
+      0:'Céu limpo', 1:'Quase limpo', 2:'Parcialmente nublado', 3:'Nublado',
+      45:'Neblina', 48:'Neblina', 51:'Garoa', 53:'Garoa', 55:'Garoa',
+      61:'Chuva fraca', 63:'Chuva', 65:'Chuva forte',
+      71:'Neve', 80:'Pancadas', 81:'Pancadas', 82:'Tempestade',
+      95:'Trovoada', 96:'Trovoada', 99:'Trovoada'
+    };
+    const cond = condicoes[wc] || 'Passos/MG';
+    const climaEl = document.getElementById('home-welcome-clima');
+    const tempEl = document.getElementById('home-welcome-temp');
+    const condEl = document.getElementById('home-welcome-cond');
+    if (climaEl && tempEl && condEl) {
+      tempEl.textContent = temp + '°C';
+      condEl.textContent = cond;
+      climaEl.style.display = 'flex';
+    }
+  } catch (err) {
+    // silencioso se offline
+  }
+}
+
+/* ══════════════════════════════════════════════
+   NOVA FUNCIONALIDADE 2 — NOME PERSONALIZADO
+══════════════════════════════════════════════ */
+function abrirModalNome() {
+  const overlay = document.getElementById('modal-nome-overlay');
+  const input = document.getElementById('input-nome-personalizado');
+  if (!overlay || !input) return;
+  const atual = localStorage.getItem('ctt_nome_preferido') || window._nomeLoginAtual || '';
+  input.value = atual;
+  overlay.classList.add('open');
+  setTimeout(() => input.focus(), 150);
+}
+
+function fecharModalNome() {
+  const overlay = document.getElementById('modal-nome-overlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function salvarNomePersonalizado() {
+  const input = document.getElementById('input-nome-personalizado');
+  if (!input) return;
+  const nome = input.value.trim();
+  if (nome) {
+    localStorage.setItem('ctt_nome_preferido', nome);
+  } else {
+    localStorage.removeItem('ctt_nome_preferido');
+  }
+  fecharModalNome();
+  // Atualiza a saudação imediatamente com o nome escolhido
+  iniciarWelcomeBar(window._nomeLoginAtual);
+  showToast('✅ Nome salvo! É assim que vamos te chamar.', 'success', 2500);
+}
+
+/* ══════════════════════════════════════════════
+   NOVA FUNCIONALIDADE 3 — FORÇAR ATUALIZAÇÃO
+   Limpa Service Worker + caches e recarrega a última versão do deploy.
+══════════════════════════════════════════════ */
+function forcarAtualizacao() {
+  const btns = document.querySelectorAll('#btn-forcar-atualizacao');
+  btns.forEach(b => { const el = b.closest('button') || b; el.classList && el.classList.add('girando'); });
+  showToast('🔄 Limpando cache e buscando a última versão...', 'info', 2000);
+
+  const finalizar = () => {
+    // Força reload ignorando cache local
+    window.location.reload(true);
+  };
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations()
+      .then(function (registrations) {
+        const unregisters = registrations.map(reg => reg.unregister());
+        return Promise.all(unregisters);
+      })
+      .then(() => {
+        if (window.caches && caches.keys) {
+          return caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setTimeout(finalizar, 350);
+      });
+  } else {
+    setTimeout(finalizar, 350);
+  }
 }
 
 /* ══════════════════════════════════════════════
