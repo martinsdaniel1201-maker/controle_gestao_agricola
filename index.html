@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.2</title>
+  <title>Controle Técnico Agrícola v7.3</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -1293,9 +1293,7 @@
        HOME MENU — PROPOSTA D (Orbs Coloridos) — MELHORADO
     ══════════════════════════════════════════════ */
     #main-nav.home-mode {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      display: block;
       background: transparent;
       border: none;
       padding: 0;
@@ -1303,9 +1301,45 @@
       margin-bottom: 26px;
     }
 
+    /* ── Painel de seção (fundo temático sutil) ── */
+    .home-section {
+      border-radius: var(--radius-lg);
+      padding: 14px 12px 16px;
+      margin-bottom: 16px;
+    }
+    .home-section:last-child { margin-bottom: 0; }
+
+    .home-section--azul { background: var(--blue-bg); }
+    .home-section--verde { background: var(--green-50); }
+
+    .home-section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin: 0 2px 12px;
+    }
+    .home-section-title i { font-size: 14px; }
+    .home-section--azul .home-section-title { color: var(--blue); }
+    .home-section--verde .home-section-title { color: var(--green-700); }
+
+    body.dark-mode .home-section--azul { background: rgba(21,101,192,0.10); }
+    body.dark-mode .home-section--verde { background: rgba(46,125,50,0.12); }
+    body.dark-mode .home-section--azul .home-section-title { color: #64B5F6; }
+    body.dark-mode .home-section--verde .home-section-title { color: #81C784; }
+
+    .home-section-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
     /* Desktop: 3 colunas */
     @media (min-width: 600px) {
-      #main-nav.home-mode {
+      .home-section-grid {
         grid-template-columns: 1fr 1fr 1fr;
         gap: 14px;
       }
@@ -1477,6 +1511,19 @@
       background: #E0F2F1; color: #004D40;
     }
 
+    /* 7 — Tratos Culturais: verde-musgo */
+    #main-nav.home-mode .tab-btn.menu-c7 .menu-orb {
+      background: linear-gradient(135deg, #DCEDC8, #C5E1A5);
+      color: #33691E;
+    }
+    #main-nav.home-mode .tab-btn.menu-c7:hover {
+      box-shadow: 0 10px 28px rgba(51,105,30,0.16);
+      border-color: #C5E1A5;
+    }
+    #main-nav.home-mode .tab-btn.menu-c7 .menu-tag {
+      background: #F1F8E9; color: #33691E;
+    }
+
     /* Badge de notificação (liberações abertas) */
     .home-badge {
       position: absolute;
@@ -1510,12 +1557,14 @@
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c4 .menu-orb { background: linear-gradient(135deg,#3E1206,#5C1C09); color:#FF8A65; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c5 .menu-orb { background: linear-gradient(135deg,#0D1340,#151D5C); color:#7986CB; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c6 .menu-orb { background: linear-gradient(135deg,#012220,#013330); color:#4DB6AC; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c7 .menu-orb { background: linear-gradient(135deg,#1B2A0E,#2B4015); color:#AED581; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c1 .menu-tag { background:#162015; color:#81C784; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c2 .menu-tag { background:#0A1828; color:#64B5F6; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c3 .menu-tag { background:#2A1A08; color:#FFD54F; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c4 .menu-tag { background:#2A1010; color:#FF8A65; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c5 .menu-tag { background:#0D1030; color:#7986CB; }
     body.dark-mode #main-nav.home-mode .tab-btn.menu-c6 .menu-tag { background:#011E1C; color:#4DB6AC; }
+    body.dark-mode #main-nav.home-mode .tab-btn.menu-c7 .menu-tag { background:#16210B; color:#AED581; }
 
     /* Animação de entrada em cascata */
     @keyframes cardEntrada {
@@ -1526,12 +1575,12 @@
       opacity: 0;
       animation: cardEntrada 0.38s cubic-bezier(.4,0,.2,1) forwards;
     }
-    #main-nav.home-mode .tab-btn:nth-child(1) { animation-delay: 0.04s; }
-    #main-nav.home-mode .tab-btn:nth-child(2) { animation-delay: 0.10s; }
-    #main-nav.home-mode .tab-btn:nth-child(3) { animation-delay: 0.16s; }
-    #main-nav.home-mode .tab-btn:nth-child(4) { animation-delay: 0.22s; }
-    #main-nav.home-mode .tab-btn:nth-child(5) { animation-delay: 0.28s; }
-    #main-nav.home-mode .tab-btn:nth-child(6) { animation-delay: 0.34s; }
+    .home-section-grid .tab-btn:nth-child(1) { animation-delay: 0.04s; }
+    .home-section-grid .tab-btn:nth-child(2) { animation-delay: 0.10s; }
+    .home-section-grid .tab-btn:nth-child(3) { animation-delay: 0.16s; }
+    .home-section-grid .tab-btn:nth-child(4) { animation-delay: 0.22s; }
+    .home-section-grid .tab-btn:nth-child(5) { animation-delay: 0.28s; }
+    .home-section-grid .tab-btn:nth-child(6) { animation-delay: 0.34s; }
 
     /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) — MELHORADA ── */
     #btn-voltar-menu {
@@ -2679,48 +2728,70 @@ body.dark-mode .resumo-cards .medal-text {
 
   <nav class="tabs-nav home-mode" id="main-nav">
 
-    <button class="tab-btn menu-c1" onclick="showTab(event,'simulador')">
-      <div class="menu-orb"><i class="fas fa-tractor"></i></div>
-      <span class="menu-label">Simulador</span>
-      <span class="menu-tag">Colheita</span>
-    </button>
+    <div class="home-section home-section--azul">
+    <div class="home-section-title"><i class="fas fa-list-check"></i>Acompanhamento Diário</div>
+    <div class="home-section-grid">
 
-    <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes')">
-      <span class="home-badge" id="badge-liberacoes" style="display:none"></span>
-      <div class="menu-orb">
-        <i class="fas fa-table"></i>
-      </div>
-      <span class="menu-label">Liberações</span>
-      <span class="menu-tag">GATEC</span>
-    </button>
+      <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes')">
+        <span class="home-badge" id="badge-liberacoes" style="display:none"></span>
+        <div class="menu-orb">
+          <i class="fas fa-table"></i>
+        </div>
+        <span class="menu-label">Liberações</span>
+        <span class="menu-tag">GATEC</span>
+      </button>
 
-    <button class="tab-btn menu-c3" onclick="showTab(event,'clima_aba')">
-      <div class="menu-orb"><i class="fas fa-cloud-sun"></i></div>
-      <span class="menu-label">Clima & Agro</span>
-      <span class="menu-tag">GDA · Tendência 30D</span>
-    </button>
+      <button class="tab-btn menu-c4" onclick="showTab(event,'conf_os_aba')">
+        <div class="menu-orb">
+          <i class="fas fa-clipboard-check"></i>
+        </div>
+        <span class="menu-label">Conferências</span>
+        <span class="menu-tag">Operadores x O.S</span>
+      </button>
 
-    <button class="tab-btn menu-c4" onclick="showTab(event,'conf_os_aba')">
-      <div class="menu-orb">
-        <i class="fas fa-clipboard-check"></i>
-      </div>
-      <span class="menu-label">Relatórios</span>
-      <span class="menu-tag">O.S & Tratos Culturais</span>
-    </button>
+      <button class="tab-btn menu-c7" onclick="showTab(event,'tratos_aba'); iniciarModuloTratos()">
+        <div class="menu-orb">
+          <i class="fas fa-spray-can"></i>
+        </div>
+        <span class="menu-label">Tratos Culturais</span>
+        <span class="menu-tag">Acompanhamento</span>
+      </button>
 
-    <button class="tab-btn menu-c5" onclick="showTab(event,'mapas_aba')">
-      <div class="menu-orb">
-        <i class="fas fa-map"></i>
-      </div>
-      <span class="menu-label">Mapas</span>
-      <span class="menu-tag">Estimativas</span>
-    </button>
+      <button class="tab-btn menu-c5" onclick="showTab(event,'mapas_aba')">
+        <div class="menu-orb">
+          <i class="fas fa-map"></i>
+        </div>
+        <span class="menu-label">Mapas</span>
+        <span class="menu-tag">Estimativas</span>
+      </button>
 
-    <button class="tab-btn menu-c6" onclick="showTab(event,'calc_aba')">
-      <div class="menu-orb"><i class="fas fa-calculator"></i></div>
-      <span class="menu-label">Calculadora</span>
-      <span class="menu-tag">TCH · ATR</span>
-    </button>
+    </div>
+    </div>
+
+    <div class="home-section home-section--verde">
+    <div class="home-section-title"><i class="fas fa-toolbox"></i>Ferramentas &amp; Planejamento</div>
+    <div class="home-section-grid">
+
+      <button class="tab-btn menu-c1" onclick="showTab(event,'simulador')">
+        <div class="menu-orb"><i class="fas fa-tractor"></i></div>
+        <span class="menu-label">Simulador</span>
+        <span class="menu-tag">Colheita</span>
+      </button>
+
+      <button class="tab-btn menu-c3" onclick="showTab(event,'clima_aba')">
+        <div class="menu-orb"><i class="fas fa-cloud-sun"></i></div>
+        <span class="menu-label">Clima & Agro</span>
+        <span class="menu-tag">GDA · Tendência 30D</span>
+      </button>
+
+      <button class="tab-btn menu-c6" onclick="showTab(event,'calc_aba')">
+        <div class="menu-orb"><i class="fas fa-calculator"></i></div>
+        <span class="menu-label">Calculadora</span>
+        <span class="menu-tag">TCH · ATR</span>
+      </button>
+
+    </div>
+    </div>
 
   </nav>
 
@@ -3595,18 +3666,6 @@ body.dark-mode .resumo-cards .medal-text {
   <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
   <section id="conf_os_aba" class="section">
 
-    <!-- SUB-TABS: CONF. OS + TRATOS CULTURAIS -->
-    <nav class="sub-tabs-nav">
-      <button class="sub-tab-btn active" onclick="showSubTab(event,'sub_conf_os')">
-        <i class="fas fa-clipboard-check"></i>O.S x OPERADORES
-      </button>
-      <button class="sub-tab-btn" onclick="showSubTab(event,'sub_tratos'); iniciarModuloTratos()">
-        <i class="fas fa-spray-can"></i>TRATOS CULTURAIS
-      </button>
-    </nav>
-
-    <!-- ══ SUB: CONFERÊNCIA DE OS ══ -->
-    <div id="sub_conf_os" class="sub-section active">
     <div class="card">
       <div class="card-title">
         <i class="fas fa-clipboard-check"></i> CONFERÊNCIA OPERADORES × O.S
@@ -3680,10 +3739,11 @@ body.dark-mode .resumo-cards .medal-text {
     <button class="btn-pdf-contextual" onclick="gerarPDF()">
       <i class="fas fa-print"></i> Gerar PDF desta aba
     </button>
-    </div><!-- /sub_conf_os -->
 
-    <!-- ══ SUB: TRATOS CULTURAIS ══ -->
-    <div id="sub_tratos" class="sub-section">
+  </section>
+
+  <!-- ══ ABA TRATOS CULTURAIS (própria, separada de Conferências) ══ -->
+  <section id="tratos_aba" class="section">
 
       <!-- CARD: Filtros -->
       <div class="card">
@@ -3819,7 +3879,9 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
       </div>
 
-    </div><!-- /sub_tratos -->
+      <button class="btn-pdf-contextual" onclick="gerarPDF()">
+        <i class="fas fa-print"></i> Gerar PDF desta aba
+      </button>
 
   </section>
 
@@ -3869,6 +3931,7 @@ function showTab(e, id) {
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
     'conf_os_aba': { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
+    'tratos_aba':  { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
     'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
     'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' }
   };
@@ -4062,13 +4125,9 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarExcelLiberacoes();
-      else if (sid === 'conf_os_aba') {
-        // Verifica qual sub-tab está ativa
-        const subAtiva = document.querySelector('#conf_os_aba .sub-section.active');
-        if (subAtiva && subAtiva.id === 'sub_tratos') exportarTratosExcel();
-        else exportarConfOsExcel();
-      }
-      else showToast('ℹ️ Exportação Excel disponível em Liberações e Conferências.', 'info', 3000);
+      else if (sid === 'conf_os_aba') exportarConfOsExcel();
+      else if (sid === 'tratos_aba') exportarTratosExcel();
+      else showToast('ℹ️ Exportação Excel disponível em Liberações, Conferências e Tratos Culturais.', 'info', 3000);
       break;
     }
     case 'atualizar':
