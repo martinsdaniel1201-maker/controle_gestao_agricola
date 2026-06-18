@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.6</title>
+  <title>Controle Técnico Agrícola v7.7</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -270,6 +270,58 @@
       transition: opacity 0.2s;
     }
     .tratos-card-collapsible.open .tratos-chevron-hint { opacity: 0; pointer-events: none; }
+
+    /* ── RESUMO EXECUTIVO — TRATOS CULTURAIS (mesmo padrão visual da Home) ── */
+    #tratos-resumo-executivo {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 0 0 12px 0;
+    }
+    @media (min-width: 700px) {
+      #tratos-resumo-executivo { grid-template-columns: repeat(4, 1fr); }
+    }
+    .tre-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .tre-card .tre-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .tre-card .tre-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--green-900);
+      line-height: 1.1;
+    }
+    .tre-card .tre-sub {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-3);
+    }
+    .tre-card.tre-alerta .tre-val { color: var(--red); }
+    .tre-card.tre-alerta.tre-ok .tre-val { color: var(--green-700); }
+    body.dark-mode .tre-card { background: #1e1e1e; }
+
+    /* ── Legenda explicativa fixa (dose rec. x dose aplic.) ── */
+    .tratos-legenda {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      font-size: 10px; color: var(--text-3); font-weight: 600;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 12px;
+    }
+    .tratos-legenda b { color: var(--text-2); font-weight: 800; }
+    .tratos-legenda span { display: inline-flex; align-items: center; gap: 4px; }
+
     .field label {
       font-size: 9px; font-weight: 700; color: var(--text-3);
       text-transform: uppercase; letter-spacing: 0.5px;
@@ -3745,63 +3797,34 @@ body.dark-mode .resumo-cards .medal-text {
   <!-- ══ ABA TRATOS CULTURAIS (própria, separada de Conferências) ══ -->
   <section id="tratos_aba" class="section">
 
-      <!-- CARD: Filtros -->
-      <div class="card">
-        <div class="card-title"><i class="fas fa-filter"></i> Filtros — Tratos Culturais</div>
-
-        <!-- Linha 1: Produto + Fazenda -->
-        <div class="tratos-filtros-grid">
-          <div class="field">
-            <label>Produto</label>
-            <select id="tratos-filtro-produto" onchange="filtrarTratos()">
-              <option value="">— Todos —</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Fazenda</label>
-            <select id="tratos-filtro-fazenda" onchange="filtrarTratos()">
-              <option value="">— Todas —</option>
-            </select>
-          </div>
-          <!-- Linha 2: Operação (full width em mobile) -->
-          <div class="field field-full">
-            <label>Operação Agrícola</label>
-            <select id="tratos-filtro-operacao" onchange="filtrarTratos()">
-              <option value="">— Todas —</option>
-            </select>
-          </div>
+      <!-- RESUMO EXECUTIVO — visão geral em 4 números, sempre visível -->
+      <div id="tratos-resumo-executivo" style="display:none;">
+        <div class="tre-card">
+          <span class="tre-label"><i class="fas fa-map-marked-alt" style="margin-right:3px"></i>Área Total</span>
+          <span class="tre-val" id="tre-area">—</span>
+          <span class="tre-sub">hectares aplicados</span>
         </div>
-
-        <!-- Linha 3: Datas lado a lado -->
-        <div class="tratos-filtros-datas">
-          <div class="field">
-            <label>Data De</label>
-            <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
-          </div>
-          <div class="field">
-            <label>Data Até</label>
-            <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
-          </div>
+        <div class="tre-card">
+          <span class="tre-label"><i class="fas fa-clipboard-list" style="margin-right:3px"></i>O.S. no Filtro</span>
+          <span class="tre-val" id="tre-os">—</span>
+          <span class="tre-sub">ordens de serviço</span>
         </div>
-
-        <!-- Linha 4: contador + botões -->
-        <div class="tratos-filtros-actions">
-          <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
-              <i class="fas fa-sync-alt"></i> Atualizar
-            </button>
-            <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-              <i class="fas fa-file-excel"></i> Exportar
-            </button>
-          </div>
+        <div class="tre-card" id="tre-card-alerta">
+          <span class="tre-label"><i class="fas fa-exclamation-triangle" style="margin-right:3px"></i>Produtos em Alerta</span>
+          <span class="tre-val" id="tre-alerta">—</span>
+          <span class="tre-sub">desvio de dose &gt; <span id="tre-alerta-pct">10</span>%</span>
+        </div>
+        <div class="tre-card">
+          <span class="tre-label"><i class="fas fa-seedling" style="margin-right:3px"></i>Operação Predominante</span>
+          <span class="tre-val" id="tre-op-top" style="font-size:13px;">—</span>
+          <span class="tre-sub" id="tre-op-top-sub">% da área filtrada</span>
         </div>
       </div>
 
-      <!-- CARD: Insights Operacionais (colapsável) -->
+      <!-- CARD: Insights Operacionais — leitura em linguagem natural, sempre aberto -->
       <div class="card tratos-card-collapsible open" id="card-tratos-insights" style="display:none;">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-lightbulb"></i> Insights Operacionais</div>
+          <div class="card-title" style="margin:0;"><i class="fas fa-lightbulb"></i> O que isso significa</div>
           <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="tratos-card-body">
@@ -3812,10 +3835,15 @@ body.dark-mode .resumo-cards .medal-text {
       <!-- CARD: Resumo por Produto × Operação (colapsável) -->
       <div class="card tratos-card-collapsible open">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-layer-group"></i> Resumo por Produto × Operação</div>
+          <div class="card-title" style="margin:0;"><i class="fas fa-layer-group"></i> Dose Aplicada por Produto e Operação</div>
           <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="tratos-card-body">
+          <div class="tratos-legenda">
+            <span><b>Dose Rec.</b> = dose recomendada na receita/plano</span>
+            <span><b>Dose Aplic.</b> = média do que foi de fato aplicado em campo</span>
+            <span><b>Diferença</b> = quanto a dose aplicada ficou acima (+) ou abaixo (−) da recomendada</span>
+          </div>
           <div id="tratos-resumo-produto-op">
             <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
           </div>
@@ -3825,10 +3853,13 @@ body.dark-mode .resumo-cards .medal-text {
       <!-- CARD: Comparativo de Dosagem (colapsável) -->
       <div class="card tratos-card-collapsible">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-vials"></i> Comparativo de Dosagem por Produto</div>
+          <div class="card-title" style="margin:0;"><i class="fas fa-vials"></i> Consistência da Dosagem (mín. / média / máx.)</div>
           <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="tratos-card-body">
+          <div class="tratos-legenda">
+            <span>Mostra se um mesmo produto foi aplicado de forma <b>parecida</b> em todas as aplicações, ou se <b>variou muito</b> entre uma O.S. e outra (indício de erro de operador, calibração ou apontamento)</span>
+          </div>
           <div id="tratos-comparativo-dose">
             <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
           </div>
@@ -3848,10 +3879,69 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
       </div>
 
-      <!-- CARD: Registros Filtrados (colapsável) -->
-      <div class="card tratos-card-collapsible open">
+      <!-- CARD: Filtros (discreto, fechado por padrão) -->
+      <div class="card tratos-card-collapsible">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-table"></i> Registros Filtrados</div>
+          <div class="card-title" style="margin:0;"><i class="fas fa-filter"></i> Filtros</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+
+          <!-- Linha 1: Produto + Fazenda -->
+          <div class="tratos-filtros-grid">
+            <div class="field">
+              <label>Produto</label>
+              <select id="tratos-filtro-produto" onchange="filtrarTratos()">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Fazenda</label>
+              <select id="tratos-filtro-fazenda" onchange="filtrarTratos()">
+                <option value="">— Todas —</option>
+              </select>
+            </div>
+            <!-- Linha 2: Operação (full width em mobile) -->
+            <div class="field field-full">
+              <label>Operação Agrícola</label>
+              <select id="tratos-filtro-operacao" onchange="filtrarTratos()">
+                <option value="">— Todas —</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Linha 3: Datas lado a lado -->
+          <div class="tratos-filtros-datas">
+            <div class="field">
+              <label>Data De</label>
+              <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
+            </div>
+            <div class="field">
+              <label>Data Até</label>
+              <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
+            </div>
+          </div>
+
+          <!-- Linha 4: contador + botões -->
+          <div class="tratos-filtros-actions">
+            <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
+                <i class="fas fa-sync-alt"></i> Atualizar
+              </button>
+              <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                <i class="fas fa-file-excel"></i> Exportar
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CARD: Registros Filtrados (colapsável, FECHADO por padrão — tabela bruta é "ver detalhes") -->
+      <div class="card tratos-card-collapsible">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-table"></i> Ver Todos os Registros (detalhe linha a linha)</div>
           <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="tratos-card-body">
@@ -7407,6 +7497,7 @@ iniciarSabedoria();
 
   // ── Orquestra renderização ───────────────────────────────────────────────
   function renderizarTratos(dados) {
+    renderResumoExecutivoTratos(dados);
     renderInsightsTratos(dados);
     renderTabelaTratos(dados);
     renderResumoTratos(dados);
@@ -7416,6 +7507,80 @@ iniciarSabedoria();
     if (contador)
       contador.textContent =
         `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+  }
+
+  // ── RESUMO EXECUTIVO — 4 números no topo, visão geral antes de qualquer detalhe ──
+  function renderResumoExecutivoTratos(dados) {
+    const box = document.getElementById('tratos-resumo-executivo');
+    if (!box) return;
+
+    if (!dados || dados.length === 0) {
+      box.style.display = 'none';
+      return;
+    }
+    box.style.display = 'grid';
+
+    const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic, colOS } = window._tratosCols || {};
+
+    // Área e O.S. — contadas uma vez por O.S. (mesma regra usada no resto do módulo)
+    const areaOS = {};
+    const ossSet = new Set();
+    dados.forEach(row => {
+      const os = (row[colOS] || '').trim();
+      if (os) {
+        ossSet.add(os);
+        if (!(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
+      }
+    });
+    const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
+
+    // Produtos em alerta (mesmo critério usado nos insights/resumo: desvio médio > ALERTA_DOSE_PCT)
+    const porProd = {};
+    dados.forEach(row => {
+      const p  = (row[colDescProd] || 'Sem Produto').trim();
+      const dr = parseNum(row[colDoseRec]);
+      const da = parseNum(row[colDoseAplic]);
+      if (!porProd[p]) porProd[p] = [];
+      if (!isNaN(dr) && dr > 0 && !isNaN(da)) porProd[p].push(((da - dr) / dr) * 100);
+    });
+    let qtdAlerta = 0;
+    Object.values(porProd).forEach(difs => {
+      if (!difs.length) return;
+      const med = difs.reduce((s, v) => s + v, 0) / difs.length;
+      if (Math.abs(med) > ALERTA_DOSE_PCT) qtdAlerta++;
+    });
+
+    // Operação predominante em área
+    const porOp = {};
+    dados.forEach(row => {
+      const op = (row[colDescOp] || 'Sem Operação').trim();
+      const os = (row[colOS] || '').trim();
+      if (!porOp[op]) porOp[op] = { area: 0, oss: new Set() };
+      if (os && !porOp[op].oss.has(os)) {
+        porOp[op].oss.add(os);
+        porOp[op].area += areaOS[os] || 0;
+      }
+    });
+    const opsOrdenadas = Object.entries(porOp).sort((a, b) => b[1].area - a[1].area);
+    const opTop    = opsOrdenadas[0];
+    const opTopPct = opTop && totalArea > 0 ? (opTop[1].area / totalArea * 100) : 0;
+
+    // Preenche o DOM
+    const elArea  = document.getElementById('tre-area');
+    const elOS    = document.getElementById('tre-os');
+    const elAlert = document.getElementById('tre-alerta');
+    const elOpTop = document.getElementById('tre-op-top');
+    const elOpSub = document.getElementById('tre-op-top-sub');
+    const cardAlerta = document.getElementById('tre-card-alerta');
+
+    if (elArea)  elArea.textContent  = totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' ha';
+    if (elOS)    elOS.textContent    = ossSet.size.toLocaleString('pt-BR');
+    if (elAlert) elAlert.textContent = qtdAlerta.toString();
+    if (cardAlerta) cardAlerta.classList.toggle('tre-ok', qtdAlerta === 0);
+    if (elOpTop) elOpTop.textContent = opTop ? opTop[0] : '—';
+    if (elOpSub) elOpSub.textContent = opTop ? `${opTopPct.toFixed(0)}% da área filtrada` : '% da área filtrada';
+    const elAlertPct = document.getElementById('tre-alerta-pct');
+    if (elAlertPct) elAlertPct.textContent = ALERTA_DOSE_PCT;
   }
 
   // ── CARD INSIGHTS ────────────────────────────────────────────────────────
