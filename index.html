@@ -327,14 +327,16 @@
     .tratos-ss-input-wrap {
       position: relative; display: flex; align-items: center;
     }
+    .field .tratos-ss-input,
     .tratos-ss-input {
       width: 100%; box-sizing: border-box;
-      padding: 9px 30px 9px 30px;
+      padding: 9px 30px 9px 30px !important;
       border: 1px solid var(--border); border-radius: var(--radius-sm);
       font-size: 12px; font-weight: 600; color: var(--text);
       background: var(--surface);
       transition: border-color 0.15s;
     }
+    .field .tratos-ss-input:focus,
     .tratos-ss-input:focus {
       outline: none; border-color: var(--green-500);
     }
