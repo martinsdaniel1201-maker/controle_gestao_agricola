@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.7</title>
+  <title>Controle Técnico Agrícola v7.6</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -321,54 +321,6 @@
     }
     .tratos-legenda b { color: var(--text-2); font-weight: 800; }
     .tratos-legenda span { display: inline-flex; align-items: center; gap: 4px; }
-
-    /* ── SEARCH-SELECT CUSTOMIZADO — Tratos Culturais (Produto/Fazenda/Operação) ── */
-    .tratos-ss { position: relative; }
-    .tratos-ss-input-wrap {
-      position: relative; display: flex; align-items: center;
-    }
-    .tratos-ss-input {
-      width: 100%; box-sizing: border-box;
-      padding: 9px 30px 9px 30px;
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      font-size: 12px; font-weight: 600; color: var(--text);
-      background: var(--surface);
-      transition: border-color 0.15s;
-    }
-    .tratos-ss-input:focus {
-      outline: none; border-color: var(--green-500);
-    }
-    .tratos-ss-input::placeholder { color: var(--text-3); font-weight: 500; }
-    .tratos-ss-icon {
-      position: absolute; left: 10px; font-size: 11px; color: var(--text-3);
-      pointer-events: none;
-    }
-    .tratos-ss-clear {
-      position: absolute; right: 10px; font-size: 12px; color: var(--text-3);
-      cursor: pointer; padding: 4px;
-    }
-    .tratos-ss-clear:hover { color: var(--red); }
-    .tratos-ss-lista {
-      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
-      background: var(--surface); border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-      max-height: 240px; overflow-y: auto; z-index: 40;
-      display: none;
-    }
-    .tratos-ss.open .tratos-ss-lista { display: block; }
-    .tratos-ss-opt {
-      padding: 9px 12px; font-size: 12px; font-weight: 600; color: var(--text);
-      cursor: pointer; border-bottom: 1px solid var(--border);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .tratos-ss-opt:last-child { border-bottom: none; }
-    .tratos-ss-opt:hover, .tratos-ss-opt.hl { background: var(--green-50); }
-    .tratos-ss-opt.selected { color: var(--green-900); background: var(--green-50); }
-    .tratos-ss-opt .ss-cod { font-size: 10px; color: var(--text-3); font-weight: 700; margin-right: 4px; }
-    .tratos-ss-opt.ss-empty { color: var(--text-3); font-weight: 500; cursor: default; text-align: center; }
-    body.dark-mode .tratos-ss-opt.hl,
-    body.dark-mode .tratos-ss-opt:hover,
-    body.dark-mode .tratos-ss-opt.selected { background: rgba(67,160,71,0.18); }
 
     .field label {
       font-size: 9px; font-weight: 700; color: var(--text-3);
@@ -3869,97 +3821,6 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
       </div>
 
-      <!-- CARD: Filtros — primeiro passo, logo após o resumo, sempre aberto -->
-      <div class="card tratos-card-collapsible open">
-        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-filter"></i> Filtros</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="tratos-card-body">
-
-          <!-- Linha 1: Produto + Fazenda (search-select customizado, busca ao digitar) -->
-          <div class="tratos-filtros-grid">
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-produto">
-              <label>Produto</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-produto">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-produto')"
-                         onfocus="tratosSSAbrir('tratos-filtro-produto')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-produto')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-produto" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
-            </div>
-
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-fazenda">
-              <label>Fazenda</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-fazenda">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todas —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-fazenda')"
-                         onfocus="tratosSSAbrir('tratos-filtro-fazenda')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-fazenda')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-fazenda" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todas —</option>
-              </select>
-            </div>
-
-            <!-- Linha 2: Operação (full width em mobile) -->
-            <div class="field field-full tratos-ss-field" data-ss="tratos-filtro-operacao">
-              <label>Operação Agrícola</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-operacao">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todas —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-operacao')"
-                         onfocus="tratosSSAbrir('tratos-filtro-operacao')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-operacao')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-operacao" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todas —</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Linha 3: Datas lado a lado -->
-          <div class="tratos-filtros-datas">
-            <div class="field">
-              <label>Data De</label>
-              <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
-            </div>
-            <div class="field">
-              <label>Data Até</label>
-              <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
-            </div>
-          </div>
-
-          <!-- Linha 4: contador + botões -->
-          <div class="tratos-filtros-actions">
-            <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
-                <i class="fas fa-sync-alt"></i> Atualizar
-              </button>
-              <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                <i class="fas fa-file-excel"></i> Exportar
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
       <!-- CARD: Insights Operacionais — leitura em linguagem natural, sempre aberto -->
       <div class="card tratos-card-collapsible open" id="card-tratos-insights" style="display:none;">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
@@ -4018,7 +3879,64 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
       </div>
 
-      <!-- (filtros movidos para o topo, logo após o resumo executivo) -->
+      <!-- CARD: Filtros (discreto, fechado por padrão) -->
+      <div class="card tratos-card-collapsible">
+        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
+          <div class="card-title" style="margin:0;"><i class="fas fa-filter"></i> Filtros</div>
+          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="tratos-card-body">
+
+          <!-- Linha 1: Produto + Fazenda -->
+          <div class="tratos-filtros-grid">
+            <div class="field">
+              <label>Produto</label>
+              <select id="tratos-filtro-produto" onchange="filtrarTratos()">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Fazenda</label>
+              <select id="tratos-filtro-fazenda" onchange="filtrarTratos()">
+                <option value="">— Todas —</option>
+              </select>
+            </div>
+            <!-- Linha 2: Operação (full width em mobile) -->
+            <div class="field field-full">
+              <label>Operação Agrícola</label>
+              <select id="tratos-filtro-operacao" onchange="filtrarTratos()">
+                <option value="">— Todas —</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Linha 3: Datas lado a lado -->
+          <div class="tratos-filtros-datas">
+            <div class="field">
+              <label>Data De</label>
+              <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
+            </div>
+            <div class="field">
+              <label>Data Até</label>
+              <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
+            </div>
+          </div>
+
+          <!-- Linha 4: contador + botões -->
+          <div class="tratos-filtros-actions">
+            <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
+                <i class="fas fa-sync-alt"></i> Atualizar
+              </button>
+              <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                <i class="fas fa-file-excel"></i> Exportar
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
 
       <!-- CARD: Registros Filtrados (colapsável, FECHADO por padrão — tabela bruta é "ver detalhes") -->
       <div class="card tratos-card-collapsible">
@@ -7475,109 +7393,6 @@ iniciarSabedoria();
     return (el.options[el.selectedIndex]?.value || '').trim();
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     SEARCH-SELECT CUSTOMIZADO (Produto / Fazenda / Operação)
-     — O <select> real fica oculto e é a única fonte de verdade.
-     — O componente visual só lê as <option> dele e, ao escolher,
-       seta sel.value + dispara 'change' para reusar filtrarTratos()
-       sem duplicar nenhuma lógica de filtro já existente.
-  ══════════════════════════════════════════════════════════════ */
-  function _tratosSSRefs(selectId) {
-    const sel    = document.getElementById(selectId);
-    const wrap   = document.getElementById('ss-' + selectId);
-    if (!sel || !wrap) return null;
-    const input  = wrap.querySelector('.tratos-ss-input');
-    const lista  = wrap.querySelector('.tratos-ss-lista');
-    const clearBtn = wrap.querySelector('.tratos-ss-clear');
-    return { sel, wrap, input, lista, clearBtn };
-  }
-
-  // Monta a lista de opções (a partir do <select> real) e aplica filtro de texto opcional
-  function _tratosSSRenderLista(selectId, termo) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    const { sel, lista } = r;
-    const termoNorm = (termo || '').trim().toLowerCase();
-    const opts = Array.from(sel.options).filter(o => o.value !== ''); // ignora "— Todos —"
-
-    const filtradas = !termoNorm
-      ? opts
-      : opts.filter(o => o.textContent.toLowerCase().includes(termoNorm));
-
-    if (filtradas.length === 0) {
-      lista.innerHTML = `<div class="tratos-ss-opt ss-empty">Nenhum resultado</div>`;
-      return;
-    }
-
-    lista.innerHTML = filtradas.map(o => {
-      const selecionado = o.value === sel.value && sel.value !== '';
-      return `<div class="tratos-ss-opt${selecionado ? ' selected' : ''}" data-val="${esc(o.value)}">${o.innerHTML}</div>`;
-    }).join('');
-
-    // Liga clique em cada opção
-    lista.querySelectorAll('.tratos-ss-opt[data-val]').forEach(div => {
-      div.addEventListener('mousedown', (ev) => {
-        ev.preventDefault(); // evita perder o foco antes do click
-        _tratosSSEscolher(selectId, div.dataset.val);
-      });
-    });
-  }
-
-  // Abre a lista (chamado no focus do input)
-  function tratosSSAbrir(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    document.querySelectorAll('.tratos-ss.open').forEach(el => {
-      if (el.id !== 'ss-' + selectId) el.classList.remove('open');
-    });
-    r.wrap.classList.add('open');
-    _tratosSSRenderLista(selectId, r.input.value);
-  }
-
-  // Filtra conforme o usuário digita
-  function tratosSSFiltrar(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    r.wrap.classList.add('open');
-    if (r.clearBtn) r.clearBtn.style.display = r.input.value ? 'block' : 'none';
-    _tratosSSRenderLista(selectId, r.input.value);
-    // Se o texto não corresponde mais exatamente ao valor selecionado, não força — só some o "selected"
-  }
-
-  // Usuário clicou numa opção da lista
-  function _tratosSSEscolher(selectId, val) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    r.sel.value = val;
-    const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-    r.input.value = optLabel ? optLabel.textContent : val;
-    if (r.clearBtn) r.clearBtn.style.display = val ? 'block' : 'none';
-    r.wrap.classList.remove('open');
-    r.sel.dispatchEvent(new Event('change')); // reaproveita onchange="filtrarTratos()" já existente
-  }
-
-  // Botão "x" — limpa o filtro
-  function tratosSSLimpar(selectId) {
-    _tratosSSEscolher(selectId, '');
-  }
-
-  // Sincroniza o texto exibido no input com o valor atual do select (chamado após popular os selects)
-  function _tratosSSSync(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    const val = r.sel.value;
-    const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-    r.input.value = (val && optLabel) ? optLabel.textContent : '';
-    if (r.clearBtn) r.clearBtn.style.display = val ? 'block' : 'none';
-  }
-
-  // Fecha qualquer lista aberta ao clicar fora do componente
-  document.addEventListener('click', (ev) => {
-    document.querySelectorAll('.tratos-ss.open').forEach(wrap => {
-      if (!wrap.contains(ev.target)) wrap.classList.remove('open');
-    });
-  });
-
   // ── Carrega CSV ──────────────────────────────────────────────────────────
   function carregarDadosTratos() {
     _tratosIniciado = true;
@@ -7622,9 +7437,6 @@ iniciarSabedoria();
         popularSelectCodDesc('tratos-filtro-produto',  results.data, cols.colCodProd,    cols.colDescProd, '— Todos —');
         popularSelectCodDesc('tratos-filtro-fazenda',  results.data, cols.colCodFazenda, cols.colFazenda,  '— Todas —');
         popularSelectCodDesc('tratos-filtro-operacao', results.data, cols.colCodOp,      cols.colDescOp,   '— Todas —');
-        _tratosSSSync('tratos-filtro-produto');
-        _tratosSSSync('tratos-filtro-fazenda');
-        _tratosSSSync('tratos-filtro-operacao');
 
         renderizarTratos(results.data);
         if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
