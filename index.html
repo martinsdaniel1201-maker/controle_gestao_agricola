@@ -7534,7 +7534,9 @@ iniciarSabedoria();
       if (el.id !== 'ss-' + selectId) el.classList.remove('open');
     });
     r.wrap.classList.add('open');
-    _tratosSSRenderLista(selectId, r.input.value);
+    // Seleciona todo o texto do campo ao abrir, para que a digitação substitua imediatamente
+    r.input.select();
+    _tratosSSRenderLista(selectId, '');
   }
 
   // Filtra conforme o usuário digita
@@ -7544,7 +7546,6 @@ iniciarSabedoria();
     r.wrap.classList.add('open');
     if (r.clearBtn) r.clearBtn.style.display = r.input.value ? 'block' : 'none';
     _tratosSSRenderLista(selectId, r.input.value);
-    // Se o texto não corresponde mais exatamente ao valor selecionado, não força — só some o "selected"
   }
 
   // Usuário clicou numa opção da lista
@@ -7552,11 +7553,16 @@ iniciarSabedoria();
     const r = _tratosSSRefs(selectId);
     if (!r) return;
     r.sel.value = val;
-    const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-    r.input.value = optLabel ? optLabel.textContent : val;
-    if (r.clearBtn) r.clearBtn.style.display = val ? 'block' : 'none';
+    if (val) {
+      const optLabel = Array.from(r.sel.options).find(o => o.value === val);
+      r.input.value = optLabel ? optLabel.textContent : val;
+      r.clearBtn.style.display = 'block';
+    } else {
+      r.input.value = '';
+      r.clearBtn.style.display = 'none';
+    }
     r.wrap.classList.remove('open');
-    r.sel.dispatchEvent(new Event('change')); // reaproveita onchange="filtrarTratos()" já existente
+    r.sel.dispatchEvent(new Event('change'));
   }
 
   // Botão "x" — limpa o filtro
