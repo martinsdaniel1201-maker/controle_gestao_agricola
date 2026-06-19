@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.6</title>
+  <title>Controle Técnico Agrícola v7.7</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -7721,16 +7721,9 @@ iniciarSabedoria();
 
     const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic, colOS } = window._tratosCols || {};
 
-    // Área e O.S. — contadas uma vez por O.S. (mesma regra usada no resto do módulo)
-    const areaOS = {};
-    const ossSet = new Set();
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (os) {
-        ossSet.add(os);
-        if (!(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
-      }
-    });
+    // Área por O.S. com lógica inteligente (ver _calcAreaOS)
+    const areaOS = _calcAreaOS(dados, colOS, colArea);
+    const ossSet = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean));
     const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
 
     // Produtos em alerta (mesmo critério usado nos insights/resumo: desvio médio > ALERTA_DOSE_PCT)
@@ -7782,6 +7775,32 @@ iniciarSabedoria();
     if (elAlertPct) elAlertPct.textContent = ALERTA_DOSE_PCT;
   }
 
+  // ── HELPER: Calcula mapa OS → área com lógica inteligente ──────────────
+  //   · Se todas as linhas de uma O.S. têm a MESMA área → deduplica (1 área por O.S.)
+  //   · Se as linhas de uma O.S. têm ÁREAS DIFERENTES  → soma (sub-talhões distintos)
+  //   Isso resolve casos como Água Residuária, onde uma única O.S. aplica em vários
+  //   talhões menores registrados linha a linha com áreas distintas.
+  function _calcAreaOS(dados, colOS, colArea) {
+    const osLinhas = {};
+    dados.forEach(row => {
+      const os   = (row[colOS]   || '').trim();
+      const area = parseNum(row[colArea]) || 0;
+      if (!os) return;
+      if (!osLinhas[os]) osLinhas[os] = [];
+      osLinhas[os].push(area);
+    });
+    const areaOS = {};
+    Object.entries(osLinhas).forEach(([os, areas]) => {
+      const unicas = new Set(areas.map(a => Math.round(a * 10000)));
+      if (unicas.size === 1) {
+        areaOS[os] = areas[0];                              // todas iguais → pega uma
+      } else {
+        areaOS[os] = areas.reduce((s, v) => s + v, 0);     // diferentes → soma
+      }
+    });
+    return areaOS;
+  }
+
   // ── CARD INSIGHTS ────────────────────────────────────────────────────────
   function renderInsightsTratos(dados) {
     const card = document.getElementById('card-tratos-insights');
@@ -7800,12 +7819,8 @@ iniciarSabedoria();
 
     const insights = [];
 
-    // ── Área real: conta UMA VEZ por O.S. ──
-    const areaOS = {};
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (os && !(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
-    });
+    // ── Área por O.S. com lógica inteligente (ver _calcAreaOS) ──
+    const areaOS   = _calcAreaOS(dados, colOS, colArea);
     const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
 
     // ── Agrega por produto para análise de dosagem ──
@@ -8015,13 +8030,8 @@ iniciarSabedoria();
       return;
     }
 
-    // Área deve ser contada UMA VEZ por O.S. (mesmo OS com 3 produtos = mesma área)
-    // Mapa OS → área real (primeira ocorrência)
-    const areaOS = {};
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (os && !(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
-    });
+    // Mapa OS → área com lógica inteligente (ver _calcAreaOS)
+    const areaOS = _calcAreaOS(dados, colOS, colArea);
 
     const grupos = {};
     dados.forEach(row => {
@@ -8183,12 +8193,8 @@ iniciarSabedoria();
       return;
     }
 
-    // Área contada uma vez por O.S. (evita duplicação quando OS tem vários produtos)
-    const areaOS = {};
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (os && !(os in areaOS)) areaOS[os] = parseNum(row[colArea]) || 0;
-    });
+    // Mapa OS → área com lógica inteligente (ver _calcAreaOS)
+    const areaOS = _calcAreaOS(dados, colOS, colArea);
 
     const ops = {};
     dados.forEach(row => {
