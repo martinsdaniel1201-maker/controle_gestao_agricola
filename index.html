@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.7</title>
+  <title>Controle Técnico Agrícola v7.8.0</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -371,6 +371,92 @@
     body.dark-mode .tratos-ss-opt.hl,
     body.dark-mode .tratos-ss-opt:hover,
     body.dark-mode .tratos-ss-opt.selected { background: rgba(67,160,71,0.18); }
+
+    /* ── FILTROS LIBERAÇÕES ── */
+    .lib-filtros-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 12px;
+    }
+    .lib-filtros-title {
+      font-size: 10px; font-weight: 800; color: var(--text-3); text-transform: uppercase;
+      letter-spacing: 0.6px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    }
+    .lib-filtros-section { margin-bottom: 10px; }
+    .lib-filtros-label {
+      display: block; font-size: 9px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
+    }
+    .lib-filtros-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+    .lib-filtros-field { min-width: 0; }
+    .lib-filtros-field-sm { width: 130px; }
+
+    /* Chips multi-seleção de frentes */
+    .lib-frentes-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .lib-frente-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      border: 1.5px solid var(--border); background: var(--surface2); color: var(--text-3);
+      cursor: pointer; transition: all 0.15s; white-space: nowrap; user-select: none;
+    }
+    .lib-frente-chip:hover { border-color: var(--green-500); color: var(--green-900); }
+    .lib-frente-chip.active {
+      background: var(--green-900); color: #fff;
+      border-color: var(--green-900); box-shadow: 0 2px 6px rgba(27,142,27,0.25);
+    }
+    body.dark-mode .lib-frente-chip.active { background: var(--green-700); border-color: var(--green-700); }
+
+    /* Select nativo estilizado (Status) */
+    .app-select-wrap { position: relative; display: flex; align-items: center; }
+    .app-select {
+      width: 100%; padding: 9px 30px 9px 12px; appearance: none; -webkit-appearance: none;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); color: var(--text);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .app-select:focus { outline: none; border-color: var(--green-500); }
+    .app-select-chevron {
+      position: absolute; right: 10px; font-size: 10px; color: var(--text-3);
+      pointer-events: none;
+    }
+
+    /* Search-select reutilizável (app-ss) — mesmo padrão do tratos-ss */
+    .app-ss { position: relative; }
+    .app-ss-wrap { position: relative; display: flex; align-items: center; }
+    .app-ss-input {
+      width: 100%; box-sizing: border-box;
+      padding: 9px 30px 9px 30px !important;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 600; color: var(--text);
+      background: var(--surface); transition: border-color 0.15s;
+    }
+    .app-ss-input:focus { outline: none; border-color: var(--green-500); }
+    .app-ss-input::placeholder { color: var(--text-3); font-weight: 500; }
+    .app-ss-icon {
+      position: absolute; left: 10px; font-size: 11px; color: var(--text-3); pointer-events: none;
+    }
+    .app-ss-clear {
+      position: absolute; right: 10px; font-size: 12px; color: var(--text-3);
+      cursor: pointer; padding: 4px;
+    }
+    .app-ss-clear:hover { color: var(--red); }
+    .app-ss-lista {
+      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      max-height: 220px; overflow-y: auto; z-index: 40; display: none;
+    }
+    .app-ss.open .app-ss-lista { display: block; }
+    .app-ss-opt {
+      padding: 9px 12px; font-size: 12px; font-weight: 600; color: var(--text);
+      cursor: pointer; border-bottom: 1px solid var(--border);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .app-ss-opt:last-child { border-bottom: none; }
+    .app-ss-opt:hover, .app-ss-opt.selected { background: var(--green-50); }
+    .app-ss-opt.ss-empty { color: var(--text-3); font-weight: 500; cursor: default; text-align: center; }
+    body.dark-mode .app-ss-opt:hover,
+    body.dark-mode .app-ss-opt.selected { background: rgba(67,160,71,0.18); }
 
     .field label {
       font-size: 9px; font-weight: 700; color: var(--text-3);
@@ -2421,48 +2507,6 @@ body.dark-mode .resumo-cards .medal-text {
   /* ══════════════════════════════════════════════
      MELHORIA 5 — SELETOR GLOBAL DE FRENTE
   ══════════════════════════════════════════════ */
-  #global-frente-bar {
-    display: none;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface2);
-    border-bottom: 1px solid var(--border);
-    padding: 7px 12px;
-    position: sticky;
-    top: 0;
-    z-index: 90;
-  }
-  #global-frente-bar.visible { display: flex; }
-  #global-frente-bar label {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-3);
-    white-space: nowrap;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-  }
-  #global-frente-select {
-    flex: 1;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text);
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 5px 8px;
-    outline: none;
-  }
-  #global-frente-select:focus { border-color: var(--green-500); }
-  #global-frente-clear {
-    background: none;
-    border: none;
-    color: var(--text-3);
-    font-size: 13px;
-    cursor: pointer;
-    padding: 4px;
-    flex-shrink: 0;
-    line-height: 1;
-  }
 
   /* ══════════════════════════════════════════════
      MELHORIA 6 — HISTÓRICO DE SINCRONIZAÇÃO
@@ -2818,16 +2862,6 @@ body.dark-mode .resumo-cards .medal-text {
   </div>
 
   <!-- MELHORIA 5: Seletor global de frente (visível dentro das abas) -->
-  <div id="global-frente-bar">
-    <label><i class="fas fa-filter" style="margin-right:4px"></i>Frente:</label>
-    <select id="global-frente-select" onchange="aplicarFiltroGlobalFrente()">
-      <option value="">— Todas —</option>
-    </select>
-    <button id="global-frente-clear" onclick="limparFiltroGlobalFrente()" title="Limpar filtro">
-      <i class="fas fa-times-circle"></i>
-    </button>
-  </div>
-
   <nav class="tabs-nav home-mode" id="main-nav">
 
     <div class="home-section home-section--azul">
@@ -3010,7 +3044,7 @@ body.dark-mode .resumo-cards .medal-text {
             <i class="fas fa-folder" style="margin-right:4px"></i> Gerenciar Cenários Salvos
           </div>
           <div class="cenario-bar">
-            <select class="cenario-select" id="cenario-select">
+            <select class="cenario-select app-select" id="cenario-select">
               <option value="">— Nenhum cenário salvo —</option>
             </select>
             <button class="btn-secondary" onclick="carregarCenario()"><i class="fas fa-folder-open"></i> Carregar</button>
@@ -3216,15 +3250,62 @@ body.dark-mode .resumo-cards .medal-text {
       <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
         <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Resumo por Frente para WhatsApp
       </button>
-      <div class="card-title"><i class="fas fa-search"></i> Filtrar Liberações</div>
-      <div class="filter-bar" style="flex-wrap:wrap; gap:6px; background:var(--surface2); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-        <input type="text" id="filtroFrente" placeholder="Buscar frente..." oninput="filtrarTabela()" style="min-width:120px;">
-        <input type="text" id="filtroFazenda" placeholder="Buscar fazenda..." oninput="filtrarTabela()" style="min-width:120px; flex:1;">
-        <select id="filtroStatus" onchange="filtrarTabela()">
-          <option value="">Todos</option>
-          <option value="ABERTA">Abertas</option>
-          <option value="ENCERRADA">Encerradas</option>
-        </select>
+      <!-- FILTROS LIBERAÇÕES -->
+      <div class="lib-filtros-card">
+        <div class="lib-filtros-title"><i class="fas fa-filter"></i> Filtrar Liberações</div>
+
+        <!-- Linha 1: Seleção de frentes (chips multi-seleção) -->
+        <div class="lib-filtros-section">
+          <span class="lib-filtros-label">Frente</span>
+          <div class="lib-frentes-chips" id="lib-frentes-chips">
+            <button class="lib-frente-chip active" data-frente="" onclick="libToggleFrente(this)">
+              <i class="fas fa-layer-group"></i> Todas
+            </button>
+            <button class="lib-frente-chip" data-frente="401" onclick="libToggleFrente(this)">401</button>
+            <button class="lib-frente-chip" data-frente="402" onclick="libToggleFrente(this)">402</button>
+            <button class="lib-frente-chip" data-frente="403" onclick="libToggleFrente(this)">403</button>
+            <button class="lib-frente-chip" data-frente="404" onclick="libToggleFrente(this)">404</button>
+            <button class="lib-frente-chip" data-frente="451" onclick="libToggleFrente(this)">451</button>
+          </div>
+        </div>
+
+        <!-- Linha 2: Fazenda + Status -->
+        <div class="lib-filtros-row">
+          <div class="lib-filtros-field">
+            <span class="lib-filtros-label">Fazenda</span>
+            <div class="app-ss" id="ss-lib-fazenda">
+              <div class="app-ss-wrap">
+                <i class="fas fa-search app-ss-icon"></i>
+                <input type="text" class="app-ss-input" id="filtroFazenda"
+                       placeholder="— Todas —" autocomplete="off"
+                       oninput="appSSFiltrar('lib-fazenda')"
+                       onfocus="appSSAbrir('lib-fazenda')">
+                <i class="fas fa-times app-ss-clear" style="display:none"
+                   onclick="appSSLimpar('lib-fazenda')"></i>
+              </div>
+              <div class="app-ss-lista"></div>
+            </div>
+            <!-- select real oculto (fonte de dados para o componente) -->
+            <select id="lib-fazenda-select" style="display:none" onchange="filtrarTabela()">
+              <option value="">— Todas —</option>
+            </select>
+          </div>
+
+          <div class="lib-filtros-field lib-filtros-field-sm">
+            <span class="lib-filtros-label">Status</span>
+            <div class="app-select-wrap">
+              <select id="filtroStatus" class="app-select" onchange="filtrarTabela()">
+                <option value="">Todos</option>
+                <option value="ABERTA">Abertas</option>
+                <option value="ENCERRADA">Encerradas</option>
+              </select>
+              <i class="fas fa-chevron-down app-select-chevron"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- input oculto de compatibilidade (filtrarTabela o lê) -->
+        <input type="hidden" id="filtroFrente" value="">
       </div>
       <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; margin-top:10px;">
         <button id="btn-compact-toggle" onclick="toggleModoCompacto()" title="Modo compacto de tabela">
@@ -3337,7 +3418,7 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
         <div class="field">
           <label>Tipo de Plantio</label>
-          <select id="plantio_tipo" onchange="ajustarSugerido()">
+          <select id="plantio_tipo" class="app-select" onchange="ajustarSugerido()">
             <option value="Mecanizado">Mecanizado</option>
             <option value="Manual">Manual</option>
             <option value="Meiose">Meiosi Manual</option>
@@ -3434,7 +3515,7 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
         <div class="field">
           <label>Variedade / Ciclo</label>
-          <select id="vr_tipo" onchange="calcularVariedade()">
+          <select id="vr_tipo" class="app-select" onchange="calcularVariedade()">
             <option value="120">Precoce (TCH ref. 85)</option>
             <option value="150">Médio (TCH ref. 95)</option>
             <option value="180">Tardio (TCH ref. 105)</option>
@@ -3567,7 +3648,7 @@ body.dark-mode .resumo-cards .medal-text {
       <div class="clima-city-bar">
         <div class="field" style="flex:1">
           <label>Cidade da Região</label>
-          <select id="cidade-select" onchange="onCidadeSelectChange()">
+          <select id="cidade-select" class="app-select" onchange="onCidadeSelectChange()">
             <option value="-20.72|-46.61|Passos">Passos, MG</option>
             <option value="-20.86|-46.39|Alpinópolis">Alpinópolis, MG</option>
             <option value="-20.61|-46.42|São João Batista do Glória">São João Batista do Glória, MG</option>
@@ -3790,7 +3871,7 @@ body.dark-mode .resumo-cards .medal-text {
         </div>
         <div class="field" style="flex:1; min-width:140px;">
           <label>OBS</label>
-          <select id="filtroConfObs" onchange="filtrarTabelaConf()"
+          <select id="filtroConfObs" class="app-select" onchange="filtrarTabelaConf()"
             style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
             <option value="">— Todas —</option>
             <option value="ok">OK</option>
@@ -4126,19 +4207,7 @@ function showTab(e, id) {
     carregarDadosConfOS();
   }
 
-  // MELHORIA 5: exibe seletor global de frente nas abas relevantes
-  const gBar = document.getElementById('global-frente-bar');
-  if (gBar) {
-    const abasComFiltro = ['liberacoes', 'conf_os_aba'];
-    gBar.classList.toggle('visible', abasComFiltro.includes(id));
-    // Aplica filtro global já definido ao entrar na aba de liberações
-    if (id === 'liberacoes' && window._filtroGlobalFrente) {
-      setTimeout(() => {
-        const inp = document.getElementById('filtroFrente');
-        if (inp) { inp.value = window._filtroGlobalFrente; filtrarTabela(); }
-      }, 100);
-    }
-  }
+
 
   // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
   const containerPrincipal = document.querySelector('.container');
@@ -4205,9 +4274,7 @@ function voltarParaHome() {
   // Scrolla para o topo
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // MELHORIA 5: oculta seletor global ao voltar para home
-  const gBar = document.getElementById('global-frente-bar');
-  if (gBar) gBar.classList.remove('visible');
+
 }
 
 /* ══════════════════════════════════════════════
@@ -4833,8 +4900,8 @@ function atualizarResumoExecutivo() {
     ).join('');
   }
 
-  // MELHORIA 5: preencher seletor global
-  popularSeletorGlobalFrente();
+  // Popula select oculto de fazendas no filtro de Liberações
+  popularFazendaLibSelect();
 }
 
 // MELHORIA 3: Dias sem chuva via Open-Meteo
@@ -4917,40 +4984,7 @@ function irParaFrente(frente) {
 /* ══════════════════════════════════════════════
    MELHORIA 5 — SELETOR GLOBAL DE FRENTE
 ══════════════════════════════════════════════ */
-window._filtroGlobalFrente = '';
 
-function popularSeletorGlobalFrente() {
-  const sel = document.getElementById('global-frente-select');
-  if (!sel || !window._gatecDados) return;
-  const frentesPermitidas = ["401", "402", "403", "404", "451"];
-  const anterior = sel.value;
-  sel.innerHTML = '<option value="">— Todas —</option>';
-  frentesPermitidas.forEach(f => {
-    const o = document.createElement('option');
-    o.value = f;
-    o.textContent = `Frente ${f}`;
-    if (f === anterior) o.selected = true;
-    sel.appendChild(o);
-  });
-}
-
-function aplicarFiltroGlobalFrente() {
-  const val = document.getElementById('global-frente-select')?.value || '';
-  window._filtroGlobalFrente = val;
-  // Aplica nos inputs de filtro de frente existentes
-  const inpLib = document.getElementById('filtroFrente');
-  if (inpLib) { inpLib.value = val; filtrarTabela(); }
-  showToast(val ? `🔍 Filtrando: Frente ${val}` : '✅ Filtro de frente removido', 'info', 2000);
-}
-
-function limparFiltroGlobalFrente() {
-  window._filtroGlobalFrente = '';
-  const sel = document.getElementById('global-frente-select');
-  if (sel) sel.value = '';
-  const inpLib = document.getElementById('filtroFrente');
-  if (inpLib) { inpLib.value = ''; filtrarTabela(); }
-  showToast('✅ Filtro global removido', 'info', 1500);
-}
 
 /* ══════════════════════════════════════════════
    MELHORIA 7 — MODO COMPACTO DE TABELA
@@ -5948,13 +5982,166 @@ function exportarExcelLiberacoes() {
   showToast(`✅ ${filtrados.length} liberações exportadas!`, 'success', 2500);
 }
 
+/* ══════════════════════════════════════════════
+   CHIPS MULTI-SELEÇÃO DE FRENTES — LIBERAÇÕES
+══════════════════════════════════════════════ */
+window._libFrentesSelecionadas = new Set();
+
+function libToggleFrente(btn) {
+  const frente = btn.dataset.frente;
+  const chips  = document.querySelectorAll('#lib-frentes-chips .lib-frente-chip');
+
+  if (frente === '') {
+    // "Todas" — limpa tudo
+    window._libFrentesSelecionadas.clear();
+    chips.forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+  } else {
+    // Remove o "Todas" se estava ativo
+    document.querySelector('.lib-frente-chip[data-frente=""]')?.classList.remove('active');
+
+    if (window._libFrentesSelecionadas.has(frente)) {
+      window._libFrentesSelecionadas.delete(frente);
+      btn.classList.remove('active');
+    } else {
+      window._libFrentesSelecionadas.add(frente);
+      btn.classList.add('active');
+    }
+
+    // Se nenhuma frente específica selecionada, volta para "Todas"
+    if (window._libFrentesSelecionadas.size === 0) {
+      document.querySelector('.lib-frente-chip[data-frente=""]')?.classList.add('active');
+    }
+  }
+  filtrarTabela();
+}
+
+/* ══════════════════════════════════════════════
+   APP-SS: Search-Select genérico reutilizável
+   (usa mesma lógica do tratos-ss, mas global)
+══════════════════════════════════════════════ */
+function _appSSRefs(ssId) {
+  const wrap  = document.getElementById('ss-' + ssId);
+  if (!wrap) return null;
+  return {
+    wrap,
+    input:    wrap.querySelector('.app-ss-input'),
+    lista:    wrap.querySelector('.app-ss-lista'),
+    clearBtn: wrap.querySelector('.app-ss-clear'),
+  };
+}
+
+function _appSSRenderLista(ssId, termo, opts) {
+  const r = _appSSRefs(ssId);
+  if (!r) return;
+  const termoN = (termo || '').trim().toLowerCase();
+  const filtradas = !termoN ? opts : opts.filter(o => o.label.toLowerCase().includes(termoN));
+
+  if (!filtradas.length) {
+    r.lista.innerHTML = '<div class="app-ss-opt ss-empty">Nenhum resultado</div>';
+    return;
+  }
+  r.lista.innerHTML = filtradas.map(o => {
+    const sel = o.value === (r.input.dataset.value || '');
+    return `<div class="app-ss-opt${sel ? ' selected' : ''}" data-val="${o.value.replace(/"/g,'&quot;')}">${o.label}</div>`;
+  }).join('');
+  r.lista.querySelectorAll('.app-ss-opt[data-val]').forEach(div => {
+    div.addEventListener('mousedown', ev => {
+      ev.preventDefault();
+      _appSSEscolher(ssId, div.dataset.val, div.textContent);
+    });
+  });
+}
+
+function appSSAbrir(ssId) {
+  const r = _appSSRefs(ssId);
+  if (!r) return;
+  document.querySelectorAll('.app-ss.open').forEach(el => {
+    if (el.id !== 'ss-' + ssId) el.classList.remove('open');
+  });
+  r.wrap.classList.add('open');
+  r.input.select();
+  _appSSRenderListaFromSource(ssId, '');
+}
+
+function appSSFiltrar(ssId) {
+  const r = _appSSRefs(ssId);
+  if (!r) return;
+  r.wrap.classList.add('open');
+  r.clearBtn.style.display = r.input.value ? 'block' : 'none';
+  _appSSRenderListaFromSource(ssId, r.input.value);
+}
+
+function _appSSEscolher(ssId, val, label) {
+  const r = _appSSRefs(ssId);
+  if (!r) return;
+  r.input.dataset.value = val;
+  r.input.value = val ? label : '';
+  r.clearBtn.style.display = val ? 'block' : 'none';
+  r.wrap.classList.remove('open');
+  // Dispara onChange no select oculto associado, se existir
+  const assocId = r.wrap.dataset.selectId;
+  if (assocId) {
+    const sel = document.getElementById(assocId);
+    if (sel) { sel.value = val; sel.dispatchEvent(new Event('change')); }
+  }
+  // Fallback: dispara filtro diretamente pelo input oculto (Liberações usa isso)
+  const hiddenInp = document.getElementById('filtro' + ssId.charAt(0).toUpperCase() + ssId.slice(1).split('-')[0]);
+  if (!assocId && hiddenInp) { hiddenInp.value = val; filtrarTabela(); }
+  else if (!assocId) { filtrarTabela(); }
+}
+
+function appSSLimpar(ssId) {
+  _appSSEscolher(ssId, '', '');
+}
+
+// Popula a lista de opções a partir do select oculto associado
+function _appSSRenderListaFromSource(ssId, termo) {
+  const r = _appSSRefs(ssId);
+  if (!r) return;
+  const assocId = r.wrap.dataset.selectId;
+  let opts = [];
+  if (assocId) {
+    const sel = document.getElementById(assocId);
+    if (sel) opts = Array.from(sel.options).filter(o => o.value).map(o => ({ value: o.value, label: o.textContent }));
+  } else {
+    // Fonte alternativa: dataset.opts como JSON
+    try { opts = JSON.parse(r.wrap.dataset.opts || '[]'); } catch(e) { opts = []; }
+  }
+  _appSSRenderLista(ssId, termo, opts);
+}
+
+// Popular o select oculto de fazendas das liberações a partir dos dados carregados
+function popularFazendaLibSelect() {
+  const sel = document.getElementById('lib-fazenda-select');
+  if (!sel || !window._gatecDados) return;
+  const fazendas = [...new Set(window._gatecDados.map(r => (r.fazenda || r.Fazenda || r['Fazenda'] || '').trim()).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— Todas —</option>' + fazendas.map(f => `<option value="${f}">${f}</option>`).join('');
+  // Associa o ss ao select
+  const wrap = document.getElementById('ss-lib-fazenda');
+  if (wrap) wrap.dataset.selectId = 'lib-fazenda-select';
+}
+
+// Fecha dropdowns ao clicar fora
+document.addEventListener('click', ev => {
+  document.querySelectorAll('.app-ss.open').forEach(wrap => {
+    if (!wrap.contains(ev.target)) wrap.classList.remove('open');
+  });
+});
+
 function filtrarTabela() {
-  const bFrente = document.getElementById('filtroFrente').value.toLowerCase();
-  const bStatus = document.getElementById('filtroStatus').value;
+  // Frentes selecionadas via chips (Set de strings; vazio = todas)
+  const frentesSel = window._libFrentesSelecionadas || new Set();
+  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase().trim();
+  const bStatus  = document.getElementById('filtroStatus')?.value || '';
   document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
-    const frente = linha.cells[1].innerText.toLowerCase();
-    const status = linha.cells[4].innerText.toUpperCase();
-    linha.style.display = (frente.includes(bFrente) && (bStatus === '' || status.includes(bStatus))) ? '' : 'none';
+    const frente  = (linha.cells[1]?.innerText || '').trim();
+    const fazenda = (linha.cells[2]?.innerText || '').toLowerCase();
+    const status  = (linha.cells[4]?.innerText || '').toUpperCase();
+    const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
+    const okFazenda = !bFazenda || fazenda.includes(bFazenda);
+    const okStatus  = !bStatus  || status.includes(bStatus);
+    linha.style.display = (okFrente && okFazenda && okStatus) ? '' : 'none';
   });
 }
 
