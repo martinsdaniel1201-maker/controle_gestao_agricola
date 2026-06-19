@@ -6139,7 +6139,7 @@ function filtrarTabela() {
   document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
     const frente  = (linha.cells[1]?.innerText || '').trim();
     const fazenda = (linha.cells[2]?.innerText || '').toLowerCase();
-    const status  = (linha.cells[4]?.innerText || '').toUpperCase();
+    const status  = (linha.cells[8]?.innerText || '').toUpperCase().trim();
     const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
     const okFazenda = !bFazenda || fazenda.includes(bFazenda);
     const okStatus  = !bStatus  || status.includes(bStatus);
