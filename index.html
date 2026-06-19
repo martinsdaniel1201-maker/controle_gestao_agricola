@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.7.9</title>
+  <title>Controle Técnico Agrícola v7.6</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -4386,18 +4386,19 @@ function copiarResumoLiberacoes() {
     return;
   }
 
-  // Lê os filtros ativos
-  const bFrente  = (document.getElementById('filtroFrente')?.value  || '').toLowerCase().trim();
-  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase().trim();
-  const bStatus  = (document.getElementById('filtroStatus')?.value  || '');
+  // Lê os filtros ativos (chips de frente + fazenda + status)
+  const frentesSel = window._libFrentesSelecionadas || new Set();
+  const bFazenda   = (document.getElementById('filtroFazenda')?.value || '').toLowerCase().trim();
+  const bStatus    = (document.getElementById('filtroStatus')?.value  || '');
 
   // Aplica os mesmos filtros da tabela
   const filtrados = window._gatecDados.filter(row => {
-    const frente  = (row['FRENTE']       || '').toLowerCase();
+    const frente  = (row['FRENTE']       || '').trim();
     const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
     const status  = (row['STATUS OS']    || '').toUpperCase();
-    const statusOk = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
-    return frente.includes(bFrente) && fazenda.includes(bFazenda) && statusOk;
+    const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
+    const statusOk  = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
+    return okFrente && fazenda.includes(bFazenda) && statusOk;
   });
 
   if (filtrados.length === 0) {
@@ -4972,13 +4973,13 @@ async function buscarDiasSemChuva() {
    MELHORIA 4 — ATALHO CHIP → ABA PRODUÇÃO
 ══════════════════════════════════════════════ */
 function irParaFrente(frente) {
-  // Navega para Liberações e pré-filtra a frente
+  // Navega para Liberações e ativa o chip da frente correspondente
   const btn = document.querySelector('[onclick*="liberacoes"]');
   if (btn) btn.click();
   setTimeout(() => {
-    const inp = document.getElementById('filtroFrente');
-    if (inp) { inp.value = frente; filtrarTabela(); }
-  }, 150);
+    const chip = document.querySelector(`.lib-frente-chip[data-frente="${frente}"]`);
+    if (chip) libToggleFrente(chip);
+  }, 200);
 }
 
 /* ══════════════════════════════════════════════
@@ -5939,16 +5940,17 @@ function exportarExcelLiberacoes() {
     showToast('⚠️ Nenhum dado de Liberações carregado para exportar.', 'error', 2500);
     return;
   }
-  const bFrente  = (document.getElementById('filtroFrente')?.value  || '').toLowerCase();
-  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
-  const bStatus  = (document.getElementById('filtroStatus')?.value  || '');
+  const frentesSel = window._libFrentesSelecionadas || new Set();
+  const bFazenda   = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
+  const bStatus    = (document.getElementById('filtroStatus')?.value  || '');
 
   const filtrados = window._gatecDados.filter(row => {
-    const frente  = (row['FRENTE']       || '').toLowerCase();
+    const frente  = (row['FRENTE']       || '').trim();
     const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
     const status  = (row['STATUS OS']    || '').toUpperCase();
+    const okFrente = frentesSel.size === 0 || frentesSel.has(frente);
     const statusOk = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
-    return frente.includes(bFrente) && fazenda.includes(bFazenda) && statusOk;
+    return okFrente && fazenda.includes(bFazenda) && statusOk;
   });
 
   if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
@@ -6766,25 +6768,7 @@ _Gerado pelo CTT Controle Agrícola_`;
     });
 }
 
-/* ══════════════════════════════════════════════
-   #6 — FILTRO POR FAZENDA (já no HTML, lógica aqui)
-   Atualizar filtrarTabela para incluir fazenda
-══════════════════════════════════════════════ */
-// Substituir filtrarTabela original:
-filtrarTabela = function() {
-  const bFrente  = (document.getElementById('filtroFrente')?.value  || '').toLowerCase();
-  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
-  const bStatus  = (document.getElementById('filtroStatus')?.value  || '');
-  document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
-    const frente  = linha.cells[1]?.innerText.toLowerCase() || '';
-    const fazenda = linha.cells[2]?.innerText.toLowerCase() || '';
-    const status  = linha.cells[8]?.innerText.toUpperCase() || '';
-    const ok = frente.includes(bFrente)
-            && fazenda.includes(bFazenda)
-            && (bStatus === '' || status.includes(bStatus));
-    linha.style.display = ok ? '' : 'none';
-  });
-};
+/* filtrarTabela consolidada acima (chips + fazenda + status) */
 
 /* ══════════════════════════════════════════════
    #7 — TOAST / CONFIRMAÇÃO VISUAL
