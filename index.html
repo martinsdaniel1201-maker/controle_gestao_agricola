@@ -6117,8 +6117,9 @@ function _appSSRenderListaFromSource(ssId, termo) {
 function popularFazendaLibSelect() {
   const sel = document.getElementById('lib-fazenda-select');
   if (!sel || !window._gatecDados) return;
-  const fazendas = [...new Set(window._gatecDados.map(r => (r.fazenda || r.Fazenda || r['Fazenda'] || '').trim()).filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">— Todas —</option>' + fazendas.map(f => `<option value="${f}">${f}</option>`).join('');
+  const escHtml = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const fazendas = [...new Set(window._gatecDados.map(r => (r['DESC.FAZENDA'] || '').trim()).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— Todas —</option>' + fazendas.map(f => `<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('');
   // Associa o ss ao select
   const wrap = document.getElementById('ss-lib-fazenda');
   if (wrap) wrap.dataset.selectId = 'lib-fazenda-select';
