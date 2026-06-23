@@ -458,6 +458,75 @@
     body.dark-mode .app-ss-opt:hover,
     body.dark-mode .app-ss-opt.selected { background: rgba(67,160,71,0.18); }
 
+    /* ── BANNER DE INSTALAÇÃO PWA ── */
+    #pwa-install-banner {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 2px solid var(--green-500);
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 9999;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #pwa-install-banner.visible {
+      transform: translateY(0);
+    }
+    .pwa-banner-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: var(--green-900);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 20px; color: #fff;
+    }
+    .pwa-banner-text {
+      flex: 1; min-width: 0;
+    }
+    .pwa-banner-text strong {
+      display: block; font-size: 13px; font-weight: 800;
+      color: var(--text); margin-bottom: 2px;
+    }
+    .pwa-banner-text span {
+      font-size: 11px; color: var(--text-3); font-weight: 500;
+    }
+    .pwa-banner-actions {
+      display: flex; gap: 8px; flex-shrink: 0; align-items: center;
+    }
+    .pwa-btn-instalar {
+      background: var(--green-900); color: #fff;
+      border: none; border-radius: var(--radius-sm);
+      padding: 8px 14px; font-size: 12px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .pwa-btn-instalar:hover { opacity: 0.88; }
+    .pwa-btn-fechar {
+      background: none; border: none;
+      color: var(--text-3); font-size: 18px;
+      cursor: pointer; padding: 4px; line-height: 1;
+    }
+    .pwa-btn-fechar:hover { color: var(--text); }
+    body.dark-mode #pwa-install-banner {
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.35);
+    }
+    @media (min-width: 600px) {
+      #pwa-install-banner {
+        max-width: 480px;
+        left: 50%; right: auto;
+        transform: translateX(-50%) translateY(100%);
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        bottom: 0;
+      }
+      #pwa-install-banner.visible {
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
     .field label {
       font-size: 9px; font-weight: 700; color: var(--text-3);
       text-transform: uppercase; letter-spacing: 0.5px;
@@ -7539,6 +7608,80 @@ function toggleTratosCard(headerEl) {
   /* ══════════════════════════════════════════════
    SERVICE WORKER — SUPORTE OFFLINE / PWA
 ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   PWA INSTALL PROMPT
+══════════════════════════════════════════════ */
+(function() {
+  const jaInstalado =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    document.referrer.includes('android-app://');
+
+  if (jaInstalado) return;
+
+  let deferredPrompt = null;
+  const STORAGE_KEY = 'ctt_pwa_banner_dismissed';
+
+  function bannerJaDismissed() {
+    try {
+      const ts = localStorage.getItem(STORAGE_KEY);
+      if (!ts) return false;
+      return (Date.now() - parseInt(ts)) < 7 * 24 * 60 * 60 * 1000;
+    } catch(e) { return false; }
+  }
+
+  window.pwaInstalar = function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') pwaOcultarBanner();
+      deferredPrompt = null;
+    });
+  };
+
+  window.pwaFecharBanner = function() {
+    pwaOcultarBanner();
+    try { localStorage.setItem(STORAGE_KEY, Date.now().toString()); } catch(e) {}
+  };
+
+  function pwaMostrarBanner() {
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) setTimeout(() => banner.classList.add('visible'), 3000);
+  }
+
+  function pwaOcultarBanner() {
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.classList.remove('visible');
+  }
+
+  // Chrome / Edge / Android
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!bannerJaDismissed()) pwaMostrarBanner();
+  });
+
+  // iOS Safari (não tem beforeinstallprompt)
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isSafari = /safari/i.test(navigator.userAgent) && !/chrome/i.test(navigator.userAgent);
+  if (isIOS && isSafari && !bannerJaDismissed()) {
+    window.addEventListener('DOMContentLoaded', () => {
+      const btnInstalar = document.getElementById('pwa-btn-instalar');
+      const textoSub = document.querySelector('.pwa-banner-text span');
+      if (btnInstalar) {
+        btnInstalar.innerHTML = '<i class="fas fa-share-square"></i> Como instalar';
+        btnInstalar.onclick = () => {
+          if (typeof showToast === 'function')
+            showToast('No Safari: toque em Compartilhar → "Adicionar à Tela Inicial"', 'info', 5000);
+          pwaFecharBanner();
+        };
+      }
+      if (textoSub) textoSub.textContent = 'Adicione à tela inicial para acesso rápido';
+      pwaMostrarBanner();
+    });
+  }
+})();
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
@@ -8769,5 +8912,24 @@ function _onLogout() {
 }
   
 </script>
+  <!-- ── BANNER DE INSTALAÇÃO PWA ── -->
+  <div id="pwa-install-banner" role="dialog" aria-label="Instalar aplicativo">
+    <div class="pwa-banner-icon">
+      <i class="fas fa-seedling"></i>
+    </div>
+    <div class="pwa-banner-text">
+      <strong>Instalar Controle Agrícola App</strong>
+      <span>Acesse mais rápido direto da tela inicial</span>
+    </div>
+    <div class="pwa-banner-actions">
+      <button class="pwa-btn-instalar" id="pwa-btn-instalar" onclick="pwaInstalar()">
+        <i class="fas fa-download"></i> Instalar
+      </button>
+      <button class="pwa-btn-fechar" onclick="pwaFecharBanner()" title="Fechar">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
 </body>
 </html>
