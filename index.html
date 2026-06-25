@@ -9311,103 +9311,147 @@ iniciarSabedoria();
     return idx >= 0 && idx < row.length ? String(row[idx] || '').trim() : '';
   }
 
-  /* ── normalização DIÁRIO (array de arrays) ───────────────────────── */
+  /* ── normalização DIÁRIO (array de arrays, header na linha 2) ───────
+     Estrutura confirmada do CSV:
+       linha 0 = fórmula PROCV  (metadado)
+       linha 1 = PAS / 26'27... (metadado)
+       linha 2 = UNIDADE, SAFRA, DATA, MÊS, LAYER, LOCAL, DESCRIÇÃO,
+                 TALHÃO, ÁREA, PLANTIO, ...  ← HEADER REAL
+       linha 3+ = dados
+     Índices (0-based):
+       [1]=UNIDADE  [3]=DATA  [7]=DESCRIÇÃO  [8]=TALHÃO
+       [9]=ÁREA     [10]=PLANTIO  [21]=VARIEDADE
+  ─────────────────────────────────────────────────────────────────── */
   function _normalizarDiario(rows) {
     if (!rows || !rows.length) return [];
 
-    const hi = _detectarHeader(rows, ['DATA', 'DESCRI', 'TALH', 'REA']);
-    const header = rows[hi];
-    const dataRows = rows.slice(hi + 1);
+    // Encontra a linha do header procurando 'DATA' na posição 3
+    let headerLine = -1;
+    for (let i = 0; i < Math.min(6, rows.length); i++) {
+      if (rows[i].length > 9 && _norm(String(rows[i][3]||'')) === 'DATA') {
+        headerLine = i;
+        break;
+      }
+    }
+    if (headerLine < 0) {
+      console.warn('[PLANTIO] Header do diário não encontrado, usando linha 2');
+      headerLine = 2;
+    }
 
-    const iData    = _findIdx(header, ['DATA']);
-    const iDesc    = _findIdx(header, ['DESCRIÇÃO','DESCRICAO','DESC']);
-    const iTalhao  = _findIdx(header, ['TALHÃO','TALHAO']);
-    const iArea    = _findIdx(header, ['ÁREA','AREA']);
-    const iPlantio = _findIdx(header, ['PLANTIO']);
-    const iLocal   = _findIdx(header, ['LOCAL']);
+    const dataRows = rows.slice(headerLine + 1);
 
     return dataRows
       .map(r => {
-        if (!r || r.length < 3) return null;
-        const unidade = _val(r, _findIdx(header, ['UNIDADE']));
-        if (!unidade || _norm(unidade) === 'UNIDADE') return null;
-        const area = _num(_val(r, iArea));
+        if (!r || r.length < 10) return null;
+        const unidade = String(r[1] || '').trim();
+        if (!unidade || _norm(unidade) === 'UNIDADE' || _norm(unidade) === '') return null;
+
+        const area = _num(r[9]);
         if (isNaN(area) || area <= 0) return null;
-        const data = _parseData(_val(r, iData));
-        if (!data) return null;
+
+        // DATA pode ser objeto Date (Excel) ou string
+        let data = null;
+        const rawData = r[3];
+        if (rawData instanceof Date || (typeof rawData === 'object' && rawData !== null)) {
+          data = new Date(rawData);
+        } else {
+          data = _parseData(String(rawData || ''));
+        }
+        if (!data || isNaN(data.getTime())) return null;
+
         return {
           data,
-          fazenda: _val(r, iDesc),
-          local:   _val(r, iLocal),
-          talhao:  _val(r, iTalhao),
+          fazenda:  String(r[7]  || '').trim(),
+          talhao:   String(r[8]  || '').trim(),
           area,
-          tipo:    _val(r, iPlantio) || 'Mecanizado',
+          tipo:     String(r[10] || 'Mecanizado').trim(),
+          variedade:String(r[21] || '').trim(),
         };
       })
       .filter(Boolean);
   }
 
-  /* ── normalização BASE (array de arrays) ─────────────────────────── */
+  /* ── normalização BASE (array de arrays, header na linha 3) ─────────
+     Estrutura confirmada:
+       linha 0 = vazio
+       linha 1 = PAS / 26'27 (metadado)
+       linha 2 = DADOS_CADASTRAIS (metadado)
+       linha 3 = UNIDADE, SAFRA, LAYER, SETOR, LOCAL, DESCRIÇÃO,
+                 TALHÃO, BLOCO, VARIEDADE_ATUAL, ... ← HEADER REAL
+       linha 4+ = dados
+     Índices relevantes:
+       [1]=UNIDADE  [6]=DESCRIÇÃO  [7]=TALHÃO  [8]=BLOCO
+       [9]=VARIEDADE_ATUAL  [11]=AMBIENTE  [17]=ESTÁGIO
+       [20]=ÁREA TOTAL(ha)  [21]=REF._CICLO  [22]=MOTIVO REF.
+       [87]=ÁREA(ha)  [91]=MODELO_PLANTIO  [93]=FRENTE
+       [98]=DATA_PLANTIO  [102]=MÊS_PLANTIO
+       [105]=TIPO_PLANTIO_DESDOBRA
+  ─────────────────────────────────────────────────────────────────── */
   function _normalizarBase(rows) {
     if (!rows || !rows.length) return [];
 
-    const hi = _detectarHeader(rows, ['UNIDADE', 'LAYER', 'DESCRI', 'TALH']);
-    const header = rows[hi];
-    const dataRows = rows.slice(hi + 1);
+    // Encontra a linha do header procurando 'UNIDADE' na posição 1
+    let headerLine = -1;
+    for (let i = 0; i < Math.min(6, rows.length); i++) {
+      if (rows[i].length > 7 && _norm(String(rows[i][1]||'')) === 'UNIDADE') {
+        headerLine = i;
+        break;
+      }
+    }
+    if (headerLine < 0) {
+      console.warn('[PLANTIO] Header da base não encontrado, usando linha 3');
+      headerLine = 3;
+    }
 
-    const iUnidade  = _findIdx(header, ['UNIDADE']);
-    const iLocal    = _findIdx(header, ['LOCAL']);
-    const iDesc     = _findIdx(header, ['DESCRIÇÃO','DESCRICAO','DESC']);
-    const iTalhao   = _findIdx(header, ['TALHÃO','TALHAO']);
-    const iBloco    = _findIdx(header, ['BLOCO']);
-    const iVarAtual = _findIdx(header, ['VARIEDADE_ATUAL','VARIEDADE ATUAL','VARIEDADE PRINCIPAL']);
-    const iAmbiente = _findIdx(header, ['AMBIENTE']);
-    const iArea     = _findIdx(header, ['ÁREA TOTAL (ha)','AREA TOTAL (ha)','ÁREA TOTAL','AREA TOTAL']);
-    const iRefCiclo = _findIdx(header, ['REF._CICLO','REF. CICLO','REF CICLO']);
-    const iMotivo   = _findIdx(header, ['MOTIVO REF.','MOTIVO REF','MOTIVO']);
-    const iMes      = _findIdx(header, ['MÊS_PLANTIO','MES_PLANTIO','MÊS PLANTIO','MES PLANTIO']);
-    const iDataPl   = _findIdx(header, ['DATA_PLANTIO','DATA PLANTIO']);
-    const iTipo     = _findIdx(header, ['TIPO_PLANTIO_DESDOBRA','TIPO PLANTIO DESDOBRA','TIPO PLANTIO']);
-    const iModelo   = _findIdx(header, ['MODELO_PLANTIO','MODELO PLANTIO','MODELO']);
-    const iEstagio  = _findIdx(header, ['ESTÁGIO','ESTAGIO']);
-    const iSetor    = _findIdx(header, ['SETOR']);
+    const dataRows = rows.slice(headerLine + 1);
+
+    const _limpa = v => {
+      const s = String(v || '').trim();
+      const n = _norm(s);
+      if (!s || n === '' || n === 'NAN' || n === 'NAOCADASTRADO' || n === 'ADEFINIR') return '';
+      return s;
+    };
 
     return dataRows
       .map(r => {
-        if (!r || r.length < 3) return null;
-        const unidade = _val(r, iUnidade).toUpperCase();
-        if (!unidade || unidade === 'UNIDADE' || unidade === 'NAN' || unidade === '') return null;
-        const area = _num(_val(r, iArea));
+        if (!r || r.length < 21) return null;
+        const unidade = _limpa(r[1]).toUpperCase();
+        if (!unidade || unidade === 'UNIDADE') return null;
+
+        // Área: tenta [87] (ÁREA ha) primeiro, depois [20] (ÁREA TOTAL)
+        let area = _num(r[87]);
+        if (isNaN(area) || area <= 0) area = _num(r[20]);
         if (isNaN(area) || area <= 0) return null;
 
-        const variedade = _val(r, iVarAtual);
-        const tipo      = _val(r, iTipo);
-        const modelo    = _val(r, iModelo);
-        const ambiente  = _val(r, iAmbiente);
-        const refCiclo  = _val(r, iRefCiclo);
-        const motivo    = _val(r, iMotivo);
-        const estagio   = _val(r, iEstagio);
-        const setor     = _val(r, iSetor);
+        const mes = parseInt(r[102]) || 0;
+
+        let dataPlant = null;
+        const rawDP = r[98];
+        if (rawDP instanceof Date || (typeof rawDP === 'object' && rawDP !== null)) {
+          dataPlant = new Date(rawDP);
+          if (isNaN(dataPlant.getTime())) dataPlant = null;
+        } else {
+          dataPlant = _parseData(String(rawDP || ''));
+        }
 
         return {
-          local:     _val(r, iLocal),
-          fazenda:   _val(r, iDesc),
-          talhao:    _val(r, iTalhao),
-          bloco:     _val(r, iBloco),
-          variedade: variedade && _norm(variedade) !== 'ADEFINIR' && variedade !== '' ? variedade : '',
-          ambiente:  ambiente  && _norm(ambiente)  !== 'NAOCADASTRADO' ? ambiente  : '',
+          fazenda:   _limpa(r[6]),
+          talhao:    String(r[7] || '').trim(),
+          bloco:     _limpa(r[8]),
+          variedade: _limpa(r[9]),
+          ambiente:  _limpa(r[11]),
           area,
-          refCiclo:  refCiclo  && _norm(refCiclo)  !== 'NAOCADASTRADO' ? refCiclo  : '',
-          motivo:    motivo    && _norm(motivo)     !== 'NAOCADASTRADO' ? motivo    : '',
-          mes:       parseInt(_val(r, iMes)) || 0,
-          dataPlant: _parseData(_val(r, iDataPl)),
-          tipo:      tipo      && _norm(tipo)       !== 'NAOCADASTRADO' ? tipo      : '',
-          modelo:    modelo    && _norm(modelo)     !== 'NAOCADASTRADO' ? modelo    : '',
-          estagio:   estagio   && _norm(estagio)    !== 'NAOCADASTRADO' ? estagio   : '',
-          setor:     setor     && _norm(setor)      !== 'NAOCADASTRADO' ? setor     : '',
+          estagio:   _limpa(r[17]),
+          refCiclo:  _limpa(r[21]),
+          motivo:    _limpa(r[22]),
+          modelo:    _limpa(r[91]),
+          frente:    _limpa(r[93]),
+          dataPlant,
+          mes,
+          tipo:      _limpa(r[105]),
         };
       })
-      .filter(Boolean);
+      .filter(r => r !== null && r.fazenda);
   }
 
   /* ── normalização PCP (header:true normal) ───────────────────────── */
@@ -9707,8 +9751,8 @@ iniciarSabedoria();
         } else {
           const match = _pcp ? _pcp.find(p =>
             p.codOp === seq.cod && (
-              (p.talhao && p.talhao === talhao) ||
-              (_norm(p.fazenda || '').includes(_norm(fazenda)))
+              (p.talhao && String(p.talhao).trim() === String(talhao).trim()) ||
+              (_norm(p.fazenda || '') === _norm(fazenda) && _norm(fazenda) !== '')
             )
           ) : null;
           if (match) { status = 'ok'; dataFeita = match.data; }
