@@ -3247,10 +3247,13 @@ body.dark-mode .resumo-cards .medal-text {
       <span class="hre-val" id="hre-aderencia">—</span>
       <span class="hre-sub">meta safra</span>
     </div>
-    <div class="hre-card">
-      <span class="hre-label"><i class="fas fa-tractor" style="margin-right:3px"></i>Frentes Ativas</span>
-      <span class="hre-val" id="hre-frentes">—</span>
-      <span class="hre-sub">com OS abertas</span>
+    <div class="hre-card" id="hre-card-plantio" onclick="showTab(event,'plantio_aba'); iniciarModuloPlantio()" style="cursor:pointer;" title="Ver aba Plantio">
+      <span class="hre-label"><i class="fas fa-seedling" style="margin-right:3px"></i>Plantio 26/27</span>
+      <span class="hre-val" id="hre-plantio-pct">—</span>
+      <span class="hre-sub" id="hre-plantio-sub">carregando...</span>
+      <div class="pla-progress-wrap" style="margin-top:4px">
+        <div class="pla-progress-bg"><div class="pla-progress-fill" id="hre-plantio-bar" style="width:0%"></div></div>
+      </div>
     </div>
     <div class="hre-card hre-chuva">
       <div class="hre-chuva-head">
@@ -3365,20 +3368,6 @@ body.dark-mode .resumo-cards .medal-text {
       </div>
     </div>
 
-    <!-- MELHORIA 8: Resumo semanal automático para WhatsApp -->
-    <button id="btn-resumo-semanal" onclick="copiarResumoSemanal()">
-      <i class="fab fa-whatsapp" style="font-size:15px;"></i> Resumo Semanal para WhatsApp
-    </button>
-
-    <!-- MELHORIA 6: Histórico de sincronização -->
-    <div id="home-sync-historico" style="display:none">
-      <div class="sync-hist-title">
-        <i class="fas fa-history"></i> Histórico de Sincronização
-      </div>
-      <div id="sync-hist-lista">
-        <!-- itens injetados via JS -->
-      </div>
-    </div>
   </div>
 
   <div id="btn-voltar-menu">
@@ -3695,6 +3684,8 @@ body.dark-mode .resumo-cards .medal-text {
             <button class="lib-frente-chip" data-frente="403" onclick="libToggleFrente(this)">403</button>
             <button class="lib-frente-chip" data-frente="404" onclick="libToggleFrente(this)">404</button>
             <button class="lib-frente-chip" data-frente="451" onclick="libToggleFrente(this)">451</button>
+            <button class="lib-frente-chip" data-frente="491" onclick="libToggleFrente(this)" title="Corte de Muda" style="opacity:0.75">491</button>
+            <button class="lib-frente-chip" data-frente="492" onclick="libToggleFrente(this)" title="Corte de Muda" style="opacity:0.75">492</button>
           </div>
         </div>
 
@@ -4585,7 +4576,7 @@ body.dark-mode .resumo-cards .medal-text {
         <button class="plantio-safra-btn" onclick="plantioAbrirSafra('26_27')">
           <div class="psb-icon"><i class="fas fa-seedling"></i></div>
           <span class="psb-label">Plantio 26/27</span>
-          <span class="psb-sub">244 talhões · 3.212 ha</span>
+          <span class="psb-sub" id="psb-sub-2627">carregando...</span>
         </button>
       </div>
     </div>
@@ -4593,18 +4584,20 @@ body.dark-mode .resumo-cards .medal-text {
     <!-- CONTEÚDO DA SAFRA (oculto até selecionar) -->
     <div id="plantio-conteudo" style="display:none">
 
-      <!-- Botão voltar para seletor de safra -->
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-        <button onclick="plantioVoltarSeletor()" style="background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px; font-size:11px; font-weight:700; color:var(--text-2); cursor:pointer; display:flex; align-items:center; gap:6px;">
-          <i class="fas fa-chevron-left"></i> Safras
-        </button>
-        <span id="plantio-safra-label" style="font-size:11px; font-weight:800; color:#E65100;"></span>
+      <!-- Header: safra ativa + trocar + atualizar -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="plantio-safra-label" style="font-size:13px; font-weight:800; color:#E65100;"></span>
+          <button onclick="plantioVoltarSeletor()" style="background:none; border:1px solid var(--border); border-radius:50px; padding:3px 10px; font-size:10px; font-weight:700; color:var(--text-3); cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.borderColor='#E65100';this.style.color='#E65100'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-3)'">
+            <i class="fas fa-exchange-alt" style="font-size:9px"></i> trocar safra
+          </button>
+        </div>
         <button onclick="carregarDadosPlantio()" style="background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px; font-size:11px; font-weight:700; color:var(--text-2); cursor:pointer; display:flex; align-items:center; gap:6px;">
           <i class="fas fa-sync-alt"></i> Atualizar
         </button>
       </div>
 
-      <!-- KPI CARDS -->
+      <!-- KPI CARDS (3 cards) -->
       <div id="plantio-kpi-wrap">
         <div class="pla-card">
           <span class="pla-label"><i class="fas fa-map-marked-alt" style="margin-right:3px"></i>Área Planejada</span>
@@ -4625,11 +4618,6 @@ body.dark-mode .resumo-cards .medal-text {
           <span class="pla-val" id="pla-kpi-mes">—</span>
           <span class="pla-sub" id="pla-kpi-mes-sub">hectares no mês atual</span>
         </div>
-        <div class="pla-card">
-          <span class="pla-label"><i class="fas fa-layer-group" style="margin-right:3px"></i>Talhões Plantados</span>
-          <span class="pla-val" id="pla-kpi-talhoes">—</span>
-          <span class="pla-sub" id="pla-kpi-talhoes-sub">de 244 planejados</span>
-        </div>
       </div>
 
       <!-- BLOCO 1: O QUE FOI PLANTADO? -->
@@ -4639,8 +4627,6 @@ body.dark-mode .resumo-cards .medal-text {
           <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="plantio-card-body">
-
-          <!-- Filtros de período e fazenda -->
           <div class="pla-filtros-row">
             <div class="field">
               <label>De</label>
@@ -4661,8 +4647,6 @@ body.dark-mode .resumo-cards .medal-text {
             </div>
           </div>
           <div id="pla-avanço-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">—</div>
-
-          <!-- Resumo por fazenda -->
           <div id="pla-resumo-container">
             <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período para ver o plantio realizado</div>
           </div>
@@ -4676,27 +4660,24 @@ body.dark-mode .resumo-cards .medal-text {
           <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="plantio-card-body">
-          <div class="pla-legenda" style="font-size:10px; color:var(--text-3); background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 12px; margin-bottom:12px; line-height:1.7;">
-            <span style="margin-right:10px"><span style="background:#E8F5E9; color:#1B5E20; border-radius:4px; padding:1px 6px; font-size:9px; font-weight:700;">✓ FEITO</span> já foi executado</span>
-            <span style="margin-right:10px"><span style="background:var(--amber-bg); color:var(--amber); border-radius:4px; padding:1px 6px; font-size:9px; font-weight:700;">⏳ PENDENTE</span> ainda não foi feito</span>
+          <div style="font-size:10px; color:var(--text-3); background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 12px; margin-bottom:12px; line-height:1.9;">
+            <span style="margin-right:12px"><span style="background:#E8F5E9; color:#1B5E20; border-radius:4px; padding:1px 6px; font-size:9px; font-weight:700;">✓ FEITO</span> já executado</span>
+            <span style="margin-right:12px"><span style="background:var(--amber-bg); color:var(--amber); border-radius:4px; padding:1px 6px; font-size:9px; font-weight:700;">⏳ PENDENTE</span> ainda não feito</span>
             <span><span style="background:var(--border); color:var(--text-3); border-radius:4px; padding:1px 6px; font-size:9px; font-weight:700;">🔒 AGUARDA</span> etapa anterior pendente</span>
           </div>
           <div id="pla-pipeline-container">
-            <div class="pla-empty"><i class="fas fa-project-diagram"></i>Carregando sequência...</div>
+            <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando sequência...</div>
           </div>
         </div>
       </div>
 
-      <!-- BLOCO 3: PLANEJAMENTO (BASE DE TALHÕES) -->
+      <!-- BLOCO 3: PLANEJAMENTO -->
       <div class="card plantio-card-collapsible">
         <div class="plantio-card-header" onclick="togglePlantioCard(this)">
           <div class="card-title" style="margin:0"><i class="fas fa-clipboard-list"></i> Planejamento — talhões a plantar</div>
           <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="plantio-card-body">
-          <div style="font-size:10px; color:var(--text-3); margin-bottom:10px; line-height:1.6;">
-            Filtrar por mês de plantio previsto:
-          </div>
           <div class="pla-mes-chips" id="pla-mes-chips">
             <button class="pla-mes-chip active" data-mes="0" onclick="filtrarPlantioBase(this)">Todos</button>
           </div>
@@ -5460,10 +5441,11 @@ function atualizarResumoExecutivo() {
 
   const elProd  = document.getElementById('hre-producao');
   const elAder  = document.getElementById('hre-aderencia');
-  const elFrent = document.getElementById('hre-frentes');
   if (elProd)  elProd.textContent  = totalProd.toLocaleString('pt-BR', {maximumFractionDigits:0}) + ' t';
   if (elAder)  { elAder.textContent = aderenciaGeral.toFixed(1) + '%'; elAder.style.color = corAder; }
-  if (elFrent) elFrent.textContent  = frentesComAbertas.size;
+
+  // Atualiza card Plantio 26/27 na home (dados de window._plaDiario/_plaBase se disponíveis)
+  atualizarCardPlantioHome();
 
   // MELHORIA 4: preencher chips de frente
   const chips = document.getElementById('home-frentes-chips');
@@ -9130,6 +9112,8 @@ iniciarSabedoria();
 })(); /* fim IIFE TRATOS CULTURAIS */
 
 
+
+
 /* ══════════════════════════════════════════════
    MÓDULO PLANTIO
    Diário: gid=409434796  |  Base: gid=1046721215
@@ -9138,42 +9122,42 @@ iniciarSabedoria();
 (function() {
   'use strict';
 
-  const URL_DIARIO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=409434796&single=true&output=csv';
-  const URL_BASE   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=1046721215&single=true&output=csv';
-  const URL_PCP    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=724202507&single=true&output=csv';
+  const BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub';
+  const URL_DIARIO = BASE_URL + '?gid=409434796&single=true&output=csv';
+  const URL_BASE   = BASE_URL + '?gid=1046721215&single=true&output=csv';
+  const URL_PCP    = BASE_URL + '?gid=724202507&single=true&output=csv';
 
-  // Operações da sequência pós-plantio
   const SEQUENCIA = [
-    { cod: 'PLANTIO',  label: 'Plantio',          icon: 'fa-seedling',    fonte: 'diario' },
-    { cod: '1013',     label: '1013 · 1ª Herb.',  icon: 'fa-spray-can',   fonte: 'pcp' },
-    { cod: '1045',     label: '1045 · Quebra lombo', icon: 'fa-tractor', fonte: 'pcp' },
-    { cod: '1014',     label: '1014 · 2ª Herb.',  icon: 'fa-spray-can',   fonte: 'pcp' },
+    { cod: 'PLANTIO', label: 'Plantio',           icon: 'fa-seedling',  fonte: 'diario' },
+    { cod: '1013',    label: '1013 · 1ª Herb.',   icon: 'fa-spray-can', fonte: 'pcp'    },
+    { cod: '1045',    label: '1045 · Quebra lombo',icon: 'fa-tractor',  fonte: 'pcp'    },
+    { cod: '1014',    label: '1014 · 2ª Herb.',   icon: 'fa-spray-can', fonte: 'pcp'    },
   ];
 
   const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   let _iniciado   = false;
   let _safraAtual = null;
-  let _diario     = null;   // linhas da aba diário
-  let _base       = null;   // linhas da aba base
-  let _pcp        = null;   // linhas da aba PCP (tratos)
-  let _diarioFilt = null;   // linhas filtradas pelo período
+  let _diario     = null;
+  let _base       = null;
+  let _pcp        = null;
+  let _diarioFilt = null;
 
-  // ── Expõe funções ao escopo global ─────────────────────────────────────
-  window.iniciarModuloPlantio  = iniciarModuloPlantio;
-  window.plantioAbrirSafra     = plantioAbrirSafra;
-  window.plantioVoltarSeletor  = plantioVoltarSeletor;
-  window.carregarDadosPlantio  = carregarDadosPlantio;
-  window.filtrarPlantioAvanco  = filtrarPlantioAvanco;
-  window.filtrarPlantioBase    = filtrarPlantioBase;
-  window.togglePlantioCard     = togglePlantioCard;
-  window.plantioToggleDetalhe  = plantioToggleDetalhe;
-  window.plantioTogglePipeline = plantioTogglePipeline;
+  /* ── expõe ao escopo global ──────────────────────────────────────── */
+  window.iniciarModuloPlantio   = iniciarModuloPlantio;
+  window.plantioAbrirSafra      = plantioAbrirSafra;
+  window.plantioVoltarSeletor   = plantioVoltarSeletor;
+  window.carregarDadosPlantio   = carregarDadosPlantio;
+  window.filtrarPlantioAvanco   = filtrarPlantioAvanco;
+  window.filtrarPlantioBase     = filtrarPlantioBase;
+  window.togglePlantioCard      = togglePlantioCard;
+  window.plantioToggleDetalhe   = plantioToggleDetalhe;
+  window.plantioTogglePipeline  = plantioTogglePipeline;
+  window.plantioToggleFazenda   = plantioToggleFazenda;
+  window.atualizarCardPlantioHome = atualizarCardPlantioHome;
 
-  // ── Lazy init ──────────────────────────────────────────────────────────
-  function iniciarModuloPlantio() {
-    // Apenas mostra a aba; dados carregam ao selecionar safra
-  }
+  /* ── navegação ───────────────────────────────────────────────────── */
+  function iniciarModuloPlantio() { /* dados carregam ao selecionar safra */ }
 
   function plantioAbrirSafra(safra) {
     _safraAtual = safra;
@@ -9182,13 +9166,8 @@ iniciarSabedoria();
     document.getElementById('plantio-safra-label').textContent     =
       safra === '26_27' ? 'Safra 26/27' : 'Safra 25/26';
 
-    if (!_iniciado) {
-      _iniciado = true;
-      carregarDadosPlantio();
-    } else {
-      // já carregado, apenas re-renderiza
-      _renderizarTudo();
-    }
+    if (!_iniciado) { _iniciado = true; carregarDadosPlantio(); }
+    else            { _renderizarTudo(); }
   }
 
   function plantioVoltarSeletor() {
@@ -9196,21 +9175,18 @@ iniciarSabedoria();
     document.getElementById('plantio-conteudo').style.display      = 'none';
   }
 
-  // ── Carregamento de dados ──────────────────────────────────────────────
+  /* ── carregamento ────────────────────────────────────────────────── */
   async function carregarDadosPlantio() {
-    const spinner = (id) => {
+    ['pla-resumo-container','pla-pipeline-container','pla-base-container'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>';
-    };
-    spinner('pla-resumo-container');
-    spinner('pla-pipeline-container');
-    spinner('pla-base-container');
+      if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+    });
 
     try {
       const [rDiario, rBase, rPcp] = await Promise.all([
-        _parseCsv(URL_DIARIO),
-        _parseCsv(URL_BASE),
-        _parseCsv(URL_PCP),
+        _parseCsvSemHeader(URL_DIARIO),
+        _parseCsvSemHeader(URL_BASE),
+        _parseCsvComHeader(URL_PCP),
       ]);
 
       _diario = _normalizarDiario(rDiario);
@@ -9225,39 +9201,63 @@ iniciarSabedoria();
     }
   }
 
-  // ── CSV helpers ────────────────────────────────────────────────────────
-  function _parseCsv(url) {
+  /* ── CSV: sem header (para planilhas com linhas de metadados) ─────── */
+  function _parseCsvSemHeader(url) {
     return new Promise((resolve, reject) => {
       Papa.parse(url, {
-        download: true, header: true, skipEmptyLines: true,
+        download: true,
+        header: false,
+        skipEmptyLines: true,
+        complete: r => resolve(r.data),   // array de arrays
+        error:    e => reject(e),
+      });
+    });
+  }
+
+  /* ── CSV: com header padrão (PCP não tem linhas de metadados) ─────── */
+  function _parseCsvComHeader(url) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(url, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
         complete: r => resolve(r.data),
         error:    e => reject(e),
       });
     });
   }
 
-  function _parseData(str) {
-    if (!str) return null;
-    str = String(str).trim();
-    // DD/MM/YYYY
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-      const [d,m,y] = str.split('/');
-      return new Date(+y, +m-1, +d);
+  /* ── detecta header real dentro de array de arrays ──────────────── */
+  function _detectarHeader(rows, palavrasChave) {
+    for (let i = 0; i < Math.min(8, rows.length); i++) {
+      const vals = rows[i].map(v => String(v || ''));
+      const hits = palavrasChave.filter(kw =>
+        vals.some(v => _norm(v).includes(_norm(kw)))
+      ).length;
+      if (hits >= palavrasChave.length) return i;
     }
-    // YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.substring(0,10));
-    return null;
+    return 0; // fallback: primeira linha
   }
 
-  function _num(v) {
-    if (v == null || v === '') return NaN;
-    return parseFloat(String(v).replace(/\./g,'').replace(',','.'));
-  }
-
+  /* ── helpers ─────────────────────────────────────────────────────── */
   function _norm(s) {
-    return String(s||'').toUpperCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^A-Z0-9]/g,'');
+    return String(s || '').toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9]/g, '');
+  }
+
+  function _findIdx(headerRow, candidates) {
+    for (const kw of candidates) {
+      const kwn = _norm(kw);
+      const idx = headerRow.findIndex(h => _norm(h) === kwn);
+      if (idx >= 0) return idx;
+    }
+    for (const kw of candidates) {
+      const kwn = _norm(kw);
+      const idx = headerRow.findIndex(h => _norm(h).includes(kwn));
+      if (idx >= 0) return idx;
+    }
+    return -1;
   }
 
   function _findCol(fields, candidates) {
@@ -9274,238 +9274,251 @@ iniciarSabedoria();
     return '';
   }
 
-  function _fmtData(d) {
-    if (!d || !(d instanceof Date)) return '—';
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  function _parseData(str) {
+    if (!str) return null;
+    str = String(str).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+      const [d, m, y] = str.split('/');
+      return new Date(+y, +m - 1, +d);
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.substring(0, 10));
+    // Excel serial date
+    const n = parseFloat(str);
+    if (!isNaN(n) && n > 40000) {
+      const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+    return null;
+  }
+
+  function _num(v) {
+    if (v == null || v === '') return NaN;
+    return parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
   }
 
   function _fmtHa(v) {
     const n = parseFloat(v);
     if (isNaN(n)) return '—';
-    return n.toFixed(2).replace('.',',') + ' ha';
+    return n.toFixed(2).replace('.', ',') + ' ha';
   }
 
-  // ── Normalização ───────────────────────────────────────────────────────
-  /* ── Reprocessa rows do PapaParse quando a planilha tem linhas de
-       metadados no topo (antes do header real).
-       Estratégia: a primeira linha cujos valores incluam TODAS as palavras-chave
-       obrigatórias (passadas como array) é o header real.
-       Retorna { fields, dataRows } com PapaParse "re-mapeado". ── */
-  function _reprocessarCsv(rows, palavrasChave) {
-    if (!rows || !rows.length) return { fields: [], dataRows: [] };
-
-    // Primeiro tenta usar o header que o PapaParse já usou (linha 0 do CSV)
-    let fields = Object.keys(rows[0]);
-    const temHeader = palavrasChave.every(kw =>
-      fields.some(f => _norm(f).includes(_norm(kw)))
-    );
-    if (temHeader) return { fields, dataRows: rows };
-
-    // Header real está embutido como linha de dados — procura dentro das rows
-    for (let i = 0; i < Math.min(8, rows.length); i++) {
-      const vals = Object.values(rows[i]).map(v => String(v||''));
-      const matchCount = palavrasChave.filter(kw =>
-        vals.some(v => _norm(v).includes(_norm(kw)))
-      ).length;
-      if (matchCount >= palavrasChave.length) {
-        // Esta linha é o header
-        const newFields = vals;
-        const dataRows  = rows.slice(i + 1).map(r => {
-          const oldVals = Object.values(r);
-          const obj = {};
-          newFields.forEach((f, idx) => { obj[f] = oldVals[idx]; });
-          return obj;
-        });
-        return { fields: newFields, dataRows };
-      }
-    }
-    // Fallback: usa o que veio
-    return { fields, dataRows: rows };
+  function _fmtData(d) {
+    if (!d || !(d instanceof Date) || isNaN(d)) return '—';
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   }
 
+  function _val(row, idx) {
+    return idx >= 0 && idx < row.length ? String(row[idx] || '').trim() : '';
+  }
+
+  /* ── normalização DIÁRIO (array de arrays) ───────────────────────── */
   function _normalizarDiario(rows) {
     if (!rows || !rows.length) return [];
 
-    // Header real deve ter DATA, DESCRIÇÃO, TALHÃO, ÁREA
-    const { fields, dataRows } = _reprocessarCsv(rows, ['DATA','DESCRI','TALH','REA']);
+    const hi = _detectarHeader(rows, ['DATA', 'DESCRI', 'TALH', 'REA']);
+    const header = rows[hi];
+    const dataRows = rows.slice(hi + 1);
 
-    const cData    = _findCol(fields, ['DATA']);
-    const cDesc    = _findCol(fields, ['DESCRIÇÃO','DESCRICAO','DESC']);
-    const cTalhao  = _findCol(fields, ['TALHÃO','TALHAO']);
-    const cArea    = _findCol(fields, ['ÁREA','AREA']);
-    const cPlantio = _findCol(fields, ['PLANTIO']);
-    const cLocal   = _findCol(fields, ['LOCAL']);
-    const cLayer   = _findCol(fields, ['LAYER']);
-    const cOS      = _findCol(fields, ['O.S','OS']);
+    const iData    = _findIdx(header, ['DATA']);
+    const iDesc    = _findIdx(header, ['DESCRIÇÃO','DESCRICAO','DESC']);
+    const iTalhao  = _findIdx(header, ['TALHÃO','TALHAO']);
+    const iArea    = _findIdx(header, ['ÁREA','AREA']);
+    const iPlantio = _findIdx(header, ['PLANTIO']);
+    const iLocal   = _findIdx(header, ['LOCAL']);
 
     return dataRows
       .map(r => {
-        const area = _num(r[cArea]);
+        if (!r || r.length < 3) return null;
+        const unidade = _val(r, _findIdx(header, ['UNIDADE']));
+        if (!unidade || _norm(unidade) === 'UNIDADE') return null;
+        const area = _num(_val(r, iArea));
         if (isNaN(area) || area <= 0) return null;
-        const data = _parseData(r[cData]);
+        const data = _parseData(_val(r, iData));
         if (!data) return null;
         return {
           data,
-          fazenda: String(r[cDesc]  ||'').trim(),
-          local:   String(r[cLocal] ||'').trim(),
-          talhao:  String(r[cTalhao]||'').trim(),
-          layer:   String(r[cLayer] ||'').trim(),
-          os:      String(r[cOS]    ||'').trim(),
+          fazenda: _val(r, iDesc),
+          local:   _val(r, iLocal),
+          talhao:  _val(r, iTalhao),
           area,
-          tipo:    String(r[cPlantio]||'').trim(),
+          tipo:    _val(r, iPlantio) || 'Mecanizado',
         };
       })
       .filter(Boolean);
   }
 
+  /* ── normalização BASE (array de arrays) ─────────────────────────── */
   function _normalizarBase(rows) {
     if (!rows || !rows.length) return [];
 
-    // Header real deve ter UNIDADE, LAYER, DESCRIÇÃO, TALHÃO
-    const { fields, dataRows } = _reprocessarCsv(rows, ['UNIDADE','LAYER','DESCRI','TALH']);
+    const hi = _detectarHeader(rows, ['UNIDADE', 'LAYER', 'DESCRI', 'TALH']);
+    const header = rows[hi];
+    const dataRows = rows.slice(hi + 1);
 
-    const cUnidade  = _findCol(fields, ['UNIDADE']);
-    const cLayer    = _findCol(fields, ['LAYER']);
-    const cLocal    = _findCol(fields, ['LOCAL']);
-    const cDesc     = _findCol(fields, ['DESCRIÇÃO','DESCRICAO','DESC']);
-    const cTalhao   = _findCol(fields, ['TALHÃO','TALHAO']);
-    const cBloco    = _findCol(fields, ['BLOCO']);
-    const cVarAtual = _findCol(fields, ['VARIEDADE_ATUAL','VARIEDADE ATUAL']);
-    const cAmbiente = _findCol(fields, ['AMBIENTE']);
-    const cArea     = _findCol(fields, ['ÁREA TOTAL (ha)','AREA TOTAL (ha)','ÁREA TOTAL','AREA TOTAL']);
-    const cRefCiclo = _findCol(fields, ['REF._CICLO','REF. CICLO','REF CICLO']);
-    const cMotivo   = _findCol(fields, ['MOTIVO REF.','MOTIVO REF','MOTIVO']);
-    const cMesPlant = _findCol(fields, ['MÊS_PLANTIO','MES_PLANTIO','MÊS PLANTIO','MES PLANTIO']);
-    const cDataPlant= _findCol(fields, ['DATA_PLANTIO','DATA PLANTIO']);
-    const cTipoPlant= _findCol(fields, ['TIPO_PLANTIO_DESDOBRA','TIPO PLANTIO DESDOBRA','TIPO PLANTIO']);
-    const cModelo   = _findCol(fields, ['MODELO_PLANTIO','MODELO PLANTIO','MODELO']);
-    const cEstagio  = _findCol(fields, ['ESTÁGIO','ESTAGIO']);
-    const cSetor    = _findCol(fields, ['SETOR']);
+    const iUnidade  = _findIdx(header, ['UNIDADE']);
+    const iLocal    = _findIdx(header, ['LOCAL']);
+    const iDesc     = _findIdx(header, ['DESCRIÇÃO','DESCRICAO','DESC']);
+    const iTalhao   = _findIdx(header, ['TALHÃO','TALHAO']);
+    const iBloco    = _findIdx(header, ['BLOCO']);
+    const iVarAtual = _findIdx(header, ['VARIEDADE_ATUAL','VARIEDADE ATUAL','VARIEDADE PRINCIPAL']);
+    const iAmbiente = _findIdx(header, ['AMBIENTE']);
+    const iArea     = _findIdx(header, ['ÁREA TOTAL (ha)','AREA TOTAL (ha)','ÁREA TOTAL','AREA TOTAL']);
+    const iRefCiclo = _findIdx(header, ['REF._CICLO','REF. CICLO','REF CICLO']);
+    const iMotivo   = _findIdx(header, ['MOTIVO REF.','MOTIVO REF','MOTIVO']);
+    const iMes      = _findIdx(header, ['MÊS_PLANTIO','MES_PLANTIO','MÊS PLANTIO','MES PLANTIO']);
+    const iDataPl   = _findIdx(header, ['DATA_PLANTIO','DATA PLANTIO']);
+    const iTipo     = _findIdx(header, ['TIPO_PLANTIO_DESDOBRA','TIPO PLANTIO DESDOBRA','TIPO PLANTIO']);
+    const iModelo   = _findIdx(header, ['MODELO_PLANTIO','MODELO PLANTIO','MODELO']);
+    const iEstagio  = _findIdx(header, ['ESTÁGIO','ESTAGIO']);
+    const iSetor    = _findIdx(header, ['SETOR']);
 
     return dataRows
       .map(r => {
-        const unidade = String(r[cUnidade]||'').trim().toUpperCase();
-        if (!unidade || unidade === 'UNIDADE' || unidade === 'NAN') return null;
-        const area = _num(r[cArea]);
+        if (!r || r.length < 3) return null;
+        const unidade = _val(r, iUnidade).toUpperCase();
+        if (!unidade || unidade === 'UNIDADE' || unidade === 'NAN' || unidade === '') return null;
+        const area = _num(_val(r, iArea));
         if (isNaN(area) || area <= 0) return null;
-        const mesNum = parseInt(r[cMesPlant]) || 0;
+
+        const variedade = _val(r, iVarAtual);
+        const tipo      = _val(r, iTipo);
+        const modelo    = _val(r, iModelo);
+        const ambiente  = _val(r, iAmbiente);
+        const refCiclo  = _val(r, iRefCiclo);
+        const motivo    = _val(r, iMotivo);
+        const estagio   = _val(r, iEstagio);
+        const setor     = _val(r, iSetor);
+
         return {
-          layer:    String(r[cLayer]   ||'').trim(),
-          local:    String(r[cLocal]   ||'').trim(),
-          fazenda:  String(r[cDesc]    ||'').trim(),
-          talhao:   String(r[cTalhao]  ||'').trim(),
-          bloco:    String(r[cBloco]   ||'').trim(),
-          variedade:String(r[cVarAtual]||'').trim(),
-          ambiente: String(r[cAmbiente]||'').trim(),
+          local:     _val(r, iLocal),
+          fazenda:   _val(r, iDesc),
+          talhao:    _val(r, iTalhao),
+          bloco:     _val(r, iBloco),
+          variedade: variedade && _norm(variedade) !== 'ADEFINIR' && variedade !== '' ? variedade : '',
+          ambiente:  ambiente  && _norm(ambiente)  !== 'NAOCADASTRADO' ? ambiente  : '',
           area,
-          refCiclo: String(r[cRefCiclo]||'').trim(),
-          motivo:   String(r[cMotivo]  ||'').trim(),
-          mes:      mesNum,
-          dataPlant:_parseData(r[cDataPlant]),
-          tipo:     String(r[cTipoPlant]||'').trim(),
-          modelo:   String(r[cModelo]  ||'').trim(),
-          estagio:  String(r[cEstagio] ||'').trim(),
-          setor:    String(r[cSetor]   ||'').trim(),
+          refCiclo:  refCiclo  && _norm(refCiclo)  !== 'NAOCADASTRADO' ? refCiclo  : '',
+          motivo:    motivo    && _norm(motivo)     !== 'NAOCADASTRADO' ? motivo    : '',
+          mes:       parseInt(_val(r, iMes)) || 0,
+          dataPlant: _parseData(_val(r, iDataPl)),
+          tipo:      tipo      && _norm(tipo)       !== 'NAOCADASTRADO' ? tipo      : '',
+          modelo:    modelo    && _norm(modelo)     !== 'NAOCADASTRADO' ? modelo    : '',
+          estagio:   estagio   && _norm(estagio)    !== 'NAOCADASTRADO' ? estagio   : '',
+          setor:     setor     && _norm(setor)      !== 'NAOCADASTRADO' ? setor     : '',
         };
       })
       .filter(Boolean);
   }
 
+  /* ── normalização PCP (header:true normal) ───────────────────────── */
   function _normalizarPcp(rows) {
     if (!rows || !rows.length) return [];
-
-    // O PCP já tem header correto (não tem linhas de metadados como o plantio)
     const fields = Object.keys(rows[0]);
     const cData    = _findCol(fields, ['DATA APLICACAO','DATA APLIC','DATA']);
-    const cOS      = _findCol(fields, ['NR OS','NR O.S','OS','NUMERO OS']);
     const cCodOp   = _findCol(fields, ['COD OPERACAO','CODOP','COD OP','CODIGO OPERACAO','COD. OPERACAO']);
-    const cDescOp  = _findCol(fields, ['DESC OPERACAO AGR','OPERACAO AGR','OPERACAO AGRICOLA','OPERACAO']);
     const cFazenda = _findCol(fields, ['DESCRICAO FAZENDA','DESC FAZENDA','DESCFAZENDA','FAZENDA']);
     const cTalhao  = _findCol(fields, ['TALHAO','TALHÃO','TALHON']);
-    const cArea    = _findCol(fields, ['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','ÁREA']);
-    const cLayer   = _findCol(fields, ['COD FAZENDA','CODFAZENDA','LAYER']);
 
     return rows
       .map(r => {
-        const codOp = String(r[cCodOp]||'').trim();
+        const codOp = String(r[cCodOp] || '').trim();
         if (!['1013','1014','1045'].includes(codOp)) return null;
         return {
           data:    _parseData(r[cData]),
-          os:      String(r[cOS]    ||'').trim(),
           codOp,
-          descOp:  String(r[cDescOp]||codOp).trim(),
-          fazenda: String(r[cFazenda]||'').trim(),
-          talhao:  String(r[cTalhao] ||'').trim(),
-          layer:   String(r[cLayer]  ||'').trim(),
-          area:    _num(r[cArea]),
+          fazenda: String(r[cFazenda] || '').trim(),
+          talhao:  String(r[cTalhao]  || '').trim(),
         };
       })
       .filter(r => r !== null && r.data);
   }
 
-  // ── Renderização principal ─────────────────────────────────────────────
+  /* ── renderização principal ──────────────────────────────────────── */
   function _renderizarTudo() {
     if (!_diario || !_base) return;
     _renderizarKpis();
+    _atualizarCardSafra();
     _popularFazendaSelect();
     _definirDatasDefault();
     filtrarPlantioAvanco();
     _renderizarPipeline();
     _renderizarBase();
+    atualizarCardPlantioHome();
   }
 
+  /* ── KPI cards ───────────────────────────────────────────────────── */
   function _renderizarKpis() {
-    const totalBase    = _base.reduce((s,r) => s + (r.area||0), 0);
-    const totalPlant   = _diario.reduce((s,r) => s + (r.area||0), 0);
-    const pct          = totalBase > 0 ? Math.min((totalPlant/totalBase)*100, 100) : 0;
-    const agora        = new Date();
-    const mesAtual     = agora.getMonth();
-    const anoAtual     = agora.getFullYear();
-    const totalMes     = _diario
-      .filter(r => r.data && r.data.getMonth() === mesAtual && r.data.getFullYear() === anoAtual)
-      .reduce((s,r) => s + r.area, 0);
-    const talhoesDist  = new Set(_diario.map(r => r.talhao).filter(Boolean));
+    const totalBase  = _base.reduce((s, r) => s + r.area, 0);
+    const totalPlant = _diario.reduce((s, r) => s + r.area, 0);
+    const pct        = totalBase > 0 ? Math.min((totalPlant / totalBase) * 100, 100) : 0;
+    const agora      = new Date();
+    const totalMes   = _diario
+      .filter(r => r.data && r.data.getMonth() === agora.getMonth() && r.data.getFullYear() === agora.getFullYear())
+      .reduce((s, r) => s + r.area, 0);
 
-    document.getElementById('pla-kpi-total').textContent    = totalBase.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.') + ' ha';
-    document.getElementById('pla-kpi-plantado').textContent = totalPlant.toFixed(2).replace('.',',') + ' ha';
-    document.getElementById('pla-kpi-mes').textContent      = totalMes.toFixed(2).replace('.',',') + ' ha';
-    document.getElementById('pla-kpi-mes-sub').textContent  = MESES_NOME[mesAtual+1] + '/' + anoAtual;
-    document.getElementById('pla-kpi-talhoes').textContent  = talhoesDist.size;
-    document.getElementById('pla-progress-fill').style.width = pct.toFixed(1) + '%';
-    document.getElementById('pla-progress-pct').textContent  = pct.toFixed(1) + '%';
+    const $  = id => document.getElementById(id);
+    if ($('pla-kpi-total'))    $('pla-kpi-total').textContent    = totalBase.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' ha';
+    if ($('pla-kpi-plantado')) $('pla-kpi-plantado').textContent = totalPlant.toFixed(2).replace('.', ',') + ' ha';
+    if ($('pla-kpi-mes'))      $('pla-kpi-mes').textContent      = totalMes.toFixed(2).replace('.', ',') + ' ha';
+    if ($('pla-kpi-mes-sub'))  $('pla-kpi-mes-sub').textContent  = MESES_NOME[agora.getMonth() + 1] + '/' + agora.getFullYear();
+    if ($('pla-progress-fill')) $('pla-progress-fill').style.width = pct.toFixed(1) + '%';
+    if ($('pla-progress-pct'))  $('pla-progress-pct').textContent  = pct.toFixed(1) + '%';
   }
 
+  /* ── card home: progresso plantio ────────────────────────────────── */
+  function atualizarCardPlantioHome() {
+    const totalBase  = _base  ? _base.reduce((s, r) => s + r.area, 0)  : 0;
+    const totalPlant = _diario? _diario.reduce((s, r) => s + r.area, 0): 0;
+    const pct        = totalBase > 0 ? Math.min((totalPlant / totalBase) * 100, 100) : 0;
+    const pctEl  = document.getElementById('hre-plantio-pct');
+    const subEl  = document.getElementById('hre-plantio-sub');
+    const barEl  = document.getElementById('hre-plantio-bar');
+    if (pctEl) pctEl.textContent = pct.toFixed(1) + '%';
+    if (subEl) subEl.textContent = _fmtHa(totalPlant) + ' de ' + _fmtHa(totalBase);
+    if (barEl) barEl.style.width = pct.toFixed(1) + '%';
+  }
+
+  /* ── card do botão safra 26/27 ───────────────────────────────────── */
+  function _atualizarCardSafra() {
+    const el = document.getElementById('psb-sub-2627');
+    if (!el || !_base) return;
+    const fazendas = new Set(_base.map(r => r.fazenda).filter(Boolean));
+    const totalHa  = _base.reduce((s, r) => s + r.area, 0);
+    el.textContent = `${fazendas.size} fazenda${fazendas.size !== 1 ? 's' : ''} · ${totalHa.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.')} ha`;
+  }
+
+  /* ── select de fazenda ───────────────────────────────────────────── */
   function _popularFazendaSelect() {
     const sel = document.getElementById('pla-filtro-fazenda');
-    if (!sel) return;
+    if (!sel || !_diario) return;
     const fazendas = [...new Set(_diario.map(r => r.fazenda).filter(Boolean))].sort();
     const anterior = sel.value;
-    sel.innerHTML = '<option value="">— Todas —</option>';
+    sel.innerHTML  = '<option value="">— Todas —</option>';
     fazendas.forEach(f => {
-      const o = document.createElement('option');
-      o.value = f; o.textContent = f;
+      const o   = document.createElement('option');
+      o.value   = f;
+      o.textContent = f;
       if (f === anterior) o.selected = true;
       sel.appendChild(o);
     });
   }
 
+  /* ── datas padrão ────────────────────────────────────────────────── */
   function _definirDatasDefault() {
     const ini = document.getElementById('pla-data-ini');
     const fim = document.getElementById('pla-data-fim');
-    if (!ini.value && _diario.length) {
-      const datas = _diario.map(r => r.data).filter(Boolean).sort((a,b) => a-b);
-      ini.value = datas[0].toISOString().split('T')[0];
-      fim.value = datas[datas.length-1].toISOString().split('T')[0];
-    }
+    if (!ini || !fim || ini.value || !_diario.length) return;
+    const datas = _diario.map(r => r.data).filter(Boolean).sort((a, b) => a - b);
+    ini.value = datas[0].toISOString().split('T')[0];
+    fim.value = datas[datas.length - 1].toISOString().split('T')[0];
   }
 
-  // ── Bloco 1: O que foi plantado? ──────────────────────────────────────
+  /* ══ BLOCO 1: O que foi plantado? ════════════════════════════════ */
   function filtrarPlantioAvanco() {
     if (!_diario) return;
-    const iniVal = document.getElementById('pla-data-ini').value;
-    const fimVal = document.getElementById('pla-data-fim').value;
-    const fazFiltro = document.getElementById('pla-filtro-fazenda').value;
-
+    const iniVal    = document.getElementById('pla-data-ini')?.value;
+    const fimVal    = document.getElementById('pla-data-fim')?.value;
+    const fazFiltro = document.getElementById('pla-filtro-fazenda')?.value || '';
     const dIni = iniVal ? new Date(iniVal + 'T00:00:00') : null;
     const dFim = fimVal ? new Date(fimVal + 'T23:59:59') : null;
 
@@ -9516,9 +9529,9 @@ iniciarSabedoria();
       return true;
     });
 
-    const total = _diarioFilt.reduce((s,r) => s + r.area, 0);
+    const total = _diarioFilt.reduce((s, r) => s + r.area, 0);
     const cont  = document.getElementById('pla-avanço-contador');
-    if (cont) cont.textContent = `${_diarioFilt.length} registros · ${total.toFixed(2).replace('.',',')} ha no período`;
+    if (cont) cont.textContent = `${_diarioFilt.length} registro${_diarioFilt.length !== 1 ? 's' : ''} · ${_fmtHa(total)} no período`;
 
     _renderizarAvancoFazenda();
   }
@@ -9528,49 +9541,51 @@ iniciarSabedoria();
     if (!cont) return;
 
     if (!_diarioFilt || !_diarioFilt.length) {
-      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum registro no período/fazenda selecionado.</div>';
+      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum registro no período selecionado.</div>';
       return;
     }
 
     // Agrupa por fazenda
-    const porFazenda = {};
+    const porFaz = {};
     _diarioFilt.forEach(r => {
       const faz = r.fazenda || 'Sem fazenda';
-      if (!porFazenda[faz]) porFazenda[faz] = { total: 0, registros: [] };
-      porFazenda[faz].total      += r.area;
-      porFazenda[faz].registros.push(r);
+      if (!porFaz[faz]) porFaz[faz] = { total: 0, regs: [] };
+      porFaz[faz].total += r.area;
+      porFaz[faz].regs.push(r);
     });
 
-    // Ordena pelo maior ha
-    const sorted = Object.entries(porFazenda).sort((a,b) => b[1].total - a[1].total);
+    const sorted = Object.entries(porFaz).sort((a, b) => b[1].total - a[1].total);
 
     let html = '<div class="pla-resumo-grid">';
     sorted.forEach(([faz, dados], idx) => {
-      const nReg = dados.registros.length;
-      // Agrupa por data para o detalhe
+      // Agrupa detalhes por data
       const porData = {};
-      dados.registros.forEach(r => {
+      dados.regs.forEach(r => {
         const k = _fmtData(r.data);
         if (!porData[k]) porData[k] = [];
         porData[k].push(r);
       });
 
-      let detalheHtml = '';
-      Object.entries(porData).sort((a,b) => {
-        const [da,ma,ya] = a[0].split('/').map(Number);
-        const [db,mb,yb] = b[0].split('/').map(Number);
-        return new Date(ya,ma-1,da) - new Date(yb,mb-1,db);
-      }).forEach(([data, regs]) => {
-        regs.forEach(r => {
-          detalheHtml += `
-            <div class="pla-detalhe-linha">
-              <span class="pla-det-data">${data}</span>
-              <span class="pla-det-talhao">Tal. ${r.talhao||'—'}</span>
-              <span class="pla-det-desc">${r.tipo||'Mecanizado'}</span>
-              <span class="pla-det-ha">${_fmtHa(r.area)}</span>
-            </div>`;
+      let detalheHtml = `
+        <div style="display:grid; grid-template-columns:90px 1fr 60px; gap:4px; font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px; padding-bottom:4px; border-bottom:1px solid var(--border); margin-bottom:4px;">
+          <span>Data</span><span>Talhão · Tipo</span><span style="text-align:right">Área</span>
+        </div>`;
+
+      Object.entries(porData)
+        .sort(([a], [b]) => {
+          const p = s => { const [d,m,y] = s.split('/'); return new Date(+y,+m-1,+d); };
+          return p(a) - p(b);
+        })
+        .forEach(([data, regs]) => {
+          regs.forEach(r => {
+            detalheHtml += `
+              <div style="display:grid; grid-template-columns:90px 1fr 60px; gap:4px; font-size:10px; align-items:center; padding:3px 0; border-bottom:1px dashed var(--border);">
+                <span style="color:var(--text-3); font-weight:700;">${data}</span>
+                <span style="color:var(--text-2);">Tal.&nbsp;${r.talhao || '—'} · ${r.tipo}</span>
+                <span style="color:#E65100; font-weight:800; text-align:right;">${_fmtHa(r.area)}</span>
+              </div>`;
+          });
         });
-      });
 
       html += `
         <div class="pla-resumo-row" onclick="plantioToggleDetalhe('pla-det-${idx}', this)">
@@ -9578,22 +9593,16 @@ iniciarSabedoria();
             <span class="pla-resumo-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</span>
             <span class="pla-resumo-ha">${_fmtHa(dados.total)}</span>
           </div>
-          <div class="pla-resumo-sub">${nReg} registro${nReg>1?'s':''} · toque para ver por talhão <i class="fas fa-chevron-down" style="margin-left:4px;font-size:9px;color:var(--text-3);"></i></div>
-          <div class="pla-detalhe-wrap" id="pla-det-${idx}">
-            <div style="font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">
-              DATA &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TALHÃO &nbsp;&nbsp;&nbsp; TIPO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ÁREA
-            </div>
-            ${detalheHtml}
-          </div>
+          <div class="pla-resumo-sub">${dados.regs.length} registro${dados.regs.length > 1 ? 's' : ''} · toque para ver detalhes <i class="fas fa-chevron-down" id="chev-det-${idx}" style="font-size:9px;color:var(--text-3);"></i></div>
+          <div class="pla-detalhe-wrap" id="pla-det-${idx}">${detalheHtml}</div>
         </div>`;
     });
-    html += '</div>';
 
-    // Rodapé total
-    const grandTotal = _diarioFilt.reduce((s,r) => s + r.area, 0);
-    html += `<div style="text-align:right; padding:10px 4px 0; font-size:11px; font-weight:800; color:#E65100; border-top:1px solid var(--border); margin-top:8px;">
-      Total: ${_fmtHa(grandTotal)}
-    </div>`;
+    const grandTotal = _diarioFilt.reduce((s, r) => s + r.area, 0);
+    html += `</div>
+      <div style="text-align:right; padding:10px 4px 0; font-size:11px; font-weight:800; color:#E65100; border-top:1px solid var(--border); margin-top:8px;">
+        Total: ${_fmtHa(grandTotal)}
+      </div>`;
 
     cont.innerHTML = html;
   }
@@ -9602,11 +9611,11 @@ iniciarSabedoria();
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle('open');
-    const chevron = row.querySelector('.fa-chevron-down');
-    if (chevron) chevron.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
+    const ch = row.querySelector('.fa-chevron-down');
+    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
   }
 
-  // ── Bloco 2: Sequência pós-plantio ────────────────────────────────────
+  /* ══ BLOCO 2: Sequência pós-plantio ══════════════════════════════ */
   function _renderizarPipeline() {
     const cont = document.getElementById('pla-pipeline-container');
     if (!cont) return;
@@ -9616,42 +9625,24 @@ iniciarSabedoria();
       return;
     }
 
-    // Agrupa talhões plantados por fazenda
-    const porFazenda = {};
+    // Agrupa talhões plantados por fazenda (deduplica por talhão)
+    const porFaz = {};
     _diario.forEach(r => {
       const faz = r.fazenda || 'Sem fazenda';
-      if (!porFazenda[faz]) porFazenda[faz] = new Map();
-      const tal = r.talhao || r.layer || '—';
-      if (!porFazenda[faz].has(tal)) {
-        porFazenda[faz].set(tal, { data: r.data, area: r.area, layer: r.layer });
-      }
+      if (!porFaz[faz]) porFaz[faz] = new Map();
+      const key = r.talhao || '—';
+      if (!porFaz[faz].has(key)) porFaz[faz].set(key, { data: r.data, area: r.area });
     });
 
-    // Para cada talhão, verifica no PCP quais operações foram feitas
-    // Match: layer do diário com talhao ou layer do PCP (busca por fazenda+talhão)
-    function fezOperacao(codOp, fazenda, talhao, layer) {
-      if (!_pcp || !_pcp.length) return null;
-      const match = _pcp.find(p =>
-        p.codOp === codOp && (
-          (p.talhao && p.talhao.trim() === talhao) ||
-          (p.layer  && p.layer.trim()  === layer) ||
-          (p.fazenda && _norm(p.fazenda).includes(_norm(fazenda)))
-        )
-      );
-      return match ? match.data : null;
-    }
-
-    const sorted = Object.entries(porFazenda).sort((a,b) => a[0].localeCompare(b[0],'pt-BR'));
+    const sorted = Object.entries(porFaz).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
 
     let html = '';
     sorted.forEach(([faz, talhoes], idxFaz) => {
-      // Resumo de etapas para a fazenda inteira
       let totOk = 0, totPend = 0, totBlq = 0;
       let talhoesList = '';
 
-      Array.from(talhoes.entries()).forEach(([tal, info], idxTal) => {
-        const etapas = _calcularEtapasTalhao(faz, tal, info.layer, info.data);
-
+      Array.from(talhoes.entries()).forEach(([tal, info]) => {
+        const etapas = _calcularEtapas(faz, tal, info.data);
         etapas.forEach(e => {
           if (e.status === 'ok') totOk++;
           else if (e.status === 'pendente') totPend++;
@@ -9660,11 +9651,11 @@ iniciarSabedoria();
 
         let etapasHtml = '';
         etapas.forEach(e => {
-          const iconMap = { ok: '✓', pendente: '⏳', bloqueado: '🔒' };
+          const icon = { ok: '✓', pendente: '⏳', bloqueado: '🔒' }[e.status];
           etapasHtml += `
             <div class="pla-pipe-etapa">
-              <div class="pla-pipe-status-icon ${e.status}">${iconMap[e.status]}</div>
-              <span class="pla-pipe-etapa-nome"><i class="fas ${e.icon}" style="margin-right:5px;font-size:9px;"></i>${e.label}</span>
+              <div class="pla-pipe-status-icon ${e.status}">${icon}</div>
+              <span class="pla-pipe-etapa-nome"><i class="fas ${e.icon}" style="margin-right:5px;font-size:9px;opacity:0.7;"></i>${e.label}</span>
               <span class="pla-pipe-etapa-data">${e.data ? _fmtData(e.data) : '—'}</span>
             </div>`;
         });
@@ -9676,17 +9667,19 @@ iniciarSabedoria();
           </div>`;
       });
 
-      // Chips de resumo
       const chipsHtml =
-        (totOk   > 0 ? `<span class="pla-pipe-chip ok">✓ ${totOk} feito${totOk>1?'s':''}</span>` : '') +
-        (totPend > 0 ? `<span class="pla-pipe-chip pendente">⏳ ${totPend} pendente${totPend>1?'s':''}</span>` : '') +
-        (totBlq  > 0 ? `<span class="pla-pipe-chip bloqueado">🔒 ${totBlq} aguarda</span>` : '');
+        (totOk   > 0 ? `<span class="pla-pipe-chip ok">✓ ${totOk} feito${totOk > 1 ? 's' : ''}</span>` : '') +
+        (totPend > 0 ? `<span class="pla-pipe-chip pendente">⏳ ${totPend} pendente${totPend > 1 ? 's' : ''}</span>` : '') +
+        (totBlq  > 0 ? `<span class="pla-pipe-chip bloqueado">🔒 ${totBlq} aguarda${totBlq > 1 ? 'm' : ''}</span>` : '');
 
       html += `
         <div class="pla-pipeline-fazenda">
-          <div class="pla-pipeline-header" onclick="plantioTogglePipeline('pla-pipe-faz-${idxFaz}')">
-            <span class="pla-pipeline-fazenda-nome"><i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${faz} <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${talhoes.size} talhão${talhoes.size>1?'ões':'ão'})</span></span>
-            <div class="pla-pipeline-chips">${chipsHtml}<i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:4px;"></i></div>
+          <div class="pla-pipeline-header" onclick="plantioTogglePipeline('pla-pipe-faz-${idxFaz}', this)">
+            <span class="pla-pipeline-fazenda-nome">
+              <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${faz}
+              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${talhoes.size} talhão${talhoes.size > 1 ? 'ões' : 'ão'})</span>
+            </span>
+            <div class="pla-pipeline-chips">${chipsHtml}<i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:6px;"></i></div>
           </div>
           <div class="pla-pipeline-talhoes" id="pla-pipe-faz-${idxFaz}">
             ${talhoesList}
@@ -9694,37 +9687,31 @@ iniciarSabedoria();
         </div>`;
     });
 
-    cont.innerHTML = html || '<div class="pla-empty"><i class="fas fa-check-circle"></i>Nenhum talhão para exibir.</div>';
+    cont.innerHTML = html || '<div class="pla-empty">Nenhum dado encontrado.</div>';
   }
 
-  function _calcularEtapasTalhao(fazenda, talhao, layer, dataPlantio) {
+  function _calcularEtapas(fazenda, talhao, dataPlantio) {
     const etapas = [];
     let anteriorOk = true;
 
-    SEQUENCIA.forEach((seq, idx) => {
+    SEQUENCIA.forEach(seq => {
       let status = 'pendente';
       let dataFeita = null;
 
       if (seq.fonte === 'diario') {
-        // Plantio — sempre feito se chegou até aqui
         status    = 'ok';
         dataFeita = dataPlantio;
       } else {
-        // Busca no PCP
         if (!anteriorOk) {
           status = 'bloqueado';
         } else {
           const match = _pcp ? _pcp.find(p =>
             p.codOp === seq.cod && (
-              (p.talhao && p.talhao.trim() === talhao) ||
-              (p.layer  && String(p.layer).trim() === String(layer).trim()) ||
-              (_norm(p.fazenda||'').includes(_norm(fazenda)))
+              (p.talhao && p.talhao === talhao) ||
+              (_norm(p.fazenda || '').includes(_norm(fazenda)))
             )
           ) : null;
-          if (match) {
-            status    = 'ok';
-            dataFeita = match.data;
-          }
+          if (match) { status = 'ok'; dataFeita = match.data; }
         }
       }
 
@@ -9735,29 +9722,26 @@ iniciarSabedoria();
     return etapas;
   }
 
-  function plantioTogglePipeline(id) {
+  function plantioTogglePipeline(id, headerEl) {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle('open');
-    const header = el.previousElementSibling;
-    if (header) {
-      const ch = header.querySelector('.fa-chevron-down');
-      if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
-    }
+    const ch = headerEl ? headerEl.querySelector('.fa-chevron-down') : null;
+    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
   }
 
-  // ── Bloco 3: Planejamento (Base) ───────────────────────────────────────
+  /* ══ BLOCO 3: Planejamento — lista de fazendas colapsável ════════ */
   function _renderizarBase() {
     if (!_base || !_base.length) return;
 
-    // Monta chips de mês
-    const meses = [...new Set(_base.map(r => r.mes).filter(m => m > 0))].sort((a,b) => a-b);
+    // Chips de mês
+    const meses = [...new Set(_base.map(r => r.mes).filter(m => m > 0))].sort((a, b) => a - b);
     const chipsEl = document.getElementById('pla-mes-chips');
     if (chipsEl) {
       let html = '<button class="pla-mes-chip active" data-mes="0" onclick="filtrarPlantioBase(this)">Todos</button>';
       meses.forEach(m => {
-        const totalMes = _base.filter(r => r.mes === m).reduce((s,r) => s + (r.area||0), 0);
-        html += `<button class="pla-mes-chip" data-mes="${m}" onclick="filtrarPlantioBase(this)">${MESES_NOME[m]}<span style="font-size:8px;opacity:0.7;margin-left:3px;">${totalMes.toFixed(0)}ha</span></button>`;
+        const ha = _base.filter(r => r.mes === m).reduce((s, r) => s + r.area, 0);
+        html += `<button class="pla-mes-chip" data-mes="${m}" onclick="filtrarPlantioBase(this)">${MESES_NOME[m]}<span style="font-size:8px;opacity:0.65;margin-left:3px;">${ha.toFixed(0)}ha</span></button>`;
       });
       chipsEl.innerHTML = html;
     }
@@ -9777,60 +9761,84 @@ iniciarSabedoria();
 
     const filtrado = mes === 0 ? _base : _base.filter(r => r.mes === mes);
     if (!filtrado.length) {
-      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão neste mês.</div>';
+      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão para este mês.</div>';
       return;
     }
 
     // Agrupa por fazenda
-    const porFazenda = {};
+    const porFaz = {};
     filtrado.forEach(r => {
       const faz = r.fazenda || 'Sem fazenda';
-      if (!porFazenda[faz]) porFazenda[faz] = [];
-      porFazenda[faz].push(r);
+      if (!porFaz[faz]) porFaz[faz] = [];
+      porFaz[faz].push(r);
     });
 
-    const sorted = Object.entries(porFazenda).sort((a,b) => a[0].localeCompare(b[0],'pt-BR'));
+    const sorted = Object.entries(porFaz).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+    const grandTotal = filtrado.reduce((s, r) => s + r.area, 0);
+
     let html = '';
+    sorted.forEach(([faz, talhoes], idxFaz) => {
+      const totalFaz = talhoes.reduce((s, r) => s + r.area, 0);
+      const idBody   = `pla-faz-body-${idxFaz}`;
 
-    sorted.forEach(([faz, talhoes]) => {
-      const totalFaz = talhoes.reduce((s,r) => s + (r.area||0), 0);
-      html += `<div class="pla-base-mes-titulo">
-        <span><i class="fas fa-map-marker-alt" style="margin-right:5px;"></i>${faz}</span>
-        <span>${talhoes.length} talhão${talhoes.length>1?'ões':'ão'} · ${_fmtHa(totalFaz)}</span>
-      </div>`;
-
+      // Lista de talhões da fazenda (montada uma vez)
+      let talhoesHtml = '';
       talhoes.forEach(r => {
-        const tipoTag  = r.tipo  ? `<span class="pla-talhao-tag tipo">${r.tipo}</span>` : '';
-        const varTag   = r.variedade && r.variedade !== 'A DEFINIR' ? `<span class="pla-talhao-tag variedade">${r.variedade}</span>` : '<span class="pla-talhao-tag">A definir</span>';
-        const ambTag   = r.ambiente ? `<span class="pla-talhao-tag ambiente">${r.ambiente}</span>` : '';
-        const mesTag   = r.mes ? `<span class="pla-talhao-tag">${MESES_NOME[r.mes]}/${r.dataPlant ? r.dataPlant.getFullYear().toString().slice(-2) : '—'}</span>` : '';
-        const modeloTag= r.modelo ? `<span class="pla-talhao-tag">${r.modelo}</span>` : '';
+        const tags = [];
+        if (r.variedade) tags.push(`<span class="pla-talhao-tag variedade">${r.variedade}</span>`);
+        if (r.tipo)      tags.push(`<span class="pla-talhao-tag tipo">${r.tipo}</span>`);
+        if (r.ambiente)  tags.push(`<span class="pla-talhao-tag ambiente">${r.ambiente}</span>`);
+        if (r.modelo)    tags.push(`<span class="pla-talhao-tag">${r.modelo}</span>`);
+        if (r.mes)       tags.push(`<span class="pla-talhao-tag">${MESES_NOME[r.mes]}${r.dataPlant ? '/' + r.dataPlant.getFullYear().toString().slice(-2) : ''}</span>`);
 
-        html += `
+        talhoesHtml += `
           <div class="pla-talhao-card">
             <div class="pla-talhao-card-row">
-              <span class="pla-talhao-nome">Talhão ${r.talhao} · ${r.bloco || r.layer || ''}</span>
+              <span class="pla-talhao-nome">Talhão ${r.talhao}${r.bloco ? ' · ' + r.bloco : ''}</span>
               <span class="pla-talhao-ha">${_fmtHa(r.area)}</span>
             </div>
-            <div class="pla-talhao-info">${mesTag}${varTag}${tipoTag}${ambTag}${modeloTag}</div>
+            ${tags.length ? `<div class="pla-talhao-info">${tags.join('')}</div>` : ''}
           </div>`;
       });
+
+      html += `
+        <div class="pla-pipeline-fazenda" style="margin-bottom:8px;">
+          <div class="pla-pipeline-header" onclick="plantioToggleFazenda('${idBody}', this)">
+            <span class="pla-pipeline-fazenda-nome">
+              <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${faz}
+            </span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11px;font-weight:800;color:#E65100;">${_fmtHa(totalFaz)}</span>
+              <span style="font-size:10px;color:var(--text-3);">${talhoes.length} talhão${talhoes.length > 1 ? 'ões' : 'ão'}</span>
+              <i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);"></i>
+            </div>
+          </div>
+          <div class="pla-pipeline-talhoes" id="${idBody}" style="padding:8px 0 4px;">
+            ${talhoesHtml}
+          </div>
+        </div>`;
     });
 
-    // Rodapé total
-    const grandTotal = filtrado.reduce((s,r) => s + (r.area||0), 0);
-    html += `<div style="text-align:right; padding:10px 4px 2px; font-size:11px; font-weight:800; color:#E65100; border-top:1px solid var(--border); margin-top:6px;">
-      ${filtrado.length} talhões · Total: ${_fmtHa(grandTotal)}
-    </div>`;
+    html += `
+      <div style="text-align:right; padding:10px 4px 2px; font-size:11px; font-weight:800; color:#E65100; border-top:1px solid var(--border); margin-top:4px;">
+        ${filtrado.length} talhões · Total: ${_fmtHa(grandTotal)}
+      </div>`;
 
     cont.innerHTML = html;
   }
 
-  // ── Toggle card colapsável ─────────────────────────────────────────────
+  function plantioToggleFazenda(id, headerEl) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('open');
+    const ch = headerEl ? headerEl.querySelector('.fa-chevron-down') : null;
+    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+
+  /* ── toggle colapsável ───────────────────────────────────────────── */
   function togglePlantioCard(headerEl) {
     const card = headerEl.closest('.plantio-card-collapsible');
-    if (!card) return;
-    card.classList.toggle('open');
+    if (card) card.classList.toggle('open');
   }
 
 })(); /* fim IIFE PLANTIO */
