@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.7</title>
+  <title>Controle Técnico Agrícola v7.6</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -9286,89 +9286,126 @@ iniciarSabedoria();
   }
 
   // ── Normalização ───────────────────────────────────────────────────────
+  /* ── Reprocessa rows do PapaParse quando a planilha tem linhas de
+       metadados no topo (antes do header real).
+       Estratégia: a primeira linha cujos valores incluam TODAS as palavras-chave
+       obrigatórias (passadas como array) é o header real.
+       Retorna { fields, dataRows } com PapaParse "re-mapeado". ── */
+  function _reprocessarCsv(rows, palavrasChave) {
+    if (!rows || !rows.length) return { fields: [], dataRows: [] };
+
+    // Primeiro tenta usar o header que o PapaParse já usou (linha 0 do CSV)
+    let fields = Object.keys(rows[0]);
+    const temHeader = palavrasChave.every(kw =>
+      fields.some(f => _norm(f).includes(_norm(kw)))
+    );
+    if (temHeader) return { fields, dataRows: rows };
+
+    // Header real está embutido como linha de dados — procura dentro das rows
+    for (let i = 0; i < Math.min(8, rows.length); i++) {
+      const vals = Object.values(rows[i]).map(v => String(v||''));
+      const matchCount = palavrasChave.filter(kw =>
+        vals.some(v => _norm(v).includes(_norm(kw)))
+      ).length;
+      if (matchCount >= palavrasChave.length) {
+        // Esta linha é o header
+        const newFields = vals;
+        const dataRows  = rows.slice(i + 1).map(r => {
+          const oldVals = Object.values(r);
+          const obj = {};
+          newFields.forEach((f, idx) => { obj[f] = oldVals[idx]; });
+          return obj;
+        });
+        return { fields: newFields, dataRows };
+      }
+    }
+    // Fallback: usa o que veio
+    return { fields, dataRows: rows };
+  }
+
   function _normalizarDiario(rows) {
     if (!rows || !rows.length) return [];
-    const fields = Object.keys(rows[0]);
-    const cData     = _findCol(fields, ['DATA','DT']);
-    const cDescricao= _findCol(fields, ['DESCRICAO','DESCRIÇÃO','DESC']);
-    const cTalhao   = _findCol(fields, ['TALHAO','TALHÃO','TALHON']);
-    const cArea     = _findCol(fields, ['AREA','ÁREA','HA']);
-    const cPlantio  = _findCol(fields, ['PLANTIO','TIPO PLANTIO']);
-    const cLocal    = _findCol(fields, ['LOCAL']);
-    const cLayer    = _findCol(fields, ['LAYER']);
 
-    return rows
-      .map(r => ({
-        data:      _parseData(r[cData]),
-        fazenda:   (r[cDescricao]||'').trim(),
-        local:     (r[cLocal]||'').trim(),
-        talhao:    (r[cTalhao]||'').trim(),
-        layer:     (r[cLayer]||'').trim(),
-        area:      _num(r[cArea]),
-        tipo:      (r[cPlantio]||'').trim(),
-      }))
-      .filter(r => r.data && !isNaN(r.area) && r.area > 0);
+    // Header real deve ter DATA, DESCRIÇÃO, TALHÃO, ÁREA
+    const { fields, dataRows } = _reprocessarCsv(rows, ['DATA','DESCRI','TALH','REA']);
+
+    const cData    = _findCol(fields, ['DATA']);
+    const cDesc    = _findCol(fields, ['DESCRIÇÃO','DESCRICAO','DESC']);
+    const cTalhao  = _findCol(fields, ['TALHÃO','TALHAO']);
+    const cArea    = _findCol(fields, ['ÁREA','AREA']);
+    const cPlantio = _findCol(fields, ['PLANTIO']);
+    const cLocal   = _findCol(fields, ['LOCAL']);
+    const cLayer   = _findCol(fields, ['LAYER']);
+    const cOS      = _findCol(fields, ['O.S','OS']);
+
+    return dataRows
+      .map(r => {
+        const area = _num(r[cArea]);
+        if (isNaN(area) || area <= 0) return null;
+        const data = _parseData(r[cData]);
+        if (!data) return null;
+        return {
+          data,
+          fazenda: String(r[cDesc]  ||'').trim(),
+          local:   String(r[cLocal] ||'').trim(),
+          talhao:  String(r[cTalhao]||'').trim(),
+          layer:   String(r[cLayer] ||'').trim(),
+          os:      String(r[cOS]    ||'').trim(),
+          area,
+          tipo:    String(r[cPlantio]||'').trim(),
+        };
+      })
+      .filter(Boolean);
   }
 
   function _normalizarBase(rows) {
     if (!rows || !rows.length) return [];
-    // Ignora as primeiras linhas de metadados (DADOS_CADASTRAIS etc.)
-    // O header real é a linha que contém "UNIDADE"
-    let headerIdx = -1;
-    for (let i = 0; i < Math.min(10, rows.length); i++) {
-      const vals = Object.values(rows[i]);
-      if (vals.some(v => String(v).trim().toUpperCase() === 'UNIDADE')) {
-        headerIdx = i;
-        break;
-      }
-    }
 
-    const dataRows = headerIdx >= 0 ? rows.slice(headerIdx + 1) : rows;
-    if (!dataRows.length) return [];
+    // Header real deve ter UNIDADE, LAYER, DESCRIÇÃO, TALHÃO
+    const { fields, dataRows } = _reprocessarCsv(rows, ['UNIDADE','LAYER','DESCRI','TALH']);
 
-    const fields = Object.keys(rows[0]);
     const cUnidade  = _findCol(fields, ['UNIDADE']);
     const cLayer    = _findCol(fields, ['LAYER']);
     const cLocal    = _findCol(fields, ['LOCAL']);
-    const cDesc     = _findCol(fields, ['DESCRICAO','DESCRIÇÃO','DESC']);
-    const cTalhao   = _findCol(fields, ['TALHAO','TALHÃO']);
+    const cDesc     = _findCol(fields, ['DESCRIÇÃO','DESCRICAO','DESC']);
+    const cTalhao   = _findCol(fields, ['TALHÃO','TALHAO']);
     const cBloco    = _findCol(fields, ['BLOCO']);
-    const cVarAtual = _findCol(fields, ['VARIEDADE ATUAL','VARIEDADE_ATUAL','VARIEDADE PRINCIPAL','VARIEDADE_PRINCIPAL']);
+    const cVarAtual = _findCol(fields, ['VARIEDADE_ATUAL','VARIEDADE ATUAL']);
     const cAmbiente = _findCol(fields, ['AMBIENTE']);
-    const cArea     = _findCol(fields, ['AREA TOTAL','ÁREA TOTAL','AREA (HA)','ÁREA (HA)','AREA','ÁREA']);
-    const cRefCiclo = _findCol(fields, ['REF CICLO','REF_CICLO','CICLO']);
-    const cMotivo   = _findCol(fields, ['MOTIVO REF','MOTIVO']);
-    const cMesPlant = _findCol(fields, ['MES PLANTIO','MÊS_PLANTIO','MES_PLANTIO','MESPLANTIO']);
-    const cDataPlant= _findCol(fields, ['DATA PLANTIO','DATA_PLANTIO']);
-    const cTipoPlant= _findCol(fields, ['TIPO PLANTIO DESDOBRA','TIPO_PLANTIO_DESDOBRA','TIPO PLANTIO']);
-    const cModelo   = _findCol(fields, ['MODELO PLANTIO','MODELO_PLANTIO','MODELO']);
-    const cEstagio  = _findCol(fields, ['ESTAGIO','ESTÁGIO']);
+    const cArea     = _findCol(fields, ['ÁREA TOTAL (ha)','AREA TOTAL (ha)','ÁREA TOTAL','AREA TOTAL']);
+    const cRefCiclo = _findCol(fields, ['REF._CICLO','REF. CICLO','REF CICLO']);
+    const cMotivo   = _findCol(fields, ['MOTIVO REF.','MOTIVO REF','MOTIVO']);
+    const cMesPlant = _findCol(fields, ['MÊS_PLANTIO','MES_PLANTIO','MÊS PLANTIO','MES PLANTIO']);
+    const cDataPlant= _findCol(fields, ['DATA_PLANTIO','DATA PLANTIO']);
+    const cTipoPlant= _findCol(fields, ['TIPO_PLANTIO_DESDOBRA','TIPO PLANTIO DESDOBRA','TIPO PLANTIO']);
+    const cModelo   = _findCol(fields, ['MODELO_PLANTIO','MODELO PLANTIO','MODELO']);
+    const cEstagio  = _findCol(fields, ['ESTÁGIO','ESTAGIO']);
     const cSetor    = _findCol(fields, ['SETOR']);
 
     return dataRows
       .map(r => {
-        const unidade = (r[cUnidade]||'').trim().toUpperCase();
-        if (!unidade || unidade === 'UNIDADE') return null;
+        const unidade = String(r[cUnidade]||'').trim().toUpperCase();
+        if (!unidade || unidade === 'UNIDADE' || unidade === 'NAN') return null;
         const area = _num(r[cArea]);
         if (isNaN(area) || area <= 0) return null;
         const mesNum = parseInt(r[cMesPlant]) || 0;
         return {
-          layer:     (r[cLayer]||'').trim(),
-          local:     (r[cLocal]||'').trim(),
-          fazenda:   (r[cDesc]||'').trim(),
-          talhao:    (r[cTalhao]||'').trim(),
-          bloco:     (r[cBloco]||'').trim(),
-          variedade: (r[cVarAtual]||'').trim(),
-          ambiente:  (r[cAmbiente]||'').trim(),
+          layer:    String(r[cLayer]   ||'').trim(),
+          local:    String(r[cLocal]   ||'').trim(),
+          fazenda:  String(r[cDesc]    ||'').trim(),
+          talhao:   String(r[cTalhao]  ||'').trim(),
+          bloco:    String(r[cBloco]   ||'').trim(),
+          variedade:String(r[cVarAtual]||'').trim(),
+          ambiente: String(r[cAmbiente]||'').trim(),
           area,
-          refCiclo:  (r[cRefCiclo]||'').trim(),
-          motivo:    (r[cMotivo]||'').trim(),
-          mes:       mesNum,
-          dataPlant: _parseData(r[cDataPlant]),
-          tipo:      (r[cTipoPlant]||'').trim(),
-          modelo:    (r[cModelo]||'').trim(),
-          estagio:   (r[cEstagio]||'').trim(),
-          setor:     (r[cSetor]||'').trim(),
+          refCiclo: String(r[cRefCiclo]||'').trim(),
+          motivo:   String(r[cMotivo]  ||'').trim(),
+          mes:      mesNum,
+          dataPlant:_parseData(r[cDataPlant]),
+          tipo:     String(r[cTipoPlant]||'').trim(),
+          modelo:   String(r[cModelo]  ||'').trim(),
+          estagio:  String(r[cEstagio] ||'').trim(),
+          setor:    String(r[cSetor]   ||'').trim(),
         };
       })
       .filter(Boolean);
@@ -9376,13 +9413,15 @@ iniciarSabedoria();
 
   function _normalizarPcp(rows) {
     if (!rows || !rows.length) return [];
+
+    // O PCP já tem header correto (não tem linhas de metadados como o plantio)
     const fields = Object.keys(rows[0]);
     const cData    = _findCol(fields, ['DATA APLICACAO','DATA APLIC','DATA']);
-    const cOS      = _findCol(fields, ['NR OS','NROS','NR O.S','OS','NUMERO OS','NUMEROOS']);
-    const cCodOp   = _findCol(fields, ['COD OPERACAO','CODOP','COD OP','CODIGO OPERACAO']);
-    const cDescOp  = _findCol(fields, ['DESC OPERACAO AGR','DESCOPERACAO','OPERACAO AGR','OPERACAO AGRICOLA','OPERACAO']);
-    const cFazenda = _findCol(fields, ['DESCRICAO FAZENDA','DESC FAZENDA','DESCFAZENDA','FAZENDA','DESCRICAO FAZ']);
-    const cTalhao  = _findCol(fields, ['TALHAO','TALHÃO']);
+    const cOS      = _findCol(fields, ['NR OS','NR O.S','OS','NUMERO OS']);
+    const cCodOp   = _findCol(fields, ['COD OPERACAO','CODOP','COD OP','CODIGO OPERACAO','COD. OPERACAO']);
+    const cDescOp  = _findCol(fields, ['DESC OPERACAO AGR','OPERACAO AGR','OPERACAO AGRICOLA','OPERACAO']);
+    const cFazenda = _findCol(fields, ['DESCRICAO FAZENDA','DESC FAZENDA','DESCFAZENDA','FAZENDA']);
+    const cTalhao  = _findCol(fields, ['TALHAO','TALHÃO','TALHON']);
     const cArea    = _findCol(fields, ['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','ÁREA']);
     const cLayer   = _findCol(fields, ['COD FAZENDA','CODFAZENDA','LAYER']);
 
@@ -9392,12 +9431,12 @@ iniciarSabedoria();
         if (!['1013','1014','1045'].includes(codOp)) return null;
         return {
           data:    _parseData(r[cData]),
-          os:      (r[cOS]||'').trim(),
+          os:      String(r[cOS]    ||'').trim(),
           codOp,
-          descOp:  (r[cDescOp]||codOp).trim(),
-          fazenda: (r[cFazenda]||'').trim(),
-          talhao:  (r[cTalhao]||'').trim(),
-          layer:   (r[cLayer]||'').trim(),
+          descOp:  String(r[cDescOp]||codOp).trim(),
+          fazenda: String(r[cFazenda]||'').trim(),
+          talhao:  String(r[cTalhao] ||'').trim(),
+          layer:   String(r[cLayer]  ||'').trim(),
           area:    _num(r[cArea]),
         };
       })
