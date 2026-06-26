@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.6</title>
+  <title>Controle Técnico Agrícola v7.7</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -585,6 +585,40 @@
       font-size: 12px; line-height: 1.6;
     }
     .pla-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: 0.4; }
+
+    /* KPI card safra 25/26 accent */
+    .pla-card .pla-val-2526 { color: #6D4C41; }
+    body.dark-mode .pla-card .pla-val-2526 { color: #A1887F; }
+
+    /* Linha de mês na comparação */
+    .pla-comp-mes-row {
+      display: grid; grid-template-columns: 60px 1fr 1fr;
+      gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--border);
+      align-items: center; font-size: 11px;
+    }
+    .pla-comp-mes-row:last-child { border-bottom: none; }
+    .pla-comp-mes-label { font-weight: 700; color: var(--text-2); }
+    .pla-comp-safra-bar { display: flex; flex-direction: column; gap: 3px; }
+    .pla-comp-bar-label { font-size: 9px; font-weight: 700; color: var(--text-3); }
+    .pla-comp-bar-wrap { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .pla-comp-bar-fill-a { height: 100%; background: #8D6E63; border-radius: 99px; transition: width 0.4s ease; }
+    .pla-comp-bar-fill-b { height: 100%; background: #E65100; border-radius: 99px; transition: width 0.4s ease; }
+    .pla-comp-bar-ha { font-size: 10px; font-weight: 800; }
+    .pla-comp-bar-ha-a { color: #6D4C41; }
+    .pla-comp-bar-ha-b { color: #E65100; }
+
+    /* Fazenda row na comparação */
+    .pla-comp-faz-row {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 6px;
+    }
+    .pla-comp-faz-nome { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .pla-comp-faz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .pla-comp-faz-col { font-size: 10px; }
+    .pla-comp-faz-col-label { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+    .pla-comp-faz-col-val { font-weight: 800; }
+    .pla-comp-faz-col-val-a { color: #6D4C41; }
+    .pla-comp-faz-col-val-b { color: #E65100; }
 
     /* ── Legenda explicativa fixa (dose rec. x dose aplic.) ── */
     .tratos-legenda {
@@ -4567,18 +4601,80 @@ body.dark-mode .resumo-cards .medal-text {
     <div id="plantio-seletor-safra">
       <div class="plantio-safra-titulo"><i class="fas fa-seedling" style="margin-right:6px"></i>Selecione a Safra</div>
       <div class="plantio-safra-grid">
-        <button class="plantio-safra-btn disabled" onclick="plantioAbrirSafra('25_26')">
+        <button class="plantio-safra-btn" onclick="plantioAbrirSafra('25_26')">
           <div class="psb-icon"><i class="fas fa-seedling"></i></div>
           <span class="psb-label">Plantio 25/26</span>
-          <span class="psb-sub">Dados não disponíveis</span>
-          <span class="psb-em-breve">Em breve</span>
+          <span class="psb-sub" id="psb-sub-2526">carregando...</span>
         </button>
         <button class="plantio-safra-btn" onclick="plantioAbrirSafra('26_27')">
           <div class="psb-icon"><i class="fas fa-seedling"></i></div>
           <span class="psb-label">Plantio 26/27</span>
           <span class="psb-sub" id="psb-sub-2627">carregando...</span>
-			 <span class="psb-em-breve">Em breve</span>
         </button>
+      </div>
+      <!-- Botão comparar safras -->
+      <button class="plantio-safra-btn" onclick="plantioAbrirComparar()" style="width:100%; margin-top:8px; flex-direction:row; justify-content:center; gap:12px; padding:14px 16px;">
+        <div class="psb-icon" style="width:36px;height:36px;font-size:16px;"><i class="fas fa-chart-bar"></i></div>
+        <div style="text-align:left;">
+          <div class="psb-label">Consulta entre Safras</div>
+          <div class="psb-sub">Compare 25/26 e 26/27 por período</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- CONSULTA ENTRE SAFRAS -->
+    <div id="plantio-comparar" style="display:none">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <button onclick="plantioVoltarSeletor()" style="background:none; border:1px solid var(--border); border-radius:50px; padding:3px 10px; font-size:10px; font-weight:700; color:var(--text-3); cursor:pointer; display:flex; align-items:center; gap:4px;" onmouseover="this.style.borderColor='#E65100';this.style.color='#E65100'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-3)'">
+          <i class="fas fa-exchange-alt" style="font-size:9px"></i> trocar safra
+        </button>
+        <span style="font-size:13px; font-weight:800; color:#E65100;">Consulta entre Safras</span>
+      </div>
+
+      <!-- Filtros de período -->
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-title"><i class="fas fa-calendar-alt"></i> Filtro de Período</div>
+        <div class="pla-filtros-row" style="margin-top:10px;">
+          <div class="field">
+            <label>De</label>
+            <input type="date" id="pla-comp-ini" onchange="filtrarPlantioComparar()">
+          </div>
+          <div class="field">
+            <label>Até</label>
+            <input type="date" id="pla-comp-fim" onchange="filtrarPlantioComparar()">
+          </div>
+        </div>
+        <div id="pla-comp-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px;">—</div>
+      </div>
+
+      <!-- KPIs comparativos -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+        <div class="pla-card" style="border-top:3px solid #8D6E63;">
+          <span class="pla-label">25/26 · Plantado</span>
+          <span class="pla-val" id="pla-comp-ha-2526" style="color:#6D4C41;">— ha</span>
+          <span class="pla-sub" id="pla-comp-reg-2526">— registros</span>
+        </div>
+        <div class="pla-card" style="border-top:3px solid #E65100;">
+          <span class="pla-label">26/27 · Plantado</span>
+          <span class="pla-val" id="pla-comp-ha-2627">— ha</span>
+          <span class="pla-sub" id="pla-comp-reg-2627">— registros</span>
+        </div>
+      </div>
+
+      <!-- Resumo por mês -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-calendar-alt"></i> Resumo por Mês</div>
+        <div id="pla-comp-meses" style="margin-top:10px;">
+          <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período acima</div>
+        </div>
+      </div>
+
+      <!-- Detalhes por fazenda -->
+      <div class="card" style="margin-top:8px;">
+        <div class="card-title"><i class="fas fa-map-marker-alt"></i> Detalhes por Fazenda</div>
+        <div id="pla-comp-fazendas" style="margin-top:10px;">
+          <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período acima</div>
+        </div>
       </div>
     </div>
 
@@ -9117,89 +9213,157 @@ iniciarSabedoria();
 
 /* ══════════════════════════════════════════════
    MÓDULO PLANTIO
-   Diário: gid=409434796  |  Base: gid=1046721215
+   26/27 Diário: gid=409434796  | Base: gid=1046721215
+   25/26 Diário: gid=1655110352 | Base: gid=1840703975
    PCP (tratos): gid=724202507
 ══════════════════════════════════════════════ */
 (function() {
   'use strict';
 
   const BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub';
-  const URL_DIARIO = BASE_URL + '?gid=409434796&single=true&output=csv';
-  const URL_BASE   = BASE_URL + '?gid=1046721215&single=true&output=csv';
-  const URL_PCP    = BASE_URL + '?gid=724202507&single=true&output=csv';
+
+  const URLS = {
+    '26_27': {
+      diario: BASE_URL + '?gid=409434796&single=true&output=csv',
+      base:   BASE_URL + '?gid=1046721215&single=true&output=csv',
+    },
+    '25_26': {
+      diario: BASE_URL + '?gid=1655110352&single=true&output=csv',
+      base:   BASE_URL + '?gid=1840703975&single=true&output=csv',
+    },
+  };
+  const URL_PCP = BASE_URL + '?gid=724202507&single=true&output=csv';
 
   const SEQUENCIA = [
-    { cod: 'PLANTIO', label: 'Plantio',           icon: 'fa-seedling',  fonte: 'diario' },
-    { cod: '1013',    label: '1013 · 1ª Herb.',   icon: 'fa-spray-can', fonte: 'pcp'    },
-    { cod: '1045',    label: '1045 · Quebra lombo',icon: 'fa-tractor',  fonte: 'pcp'    },
-    { cod: '1014',    label: '1014 · 2ª Herb.',   icon: 'fa-spray-can', fonte: 'pcp'    },
+    { cod: 'PLANTIO', label: 'Plantio',            icon: 'fa-seedling',  fonte: 'diario' },
+    { cod: '1013',    label: '1013 · 1ª Herb.',    icon: 'fa-spray-can', fonte: 'pcp'    },
+    { cod: '1045',    label: '1045 · Quebra lombo', icon: 'fa-tractor',  fonte: 'pcp'    },
+    { cod: '1014',    label: '1014 · 2ª Herb.',    icon: 'fa-spray-can', fonte: 'pcp'    },
   ];
 
   const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-  let _iniciado   = false;
-  let _safraAtual = null;
-  let _diario     = null;
-  let _base       = null;
-  let _pcp        = null;
-  let _diarioFilt = null;
+  // Cache por safra para não rebuscar ao trocar
+  const _cache = {
+    '26_27': { diario: null, base: null, pcp: null, loaded: false },
+    '25_26': { diario: null, base: null, pcp: null, loaded: false },
+  };
+
+  let _safraAtual  = null;
+  let _diarioFilt  = null;
+  let _compararAberto = false;
+
+  // Atalhos para safra atual
+  const _d = () => _cache[_safraAtual]?.diario || [];
+  const _b = () => _cache[_safraAtual]?.base   || [];
+  const _p = () => _cache['26_27']?.pcp        || []; // PCP único
 
   /* ── expõe ao escopo global ──────────────────────────────────────── */
-  window.iniciarModuloPlantio   = iniciarModuloPlantio;
-  window.plantioAbrirSafra      = plantioAbrirSafra;
-  window.plantioVoltarSeletor   = plantioVoltarSeletor;
-  window.carregarDadosPlantio   = carregarDadosPlantio;
-  window.filtrarPlantioAvanco   = filtrarPlantioAvanco;
-  window.filtrarPlantioBase     = filtrarPlantioBase;
-  window.togglePlantioCard      = togglePlantioCard;
-  window.plantioToggleDetalhe   = plantioToggleDetalhe;
-  window.plantioTogglePipeline  = plantioTogglePipeline;
-  window.plantioToggleFazenda   = plantioToggleFazenda;
+  window.iniciarModuloPlantio    = iniciarModuloPlantio;
+  window.plantioAbrirSafra       = plantioAbrirSafra;
+  window.plantioVoltarSeletor    = plantioVoltarSeletor;
+  window.plantioAbrirComparar    = plantioAbrirComparar;
+  window.carregarDadosPlantio    = carregarDadosPlantio;
+  window.filtrarPlantioAvanco    = filtrarPlantioAvanco;
+  window.filtrarPlantioBase      = filtrarPlantioBase;
+  window.filtrarPlantioComparar  = filtrarPlantioComparar;
+  window.togglePlantioCard       = togglePlantioCard;
+  window.plantioToggleDetalhe    = plantioToggleDetalhe;
+  window.plantioTogglePipeline   = plantioTogglePipeline;
+  window.plantioToggleFazenda    = plantioToggleFazenda;
   window.atualizarCardPlantioHome = atualizarCardPlantioHome;
 
   /* ── navegação ───────────────────────────────────────────────────── */
-  function iniciarModuloPlantio() { /* dados carregam ao selecionar safra */ }
+  function iniciarModuloPlantio() {
+    // Pré-carrega cards dos botões safra ao abrir a aba
+    _carregarSubTextosSafra();
+  }
 
   function plantioAbrirSafra(safra) {
     _safraAtual = safra;
+    _compararAberto = false;
     document.getElementById('plantio-seletor-safra').style.display = 'none';
+    document.getElementById('plantio-comparar').style.display      = 'none';
     document.getElementById('plantio-conteudo').style.display      = 'block';
     document.getElementById('plantio-safra-label').textContent     =
       safra === '26_27' ? 'Safra 26/27' : 'Safra 25/26';
 
-    if (!_iniciado) { _iniciado = true; carregarDadosPlantio(); }
-    else            { _renderizarTudo(); }
+    if (!_cache[safra].loaded) {
+      carregarDadosPlantio();
+    } else {
+      _renderizarTudo();
+    }
   }
 
   function plantioVoltarSeletor() {
     document.getElementById('plantio-seletor-safra').style.display = 'flex';
     document.getElementById('plantio-conteudo').style.display      = 'none';
+    document.getElementById('plantio-comparar').style.display      = 'none';
+    _compararAberto = false;
+  }
+
+  function plantioAbrirComparar() {
+    _compararAberto = true;
+    document.getElementById('plantio-seletor-safra').style.display = 'none';
+    document.getElementById('plantio-conteudo').style.display      = 'none';
+    document.getElementById('plantio-comparar').style.display      = 'block';
+    // Carrega ambas as safras se necessário
+    _garantirSafraCarregada('25_26');
+    _garantirSafraCarregada('26_27');
   }
 
   /* ── carregamento ────────────────────────────────────────────────── */
+  async function _carregarSubTextosSafra() {
+    // Carrega as duas safras em background para popular os sub-textos dos botões
+    Promise.all([
+      _garantirSafraCarregada('25_26'),
+      _garantirSafraCarregada('26_27'),
+    ]);
+  }
+
+  async function _garantirSafraCarregada(safra) {
+    if (_cache[safra].loaded) return;
+    try {
+      const [rDiario, rBase] = await Promise.all([
+        _parseCsvSemHeader(URLS[safra].diario),
+        _parseCsvSemHeader(URLS[safra].base),
+      ]);
+      // PCP só carrega uma vez junto com 26/27
+      if (safra === '26_27' && !_cache['26_27'].pcp) {
+        const rPcp = await _parseCsvComHeader(URL_PCP);
+        _cache['26_27'].pcp = _normalizarPcp(rPcp);
+      }
+      _cache[safra].diario = _normalizarDiario(rDiario);
+      _cache[safra].base   = _normalizarBase(rBase);
+      _cache[safra].loaded = true;
+      _atualizarSubTextoSafra(safra);
+      if (typeof registrarSync === 'function') registrarSync('ok', 'Plantio ' + safra.replace('_','/'));
+    } catch(err) {
+      console.error('[PLANTIO]', safra, err);
+    }
+  }
+
   async function carregarDadosPlantio() {
     ['pla-resumo-container','pla-pipeline-container','pla-base-container'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     });
+    // Força recarregar safra atual
+    _cache[_safraAtual].loaded = false;
+    await _garantirSafraCarregada(_safraAtual);
+    if (_cache[_safraAtual].loaded) _renderizarTudo();
+  }
 
-    try {
-      const [rDiario, rBase, rPcp] = await Promise.all([
-        _parseCsvSemHeader(URL_DIARIO),
-        _parseCsvSemHeader(URL_BASE),
-        _parseCsvComHeader(URL_PCP),
-      ]);
-
-      _diario = _normalizarDiario(rDiario);
-      _base   = _normalizarBase(rBase);
-      _pcp    = _normalizarPcp(rPcp);
-
-      _renderizarTudo();
-      if (typeof registrarSync === 'function') registrarSync('ok', 'Plantio');
-    } catch(err) {
-      console.error('[PLANTIO]', err);
-      if (typeof showToast === 'function') showToast('❌ Erro ao carregar dados de plantio', 'error');
-    }
+  function _atualizarSubTextoSafra(safra) {
+    const base = _cache[safra].base || [];
+    const diario = _cache[safra].diario || [];
+    const fazendas = new Set(base.map(r => r.fazenda).filter(Boolean));
+    const totalHa  = base.reduce((s, r) => s + r.area, 0);
+    const plantHa  = diario.reduce((s, r) => s + r.area, 0);
+    const elId = safra === '26_27' ? 'psb-sub-2627' : 'psb-sub-2526';
+    const el = document.getElementById(elId);
+    if (el) el.textContent = `${fazendas.size} fazendas · ${totalHa.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.')} ha planejados`;
+    atualizarCardPlantioHome();
   }
 
   /* ── CSV: sem header (para planilhas com linhas de metadados) ─────── */
@@ -9480,9 +9644,9 @@ iniciarSabedoria();
 
   /* ── renderização principal ──────────────────────────────────────── */
   function _renderizarTudo() {
-    if (!_diario || !_base) return;
+    if (!_cache[_safraAtual].loaded) return;
     _renderizarKpis();
-    _atualizarCardSafra();
+    _atualizarSubTextoSafra(_safraAtual);
     _popularFazendaSelect();
     _definirDatasDefault();
     filtrarPlantioAvanco();
@@ -9493,15 +9657,17 @@ iniciarSabedoria();
 
   /* ── KPI cards ───────────────────────────────────────────────────── */
   function _renderizarKpis() {
-    const totalBase  = _base.reduce((s, r) => s + r.area, 0);
-    const totalPlant = _diario.reduce((s, r) => s + r.area, 0);
+    const diario = _d();
+    const base   = _b();
+    const totalBase  = base.reduce((s, r) => s + r.area, 0);
+    const totalPlant = diario.reduce((s, r) => s + r.area, 0);
     const pct        = totalBase > 0 ? Math.min((totalPlant / totalBase) * 100, 100) : 0;
     const agora      = new Date();
-    const totalMes   = _diario
+    const totalMes   = diario
       .filter(r => r.data && r.data.getMonth() === agora.getMonth() && r.data.getFullYear() === agora.getFullYear())
       .reduce((s, r) => s + r.area, 0);
 
-    const $  = id => document.getElementById(id);
+    const $ = id => document.getElementById(id);
     if ($('pla-kpi-total'))    $('pla-kpi-total').textContent    = totalBase.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' ha';
     if ($('pla-kpi-plantado')) $('pla-kpi-plantado').textContent = totalPlant.toFixed(2).replace('.', ',') + ' ha';
     if ($('pla-kpi-mes'))      $('pla-kpi-mes').textContent      = totalMes.toFixed(2).replace('.', ',') + ' ha';
@@ -9510,39 +9676,32 @@ iniciarSabedoria();
     if ($('pla-progress-pct'))  $('pla-progress-pct').textContent  = pct.toFixed(1) + '%';
   }
 
-  /* ── card home: progresso plantio ────────────────────────────────── */
+  /* ── card home: progresso plantio (usa 26/27 como referência principal) */
   function atualizarCardPlantioHome() {
-    const totalBase  = _base  ? _base.reduce((s, r) => s + r.area, 0)  : 0;
-    const totalPlant = _diario? _diario.reduce((s, r) => s + r.area, 0): 0;
-    const pct        = totalBase > 0 ? Math.min((totalPlant / totalBase) * 100, 100) : 0;
-    const pctEl  = document.getElementById('hre-plantio-pct');
-    const subEl  = document.getElementById('hre-plantio-sub');
-    const barEl  = document.getElementById('hre-plantio-bar');
+    const diario = _cache['26_27'].diario || [];
+    const base   = _cache['26_27'].base   || [];
+    const totalBase  = base.reduce((s, r) => s + r.area, 0);
+    const totalPlant = diario.reduce((s, r) => s + r.area, 0);
+    const pct = totalBase > 0 ? Math.min((totalPlant / totalBase) * 100, 100) : 0;
+    const pctEl = document.getElementById('hre-plantio-pct');
+    const subEl = document.getElementById('hre-plantio-sub');
+    const barEl = document.getElementById('hre-plantio-bar');
     if (pctEl) pctEl.textContent = pct.toFixed(1) + '%';
-    if (subEl) subEl.textContent = _fmtHa(totalPlant) + ' de ' + _fmtHa(totalBase);
+    if (subEl) subEl.textContent = _fmtHa(totalPlant) + ' de ' + _fmtHa(totalBase) + ' · 26/27';
     if (barEl) barEl.style.width = pct.toFixed(1) + '%';
-  }
-
-  /* ── card do botão safra 26/27 ───────────────────────────────────── */
-  function _atualizarCardSafra() {
-    const el = document.getElementById('psb-sub-2627');
-    if (!el || !_base) return;
-    const fazendas = new Set(_base.map(r => r.fazenda).filter(Boolean));
-    const totalHa  = _base.reduce((s, r) => s + r.area, 0);
-    el.textContent = `${fazendas.size} fazenda${fazendas.size !== 1 ? 's' : ''} · ${totalHa.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.')} ha`;
   }
 
   /* ── select de fazenda ───────────────────────────────────────────── */
   function _popularFazendaSelect() {
     const sel = document.getElementById('pla-filtro-fazenda');
-    if (!sel || !_diario) return;
-    const fazendas = [...new Set(_diario.map(r => r.fazenda).filter(Boolean))].sort();
+    if (!sel) return;
+    const diario   = _d();
+    const fazendas = [...new Set(diario.map(r => r.fazenda).filter(Boolean))].sort();
     const anterior = sel.value;
     sel.innerHTML  = '<option value="">— Todas —</option>';
     fazendas.forEach(f => {
-      const o   = document.createElement('option');
-      o.value   = f;
-      o.textContent = f;
+      const o = document.createElement('option');
+      o.value = f; o.textContent = f;
       if (f === anterior) o.selected = true;
       sel.appendChild(o);
     });
@@ -9552,22 +9711,25 @@ iniciarSabedoria();
   function _definirDatasDefault() {
     const ini = document.getElementById('pla-data-ini');
     const fim = document.getElementById('pla-data-fim');
-    if (!ini || !fim || ini.value || !_diario.length) return;
-    const datas = _diario.map(r => r.data).filter(Boolean).sort((a, b) => a - b);
+    if (!ini || !fim || ini.value) return;
+    const diario = _d();
+    if (!diario.length) return;
+    const datas = diario.map(r => r.data).filter(Boolean).sort((a, b) => a - b);
     ini.value = datas[0].toISOString().split('T')[0];
     fim.value = datas[datas.length - 1].toISOString().split('T')[0];
   }
 
   /* ══ BLOCO 1: O que foi plantado? ════════════════════════════════ */
   function filtrarPlantioAvanco() {
-    if (!_diario) return;
+    const diario = _d();
+    if (!diario.length) return;
     const iniVal    = document.getElementById('pla-data-ini')?.value;
     const fimVal    = document.getElementById('pla-data-fim')?.value;
     const fazFiltro = document.getElementById('pla-filtro-fazenda')?.value || '';
     const dIni = iniVal ? new Date(iniVal + 'T00:00:00') : null;
     const dFim = fimVal ? new Date(fimVal + 'T23:59:59') : null;
 
-    _diarioFilt = _diario.filter(r => {
+    _diarioFilt = diario.filter(r => {
       if (dIni && r.data < dIni) return false;
       if (dFim && r.data > dFim) return false;
       if (fazFiltro && r.fazenda !== fazFiltro) return false;
@@ -9662,17 +9824,17 @@ iniciarSabedoria();
 
   /* ══ BLOCO 2: Sequência pós-plantio ══════════════════════════════ */
   function _renderizarPipeline() {
-    const cont = document.getElementById('pla-pipeline-container');
+    const cont   = document.getElementById('pla-pipeline-container');
     if (!cont) return;
-
-    if (!_diario || !_diario.length) {
+    const diario = _d();
+    if (!diario.length) {
       cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão plantado encontrado.</div>';
       return;
     }
 
     // Agrupa talhões plantados por fazenda (deduplica por talhão)
     const porFaz = {};
-    _diario.forEach(r => {
+    diario.forEach(r => {
       const faz = r.fazenda || 'Sem fazenda';
       if (!porFaz[faz]) porFaz[faz] = new Map();
       const key = r.talhao || '—';
@@ -9722,7 +9884,7 @@ iniciarSabedoria();
           <div class="pla-pipeline-header" onclick="plantioTogglePipeline('pla-pipe-faz-${idxFaz}', this)">
             <span class="pla-pipeline-fazenda-nome">
               <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${faz}
-              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${talhoes.size} talhão${talhoes.size > 1 ? 'ões' : 'ão'})</span>
+              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${talhoes.size} ${talhoes.size === 1 ? 'talhão' : 'talhões'})</span>
             </span>
             <div class="pla-pipeline-chips">${chipsHtml}<i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:6px;"></i></div>
           </div>
@@ -9750,7 +9912,7 @@ iniciarSabedoria();
         if (!anteriorOk) {
           status = 'bloqueado';
         } else {
-          const match = _pcp ? _pcp.find(p =>
+          const match = _p() ? _p().find(p =>
             p.codOp === seq.cod && (
               (p.talhao && String(p.talhao).trim() === String(talhao).trim()) ||
               (_norm(p.fazenda || '') === _norm(fazenda) && _norm(fazenda) !== '')
@@ -9777,15 +9939,16 @@ iniciarSabedoria();
 
   /* ══ BLOCO 3: Planejamento — lista de fazendas colapsável ════════ */
   function _renderizarBase() {
-    if (!_base || !_base.length) return;
+    const base = _b();
+    if (!base.length) return;
 
     // Chips de mês
-    const meses = [...new Set(_base.map(r => r.mes).filter(m => m > 0))].sort((a, b) => a - b);
+    const meses = [...new Set(base.map(r => r.mes).filter(m => m > 0))].sort((a, b) => a - b);
     const chipsEl = document.getElementById('pla-mes-chips');
     if (chipsEl) {
       let html = '<button class="pla-mes-chip active" data-mes="0" onclick="filtrarPlantioBase(this)">Todos</button>';
       meses.forEach(m => {
-        const ha = _base.filter(r => r.mes === m).reduce((s, r) => s + r.area, 0);
+        const ha = base.filter(r => r.mes === m).reduce((s, r) => s + r.area, 0);
         html += `<button class="pla-mes-chip" data-mes="${m}" onclick="filtrarPlantioBase(this)">${MESES_NOME[m]}<span style="font-size:8px;opacity:0.65;margin-left:3px;">${ha.toFixed(0)}ha</span></button>`;
       });
       chipsEl.innerHTML = html;
@@ -9802,9 +9965,10 @@ iniciarSabedoria();
 
   function _renderizarBaseFiltrada(mes) {
     const cont = document.getElementById('pla-base-container');
-    if (!cont || !_base) return;
+    const base = _b();
+    if (!cont || !base.length) return;
 
-    const filtrado = mes === 0 ? _base : _base.filter(r => r.mes === mes);
+    const filtrado = mes === 0 ? base : base.filter(r => r.mes === mes);
     if (!filtrado.length) {
       cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão para este mês.</div>';
       return;
@@ -9854,7 +10018,7 @@ iniciarSabedoria();
             </span>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:11px;font-weight:800;color:#E65100;">${_fmtHa(totalFaz)}</span>
-              <span style="font-size:10px;color:var(--text-3);">${talhoes.length} talhão${talhoes.length > 1 ? 'ões' : 'ão'}</span>
+              <span style="font-size:10px;color:var(--text-3);">${talhoes.length} ${talhoes.length === 1 ? 'talhão' : 'talhões'}</span>
               <i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);"></i>
             </div>
           </div>
@@ -9878,6 +10042,116 @@ iniciarSabedoria();
     el.classList.toggle('open');
     const ch = headerEl ? headerEl.querySelector('.fa-chevron-down') : null;
     if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+
+  /* ══ CONSULTA ENTRE SAFRAS ════════════════════════════════════════ */
+  function filtrarPlantioComparar() {
+    const iniVal = document.getElementById('pla-comp-ini')?.value;
+    const fimVal = document.getElementById('pla-comp-fim')?.value;
+    const dIni   = iniVal ? new Date(iniVal + 'T00:00:00') : null;
+    const dFim   = fimVal ? new Date(fimVal + 'T23:59:59') : null;
+
+    const filtrar = (safra) => {
+      const diario = _cache[safra].diario || [];
+      return diario.filter(r => {
+        if (dIni && r.data < dIni) return false;
+        if (dFim && r.data > dFim) return false;
+        return true;
+      });
+    };
+
+    const f2526 = filtrar('25_26');
+    const f2627 = filtrar('26_27');
+
+    const ha2526 = f2526.reduce((s, r) => s + r.area, 0);
+    const ha2627 = f2627.reduce((s, r) => s + r.area, 0);
+
+    // KPIs
+    const $ = id => document.getElementById(id);
+    if ($('pla-comp-ha-2526')) $('pla-comp-ha-2526').textContent = _fmtHa(ha2526);
+    if ($('pla-comp-reg-2526')) $('pla-comp-reg-2526').textContent = `${f2526.length} registro${f2526.length !== 1 ? 's' : ''}`;
+    if ($('pla-comp-ha-2627')) $('pla-comp-ha-2627').textContent = _fmtHa(ha2627);
+    if ($('pla-comp-reg-2627')) $('pla-comp-reg-2627').textContent = `${f2627.length} registro${f2627.length !== 1 ? 's' : ''}`;
+
+    const total = ha2526 + ha2627;
+    if ($('pla-comp-contador')) $('pla-comp-contador').textContent =
+      `25/26: ${_fmtHa(ha2526)} · 26/27: ${_fmtHa(ha2627)} · Total: ${_fmtHa(total)}`;
+
+    if (!iniVal && !fimVal) return;
+
+    // Resumo por mês (agrupa os dois juntos)
+    const mesMap = {}; // { 'AAAA-MM': { a: ha, b: ha } }
+    const addMes = (regs, campo) => {
+      regs.forEach(r => {
+        if (!r.data) return;
+        const key = `${r.data.getFullYear()}-${String(r.data.getMonth()+1).padStart(2,'0')}`;
+        if (!mesMap[key]) mesMap[key] = { a: 0, b: 0, label: '' };
+        mesMap[key].label = MESES_NOME[r.data.getMonth()+1] + '/' + r.data.getFullYear();
+        mesMap[key][campo] += r.area;
+      });
+    };
+    addMes(f2526, 'a');
+    addMes(f2627, 'b');
+
+    const maxHa = Math.max(...Object.values(mesMap).map(m => Math.max(m.a, m.b)), 1);
+    const mesesSorted = Object.entries(mesMap).sort(([a], [b]) => a.localeCompare(b));
+
+    let htmlMeses = '';
+    if (!mesesSorted.length) {
+      htmlMeses = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum registro no período.</div>';
+    } else {
+      mesesSorted.forEach(([, m]) => {
+        const wA = ((m.a / maxHa) * 100).toFixed(1);
+        const wB = ((m.b / maxHa) * 100).toFixed(1);
+        htmlMeses += `
+          <div class="pla-comp-mes-row">
+            <span class="pla-comp-mes-label">${m.label}</span>
+            <div class="pla-comp-safra-bar">
+              <div class="pla-comp-bar-label">25/26 <span class="pla-comp-bar-ha pla-comp-bar-ha-a">${_fmtHa(m.a)}</span></div>
+              <div class="pla-comp-bar-wrap"><div class="pla-comp-bar-fill-a" style="width:${wA}%"></div></div>
+            </div>
+            <div class="pla-comp-safra-bar">
+              <div class="pla-comp-bar-label">26/27 <span class="pla-comp-bar-ha pla-comp-bar-ha-b">${_fmtHa(m.b)}</span></div>
+              <div class="pla-comp-bar-wrap"><div class="pla-comp-bar-fill-b" style="width:${wB}%"></div></div>
+            </div>
+          </div>`;
+      });
+    }
+    if ($('pla-comp-meses')) $('pla-comp-meses').innerHTML = htmlMeses;
+
+    // Detalhes por fazenda
+    const fazMap = {};
+    const addFaz = (regs, campo) => {
+      regs.forEach(r => {
+        const faz = r.fazenda || 'Sem fazenda';
+        if (!fazMap[faz]) fazMap[faz] = { a: 0, b: 0 };
+        fazMap[faz][campo] += r.area;
+      });
+    };
+    addFaz(f2526, 'a');
+    addFaz(f2627, 'b');
+
+    const fazSorted = Object.entries(fazMap).sort((x, y) =>
+      (y[1].a + y[1].b) - (x[1].a + x[1].b)
+    );
+
+    let htmlFaz = '';
+    if (!fazSorted.length) {
+      htmlFaz = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum dado no período.</div>';
+    } else {
+      fazSorted.forEach(([faz, vals]) => {
+        const linhas = [
+          vals.a > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">25/26</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-a">${_fmtHa(vals.a)}</div></div>` : '',
+          vals.b > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">26/27</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-b">${_fmtHa(vals.b)}</div></div>` : '',
+        ].filter(Boolean).join('');
+        htmlFaz += `
+          <div class="pla-comp-faz-row">
+            <div class="pla-comp-faz-nome"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</div>
+            <div class="pla-comp-faz-grid">${linhas}</div>
+          </div>`;
+      });
+    }
+    if ($('pla-comp-fazendas')) $('pla-comp-fazendas').innerHTML = htmlFaz;
   }
 
   /* ── toggle colapsável ───────────────────────────────────────────── */
