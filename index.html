@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v7.7</title>
+  <title>Controle Técnico Agrícola v7.6</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -4778,6 +4778,19 @@ body.dark-mode .resumo-cards .medal-text {
           <div class="pla-mes-chips" id="pla-mes-chips">
             <button class="pla-mes-chip active" data-mes="0" onclick="filtrarPlantioBase(this)">Todos</button>
           </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <span style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px;">Ordenar:</span>
+            <div class="app-select-wrap" style="flex:1;">
+              <select id="pla-base-sort" class="app-select" onchange="_renderizarBaseFiltrada(parseInt(document.querySelector('.pla-mes-chip.active')?.dataset.mes)||0)" style="font-size:11px;">
+                <option value="faz-az">Fazenda A→Z</option>
+                <option value="faz-za">Fazenda Z→A</option>
+                <option value="ha-desc">Maior área</option>
+                <option value="ha-asc">Menor área</option>
+                <option value="mes-asc">Mês previsto ↑</option>
+              </select>
+              <i class="fas fa-chevron-down app-select-chevron"></i>
+            </div>
+          </div>
           <div id="pla-base-container">
             <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando planejamento...</div>
           </div>
@@ -9272,6 +9285,7 @@ iniciarSabedoria();
   window.plantioTogglePipeline   = plantioTogglePipeline;
   window.plantioToggleFazenda    = plantioToggleFazenda;
   window.atualizarCardPlantioHome = atualizarCardPlantioHome;
+  window._renderizarBaseFiltrada  = _renderizarBaseFiltrada;
 
   /* ── navegação ───────────────────────────────────────────────────── */
   function iniciarModuloPlantio() {
@@ -9458,7 +9472,26 @@ iniciarSabedoria();
 
   function _num(v) {
     if (v == null || v === '') return NaN;
-    return parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+    const s = String(v).trim();
+    // Formato BR: 1.234,56 → tem vírgula como decimal
+    if (s.includes(',')) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    // Formato US/padrão: 16.27 → ponto como decimal, sem vírgula
+    return parseFloat(s);
+  }
+
+  // Área da planilha BASE vem com ponto como decimal (ex: 16.27 ha)
+  function _numArea(v) {
+    if (v == null || v === '') return NaN;
+    return parseFloat(String(v).trim());
+  }
+
+  // Formata o nome da fazenda com código: "3 · NOVA SOLEDADE"
+  function _nomeFaz(cod, nome) {
+    const c = String(cod || '').trim();
+    const n = String(nome || '').trim();
+    if (!n) return c || '—';
+    if (!c || c === '0' || c === 'nan') return n;
+    return `${c} · ${n}`;
   }
 
   function _fmtHa(v) {
@@ -9511,7 +9544,8 @@ iniciarSabedoria();
         const unidade = String(r[1] || '').trim();
         if (!unidade || _norm(unidade) === 'UNIDADE' || _norm(unidade) === '') return null;
 
-        const area = _num(r[9]);
+        // Área no índice [9] vem como número decimal (ex: 2.8 ha)
+        const area = _numArea(r[9]);
         if (isNaN(area) || area <= 0) return null;
 
         // DATA pode ser objeto Date (Excel) ou string
@@ -9526,11 +9560,12 @@ iniciarSabedoria();
 
         return {
           data,
-          fazenda:  String(r[7]  || '').trim(),
-          talhao:   String(r[8]  || '').trim(),
+          codFazenda: String(r[6]  || '').trim(),   // LOCAL = código da fazenda
+          fazenda:    String(r[7]  || '').trim(),    // DESCRIÇÃO = nome da fazenda
+          talhao:     String(r[8]  || '').trim(),    // TALHÃO
           area,
-          tipo:     String(r[10] || 'Mecanizado').trim(),
-          variedade:String(r[21] || '').trim(),
+          tipo:       String(r[10] || 'Mecanizado').trim(),
+          variedade:  String(r[21] || '').trim(),
         };
       })
       .filter(Boolean);
@@ -9583,9 +9618,8 @@ iniciarSabedoria();
         const unidade = _limpa(r[1]).toUpperCase();
         if (!unidade || unidade === 'UNIDADE') return null;
 
-        // Área: tenta [87] (ÁREA ha) primeiro, depois [20] (ÁREA TOTAL)
-        let area = _num(r[87]);
-        if (isNaN(area) || area <= 0) area = _num(r[20]);
+        // Área: índice [20] = ÁREA TOTAL (ha), separador decimal é ponto
+        const area = _numArea(r[20]);
         if (isNaN(area) || area <= 0) return null;
 
         const mes = parseInt(r[102]) || 0;
@@ -9600,20 +9634,20 @@ iniciarSabedoria();
         }
 
         return {
-          fazenda:   _limpa(r[6]),
-          talhao:    String(r[7] || '').trim(),
-          bloco:     _limpa(r[8]),
-          variedade: _limpa(r[9]),
-          ambiente:  _limpa(r[11]),
+          codFazenda: String(r[5]  || '').trim(),   // LOCAL = código da fazenda
+          fazenda:    _limpa(r[6]),
+          talhao:     String(r[7]  || '').trim(),
+          variedade:  _limpa(r[9]),
+          ambiente:   _limpa(r[11]),
           area,
-          estagio:   _limpa(r[17]),
-          refCiclo:  _limpa(r[21]),
-          motivo:    _limpa(r[22]),
-          modelo:    _limpa(r[91]),
-          frente:    _limpa(r[93]),
+          estagio:    _limpa(r[17]),
+          refCiclo:   _limpa(r[21]),
+          motivo:     _limpa(r[22]),
+          modelo:     _limpa(r[91]),
+          frente:     _limpa(r[93]),
           dataPlant,
           mes,
-          tipo:      _limpa(r[105]),
+          tipo:       _limpa(r[105]),
         };
       })
       .filter(r => r !== null && r.fazenda);
@@ -9696,7 +9730,7 @@ iniciarSabedoria();
     const sel = document.getElementById('pla-filtro-fazenda');
     if (!sel) return;
     const diario   = _d();
-    const fazendas = [...new Set(diario.map(r => r.fazenda).filter(Boolean))].sort();
+    const fazendas = [...new Set(diario.map(r => _nomeFaz(r.codFazenda, r.fazenda)).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
     const anterior = sel.value;
     sel.innerHTML  = '<option value="">— Todas —</option>';
     fazendas.forEach(f => {
@@ -9732,7 +9766,7 @@ iniciarSabedoria();
     _diarioFilt = diario.filter(r => {
       if (dIni && r.data < dIni) return false;
       if (dFim && r.data > dFim) return false;
-      if (fazFiltro && r.fazenda !== fazFiltro) return false;
+      if (fazFiltro && _nomeFaz(r.codFazenda, r.fazenda) !== fazFiltro) return false;
       return true;
     });
 
@@ -9752,10 +9786,10 @@ iniciarSabedoria();
       return;
     }
 
-    // Agrupa por fazenda
+    // Agrupa por fazenda (código · nome)
     const porFaz = {};
     _diarioFilt.forEach(r => {
-      const faz = r.fazenda || 'Sem fazenda';
+      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
       if (!porFaz[faz]) porFaz[faz] = { total: 0, regs: [] };
       porFaz[faz].total += r.area;
       porFaz[faz].regs.push(r);
@@ -9772,6 +9806,12 @@ iniciarSabedoria();
         if (!porData[k]) porData[k] = [];
         porData[k].push(r);
       });
+
+      // Média de data
+      const timestamps = dados.regs.map(r => r.data?.getTime()).filter(Boolean);
+      const mediaData  = timestamps.length
+        ? _fmtData(new Date(timestamps.reduce((s, t) => s + t, 0) / timestamps.length))
+        : '—';
 
       let detalheHtml = `
         <div style="display:grid; grid-template-columns:90px 1fr 60px; gap:4px; font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px; padding-bottom:4px; border-bottom:1px solid var(--border); margin-bottom:4px;">
@@ -9800,7 +9840,7 @@ iniciarSabedoria();
             <span class="pla-resumo-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</span>
             <span class="pla-resumo-ha">${_fmtHa(dados.total)}</span>
           </div>
-          <div class="pla-resumo-sub">${dados.regs.length} registro${dados.regs.length > 1 ? 's' : ''} · toque para ver detalhes <i class="fas fa-chevron-down" id="chev-det-${idx}" style="font-size:9px;color:var(--text-3);"></i></div>
+          <div class="pla-resumo-sub">${dados.regs.length} registro${dados.regs.length > 1 ? 's' : ''} · média: ${mediaData} · toque para detalhes <i class="fas fa-chevron-down" id="chev-det-${idx}" style="font-size:9px;color:var(--text-3);"></i></div>
           <div class="pla-detalhe-wrap" id="pla-det-${idx}">${detalheHtml}</div>
         </div>`;
     });
@@ -9835,7 +9875,7 @@ iniciarSabedoria();
     // Agrupa talhões plantados por fazenda (deduplica por talhão)
     const porFaz = {};
     diario.forEach(r => {
-      const faz = r.fazenda || 'Sem fazenda';
+      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
       if (!porFaz[faz]) porFaz[faz] = new Map();
       const key = r.talhao || '—';
       if (!porFaz[faz].has(key)) porFaz[faz].set(key, { data: r.data, area: r.area });
@@ -9974,15 +10014,28 @@ iniciarSabedoria();
       return;
     }
 
-    // Agrupa por fazenda
+    // Agrupa por fazenda (código · nome)
     const porFaz = {};
     filtrado.forEach(r => {
-      const faz = r.fazenda || 'Sem fazenda';
+      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
       if (!porFaz[faz]) porFaz[faz] = [];
       porFaz[faz].push(r);
     });
 
-    const sorted = Object.entries(porFaz).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+    // Ordenação
+    const sortVal = document.getElementById('pla-base-sort')?.value || 'faz-az';
+    const sorted = Object.entries(porFaz).sort((a, b) => {
+      if (sortVal === 'faz-az')  return a[0].localeCompare(b[0], 'pt-BR');
+      if (sortVal === 'faz-za')  return b[0].localeCompare(a[0], 'pt-BR');
+      const haA = a[1].reduce((s, r) => s + r.area, 0);
+      const haB = b[1].reduce((s, r) => s + r.area, 0);
+      if (sortVal === 'ha-desc') return haB - haA;
+      if (sortVal === 'ha-asc')  return haA - haB;
+      // mes-asc: menor mês primeiro
+      const mesA = Math.min(...a[1].map(r => r.mes || 99));
+      const mesB = Math.min(...b[1].map(r => r.mes || 99));
+      return mesA - mesB;
+    });
     const grandTotal = filtrado.reduce((s, r) => s + r.area, 0);
 
     let html = '';
@@ -10003,7 +10056,7 @@ iniciarSabedoria();
         talhoesHtml += `
           <div class="pla-talhao-card">
             <div class="pla-talhao-card-row">
-              <span class="pla-talhao-nome">Talhão ${r.talhao}${r.bloco ? ' · ' + r.bloco : ''}</span>
+              <span class="pla-talhao-nome">Talhão ${r.talhao}</span>
               <span class="pla-talhao-ha">${_fmtHa(r.area)}</span>
             </div>
             ${tags.length ? `<div class="pla-talhao-info">${tags.join('')}</div>` : ''}
@@ -10119,17 +10172,24 @@ iniciarSabedoria();
     }
     if ($('pla-comp-meses')) $('pla-comp-meses').innerHTML = htmlMeses;
 
-    // Detalhes por fazenda
+    // Detalhes por fazenda com código · nome e média de data
     const fazMap = {};
     const addFaz = (regs, campo) => {
       regs.forEach(r => {
-        const faz = r.fazenda || 'Sem fazenda';
-        if (!fazMap[faz]) fazMap[faz] = { a: 0, b: 0 };
+        const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
+        if (!fazMap[faz]) fazMap[faz] = { a: 0, b: 0, datesA: [], datesB: [] };
         fazMap[faz][campo] += r.area;
+        if (r.data) fazMap[faz][campo === 'a' ? 'datesA' : 'datesB'].push(r.data.getTime());
       });
     };
     addFaz(f2526, 'a');
     addFaz(f2627, 'b');
+
+    const _mediaData = (timestamps) => {
+      if (!timestamps.length) return null;
+      const avg = timestamps.reduce((s, t) => s + t, 0) / timestamps.length;
+      return new Date(avg);
+    };
 
     const fazSorted = Object.entries(fazMap).sort((x, y) =>
       (y[1].a + y[1].b) - (x[1].a + x[1].b)
@@ -10140,14 +10200,16 @@ iniciarSabedoria();
       htmlFaz = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum dado no período.</div>';
     } else {
       fazSorted.forEach(([faz, vals]) => {
-        const linhas = [
-          vals.a > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">25/26</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-a">${_fmtHa(vals.a)}</div></div>` : '',
-          vals.b > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">26/27</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-b">${_fmtHa(vals.b)}</div></div>` : '',
+        const mediaA = _mediaData(vals.datesA);
+        const mediaB = _mediaData(vals.datesB);
+        const cols = [
+          vals.a > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">25/26 · plantado</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-a">${_fmtHa(vals.a)}</div>${mediaA ? `<div style="font-size:9px;color:var(--text-3);margin-top:1px;">média: ${_fmtData(mediaA)}</div>` : ''}</div>` : '',
+          vals.b > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">26/27 · plantado</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-b">${_fmtHa(vals.b)}</div>${mediaB ? `<div style="font-size:9px;color:var(--text-3);margin-top:1px;">média: ${_fmtData(mediaB)}</div>` : ''}</div>` : '',
         ].filter(Boolean).join('');
         htmlFaz += `
           <div class="pla-comp-faz-row">
             <div class="pla-comp-faz-nome"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</div>
-            <div class="pla-comp-faz-grid">${linhas}</div>
+            <div class="pla-comp-faz-grid">${cols}</div>
           </div>`;
       });
     }
