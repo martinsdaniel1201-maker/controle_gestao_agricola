@@ -9524,10 +9524,10 @@ iniciarSabedoria();
     return parseFloat(s);
   }
 
-  // Área da planilha BASE vem com ponto como decimal (ex: 16.27 ha)
+  // Área vem do Google Sheets com vírgula decimal (ex: "2,8" ou "16,27")
   function _numArea(v) {
     if (v == null || v === '') return NaN;
-    return parseFloat(String(v).trim());
+    return parseFloat(String(v).trim().replace(',', '.'));
   }
 
   // Formata o nome da fazenda com código: "3 · NOVA SOLEDADE"
@@ -9568,42 +9568,41 @@ iniciarSabedoria();
   function _normalizarDiario(rows) {
     if (!rows || !rows.length) return [];
 
-    // Detecta a linha do header: aquela que tem 'DATA' e 'ÁREA' e 'DESCRIÇÃO'
+    // Detecta linha do header: tem 'DATA' e 'ÁREA'/'AREA' e 'DESCRIÇÃO'
+    // No CSV do Google Sheets o diário não tem metadados — linha 0 já é o header
     let headerLine = -1;
-    for (let i = 0; i < Math.min(6, rows.length); i++) {
+    for (let i = 0; i < Math.min(4, rows.length); i++) {
       const vals = rows[i].map(v => _norm(String(v||'')));
-      if (vals.includes('DATA') && vals.some(v => v.includes('REA')) && vals.some(v => v.includes('DESCRI'))) {
+      if (vals.some(v => v === 'DATA') && vals.some(v => v === 'AREA') && vals.some(v => v.startsWith('DESCRI'))) {
         headerLine = i;
         break;
       }
     }
-    if (headerLine < 0) { console.warn('[PLANTIO] Header diário não encontrado'); headerLine = 2; }
+    if (headerLine < 0) { console.warn('[PLANTIO] Header diário não encontrado, usando 0'); headerLine = 0; }
 
     const header   = rows[headerLine].map(v => _norm(String(v||'')));
     const dataRows = rows.slice(headerLine + 1);
 
-    // Índices por nome — funciona para 25/26 e 26/27
-    const iData       = header.findIndex(v => v === 'DATA');
-    const iDescricao  = header.findIndex(v => v === 'DESCRICAO' || v === 'DESCRI' || v.startsWith('DESCRI'));
-    const iTalhao     = header.findIndex(v => v === 'TALHAO' || v === 'TALHOES');
-    const iArea       = header.findIndex(v => v === 'AREA' || v === 'AREA(HA)' || v === 'AREAHA');
-    const iLocal      = header.findIndex(v => v === 'LOCAL' || v === 'LOCAL2');
-    const iPlantio    = header.findIndex(v => v === 'PLANTIO');
-    const iVariedade  = header.findIndex(v => v === 'VARIEDADE');
-
-    // codFazenda: LOCAL é o código numérico da fazenda
-    // No diário: [LOCAL, DESCRIÇÃO, TALHÃO] → encontra LOCAL antes de DESCRIÇÃO
-    const iLocalCod = header.findIndex(v => v === 'LOCAL');
+    const iData      = header.findIndex(v => v === 'DATA');
+    const iDescricao = header.findIndex(v => v.startsWith('DESCRI') && !v.includes('3'));
+    const iTalhao    = header.findIndex(v => (v === 'TALHAO') && !v.includes('4'));
+    const iArea      = header.findIndex(v => v === 'AREA');
+    const iLocalCod  = header.findIndex(v => v === 'LOCAL' && !v.includes('2'));
+    const iPlantio   = header.findIndex(v => v === 'PLANTIO');
+    const iVariedade = header.findIndex(v => v === 'VARIEDADE');
 
     return dataRows
       .map(r => {
         if (!r || r.length < 5) return null;
+        // Filtra linhas sem unidade válida (PAS, etc.)
         const unidade = String(r[1] || '').trim();
-        if (!unidade || _norm(unidade) === 'UNIDADE' || _norm(unidade) === '') return null;
+        if (!unidade || _norm(unidade) === '' || _norm(unidade) === 'UNIDADE') return null;
 
+        // Área com vírgula decimal: "2,8" → 2.8
         const area = _numArea(iArea >= 0 ? r[iArea] : r[9]);
         if (isNaN(area) || area <= 0) return null;
 
+        // Data: DD/MM/YYYY do Google Sheets
         let data = null;
         const rawData = iData >= 0 ? r[iData] : r[3];
         if (rawData instanceof Date || (typeof rawData === 'object' && rawData !== null)) {
@@ -9615,7 +9614,7 @@ iniciarSabedoria();
 
         return {
           data,
-          codFazenda: String(iLocalCod >= 0 ? r[iLocalCod] : '').trim(),
+          codFazenda: String(iLocalCod  >= 0 ? r[iLocalCod]  : '').trim(),
           fazenda:    String(iDescricao >= 0 ? r[iDescricao] : '').trim(),
           talhao:     String(iTalhao    >= 0 ? r[iTalhao]    : '').trim(),
           area,
@@ -9634,32 +9633,30 @@ iniciarSabedoria();
     let headerLine = -1;
     for (let i = 0; i < Math.min(8, rows.length); i++) {
       const vals = rows[i].map(v => _norm(String(v||'')));
-      if (vals.includes('UNIDADE') && vals.some(v => v.includes('DESCRI')) && vals.some(v => v.includes('TALH'))) {
+      if (vals.includes('UNIDADE') && vals.some(v => v.startsWith('DESCRI')) && vals.some(v => v.startsWith('TALH'))) {
         headerLine = i;
         break;
       }
     }
-    if (headerLine < 0) { console.warn('[PLANTIO] Header base não encontrado'); headerLine = 3; }
+    if (headerLine < 0) { console.warn('[PLANTIO] Header base não encontrado'); headerLine = 0; }
 
     const header   = rows[headerLine].map(v => _norm(String(v||'')));
     const dataRows = rows.slice(headerLine + 1);
 
-    // Índices por nome — robusto para qualquer estrutura
-    const iUnidade  = header.findIndex(v => v === 'UNIDADE');
     const iLocal    = header.findIndex(v => v === 'LOCAL');
-    const iDescricao= header.findIndex(v => v === 'DESCRICAO' || v === 'DESCRI' || (v.startsWith('DESCRI') && !v.includes('3')));
+    const iDescricao= header.findIndex(v => v.startsWith('DESCRI') && !v.includes('3'));
     const iTalhao   = header.findIndex(v => v === 'TALHAO' && !v.includes('4'));
-    const iVarAtual = header.findIndex(v => v === 'VARIEDADEATUAL' || v === 'VARIEDADEPRINCIPAL' || v.includes('VARIEDADE') && v.includes('ATUAL'));
+    const iVarAtual = header.findIndex(v => v.includes('VARIEDADE') && (v.includes('ATUAL') || v.includes('PRINCIPAL')));
     const iAmbiente = header.findIndex(v => v === 'AMBIENTE');
-    const iAreaTot  = header.findIndex(v => v.includes('AREATOTAL') || (v.includes('REA') && v.includes('TOTAL')));
-    const iEstagio  = header.findIndex(v => v === 'ESTAGIO' || v === 'ESTAGIO');
-    const iRefCiclo = header.findIndex(v => v.includes('REFCICLO') || v === 'REFCICLO' || v.includes('REF') && v.includes('CICLO'));
-    const iMotivo   = header.findIndex(v => v.includes('MOTIVOREF') || (v.includes('MOTIVO') && v.includes('REF')));
-    const iModelo   = header.findIndex(v => v.includes('MODELOPLANTIO') || (v.includes('MODELO') && v.includes('PLANTIO')));
+    const iAreaTot  = header.findIndex(v => v.includes('REA') && v.includes('TOTAL'));
+    const iEstagio  = header.findIndex(v => v.includes('ESTAGIO'));
+    const iRefCiclo = header.findIndex(v => v.includes('REF') && v.includes('CICLO'));
+    const iMotivo   = header.findIndex(v => v.includes('MOTIVO') && v.includes('REF'));
+    const iModelo   = header.findIndex(v => v.includes('MODELO') && v.includes('PLANTIO'));
     const iFrente   = header.findIndex(v => v === 'FRENTE');
-    const iDataPl   = header.findIndex(v => v === 'DATAPLANTIO' || (v.includes('DATA') && v.includes('PLANTIO') && !v.includes('RUA') && !v.includes('MAE') && !v.includes('PREP')));
-    const iMes      = header.findIndex(v => v === 'MESPLANTIO' || (v.includes('MES') && v.includes('PLANTIO') && !v.includes('MAE') && !v.includes('PREP')));
-    const iTipo     = header.findIndex(v => v.includes('TIPOPLANTIO') && v.includes('DESDOBRA'));
+    const iDataPl   = header.findIndex(v => v.includes('DATA') && v.includes('PLANTIO') && !v.includes('RUA') && !v.includes('MAE') && !v.includes('PREP'));
+    const iMes      = header.findIndex(v => v.includes('MES') && v.includes('PLANTIO') && !v.includes('MAE') && !v.includes('PREP'));
+    const iTipo     = header.findIndex(v => v.includes('TIPO') && v.includes('PLANTIO') && v.includes('DESDOBRA'));
 
     const _limpa = v => {
       const s = String(v || '').trim();
@@ -9670,14 +9667,16 @@ iniciarSabedoria();
 
     return dataRows
       .map(r => {
-        if (!r || r.length < 10) return null;
-        const unidade = _limpa(iUnidade >= 0 ? r[iUnidade] : r[1]).toUpperCase();
-        if (!unidade || unidade === 'UNIDADE') return null;
+        if (!r || r.length < 5) return null;
+        const unidade = String(r[1] || '').trim().toUpperCase();
+        if (!unidade || unidade === 'UNIDADE' || unidade === '') return null;
 
+        // Área com vírgula decimal: "16,27" → 16.27
         const area = _numArea(iAreaTot >= 0 ? r[iAreaTot] : r[20]);
         if (isNaN(area) || area <= 0) return null;
 
-        const mes = parseInt(iMes >= 0 ? r[iMes] : '') || 0;
+        const mesRaw = String(iMes >= 0 ? r[iMes] : '').trim().replace(',','.');
+        const mes    = parseInt(mesRaw) || 0;
 
         let dataPlant = null;
         const rawDP = iDataPl >= 0 ? r[iDataPl] : null;
@@ -9691,20 +9690,20 @@ iniciarSabedoria();
         }
 
         return {
-          codFazenda: String(iLocal    >= 0 ? r[iLocal]    : '').trim(),
-          fazenda:    _limpa(iDescricao >= 0 ? r[iDescricao]: r[6]),
-          talhao:     String(iTalhao   >= 0 ? r[iTalhao]   : r[7]).trim(),
-          variedade:  _limpa(iVarAtual >= 0 ? r[iVarAtual] : ''),
-          ambiente:   _limpa(iAmbiente >= 0 ? r[iAmbiente] : ''),
+          codFazenda: String(iLocal     >= 0 ? r[iLocal]     : '').trim(),
+          fazenda:    _limpa(iDescricao >= 0 ? r[iDescricao] : ''),
+          talhao:     String(iTalhao    >= 0 ? r[iTalhao]    : '').trim(),
+          variedade:  _limpa(iVarAtual  >= 0 ? r[iVarAtual]  : ''),
+          ambiente:   _limpa(iAmbiente  >= 0 ? r[iAmbiente]  : ''),
           area,
-          estagio:    _limpa(iEstagio  >= 0 ? r[iEstagio]  : ''),
-          refCiclo:   _limpa(iRefCiclo >= 0 ? r[iRefCiclo] : ''),
-          motivo:     _limpa(iMotivo   >= 0 ? r[iMotivo]   : ''),
-          modelo:     _limpa(iModelo   >= 0 ? r[iModelo]   : ''),
-          frente:     _limpa(iFrente   >= 0 ? r[iFrente]   : ''),
+          estagio:    _limpa(iEstagio   >= 0 ? r[iEstagio]   : ''),
+          refCiclo:   _limpa(iRefCiclo  >= 0 ? r[iRefCiclo]  : ''),
+          motivo:     _limpa(iMotivo    >= 0 ? r[iMotivo]    : ''),
+          modelo:     _limpa(iModelo    >= 0 ? r[iModelo]    : ''),
+          frente:     _limpa(iFrente    >= 0 ? r[iFrente]    : ''),
           dataPlant,
           mes,
-          tipo:       _limpa(iTipo     >= 0 ? r[iTipo]     : ''),
+          tipo:       _limpa(iTipo      >= 0 ? r[iTipo]      : ''),
         };
       })
       .filter(r => r !== null && r.fazenda);
