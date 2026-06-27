@@ -9287,6 +9287,51 @@ iniciarSabedoria();
   window.atualizarCardPlantioHome = atualizarCardPlantioHome;
   window._renderizarBaseFiltrada  = _renderizarBaseFiltrada;
 
+  // DEBUG — remover após diagnóstico
+  window.plantioDebug = function() {
+    const safras = ['26_27','25_26'];
+    safras.forEach(s => {
+      const d = _cache[s].diario || [];
+      const b = _cache[s].base   || [];
+      const haD = d.reduce((acc,r) => acc + r.area, 0);
+      const haB = b.reduce((acc,r) => acc + r.area, 0);
+      console.group(`[PLANTIO DEBUG] ${s}`);
+      console.log(`Diário: ${d.length} registros, total = ${haD.toFixed(2)} ha`);
+      if (d.length) {
+        console.log('Primeiros 3 do diário:');
+        d.slice(0,3).forEach(r => console.log('  ', JSON.stringify({data: r.data?.toLocaleDateString('pt-BR'), faz: r.fazenda, tal: r.talhao, area: r.area})));
+      }
+      console.log(`Base: ${b.length} talhões, total = ${haB.toFixed(2)} ha`);
+      if (b.length) {
+        console.log('Primeiros 3 da base:');
+        b.slice(0,3).forEach(r => console.log('  ', JSON.stringify({faz: r.fazenda, tal: r.talhao, area: r.area, mes: r.mes})));
+      }
+      // Raw CSV: mostra primeiras linhas que o PapaParse recebeu
+      console.groupEnd();
+    });
+    // Também loga o raw CSV das primeiras linhas
+    window._plantioRawDebug = async function(safra) {
+      const urls = {
+        '26_27': { d: 'gid=409434796', b: 'gid=1046721215' },
+        '25_26': { d: 'gid=1655110352', b: 'gid=1840703975' },
+      };
+      const base = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub';
+      for (const [tipo, gid] of [['diario', urls[safra].d], ['base', urls[safra].b]]) {
+        const url = `${base}?${gid}&single=true&output=csv`;
+        await new Promise(res => Papa.parse(url, {
+          download: true, header: false, skipEmptyLines: false,
+          complete: r => {
+            console.group(`RAW CSV ${safra} ${tipo} (primeiras 8 linhas)`);
+            r.data.slice(0,8).forEach((row,i) => console.log(`  linha[${i}]:`, row.slice(0,12)));
+            console.groupEnd();
+            res();
+          }
+        }));
+      }
+    };
+    console.log('Para ver CSV raw: await plantioRawDebug("26_27") ou ("25_26")');
+  };
+
   /* ── navegação ───────────────────────────────────────────────────── */
   function iniciarModuloPlantio() {
     // Pré-carrega cards dos botões safra ao abrir a aba
