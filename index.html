@@ -593,8 +593,9 @@
     /* Linha de mês na comparação */
     .pla-comp-mes-row {
       display: grid; grid-template-columns: 60px 1fr 1fr;
-      gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--border);
-      align-items: center; font-size: 11px;
+      gap: 8px; padding: 8px 6px; border-bottom: 1px solid var(--border);
+      align-items: center; font-size: 11px; cursor: pointer;
+      transition: background 0.15s;
     }
     .pla-comp-mes-row:last-child { border-bottom: none; }
     .pla-comp-mes-label { font-weight: 700; color: var(--text-2); }
@@ -619,6 +620,29 @@
     .pla-comp-faz-col-val { font-weight: 800; }
     .pla-comp-faz-col-val-a { color: #6D4C41; }
     .pla-comp-faz-col-val-b { color: #E65100; }
+
+    /* Fazendas expandíveis dentro do mês */
+    .pla-comp-mes-fazendas {
+      display: none; flex-direction: column; gap: 4px;
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--border);
+      grid-column: 1 / -1;
+    }
+    .pla-comp-mes-fazendas.open { display: flex; }
+    .pla-comp-mes-faz-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 8px; border-radius: var(--radius-sm);
+      background: var(--surface); border: 1px solid var(--border);
+      font-size: 10px;
+    }
+    .pla-comp-mes-faz-nome { font-weight: 700; color: var(--text-2); }
+    .pla-comp-mes-faz-safras { display: flex; gap: 10px; align-items: center; }
+    .pla-comp-mes-faz-a { font-weight: 800; color: #6D4C41; font-size: 10px; }
+    .pla-comp-mes-faz-b { font-weight: 800; color: #E65100; font-size: 10px; }
+    .pla-comp-mes-row { cursor: pointer; }
+    .pla-comp-mes-row:hover { background: var(--surface2); border-radius: var(--radius-sm); }
+    .pla-comp-mes-toggle { font-size: 9px; color: var(--text-3); transition: transform 0.2s; }
+    .pla-comp-mes-row.open .pla-comp-mes-toggle { transform: rotate(180deg); }
 
     /* ── Legenda explicativa fixa (dose rec. x dose aplic.) ── */
     .tratos-legenda {
@@ -4665,14 +4689,6 @@ body.dark-mode .resumo-cards .medal-text {
       <div class="card">
         <div class="card-title"><i class="fas fa-calendar-alt"></i> Resumo por Mês</div>
         <div id="pla-comp-meses" style="margin-top:10px;">
-          <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período acima</div>
-        </div>
-      </div>
-
-      <!-- Detalhes por fazenda -->
-      <div class="card" style="margin-top:8px;">
-        <div class="card-title"><i class="fas fa-map-marker-alt"></i> Detalhes por Fazenda</div>
-        <div id="pla-comp-fazendas" style="margin-top:10px;">
           <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período acima</div>
         </div>
       </div>
@@ -10197,32 +10213,55 @@ iniciarSabedoria();
 
     if (!iniVal && !fimVal) return;
 
-    // Resumo por mês (agrupa os dois juntos)
-    const mesMap = {}; // { 'AAAA-MM': { a: ha, b: ha } }
-    const addMes = (regs, campo) => {
+    // Monta mapa de mês → fazendas → { a, b }
+    const mesMap = {}; // { 'AAAA-MM': { label, a, b, fazendas: { nomeFaz: {a,b} } } }
+
+    const addAoMes = (regs, campo) => {
       regs.forEach(r => {
         if (!r.data) return;
-        const key = `${r.data.getFullYear()}-${String(r.data.getMonth()+1).padStart(2,'0')}`;
-        if (!mesMap[key]) mesMap[key] = { a: 0, b: 0, label: '' };
-        mesMap[key].label = MESES_NOME[r.data.getMonth()+1] + '/' + r.data.getFullYear();
+        const key   = `${r.data.getFullYear()}-${String(r.data.getMonth()+1).padStart(2,'0')}`;
+        const label = MESES_NOME[r.data.getMonth()+1] + '/' + r.data.getFullYear();
+        if (!mesMap[key]) mesMap[key] = { label, a: 0, b: 0, fazendas: {} };
         mesMap[key][campo] += r.area;
+        const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
+        if (!mesMap[key].fazendas[faz]) mesMap[key].fazendas[faz] = { a: 0, b: 0 };
+        mesMap[key].fazendas[faz][campo] += r.area;
       });
     };
-    addMes(f2526, 'a');
-    addMes(f2627, 'b');
+    addAoMes(f2526, 'a');
+    addAoMes(f2627, 'b');
 
-    const maxHa = Math.max(...Object.values(mesMap).map(m => Math.max(m.a, m.b)), 1);
+    const maxHa      = Math.max(...Object.values(mesMap).map(m => Math.max(m.a, m.b)), 1);
     const mesesSorted = Object.entries(mesMap).sort(([a], [b]) => a.localeCompare(b));
 
     let htmlMeses = '';
     if (!mesesSorted.length) {
       htmlMeses = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum registro no período.</div>';
     } else {
-      mesesSorted.forEach(([, m]) => {
+      mesesSorted.forEach(([key, m], idx) => {
         const wA = ((m.a / maxHa) * 100).toFixed(1);
         const wB = ((m.b / maxHa) * 100).toFixed(1);
+        const idFaz = `pla-mes-faz-${idx}`;
+
+        // Fazendas deste mês ordenadas pelo maior total
+        const fazSorted = Object.entries(m.fazendas)
+          .sort((x, y) => (y[1].a + y[1].b) - (x[1].a + x[1].b));
+
+        let fazHtml = '';
+        fazSorted.forEach(([faz, vals]) => {
+          const parts = [];
+          if (vals.a > 0) parts.push(`<span class="pla-comp-mes-faz-a">25/26 ${_fmtHa(vals.a)}</span>`);
+          if (vals.b > 0) parts.push(`<span class="pla-comp-mes-faz-b">26/27 ${_fmtHa(vals.b)}</span>`);
+          fazHtml += `
+            <div class="pla-comp-mes-faz-item">
+              <span class="pla-comp-mes-faz-nome"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:9px;"></i>${faz}</span>
+              <div class="pla-comp-mes-faz-safras">${parts.join('')}</div>
+            </div>`;
+        });
+
+        const totalFaz = fazSorted.length;
         htmlMeses += `
-          <div class="pla-comp-mes-row">
+          <div class="pla-comp-mes-row" onclick="plaToggleMesFaz('${idFaz}', this)">
             <span class="pla-comp-mes-label">${m.label}</span>
             <div class="pla-comp-safra-bar">
               <div class="pla-comp-bar-label">25/26 <span class="pla-comp-bar-ha pla-comp-bar-ha-a">${_fmtHa(m.a)}</span></div>
@@ -10232,54 +10271,24 @@ iniciarSabedoria();
               <div class="pla-comp-bar-label">26/27 <span class="pla-comp-bar-ha pla-comp-bar-ha-b">${_fmtHa(m.b)}</span></div>
               <div class="pla-comp-bar-wrap"><div class="pla-comp-bar-fill-b" style="width:${wB}%"></div></div>
             </div>
+            <span style="font-size:9px;color:var(--text-3);display:flex;align-items:center;gap:4px;grid-column:1/-1;margin-top:2px;">
+              ${totalFaz} fazenda${totalFaz !== 1 ? 's' : ''} · toque para ver
+              <i class="fas fa-chevron-down pla-comp-mes-toggle"></i>
+            </span>
+            <div class="pla-comp-mes-fazendas" id="${idFaz}">${fazHtml}</div>
           </div>`;
       });
     }
     if ($('pla-comp-meses')) $('pla-comp-meses').innerHTML = htmlMeses;
-
-    // Detalhes por fazenda com código · nome e média de data
-    const fazMap = {};
-    const addFaz = (regs, campo) => {
-      regs.forEach(r => {
-        const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
-        if (!fazMap[faz]) fazMap[faz] = { a: 0, b: 0, datesA: [], datesB: [] };
-        fazMap[faz][campo] += r.area;
-        if (r.data) fazMap[faz][campo === 'a' ? 'datesA' : 'datesB'].push(r.data.getTime());
-      });
-    };
-    addFaz(f2526, 'a');
-    addFaz(f2627, 'b');
-
-    const _mediaData = (timestamps) => {
-      if (!timestamps.length) return null;
-      const avg = timestamps.reduce((s, t) => s + t, 0) / timestamps.length;
-      return new Date(avg);
-    };
-
-    const fazSorted = Object.entries(fazMap).sort((x, y) =>
-      (y[1].a + y[1].b) - (x[1].a + x[1].b)
-    );
-
-    let htmlFaz = '';
-    if (!fazSorted.length) {
-      htmlFaz = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum dado no período.</div>';
-    } else {
-      fazSorted.forEach(([faz, vals]) => {
-        const mediaA = _mediaData(vals.datesA);
-        const mediaB = _mediaData(vals.datesB);
-        const cols = [
-          vals.a > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">25/26 · plantado</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-a">${_fmtHa(vals.a)}</div>${mediaA ? `<div style="font-size:9px;color:var(--text-3);margin-top:1px;">média: ${_fmtData(mediaA)}</div>` : ''}</div>` : '',
-          vals.b > 0 ? `<div class="pla-comp-faz-col"><div class="pla-comp-faz-col-label">26/27 · plantado</div><div class="pla-comp-faz-col-val pla-comp-faz-col-val-b">${_fmtHa(vals.b)}</div>${mediaB ? `<div style="font-size:9px;color:var(--text-3);margin-top:1px;">média: ${_fmtData(mediaB)}</div>` : ''}</div>` : '',
-        ].filter(Boolean).join('');
-        htmlFaz += `
-          <div class="pla-comp-faz-row">
-            <div class="pla-comp-faz-nome"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</div>
-            <div class="pla-comp-faz-grid">${cols}</div>
-          </div>`;
-      });
-    }
-    if ($('pla-comp-fazendas')) $('pla-comp-fazendas').innerHTML = htmlFaz;
   }
+
+  function plaToggleMesFaz(id, rowEl) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('open');
+    rowEl.classList.toggle('open');
+  }
+  window.plaToggleMesFaz = plaToggleMesFaz;
 
   /* ── toggle colapsável ───────────────────────────────────────────── */
   function togglePlantioCard(headerEl) {
