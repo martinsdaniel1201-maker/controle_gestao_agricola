@@ -8098,6 +8098,14 @@ update();
 carregarDadosGATEC();
 atualizarSelectCenarios();
 
+// Pré-carrega dados de plantio em background para o card da home
+setTimeout(() => {
+  if (typeof _garantirSafraCarregada === 'function') {
+    _garantirSafraCarregada('26_27');
+    _garantirSafraCarregada('25_26');
+  }
+}, 1500);
+
 // Dark mode
 restaurarDarkMode();
 
@@ -9284,8 +9292,9 @@ iniciarSabedoria();
   window.plantioToggleDetalhe    = plantioToggleDetalhe;
   window.plantioTogglePipeline   = plantioTogglePipeline;
   window.plantioToggleFazenda    = plantioToggleFazenda;
-  window.atualizarCardPlantioHome = atualizarCardPlantioHome;
-  window._renderizarBaseFiltrada  = _renderizarBaseFiltrada;
+  window.atualizarCardPlantioHome  = atualizarCardPlantioHome;
+  window._renderizarBaseFiltrada   = _renderizarBaseFiltrada;
+  window._garantirSafraCarregada   = _garantirSafraCarregada;
 
   // DEBUG — remover após diagnóstico
   window.plantioDebug = function() {
