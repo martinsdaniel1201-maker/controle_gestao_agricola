@@ -586,6 +586,113 @@
     }
     .pla-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: 0.4; }
 
+    /* ══════════════════════════════════════════════
+       PLANEJAMENTO DE SAFRA — CSS
+    ══════════════════════════════════════════════ */
+    #planejamento-safra-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: var(--bg); overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #planejamento-safra-overlay.open { display: block; }
+    .pls-header {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .pls-header-title {
+      font-size: 13px; font-weight: 800; color: #E65100;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pls-btn-voltar {
+      background: none; border: 1px solid var(--border); border-radius: 50px;
+      padding: 6px 13px; font-size: 11px; font-weight: 700; color: var(--text-2);
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .pls-btn-voltar:hover { border-color: #E65100; color: #E65100; }
+    .pls-body { padding: 14px 16px 40px; max-width: 900px; margin: 0 auto; }
+
+    /* KPI cards por frente */
+    .pls-kpi-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 640px) {
+      .pls-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .pls-kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 10px 12px;
+      border-top: 3px solid #E65100;
+    }
+    .pls-kpi-frente { font-size: 10px; font-weight: 800; color: #E65100; margin-bottom: 4px; }
+    .pls-kpi-linha { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); padding: 1px 0; }
+    .pls-kpi-linha b { color: var(--text); font-weight: 800; }
+    .pls-kpi-progress-bg { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+    .pls-kpi-progress-fill { height: 100%; background: linear-gradient(90deg,#E65100,#FF8F00); border-radius: 99px; }
+    .pls-kpi-pct { font-size: 9px; font-weight: 700; color: #E65100; margin-top: 2px; }
+
+    /* Filtros */
+    .pls-filtros-row {
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .pls-filtros-row .app-select-wrap { flex: 1; min-width: 120px; }
+
+    /* Linha do tempo */
+    .pls-timeline-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 6px;
+    }
+    .pls-timeline-item.status-aberta   { border-left-color: #1976D2; }
+    .pls-timeline-item.status-encerrada{ border-left-color: #2E7D32; }
+    .pls-timeline-item.status-pendente { border-left-color: var(--border); }
+    .pls-tl-row1 {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    }
+    .pls-tl-seq {
+      font-size: 9px; font-weight: 800; color: var(--text-3);
+      background: var(--surface2); border-radius: 4px; padding: 1px 6px;
+      flex-shrink: 0;
+    }
+    .pls-tl-faz { font-size: 11px; font-weight: 700; color: var(--text); flex: 1; }
+    .pls-tl-data { font-size: 10px; font-weight: 700; color: var(--text-3); }
+    .pls-tl-row2 {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;
+      font-size: 10px; color: var(--text-3);
+    }
+    .pls-tl-row2 b { color: var(--text-2); }
+    .pls-tl-status-badge {
+      font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 50px;
+      text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .pls-tl-status-badge.aberta    { background: #E3F2FD; color: #1565C0; }
+    .pls-tl-status-badge.encerrada { background: #E8F5E9; color: #1B5E20; }
+    .pls-tl-status-badge.pendente  { background: var(--surface2); color: var(--text-3); }
+    body.dark-mode .pls-tl-status-badge.aberta    { background: #0A1828; color: #64B5F6; }
+    body.dark-mode .pls-tl-status-badge.encerrada { background: #162015; color: #81C784; }
+
+    /* Busca de talhão */
+    .pls-busca-resultado {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 12px; margin-top: 10px;
+    }
+    .pls-busca-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;
+    }
+    @media (max-width: 480px) { .pls-busca-grid { grid-template-columns: 1fr; } }
+    .pls-busca-col {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 9px 11px;
+    }
+    .pls-busca-col-title {
+      font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
+      color: var(--text-3); margin-bottom: 6px;
+    }
+    .pls-busca-linha { display: flex; justify-content: space-between; font-size: 10px; padding: 2px 0; }
+    .pls-busca-linha b { color: var(--text); }
+
     /* KPI card safra 25/26 accent */
     .pla-card .pla-val-2526 { color: #6D4C41; }
     body.dark-mode .pla-card .pla-val-2526 { color: #A1887F; }
@@ -3726,6 +3833,9 @@ body.dark-mode .resumo-cards .medal-text {
       <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
         <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Resumo por Frente para WhatsApp
       </button>
+      <button id="btn-planejamento-safra" onclick="abrirPlanejamentoSafra()" style="background:linear-gradient(135deg,#FFF3E0,#FFE0B2);color:#E65100;border:1.5px solid #FFCC80;padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
+        <i class="fas fa-route" style="font-size:14px;"></i> Planejamento de Safra
+      </button>
       <!-- FILTROS LIBERAÇÕES -->
       <div class="lib-filtros-card">
         <div class="lib-filtros-title"><i class="fas fa-filter"></i> Filtrar Liberações</div>
@@ -4323,6 +4433,91 @@ body.dark-mode .resumo-cards .medal-text {
     </div>
 
   </section>
+
+  <!-- ══ OVERLAY: PLANEJAMENTO DE SAFRA ══ -->
+  <div id="planejamento-safra-overlay">
+    <div class="pls-header">
+      <button class="pls-btn-voltar" onclick="fecharPlanejamentoSafra()">
+        <i class="fas fa-chevron-left"></i> Voltar
+      </button>
+      <span class="pls-header-title"><i class="fas fa-route"></i> Planejamento de Safra</span>
+      <button class="pls-btn-voltar" onclick="carregarPlanejamentoSafra()">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+
+    <div class="pls-body">
+
+      <!-- KPIs por frente -->
+      <div class="pls-kpi-grid" id="pls-kpi-grid">
+        <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
+      </div>
+
+      <!-- BLOCO 1: Linha do tempo -->
+      <div class="card plantio-card-collapsible open">
+        <div class="plantio-card-header" onclick="togglePlantioCard(this)">
+          <div class="card-title" style="margin:0"><i class="fas fa-stream"></i> Roteiro de Colheita</div>
+          <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="plantio-card-body">
+          <div class="pls-filtros-row">
+            <div class="app-select-wrap">
+              <select id="pls-filtro-frente" class="app-select" onchange="filtrarPlanejamentoTimeline()">
+                <option value="401">Frente 401</option>
+                <option value="402">Frente 402</option>
+                <option value="403">Frente 403</option>
+                <option value="404">Frente 404</option>
+              </select>
+              <i class="fas fa-chevron-down app-select-chevron"></i>
+            </div>
+            <div class="app-select-wrap">
+              <select id="pls-filtro-status" class="app-select" onchange="filtrarPlanejamentoTimeline()">
+                <option value="">Todos os status</option>
+                <option value="aberta">Já liberados</option>
+                <option value="encerrada">Já colhidos</option>
+                <option value="pendente">Ainda não liberados</option>
+              </select>
+              <i class="fas fa-chevron-down app-select-chevron"></i>
+            </div>
+          </div>
+          <div id="pls-timeline-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">—</div>
+          <div id="pls-timeline-container">
+            <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCO 2: Busca por fazenda/talhão -->
+      <div class="card plantio-card-collapsible" style="margin-top:10px;">
+        <div class="plantio-card-header" onclick="togglePlantioCard(this)">
+          <div class="card-title" style="margin:0"><i class="fas fa-search-location"></i> Consultar Talhão</div>
+          <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+        </div>
+        <div class="plantio-card-body">
+          <div class="field" style="margin-bottom:0">
+            <label>Fazenda</label>
+            <div class="app-select-wrap">
+              <select id="pls-busca-fazenda" class="app-select" onchange="popularTalhoesBusca()">
+                <option value="">— Selecione a fazenda —</option>
+              </select>
+              <i class="fas fa-chevron-down app-select-chevron"></i>
+            </div>
+          </div>
+          <div class="field" style="margin-top:10px; margin-bottom:0">
+            <label>Talhão</label>
+            <div class="app-select-wrap">
+              <select id="pls-busca-talhao" class="app-select" onchange="buscarTalhaoPlanejamento()">
+                <option value="">— Selecione o talhão —</option>
+              </select>
+              <i class="fas fa-chevron-down app-select-chevron"></i>
+            </div>
+          </div>
+          <div id="pls-busca-resultado"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
 
   <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
   <section id="conf_os_aba" class="section">
@@ -9244,6 +9439,425 @@ iniciarSabedoria();
   }
 
 })(); /* fim IIFE TRATOS CULTURAIS */
+
+
+
+
+/* ══════════════════════════════════════════════
+   MÓDULO PLANEJAMENTO DE SAFRA
+   Frente 401: gid=413102496   | Frente 402: gid=1906371632
+   Frente 403: gid=1980138572  | Frente 404: gid=1281974991
+   TIRO MEDIO: gid=1448262477  | DISTANCIAS: gid=352483918
+══════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  const PLS_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQnWeCRljGl3qJ5B_NZ3Pz2jTrzdhRKhA-8me0HH40TstK-acRv3w4QKTvYKPEKqkWf0OnOSiijeuNv/pub';
+
+  const PLS_URLS = {
+    '401': PLS_BASE + '?gid=413102496&single=true&output=csv',
+    '402': PLS_BASE + '?gid=1906371632&single=true&output=csv',
+    '403': PLS_BASE + '?gid=1980138572&single=true&output=csv',
+    '404': PLS_BASE + '?gid=1281974991&single=true&output=csv',
+  };
+  const PLS_URL_TIRO  = PLS_BASE + '?gid=1448262477&single=true&output=csv';
+  const PLS_URL_DIST  = PLS_BASE + '?gid=352483918&single=true&output=csv';
+
+  let _plsDados   = { '401': [], '402': [], '403': [], '404': [] };
+  let _plsTiro    = [];
+  let _plsDist    = [];
+  let _plsLoaded  = false;
+  let _plsLoading = false;
+
+  window.abrirPlanejamentoSafra  = abrirPlanejamentoSafra;
+  window.fecharPlanejamentoSafra = fecharPlanejamentoSafra;
+  window.carregarPlanejamentoSafra = carregarPlanejamentoSafra;
+  window.filtrarPlanejamentoTimeline = filtrarPlanejamentoTimeline;
+  window.popularTalhoesBusca = popularTalhoesBusca;
+  window.buscarTalhaoPlanejamento = buscarTalhaoPlanejamento;
+
+  /* ── helpers locais (independentes do módulo Plantio) ────────────── */
+  function _norm(s) {
+    return String(s || '').toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9]/g, '');
+  }
+  function _num(v) {
+    if (v == null || v === '') return NaN;
+    return parseFloat(String(v).trim().replace(',', '.'));
+  }
+  function _fmtData(d) {
+    if (!d || !(d instanceof Date) || isNaN(d)) return '—';
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  }
+  function _parseData(str) {
+    if (!str) return null;
+    str = String(str).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
+      const [d,m,y] = str.split('/');
+      return new Date(+y, +m-1, +d);
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.substring(0,10));
+    return null;
+  }
+
+  /* ── navegação ───────────────────────────────────────────────────── */
+  function abrirPlanejamentoSafra() {
+    document.getElementById('planejamento-safra-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (!_plsLoaded && !_plsLoading) carregarPlanejamentoSafra();
+    else if (_plsLoaded) _plsRenderizarTudo();
+  }
+
+  function fecharPlanejamentoSafra() {
+    document.getElementById('planejamento-safra-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  /* ── carregamento ────────────────────────────────────────────────── */
+  function _plsParseCsv(url) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(url, {
+        download: true, header: false, skipEmptyLines: true,
+        complete: r => resolve(r.data),
+        error:    e => reject(e),
+      });
+    });
+  }
+
+  async function carregarPlanejamentoSafra() {
+    _plsLoading = true;
+    const kpiEl = document.getElementById('pls-kpi-grid');
+    const tlEl  = document.getElementById('pls-timeline-container');
+    if (kpiEl) kpiEl.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>';
+    if (tlEl)  tlEl.innerHTML  = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>';
+
+    try {
+      const [r401, r402, r403, r404, rTiro, rDist] = await Promise.all([
+        _plsParseCsv(PLS_URLS['401']),
+        _plsParseCsv(PLS_URLS['402']),
+        _plsParseCsv(PLS_URLS['403']),
+        _plsParseCsv(PLS_URLS['404']),
+        _plsParseCsv(PLS_URL_TIRO),
+        _plsParseCsv(PLS_URL_DIST),
+      ]);
+
+      _plsDados['401'] = _plsNormalizarFrente(r401);
+      _plsDados['402'] = _plsNormalizarFrente(r402);
+      _plsDados['403'] = _plsNormalizarFrente(r403);
+      _plsDados['404'] = _plsNormalizarFrente(r404);
+      _plsTiro = _plsNormalizarTiro(rTiro);
+      _plsDist = _plsNormalizarDist(rDist);
+
+      _plsLoaded  = true;
+      _plsLoading = false;
+      _plsRenderizarTudo();
+      if (typeof registrarSync === 'function') registrarSync('ok', 'Planejamento de Safra');
+    } catch(err) {
+      _plsLoading = false;
+      console.error('[PLANEJAMENTO SAFRA]', err);
+      if (typeof showToast === 'function') showToast('❌ Erro ao carregar planejamento de safra', 'error');
+    }
+  }
+
+  /* ── normalização ────────────────────────────────────────────────── */
+  function _plsNormalizarFrente(rows) {
+    if (!rows || !rows.length) return [];
+
+    let headerLine = -1;
+    for (let i = 0; i < Math.min(4, rows.length); i++) {
+      const vals = rows[i].map(v => _norm(String(v||'')));
+      if (vals.includes('FRENTE') && vals.includes('SEQUENCIA') && vals.some(v => v.startsWith('DESCRI'))) {
+        headerLine = i; break;
+      }
+    }
+    if (headerLine < 0) headerLine = 0;
+
+    const header   = rows[headerLine].map(v => _norm(String(v||'')));
+    const dataRows = rows.slice(headerLine + 1);
+
+    const iFrente   = header.findIndex(v => v === 'FRENTE');
+    const iSeq      = header.findIndex(v => v === 'SEQUENCIA');
+    const iLocal    = header.findIndex(v => v === 'LOCAL');
+    const iDesc     = header.findIndex(v => v.startsWith('DESCRI'));
+    const iTalhao   = header.findIndex(v => v === 'TALHAO');
+    const iBloco    = header.findIndex(v => v === 'BLOCO');
+    const iVar      = header.findIndex(v => v === 'VARIEDADE');
+    const iData     = header.findIndex(v => v.includes('DATA') && v.includes('COLHEITA'));
+    const iTch      = header.findIndex(v => v === 'TCH');
+    const iMoagem   = header.findIndex(v => v.includes('MOAGEM'));
+    const iTc       = header.findIndex(v => v === 'TC');
+    const iRaio     = header.findIndex(v => v === 'RAIO');
+    const iTiro     = header.findIndex(v => v.includes('TIRO') && v.includes('MEDIO'));
+    const iVel      = header.findIndex(v => v === 'VEL');
+    const iTonH     = header.findIndex(v => v.includes('TON') && v.includes('H'));
+    const iHrProd   = header.findIndex(v => v.includes('HR') && v.includes('PROD'));
+    const iColheit  = header.findIndex(v => v.includes('COLHEITABILIDADE'));
+    const iStatus   = header.length - 1; // última coluna costuma ter o status manual
+
+    return dataRows
+      .map(r => {
+        if (!r || r.length < 5) return null;
+        const frente = String(iFrente >= 0 ? r[iFrente] : '').trim();
+        const talhao = String(iTalhao >= 0 ? r[iTalhao] : '').trim();
+        if (!frente || !talhao) return null;
+
+        const data = _parseData(String(iData >= 0 ? r[iData] : ''));
+
+        return {
+          frente,
+          seq:      _num(iSeq >= 0 ? r[iSeq] : '') || 0,
+          codFazenda: String(iLocal >= 0 ? r[iLocal] : '').trim(),
+          fazenda:  String(iDesc  >= 0 ? r[iDesc]  : '').trim(),
+          talhao,
+          bloco:    String(iBloco >= 0 ? r[iBloco] : '').trim(),
+          variedade:String(iVar   >= 0 ? r[iVar]   : '').trim(),
+          data,
+          tch:      _num(iTch >= 0 ? r[iTch] : ''),
+          moagem:   _num(iMoagem >= 0 ? r[iMoagem] : ''),
+          tc:       _num(iTc >= 0 ? r[iTc] : ''),
+          raio:     _num(iRaio >= 0 ? r[iRaio] : ''),
+          tiroMedio:_num(iTiro >= 0 ? r[iTiro] : ''),
+          vel:      _num(iVel >= 0 ? r[iVel] : ''),
+          tonH:     _num(iTonH >= 0 ? r[iTonH] : ''),
+          hrProd:   _num(iHrProd >= 0 ? r[iHrProd] : ''),
+          colheitabilidade: _num(iColheit >= 0 ? r[iColheit] : ''),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function _plsNormalizarTiro(rows) {
+    if (!rows || !rows.length) return [];
+    const header = rows[0].map(v => _norm(String(v||'')));
+    const dataRows = rows.slice(1);
+    const iCod  = header.findIndex(v => v.includes('COD') && v.includes('FAZ'));
+    const iDesc = header.findIndex(v => v.startsWith('DESC'));
+    const iTiro = header.findIndex(v => v.includes('TIROMEDIO') && !v.includes('POND'));
+    const iPond = header.findIndex(v => v.includes('TIROMEDIOPOND'));
+    return dataRows.map(r => ({
+      codFazenda: String(iCod >= 0 ? r[iCod] : '').trim(),
+      fazenda:    String(iDesc >= 0 ? r[iDesc] : '').trim(),
+      tiroMedio:  _num(iTiro >= 0 ? r[iTiro] : ''),
+      tiroMedioPond: _num(iPond >= 0 ? r[iPond] : ''),
+    })).filter(r => r.fazenda);
+  }
+
+  function _plsNormalizarDist(rows) {
+    if (!rows || !rows.length) return [];
+    const header = rows[0].map(v => _norm(String(v||'')));
+    const dataRows = rows.slice(1);
+    const iCod  = header.findIndex(v => v.includes('COD'));
+    const iDesc = header.findIndex(v => v.startsWith('DESC'));
+    const iDist = header.findIndex(v => v.includes('DISTANCIA'));
+    return dataRows.map(r => ({
+      codFazenda: String(iCod >= 0 ? r[iCod] : '').trim(),
+      fazenda:    String(iDesc >= 0 ? r[iDesc] : '').trim(),
+      distancia:  _num(iDist >= 0 ? r[iDist] : ''),
+    })).filter(r => r.fazenda);
+  }
+
+  /* ── status real (cruza com Liberações) ─────────────────────────── */
+  function _plsStatusTalhao(frente, fazenda, talhao) {
+    const rows = window._gatecDados;
+    if (!rows || !rows.length) return 'pendente';
+
+    const match = rows.find(row => {
+      const rFrente  = String(row['FRENTE'] || '').trim();
+      const rFazenda = String(row['DESC.FAZENDA'] || '').trim();
+      const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
+      if (rFrente !== frente) return false;
+      if (_norm(rFazenda) !== _norm(fazenda)) return false;
+      // LISTAGEM TALHAO pode conter vários talhões separados por vírgula/espaço
+      const talhoesArr = rTalhoes.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean);
+      return talhoesArr.includes(String(talhao));
+    });
+
+    if (!match) return 'pendente';
+    const status = String(match['STATUS OS'] || '').toUpperCase();
+    if (status.includes('ENCERRADA')) return 'encerrada';
+    return 'aberta';
+  }
+
+  /* ── renderização principal ──────────────────────────────────────── */
+  function _plsRenderizarTudo() {
+    _plsRenderizarKpis();
+    _plsPopularBuscaFazenda();
+    filtrarPlanejamentoTimeline();
+  }
+
+  function _plsRenderizarKpis() {
+    const cont = document.getElementById('pls-kpi-grid');
+    if (!cont) return;
+
+    let html = '';
+    ['401','402','403','404'].forEach(frente => {
+      const dados = _plsDados[frente];
+      const totalTalhoes = dados.length;
+      const totalMoagem  = dados.reduce((s,r) => s + (isNaN(r.moagem) ? 0 : r.moagem), 0);
+
+      let jaLiberados = 0;
+      dados.forEach(r => {
+        const st = _plsStatusTalhao(frente, r.fazenda, r.talhao);
+        if (st === 'aberta' || st === 'encerrada') jaLiberados++;
+      });
+      const pct = totalTalhoes > 0 ? (jaLiberados / totalTalhoes * 100) : 0;
+
+      html += `
+        <div class="pls-kpi-card">
+          <div class="pls-kpi-frente">FRENTE ${frente}</div>
+          <div class="pls-kpi-linha"><span>Talhões</span><b>${totalTalhoes}</b></div>
+          <div class="pls-kpi-linha"><span>Moagem prev.</span><b>${totalMoagem.toFixed(0)} mil t</b></div>
+          <div class="pls-kpi-linha"><span>Liberados</span><b>${jaLiberados}/${totalTalhoes}</b></div>
+          <div class="pls-kpi-progress-bg"><div class="pls-kpi-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
+          <div class="pls-kpi-pct">${pct.toFixed(1)}% do planejado já liberado</div>
+        </div>`;
+    });
+    cont.innerHTML = html;
+  }
+
+  /* ── BLOCO 1: Linha do tempo ─────────────────────────────────────── */
+  function filtrarPlanejamentoTimeline() {
+    const frente = document.getElementById('pls-filtro-frente')?.value || '401';
+    const statusFiltro = document.getElementById('pls-filtro-status')?.value || '';
+    const cont = document.getElementById('pls-timeline-container');
+    const contador = document.getElementById('pls-timeline-contador');
+    if (!cont) return;
+
+    const dados = (_plsDados[frente] || []).slice().sort((a,b) => a.seq - b.seq);
+
+    const comStatus = dados.map(r => ({
+      ...r,
+      status: _plsStatusTalhao(frente, r.fazenda, r.talhao),
+    }));
+
+    const filtrado = statusFiltro
+      ? comStatus.filter(r => r.status === statusFiltro)
+      : comStatus;
+
+    if (contador) contador.textContent = `${filtrado.length} talhão${filtrado.length !== 1 ? 'ões' : ''} · Frente ${frente}`;
+
+    if (!filtrado.length) {
+      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-route"></i>Nenhum talhão encontrado para este filtro.</div>';
+      return;
+    }
+
+    const statusLabel = { aberta: 'Liberado', encerrada: 'Colhido', pendente: 'Não liberado' };
+
+    let html = '';
+    filtrado.slice(0, 200).forEach(r => {
+      const cod = r.codFazenda ? `${r.codFazenda} · ` : '';
+      html += `
+        <div class="pls-timeline-item status-${r.status}">
+          <div class="pls-tl-row1">
+            <span class="pls-tl-seq">#${r.seq}</span>
+            <span class="pls-tl-faz">${cod}${r.fazenda} · Tal. ${r.talhao}</span>
+            <span class="pls-tl-data">${_fmtData(r.data)}</span>
+          </div>
+          <div class="pls-tl-row2">
+            ${!isNaN(r.tch) ? `<span><b>TCH</b> ${r.tch.toFixed(0)}</span>` : ''}
+            ${!isNaN(r.moagem) ? `<span><b>Moagem</b> ${r.moagem.toFixed(1)} mil t</span>` : ''}
+            ${!isNaN(r.tiroMedio) ? `<span><b>Tiro médio</b> ${r.tiroMedio.toFixed(0)} m</span>` : ''}
+            ${r.variedade ? `<span><b>Variedade</b> ${r.variedade}</span>` : ''}
+            <span class="pls-tl-status-badge ${r.status}">${statusLabel[r.status]}</span>
+          </div>
+        </div>`;
+    });
+    if (filtrado.length > 200) {
+      html += `<div class="pla-empty" style="padding:12px;">Mostrando 200 de ${filtrado.length} talhões. Use os filtros para refinar.</div>`;
+    }
+    cont.innerHTML = html;
+  }
+
+  /* ── BLOCO 2: Busca por fazenda/talhão ──────────────────────────── */
+  function _plsPopularBuscaFazenda() {
+    const sel = document.getElementById('pls-busca-fazenda');
+    if (!sel) return;
+    const todasFazendas = new Set();
+    ['401','402','403','404'].forEach(f => {
+      _plsDados[f].forEach(r => {
+        const nome = r.codFazenda ? `${r.codFazenda} · ${r.fazenda}` : r.fazenda;
+        if (nome) todasFazendas.add(nome);
+      });
+    });
+    const lista = [...todasFazendas].sort((a,b) => a.localeCompare(b,'pt-BR'));
+    sel.innerHTML = '<option value="">— Selecione a fazenda —</option>' +
+      lista.map(f => `<option value="${f}">${f}</option>`).join('');
+  }
+
+  function popularTalhoesBusca() {
+    const fazendaSel = document.getElementById('pls-busca-fazenda')?.value || '';
+    const selTalhao = document.getElementById('pls-busca-talhao');
+    const resultDiv = document.getElementById('pls-busca-resultado');
+    if (!selTalhao) return;
+    selTalhao.innerHTML = '<option value="">— Selecione o talhão —</option>';
+    if (resultDiv) resultDiv.innerHTML = '';
+    if (!fazendaSel) return;
+
+    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
+    const talhoes = new Set();
+    ['401','402','403','404'].forEach(f => {
+      _plsDados[f].forEach(r => {
+        if (_norm(r.fazenda) === _norm(nomeSemCod)) talhoes.add(r.talhao);
+      });
+    });
+    const lista = [...talhoes].sort((a,b) => (parseInt(a)||0) - (parseInt(b)||0));
+    selTalhao.innerHTML += lista.map(t => `<option value="${t}">Talhão ${t}</option>`).join('');
+  }
+
+  function buscarTalhaoPlanejamento() {
+    const fazendaSel = document.getElementById('pls-busca-fazenda')?.value || '';
+    const talhaoSel  = document.getElementById('pls-busca-talhao')?.value || '';
+    const resultDiv  = document.getElementById('pls-busca-resultado');
+    if (!resultDiv || !fazendaSel || !talhaoSel) { if (resultDiv) resultDiv.innerHTML = ''; return; }
+
+    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
+
+    let encontrado = null;
+    let frenteEncontrada = null;
+    for (const f of ['401','402','403','404']) {
+      const m = _plsDados[f].find(r => _norm(r.fazenda) === _norm(nomeSemCod) && r.talhao === talhaoSel);
+      if (m) { encontrado = m; frenteEncontrada = f; break; }
+    }
+
+    if (!encontrado) {
+      resultDiv.innerHTML = '<div class="pla-empty"><i class="fas fa-search"></i>Talhão não encontrado no planejamento.</div>';
+      return;
+    }
+
+    const status = _plsStatusTalhao(frenteEncontrada, encontrado.fazenda, encontrado.talhao);
+    const statusLabel = { aberta: 'Liberado (OS aberta)', encerrada: 'Já colhido (OS encerrada)', pendente: 'Ainda não liberado' };
+
+    const distInfo = _plsDist.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
+    const tiroInfo = _plsTiro.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
+
+    resultDiv.innerHTML = `
+      <div class="pls-busca-resultado">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:800;color:var(--text);">Frente ${frenteEncontrada} · Tal. ${encontrado.talhao}</span>
+          <span class="pls-tl-status-badge ${status}">${statusLabel[status]}</span>
+        </div>
+        <div class="pls-busca-grid">
+          <div class="pls-busca-col">
+            <div class="pls-busca-col-title">Planejamento</div>
+            <div class="pls-busca-linha"><span>Sequência</span><b>#${encontrado.seq}</b></div>
+            <div class="pls-busca-linha"><span>Data prevista</span><b>${_fmtData(encontrado.data)}</b></div>
+            <div class="pls-busca-linha"><span>Variedade</span><b>${encontrado.variedade || '—'}</b></div>
+            <div class="pls-busca-linha"><span>TCH</span><b>${!isNaN(encontrado.tch) ? encontrado.tch.toFixed(0) : '—'}</b></div>
+            <div class="pls-busca-linha"><span>Moagem</span><b>${!isNaN(encontrado.moagem) ? encontrado.moagem.toFixed(1)+' mil t' : '—'}</b></div>
+          </div>
+          <div class="pls-busca-col">
+            <div class="pls-busca-col-title">Logística</div>
+            <div class="pls-busca-linha"><span>Tiro médio (talhão)</span><b>${!isNaN(encontrado.tiroMedio) ? encontrado.tiroMedio.toFixed(0)+' m' : '—'}</b></div>
+            <div class="pls-busca-linha"><span>Tiro médio pond. (faz.)</span><b>${tiroInfo && !isNaN(tiroInfo.tiroMedioPond) ? tiroInfo.tiroMedioPond.toFixed(0)+' m' : '—'}</b></div>
+            <div class="pls-busca-linha"><span>Distância usina</span><b>${distInfo && !isNaN(distInfo.distancia) ? distInfo.distancia+' km' : '—'}</b></div>
+            <div class="pls-busca-linha"><span>Raio</span><b>${!isNaN(encontrado.raio) ? encontrado.raio.toFixed(1) : '—'}</b></div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+})(); /* fim IIFE PLANEJAMENTO DE SAFRA */
 
 
 
