@@ -9664,15 +9664,19 @@ iniciarSabedoria();
     const rows = window._gatecDados;
     if (!rows || !rows.length) return 'pendente';
 
+    const talhaoNorm = String(talhao).trim().replace(/^0+/, '') || '0';
+
     const match = rows.find(row => {
       const rFrente  = String(row['FRENTE'] || '').trim();
       const rFazenda = String(row['DESC.FAZENDA'] || '').trim();
       const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
-      if (rFrente !== frente) return false;
+      if (rFrente !== String(frente).trim()) return false;
       if (_norm(rFazenda) !== _norm(fazenda)) return false;
-      // LISTAGEM TALHAO pode conter vários talhões separados por vírgula/espaço
-      const talhoesArr = rTalhoes.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean);
-      return talhoesArr.includes(String(talhao));
+      // LISTAGEM TALHAO pode conter vários talhões separados por vírgula/ponto-e-vírgula/espaço
+      const talhoesArr = rTalhoes.split(/[,;\s]+/)
+        .map(t => t.trim().replace(/^0+/, '') || '0')
+        .filter(Boolean);
+      return talhoesArr.includes(talhaoNorm);
     });
 
     if (!match) return 'pendente';
@@ -9680,6 +9684,41 @@ iniciarSabedoria();
     if (status.includes('ENCERRADA')) return 'encerrada';
     return 'aberta';
   }
+
+  // DEBUG temporário — chame window.plsDebugStatus() no console
+  window.plsDebugStatus = function() {
+    const rows = window._gatecDados;
+    if (!rows || !rows.length) { console.log('window._gatecDados vazio ou não carregado'); return; }
+    console.group('[PLS DEBUG] Amostra de Liberações (_gatecDados)');
+    rows.slice(0, 5).forEach(r => {
+      console.log({
+        FRENTE: r['FRENTE'],
+        'DESC.FAZENDA': r['DESC.FAZENDA'],
+        'LISTAGEM TALHAO': r['LISTAGEM TALHAO'],
+        'STATUS OS': r['STATUS OS'],
+      });
+    });
+    console.groupEnd();
+
+    console.group('[PLS DEBUG] Amostra de Planejamento (frente 401)');
+    (_plsDados['401'] || []).slice(0, 5).forEach(r => {
+      console.log({ frente: r.frente, fazenda: r.fazenda, talhao: r.talhao });
+    });
+    console.groupEnd();
+
+    console.group('[PLS DEBUG] Teste de cruzamento (primeiros 5 da frente 401)');
+    (_plsDados['401'] || []).slice(0, 5).forEach(r => {
+      const status = _plsStatusTalhao(r.frente, r.fazenda, r.talhao);
+      console.log(`${r.frente} | ${r.fazenda} | Tal.${r.talhao} → ${status}`);
+    });
+    console.groupEnd();
+
+    // Lista todas as fazendas únicas de cada lado para comparar nomes
+    const fazLib = [...new Set(rows.map(r => r['DESC.FAZENDA']).filter(Boolean))].sort();
+    const fazPls = [...new Set((_plsDados['401']||[]).map(r => r.fazenda).filter(Boolean))].sort();
+    console.log('Fazendas em Liberações (amostra):', fazLib.slice(0,10));
+    console.log('Fazendas em Planejamento 401 (amostra):', fazPls.slice(0,10));
+  };
 
   /* ── renderização principal ──────────────────────────────────────── */
   function _plsRenderizarTudo() {
