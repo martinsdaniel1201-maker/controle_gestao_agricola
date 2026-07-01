@@ -9660,19 +9660,37 @@ iniciarSabedoria();
   }
 
   /* ── status real (cruza com Liberações) ─────────────────────────── */
-  function _plsStatusTalhao(frente, fazenda, talhao) {
+  // Remove prefixo "125-" de "125-CAMPO REDONDO" → "CAMPO REDONDO"
+  // e devolve também o código extraído, se houver
+  function _plsExtrairFazenda(desc) {
+    const s = String(desc || '').trim();
+    const m = s.match(/^(\d+)\s*-\s*(.+)$/);
+    if (m) return { cod: m[1], nome: m[2].trim() };
+    return { cod: '', nome: s };
+  }
+
+  function _plsStatusTalhao(frente, fazenda, talhao, codFazenda) {
     const rows = window._gatecDados;
     if (!rows || !rows.length) return 'pendente';
 
-    const talhaoNorm = String(talhao).trim().replace(/^0+/, '') || '0';
+    const talhaoNorm   = String(talhao).trim().replace(/^0+/, '') || '0';
+    const codNorm       = String(codFazenda || '').trim().replace(/^0+/, '');
+    const fazendaNomeNorm = _norm(fazenda);
 
     const match = rows.find(row => {
       const rFrente  = String(row['FRENTE'] || '').trim();
-      const rFazenda = String(row['DESC.FAZENDA'] || '').trim();
-      const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
       if (rFrente !== String(frente).trim()) return false;
-      if (_norm(rFazenda) !== _norm(fazenda)) return false;
-      // LISTAGEM TALHAO pode conter vários talhões separados por vírgula/ponto-e-vírgula/espaço
+
+      const rFazendaRaw = String(row['DESC.FAZENDA'] || '').trim();
+      const { cod: rCod, nome: rNome } = _plsExtrairFazenda(rFazendaRaw);
+      const rCodNorm = rCod.replace(/^0+/, '');
+
+      // Compara por código (mais confiável) OU por nome normalizado
+      const bateCod  = codNorm && rCodNorm && codNorm === rCodNorm;
+      const bateNome = _norm(rNome) === fazendaNomeNorm;
+      if (!bateCod && !bateNome) return false;
+
+      const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
       const talhoesArr = rTalhoes.split(/[,;\s]+/)
         .map(t => t.trim().replace(/^0+/, '') || '0')
         .filter(Boolean);
@@ -9708,8 +9726,8 @@ iniciarSabedoria();
 
     console.group('[PLS DEBUG] Teste de cruzamento (primeiros 5 da frente 401)');
     (_plsDados['401'] || []).slice(0, 5).forEach(r => {
-      const status = _plsStatusTalhao(r.frente, r.fazenda, r.talhao);
-      console.log(`${r.frente} | ${r.fazenda} | Tal.${r.talhao} → ${status}`);
+      const status = _plsStatusTalhao(r.frente, r.fazenda, r.talhao, r.codFazenda);
+      console.log(`${r.frente} | ${r.codFazenda} · ${r.fazenda} | Tal.${r.talhao} → ${status}`);
     });
     console.groupEnd();
 
@@ -9739,7 +9757,7 @@ iniciarSabedoria();
 
       let jaLiberados = 0;
       dados.forEach(r => {
-        const st = _plsStatusTalhao(frente, r.fazenda, r.talhao);
+        const st = _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda);
         if (st === 'aberta' || st === 'encerrada') jaLiberados++;
       });
       const pct = totalTalhoes > 0 ? (jaLiberados / totalTalhoes * 100) : 0;
@@ -9769,7 +9787,7 @@ iniciarSabedoria();
 
     const comStatus = dados.map(r => ({
       ...r,
-      status: _plsStatusTalhao(frente, r.fazenda, r.talhao),
+      status: _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda),
     }));
 
     const filtrado = statusFiltro
@@ -9866,7 +9884,7 @@ iniciarSabedoria();
       return;
     }
 
-    const status = _plsStatusTalhao(frenteEncontrada, encontrado.fazenda, encontrado.talhao);
+    const status = _plsStatusTalhao(frenteEncontrada, encontrado.fazenda, encontrado.talhao, encontrado.codFazenda);
     const statusLabel = { aberta: 'Liberado (OS aberta)', encerrada: 'Já colhido (OS encerrada)', pendente: 'Ainda não liberado' };
 
     const distInfo = _plsDist.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
