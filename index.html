@@ -1856,6 +1856,7 @@
       --green-50: #162015;
       --green-100: #1E3A1A;
       --red-bg: #2A1010;
+      --amber: #FFA733;
       --amber-bg: #2A1A08;
       --blue-bg: #0A1828;
       --grad: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
@@ -1917,12 +1918,7 @@
         gap: 12px;
       }
 
-      /* Barra de volta com mais espaço */
-      #btn-voltar-menu {
-        margin: 0 -24px 22px;
-        width: calc(100% + 48px);
-        padding: 0 24px;
-      }
+      /* Barra de volta agora estica borda a borda (ver regra base de #btn-voltar-menu) */
 
       /* Calc sub-tabs em desktop */
       .calc-sub-tabs-nav { gap: 10px; }
@@ -2296,7 +2292,10 @@
     .home-section-grid .tab-btn:nth-child(6) { animation-delay: 0.34s; }
 
     /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) — MELHORADA ── */
-    /* Mesmo visual do header do Planejamento de Safra (gradiente + textos brancos) */
+    /* Mesmo visual do header do Planejamento de Safra (gradiente + textos brancos).
+       Fica FORA do .container (irmã dele no DOM), então usa 100% de largura naturalmente —
+       sem precisar de 100vw/margens negativas, o que evitava o deslocamento causado
+       pela barra de rolagem aparecendo/sumindo entre uma aba e outra. */
     #btn-voltar-menu {
       display: none;
       position: sticky;
@@ -2310,8 +2309,9 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin: 0 -14px 18px;
-      width: calc(100% + 28px);
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 18px;
       transition: background 0.18s;
     }
 
@@ -3259,7 +3259,7 @@ body.dark-mode .resumo-cards .medal-text {
           <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password"
             style="padding-right:42px;"
             onkeydown="if(event.key==='Enter') fazerLogin()">
-          <button type="button" onclick="toggleSenhaVisivel('login-senha','olho-login')"
+          <button type="button" onclick="toggleSenhaVisivel('login-senha','olho-login')" aria-label="Mostrar ou ocultar senha"
             style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
             <i class="fas fa-eye" id="olho-login"></i>
           </button>
@@ -3299,7 +3299,7 @@ body.dark-mode .resumo-cards .medal-text {
           <input type="password" id="cad-senha" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
             style="padding-right:42px;"
             onkeydown="if(event.key==='Enter') document.getElementById('cad-confirma').focus()">
-          <button type="button" onclick="toggleSenhaVisivel('cad-senha','olho-cad')"
+          <button type="button" onclick="toggleSenhaVisivel('cad-senha','olho-cad')" aria-label="Mostrar ou ocultar senha"
             style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
             <i class="fas fa-eye" id="olho-cad"></i>
           </button>
@@ -3311,7 +3311,7 @@ body.dark-mode .resumo-cards .medal-text {
           <input type="password" id="cad-confirma" placeholder="Repita a senha" autocomplete="new-password"
             style="padding-right:42px;"
             onkeydown="if(event.key==='Enter') fazerCadastro()">
-          <button type="button" onclick="toggleSenhaVisivel('cad-confirma','olho-conf')"
+          <button type="button" onclick="toggleSenhaVisivel('cad-confirma','olho-conf')" aria-label="Mostrar ou ocultar senha"
             style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
             <i class="fas fa-eye" id="olho-conf"></i>
           </button>
@@ -3355,7 +3355,7 @@ body.dark-mode .resumo-cards .medal-text {
 <div id="toast-container"></div>
 
 <!-- Botão Dark Mode -->
-<button id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro">
+<button id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro" aria-label="Alternar modo escuro">
   <i class="fas fa-moon" id="dark-mode-icon"></i>
 </button>
 
@@ -3399,7 +3399,33 @@ body.dark-mode .resumo-cards .medal-text {
   </div>
 </header>
 
+<div id="btn-voltar-menu">
+  <span class="voltar-left">
+    <span class="voltar-btn-inner" onclick="voltarParaHome()">
+      <i class="fas fa-chevron-left"></i>
+      <span class="voltar-label">MENU</span>
+    </span>
+  </span>
+  <span class="voltar-aba-nome" id="voltar-aba-nome"></span>
+  <!-- Área para botões futuros -->
+  <span class="voltar-right" id="voltar-acoes">
+    <span id="user-badge"></span>
+    <button id="btn-logout" onclick="fazerLogout()" title="Sair" aria-label="Sair da conta">
+      <i class="fas fa-sign-out-alt"></i>
+    </button>
+    <span id="kebab-btn-wrap">
+      <button id="kebab-btn" onclick="toggleKebab(event)" title="Opções" aria-label="Mais opções" aria-haspopup="true">
+        <i class="fas fa-ellipsis-v"></i>
+      </button>
+      <div id="kebab-menu">
+        <!-- Itens dinâmicos injetados por atualizarKebabMenu() conforme a aba ativa -->
+      </div>
+    </span>
+  </span>
+</div>
+
 <div class="container" id="app-root">
+
 
   <!-- ══ BARRA DE BOAS-VINDAS (HOME) ══ -->
   <div class="home-welcome-bar" id="home-welcome-bar">
@@ -3409,7 +3435,7 @@ body.dark-mode .resumo-cards .medal-text {
         <div class="home-welcome-greeting" id="home-welcome-greeting">Olá! 🌾</div>
         <div class="home-welcome-sub" id="home-welcome-sub">Carregando...</div>
       </div>
-      <button id="btn-editar-nome" title="Como você prefere ser chamado?" onclick="abrirModalNome()">
+      <button id="btn-editar-nome" title="Como você prefere ser chamado?" aria-label="Editar como você prefere ser chamado" onclick="abrirModalNome()">
         <i class="fas fa-gear"></i>
       </button>
     </div>
@@ -3417,7 +3443,7 @@ body.dark-mode .resumo-cards .medal-text {
       <div class="home-welcome-temp" id="home-welcome-temp">—°</div>
       <div class="home-welcome-cond" id="home-welcome-cond">—</div>
     </div>
-    <button id="btn-forcar-atualizacao" title="Forçar atualização (limpa cache)" onclick="forcarAtualizacao()">
+    <button id="btn-forcar-atualizacao" title="Forçar atualização (limpa cache)" aria-label="Forçar atualização e limpar cache" onclick="forcarAtualizacao()">
       <i class="fas fa-rotate"></i>
     </button>
   </div>
@@ -3483,7 +3509,7 @@ body.dark-mode .resumo-cards .medal-text {
         <span class="menu-tag">GATEC</span>
       </button>
 
-      <button class="tab-btn menu-c4" onclick="showTab(event,'conf_os_aba')">
+      <button class="tab-btn menu-c4" onclick="showTab(event,'conf_menu')">
         <div class="menu-orb">
           <i class="fas fa-clipboard-check"></i>
         </div>
@@ -3491,7 +3517,7 @@ body.dark-mode .resumo-cards .medal-text {
         <span class="menu-tag">Operadores x O.S</span>
       </button>
 
-      <button class="tab-btn menu-c7" onclick="showTab(event,'tratos_aba'); iniciarModuloTratos()">
+      <button class="tab-btn menu-c7" onclick="showTab(event,'tratos_menu')">
         <div class="menu-orb">
           <i class="fas fa-spray-can"></i>
         </div>
@@ -3563,31 +3589,6 @@ body.dark-mode .resumo-cards .medal-text {
 
   </div>
 
-  <div id="btn-voltar-menu">
-    <span class="voltar-left">
-      <span class="voltar-btn-inner" onclick="voltarParaHome()">
-        <i class="fas fa-chevron-left"></i>
-        <span class="voltar-label">MENU</span>
-      </span>
-    </span>
-    <span class="voltar-aba-nome" id="voltar-aba-nome"></span>
-    <!-- Área para botões futuros -->
-    <span class="voltar-right" id="voltar-acoes">
-      <span id="user-badge"></span>
-      <button id="btn-logout" onclick="fazerLogout()" title="Sair">
-        <i class="fas fa-sign-out-alt"></i>
-      </button>
-      <span id="kebab-btn-wrap">
-        <button id="kebab-btn" onclick="toggleKebab(event)" title="Opções">
-          <i class="fas fa-ellipsis-v"></i>
-        </button>
-        <div id="kebab-menu">
-          <!-- Itens dinâmicos injetados por atualizarKebabMenu() conforme a aba ativa -->
-        </div>
-      </span>
-    </span>
-  </div>
-
   <!-- ══ ABA SIMULADOR ══ -->
   <section id="simulador" class="section">
 
@@ -3648,7 +3649,7 @@ body.dark-mode .resumo-cards .medal-text {
               <option value="">— Nenhum cenário salvo —</option>
             </select>
             <button class="btn-secondary" onclick="carregarCenario()"><i class="fas fa-folder-open"></i> Carregar</button>
-            <button class="btn-secondary danger" onclick="excluirCenario()"><i class="fas fa-trash"></i></button>
+            <button class="btn-secondary danger" onclick="excluirCenario()" aria-label="Excluir cenário"><i class="fas fa-trash"></i></button>
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn-secondary" style="flex:1" onclick="abrirModalSalvar()">
@@ -4492,7 +4493,7 @@ body.dark-mode .resumo-cards .medal-text {
         <i class="fas fa-chevron-left"></i> Voltar
       </button>
       <span class="pls-header-title"><i class="fas fa-route"></i> Planejamento de Safra</span>
-      <button class="pls-btn-voltar" onclick="carregarPlanejamentoSafra()">
+      <button class="pls-btn-voltar" onclick="carregarPlanejamentoSafra()" aria-label="Atualizar dados do planejamento">
         <i class="fas fa-sync-alt"></i>
       </button>
     </div>
@@ -4592,6 +4593,44 @@ body.dark-mode .resumo-cards .medal-text {
   </div>
 
   <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
+ <!-- ══ ABA CONFERÊNCIAS — MENU DE ESCOLHA ══ -->
+  <section id="conf_menu" class="section">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 0 8px;">
+      <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; text-align:center;">
+        <i class="fas fa-clipboard-check" style="margin-right:6px"></i>O que você deseja acessar?
+      </div>
+      <div class="plantio-safra-grid" style="grid-template-columns:1fr; width:100%;">
+        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'conf_os_aba')">
+          <div class="psb-icon"><i class="fas fa-clipboard-check"></i></div>
+          <div>
+            <span class="psb-label">Conferência Operadores × O.S</span>
+            <span class="psb-sub" style="text-align:left; display:block;">O.S encerradas, fazenda e observações</span>
+          </div>
+        </button>
+        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'conf_novo_recurso')">
+          <div class="psb-icon"><i class="fas fa-plus"></i></div>
+          <div>
+            <span class="psb-label">Novo Recurso</span>
+            <span class="psb-sub" style="text-align:left; display:block; margin-bottom:4px;">Nome e conteúdo a definir</span>
+            <span class="psb-em-breve">Em construção</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ABA CONFERÊNCIAS — NOVO RECURSO (placeholder, renomear quando decidido) ══ -->
+  <section id="conf_novo_recurso" class="section">
+    <div class="card" style="text-align:center; padding:40px 20px;">
+      <i class="fas fa-tools" style="font-size:32px; color:var(--text-3); margin-bottom:12px; display:block;"></i>
+      <div class="card-title" style="justify-content:center;">Novo Recurso · Em construção</div>
+      <p style="font-size:12px; color:var(--text-3); max-width:320px; margin:8px auto 0; line-height:1.6;">
+        Espaço reservado para uma nova função dentro de Conferências. Assim que o nome e o conteúdo forem definidos, esta tela é preenchida.
+      </p>
+    </div>
+  </section>
+
+ <!-- ══ ABA CONFERÊNCIAS ══ -->
   <section id="conf_os_aba" class="section">
 
     <div class="card">
@@ -4668,6 +4707,43 @@ body.dark-mode .resumo-cards .medal-text {
       <i class="fas fa-print"></i> Gerar PDF desta aba
     </button>
 
+  </section>
+
+ <!-- ══ ABA TRATOS CULTURAIS — MENU DE ESCOLHA ══ -->
+  <section id="tratos_menu" class="section">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 0 8px;">
+      <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; text-align:center;">
+        <i class="fas fa-spray-can" style="margin-right:6px"></i>O que você deseja acessar?
+      </div>
+      <div class="plantio-safra-grid" style="grid-template-columns:1fr; width:100%;">
+        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'tratos_aba'); iniciarModuloTratos()">
+          <div class="psb-icon"><i class="fas fa-spray-can"></i></div>
+          <div>
+            <span class="psb-label">Tratos Culturais</span>
+            <span class="psb-sub" style="text-align:left; display:block;">Acompanhamento de aplicações</span>
+          </div>
+        </button>
+        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'tratos_novo_recurso')">
+          <div class="psb-icon"><i class="fas fa-plus"></i></div>
+          <div>
+            <span class="psb-label">Novo Recurso</span>
+            <span class="psb-sub" style="text-align:left; display:block; margin-bottom:4px;">Nome e conteúdo a definir</span>
+            <span class="psb-em-breve">Em construção</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ ABA TRATOS CULTURAIS — NOVO RECURSO (placeholder, renomear quando decidido) ══ -->
+  <section id="tratos_novo_recurso" class="section">
+    <div class="card" style="text-align:center; padding:40px 20px;">
+      <i class="fas fa-tools" style="font-size:32px; color:var(--text-3); margin-bottom:12px; display:block;"></i>
+      <div class="card-title" style="justify-content:center;">Novo Recurso · Em construção</div>
+      <p style="font-size:12px; color:var(--text-3); max-width:320px; margin:8px auto 0; line-height:1.6;">
+        Espaço reservado para uma nova função dentro de Tratos Culturais. Assim que o nome e o conteúdo forem definidos, esta tela é preenchida.
+      </p>
+    </div>
   </section>
 
   <!-- ══ ABA TRATOS CULTURAIS (própria, separada de Conferências) ══ -->
@@ -5134,8 +5210,12 @@ function showTab(e, id) {
     'liberacoes_menu': { nome: 'LIBERAÇÕES', icon: 'fa-table' },
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
+    'conf_menu':   { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
     'conf_os_aba': { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
+    'conf_novo_recurso': { nome: 'CONFERÊNCIAS', icon: 'fa-tools' },
+    'tratos_menu': { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
     'tratos_aba':  { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
+    'tratos_novo_recurso': { nome: 'TRATOS CULTURAIS', icon: 'fa-tools' },
     'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
     'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' },
     'plantio_aba': { nome: 'PLANTIO',      icon: 'fa-seedling' }
@@ -5287,6 +5367,14 @@ function atualizarKebabMenu() {
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
+  } else if (abaId === 'tratos_aba') {
+    itens = [
+      { secao: 'Exportar' },
+      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
   } else {
     // Clima, Mapas, Calculadora — só PDF e sincronizar
     itens = [
@@ -5382,7 +5470,7 @@ function copiarResumoLiberacoes() {
 
   // Monta descrição dos filtros aplicados
   const filtrosDesc = [
-    bFrente  ? `Frente: "${bFrente.toUpperCase()}"` : null,
+    frentesSel.size > 0 ? `Frente(s): "${[...frentesSel].join(', ')}"` : null,
     bFazenda ? `Fazenda: "${bFazenda.toUpperCase()}"` : null,
     bStatus  ? `Status: ${bStatus}` : null,
   ].filter(Boolean);
@@ -6162,7 +6250,7 @@ function renderFrentes() {
     <div class="frente-card">
       <div class="frente-card-header">
         <input type="text" value="${escapeHtml(f.nome)}" title="Clique para editar o nome da frente" placeholder="Nome da Frente..." oninput="editData(${f.id},'nome',this.value)">
-        <button class="btn-remove-frente" onclick="removeFrente(${f.id})">
+        <button class="btn-remove-frente" onclick="removeFrente(${f.id})" aria-label="Remover frente">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -8828,16 +8916,7 @@ iniciarSabedoria();
           return;
         }
 
-        // Debug: mostra colunas reais no console para diagnóstico
-        console.log('[Tratos] Colunas reais da planilha PCP:', results.meta.fields);
-
         const cols = detectarColunas(results.meta.fields || []);
-        console.log('[Tratos] Mapeamento detectado:', cols);
-        // Diagnóstico específico de fazenda
-        console.log('[Tratos] Fazenda — colCodFazenda:', cols.colCodFazenda || '(não encontrada)',
-                    '| colFazenda (desc):', cols.colFazenda || '(não encontrada)',
-                    '\n  → Colunas da planilha que contêm "FAZ" ou "FAZENDA":',
-                    (results.meta.fields || []).filter(f => f.toUpperCase().includes('FAZ')));
         window._tratosCols      = cols;
         window._tratosDados     = results.data;
         window._tratosFiltrados = results.data;
@@ -11335,7 +11414,7 @@ function _onLogout() {
       <button class="pwa-btn-instalar" id="pwa-btn-instalar" onclick="pwaInstalar()">
         <i class="fas fa-download"></i> Instalar
       </button>
-      <button class="pwa-btn-fechar" onclick="pwaFecharBanner()" title="Fechar">
+      <button class="pwa-btn-fechar" onclick="pwaFecharBanner()" title="Fechar" aria-label="Fechar aviso de instalação">
         <i class="fas fa-times"></i>
       </button>
     </div>
