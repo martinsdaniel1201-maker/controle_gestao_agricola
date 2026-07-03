@@ -328,6 +328,38 @@
     .plantio-safra-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%;
     }
+
+    /* ── Seletor de Liberações (tela intermediária) ── */
+    #lib-seletor-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99980;
+      background: var(--bg); flex-direction: column;
+    }
+    #lib-seletor-overlay.open { display: flex; }
+    .lib-sel-header {
+      background: var(--grad); padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    }
+    .lib-sel-title { font-size: 14px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .lib-sel-btn-voltar {
+      background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50px; color: #fff; padding: 7px 14px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .lib-sel-btn-voltar:hover { background: rgba(255,255,255,0.28); }
+    .lib-sel-body {
+      flex: 1; padding: 28px 20px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px; max-width: 500px;
+      margin: 0 auto; width: 100%;
+    }
+    .lib-sel-subtitulo {
+      font-size: 11px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.8px; text-align: center;
+    }
+    .lib-sel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+    @media (max-width: 400px) { .lib-sel-grid { grid-template-columns: 1fr; } }
+
     .plantio-safra-btn {
       display: flex; flex-direction: column; align-items: center; gap: 8px;
       padding: 20px 16px; background: var(--surface);
@@ -3448,7 +3480,7 @@ body.dark-mode .resumo-cards .medal-text {
     <div class="home-section-title"><i class="fas fa-list-check"></i>Acompanhamento Diário</div>
     <div class="home-section-grid">
 
-      <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes')">
+      <button class="tab-btn menu-c2" onclick="abrirSeletorLiberacoes(event)">
         <span class="home-badge" id="badge-liberacoes" style="display:none"></span>
         <div class="menu-orb">
           <i class="fas fa-table"></i>
@@ -3834,13 +3866,6 @@ body.dark-mode .resumo-cards .medal-text {
 </div>
       <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
         <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Resumo por Frente para WhatsApp
-      </button>
-      <button class="plantio-safra-btn" onclick="abrirPlanejamentoSafra()" id="btn-planejamento-safra" style="width:100%; margin-bottom:10px;">
-        <div class="psb-icon"><i class="fas fa-route"></i></div>
-        <div>
-          <span class="psb-label">Planejamento de Safra</span>
-          <span class="psb-sub" id="psb-sub-planejamento">SF 2026 · 4 frentes</span>
-        </div>
       </button>
       <!-- FILTROS LIBERAÇÕES -->
       <div class="lib-filtros-card">
@@ -4439,6 +4464,32 @@ body.dark-mode .resumo-cards .medal-text {
     </div>
 
   </section>
+
+  <!-- ══ OVERLAY: SELETOR DE LIBERAÇÕES ══ -->
+  <div id="lib-seletor-overlay">
+    <div class="lib-sel-header">
+      <button class="lib-sel-btn-voltar" onclick="fecharSeletorLiberacoes()">
+        <i class="fas fa-chevron-left"></i> Menu
+      </button>
+      <span class="lib-sel-title"><i class="fas fa-table"></i> Liberações</span>
+      <div style="width:72px"></div><!-- espaçador para centralizar o título -->
+    </div>
+    <div class="lib-sel-body">
+      <div class="lib-sel-subtitulo"><i class="fas fa-layer-group" style="margin-right:6px"></i>Selecione o módulo</div>
+      <div class="lib-sel-grid">
+        <button class="plantio-safra-btn" onclick="abrirLiberacoesColheita()">
+          <div class="psb-icon" style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9);color:#1B5E20"><i class="fas fa-table"></i></div>
+          <span class="psb-label">Liberações</span>
+          <span class="psb-sub">Colheita · GATEC</span>
+        </button>
+        <button class="plantio-safra-btn" onclick="fecharSeletorLiberacoes(); abrirPlanejamentoSafra()">
+          <div class="psb-icon" style="background:linear-gradient(135deg,#FFF8E1,#FFECB3);color:#E65100"><i class="fas fa-route"></i></div>
+          <span class="psb-label">Planejamento</span>
+          <span class="psb-sub" id="psb-sub-planejamento">SF 2026 · 4 frentes</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ══ OVERLAY: PLANEJAMENTO DE SAFRA ══ -->
   <div id="planejamento-safra-overlay">
@@ -5147,6 +5198,22 @@ function showSubTab(e, id) {
 }
 
 function voltarParaHome() {
+  // Se a aba ativa for liberacoes, vai para o seletor intermediário
+  const abaAtiva = document.querySelector('.section.active')?.id;
+  if (abaAtiva === 'liberacoes') {
+    // Oculta a seção mas mantém o header de aba (seletor intermediário assume)
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-voltar-menu').style.display = 'none';
+    document.getElementById('btn-atualizar-global').style.display = 'none';
+    document.body.classList.remove('tab-open');
+    const nav = document.getElementById('main-nav');
+    nav.classList.remove('home-mode'); void nav.offsetWidth; nav.classList.add('home-mode');
+    document.getElementById('lib-seletor-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
   // Oculta todas as sections
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -9497,6 +9564,9 @@ iniciarSabedoria();
   let _plsLoading = false;
 
   window.abrirPlanejamentoSafra  = abrirPlanejamentoSafra;
+  window.abrirSeletorLiberacoes  = abrirSeletorLiberacoes;
+  window.fecharSeletorLiberacoes = fecharSeletorLiberacoes;
+  window.abrirLiberacoesColheita = abrirLiberacoesColheita;
   window.fecharPlanejamentoSafra = fecharPlanejamentoSafra;
   window.carregarPlanejamentoSafra = carregarPlanejamentoSafra;
   window.filtrarPlanejamentoTimeline = filtrarPlanejamentoTimeline;
@@ -9529,6 +9599,25 @@ iniciarSabedoria();
   }
 
   /* ── navegação ───────────────────────────────────────────────────── */
+  /* ── Seletor intermediário de Liberações ────────────────────────── */
+  function abrirSeletorLiberacoes(e) {
+    if (e) e.stopPropagation();
+    document.getElementById('lib-seletor-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function fecharSeletorLiberacoes() {
+    document.getElementById('lib-seletor-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function abrirLiberacoesColheita() {
+    fecharSeletorLiberacoes();
+    // Simula clique na aba liberações normalmente
+    const fakeEvent = { currentTarget: null, stopPropagation: () => {} };
+    showTab(fakeEvent, 'liberacoes');
+  }
+
   function abrirPlanejamentoSafra() {
     document.getElementById('planejamento-safra-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -9777,15 +9866,20 @@ iniciarSabedoria();
     ['401','402','403','404'].forEach(frente => {
       const dados = _plsDados[frente];
       if (!dados.length) return;
-      const tchVals = dados.map(r => r.tch).filter(v => !isNaN(v) && v > 0);
-      const tchMedio = tchVals.length ? tchVals.reduce((s,v) => s+v,0) / tchVals.length : NaN;
-      let sumTcTiro = 0, sumTc = 0;
+      const fazUnicas = new Set(dados.map(r => r.codFazenda ? r.codFazenda+'·'+r.fazenda : r.fazenda));
+      const tcTotal = dados.reduce((s,r) => s + (isNaN(r.tc) ? 0 : r.tc), 0);
+      let sumTchTc = 0, sumTcTch = 0;
       dados.forEach(r => {
-        const tc = isNaN(r.tc) ? 0 : r.tc;
-        const tm = isNaN(r.tiroMedio) ? 0 : r.tiroMedio;
-        if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTc += tc; }
+        const tc = isNaN(r.tc) ? 0 : r.tc; const tch = isNaN(r.tch) ? 0 : r.tch;
+        if (tc > 0 && tch > 0) { sumTchTc += tch * tc; sumTcTch += tc; }
       });
-      const tiroMedioFrente = sumTc > 0 ? sumTcTiro / sumTc : NaN;
+      const tchMedio = sumTcTch > 0 ? sumTchTc / sumTcTch : NaN;
+      let sumTcTiro = 0, sumTcT = 0;
+      dados.forEach(r => {
+        const tc = isNaN(r.tc) ? 0 : r.tc; const tm = isNaN(r.tiroMedio) ? 0 : r.tiroMedio;
+        if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTcT += tc; }
+      });
+      const tiroMedioFrente = sumTcT > 0 ? sumTcTiro / sumTcT : NaN;
       let jaColhidos = 0, jaLiberados = 0;
       dados.forEach(r => {
         const st = _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda);
@@ -9793,10 +9887,12 @@ iniciarSabedoria();
         else if (st === 'aberta') jaLiberados++;
       });
       const pct = dados.length > 0 ? (jaColhidos / dados.length * 100) : 0;
+      const tcFmt = tcTotal > 0 ? (tcTotal >= 1000 ? (tcTotal/1000).toFixed(1)+' mil t' : tcTotal.toFixed(0)+' t') : '—';
       html += `
         <div class="pls-kpi-card">
           <div class="pls-kpi-frente">FRENTE ${frente}</div>
-          <div class="pls-kpi-linha"><span>Talhões</span><b>${dados.length}</b></div>
+          <div class="pls-kpi-linha"><span>Fazendas</span><b>${fazUnicas.size}</b></div>
+          <div class="pls-kpi-linha"><span>Ton. previstas</span><b>${tcFmt}</b></div>
           <div class="pls-kpi-linha"><span>TCH médio est.</span><b>${!isNaN(tchMedio) ? tchMedio.toFixed(0) : '—'}</b></div>
           <div class="pls-kpi-linha"><span>Tiro médio</span><b>${!isNaN(tiroMedioFrente) ? tiroMedioFrente.toFixed(0)+' m' : '—'}</b></div>
           <div class="pls-kpi-progress-bg"><div class="pls-kpi-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
