@@ -1856,7 +1856,6 @@
       --green-50: #162015;
       --green-100: #1E3A1A;
       --red-bg: #2A1010;
-      --amber: #FFA733;
       --amber-bg: #2A1A08;
       --blue-bg: #0A1828;
       --grad: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
@@ -1918,7 +1917,12 @@
         gap: 12px;
       }
 
-      /* Barra de volta agora estica borda a borda (ver regra base de #btn-voltar-menu) */
+      /* Barra de volta com mais espaço */
+      #btn-voltar-menu {
+        margin: 0 -24px 22px;
+        width: calc(100% + 48px);
+        padding: 0 24px;
+      }
 
       /* Calc sub-tabs em desktop */
       .calc-sub-tabs-nav { gap: 10px; }
@@ -2292,8 +2296,7 @@
     .home-section-grid .tab-btn:nth-child(6) { animation-delay: 0.34s; }
 
     /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) — MELHORADA ── */
-    /* Mesmo visual do header do Planejamento de Safra (gradiente + textos brancos),
-       e agora também esticando borda a borda da tela (não fica preso à largura do container) */
+    /* Mesmo visual do header do Planejamento de Safra (gradiente + textos brancos) */
     #btn-voltar-menu {
       display: none;
       position: sticky;
@@ -2307,13 +2310,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      width: 100vw;
-      left: 50%;
-      right: 50%;
-      margin-left: -50vw;
-      margin-right: -50vw;
-      margin-bottom: 18px;
-      box-sizing: border-box;
+      margin: 0 -14px 18px;
+      width: calc(100% + 28px);
       transition: background 0.18s;
     }
 
@@ -3261,7 +3259,7 @@ body.dark-mode .resumo-cards .medal-text {
           <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password"
             style="padding-right:42px;"
             onkeydown="if(event.key==='Enter') fazerLogin()">
-          <button type="button" onclick="toggleSenhaVisivel('login-senha','olho-login')" aria-label="Mostrar ou ocultar senha"
+          <button type="button" onclick="toggleSenhaVisivel('login-senha','olho-login')"
             style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
             <i class="fas fa-eye" id="olho-login"></i>
           </button>
@@ -3301,7 +3299,7 @@ body.dark-mode .resumo-cards .medal-text {
           <input type="password" id="cad-senha" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
             style="padding-right:42px;"
             onkeydown="if(event.key==='Enter') document.getElementById('cad-confirma').focus()">
-          <button type="button" onclick="toggleSenhaVisivel('cad-senha','olho-cad')" aria-label="Mostrar ou ocultar senha"
+          <button type="button" onclick="toggleSenhaVisivel('cad-senha','olho-cad')"
             style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
             <i class="fas fa-eye" id="olho-cad"></i>
           </button>
@@ -3313,7 +3311,7 @@ body.dark-mode .resumo-cards .medal-text {
           <input type="password" id="cad-confirma" placeholder="Repita a senha" autocomplete="new-password"
             style="padding-right:42px;"
             onkeydown="if(event.key==='Enter') fazerCadastro()">
-          <button type="button" onclick="toggleSenhaVisivel('cad-confirma','olho-conf')" aria-label="Mostrar ou ocultar senha"
+          <button type="button" onclick="toggleSenhaVisivel('cad-confirma','olho-conf')"
             style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0;">
             <i class="fas fa-eye" id="olho-conf"></i>
           </button>
@@ -3357,7 +3355,7 @@ body.dark-mode .resumo-cards .medal-text {
 <div id="toast-container"></div>
 
 <!-- Botão Dark Mode -->
-<button id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro" aria-label="Alternar modo escuro">
+<button id="btn-dark-mode" onclick="toggleDarkMode()" title="Alternar modo escuro">
   <i class="fas fa-moon" id="dark-mode-icon"></i>
 </button>
 
@@ -3411,7 +3409,7 @@ body.dark-mode .resumo-cards .medal-text {
         <div class="home-welcome-greeting" id="home-welcome-greeting">Olá! 🌾</div>
         <div class="home-welcome-sub" id="home-welcome-sub">Carregando...</div>
       </div>
-      <button id="btn-editar-nome" title="Como você prefere ser chamado?" aria-label="Editar como você prefere ser chamado" onclick="abrirModalNome()">
+      <button id="btn-editar-nome" title="Como você prefere ser chamado?" onclick="abrirModalNome()">
         <i class="fas fa-gear"></i>
       </button>
     </div>
@@ -3419,7 +3417,7 @@ body.dark-mode .resumo-cards .medal-text {
       <div class="home-welcome-temp" id="home-welcome-temp">—°</div>
       <div class="home-welcome-cond" id="home-welcome-cond">—</div>
     </div>
-    <button id="btn-forcar-atualizacao" title="Forçar atualização (limpa cache)" aria-label="Forçar atualização e limpar cache" onclick="forcarAtualizacao()">
+    <button id="btn-forcar-atualizacao" title="Forçar atualização (limpa cache)" onclick="forcarAtualizacao()">
       <i class="fas fa-rotate"></i>
     </button>
   </div>
@@ -3576,11 +3574,11 @@ body.dark-mode .resumo-cards .medal-text {
     <!-- Área para botões futuros -->
     <span class="voltar-right" id="voltar-acoes">
       <span id="user-badge"></span>
-      <button id="btn-logout" onclick="fazerLogout()" title="Sair" aria-label="Sair da conta">
+      <button id="btn-logout" onclick="fazerLogout()" title="Sair">
         <i class="fas fa-sign-out-alt"></i>
       </button>
       <span id="kebab-btn-wrap">
-        <button id="kebab-btn" onclick="toggleKebab(event)" title="Opções" aria-label="Mais opções" aria-haspopup="true">
+        <button id="kebab-btn" onclick="toggleKebab(event)" title="Opções">
           <i class="fas fa-ellipsis-v"></i>
         </button>
         <div id="kebab-menu">
@@ -3650,7 +3648,7 @@ body.dark-mode .resumo-cards .medal-text {
               <option value="">— Nenhum cenário salvo —</option>
             </select>
             <button class="btn-secondary" onclick="carregarCenario()"><i class="fas fa-folder-open"></i> Carregar</button>
-            <button class="btn-secondary danger" onclick="excluirCenario()" aria-label="Excluir cenário"><i class="fas fa-trash"></i></button>
+            <button class="btn-secondary danger" onclick="excluirCenario()"><i class="fas fa-trash"></i></button>
           </div>
           <div style="display:flex; gap:8px;">
             <button class="btn-secondary" style="flex:1" onclick="abrirModalSalvar()">
@@ -4494,7 +4492,7 @@ body.dark-mode .resumo-cards .medal-text {
         <i class="fas fa-chevron-left"></i> Voltar
       </button>
       <span class="pls-header-title"><i class="fas fa-route"></i> Planejamento de Safra</span>
-      <button class="pls-btn-voltar" onclick="carregarPlanejamentoSafra()" aria-label="Atualizar dados do planejamento">
+      <button class="pls-btn-voltar" onclick="carregarPlanejamentoSafra()">
         <i class="fas fa-sync-alt"></i>
       </button>
     </div>
@@ -6164,7 +6162,7 @@ function renderFrentes() {
     <div class="frente-card">
       <div class="frente-card-header">
         <input type="text" value="${escapeHtml(f.nome)}" title="Clique para editar o nome da frente" placeholder="Nome da Frente..." oninput="editData(${f.id},'nome',this.value)">
-        <button class="btn-remove-frente" onclick="removeFrente(${f.id})" aria-label="Remover frente">
+        <button class="btn-remove-frente" onclick="removeFrente(${f.id})">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -8830,7 +8828,16 @@ iniciarSabedoria();
           return;
         }
 
+        // Debug: mostra colunas reais no console para diagnóstico
+        console.log('[Tratos] Colunas reais da planilha PCP:', results.meta.fields);
+
         const cols = detectarColunas(results.meta.fields || []);
+        console.log('[Tratos] Mapeamento detectado:', cols);
+        // Diagnóstico específico de fazenda
+        console.log('[Tratos] Fazenda — colCodFazenda:', cols.colCodFazenda || '(não encontrada)',
+                    '| colFazenda (desc):', cols.colFazenda || '(não encontrada)',
+                    '\n  → Colunas da planilha que contêm "FAZ" ou "FAZENDA":',
+                    (results.meta.fields || []).filter(f => f.toUpperCase().includes('FAZ')));
         window._tratosCols      = cols;
         window._tratosDados     = results.data;
         window._tratosFiltrados = results.data;
@@ -11328,7 +11335,7 @@ function _onLogout() {
       <button class="pwa-btn-instalar" id="pwa-btn-instalar" onclick="pwaInstalar()">
         <i class="fas fa-download"></i> Instalar
       </button>
-      <button class="pwa-btn-fechar" onclick="pwaFecharBanner()" title="Fechar" aria-label="Fechar aviso de instalação">
+      <button class="pwa-btn-fechar" onclick="pwaFecharBanner()" title="Fechar">
         <i class="fas fa-times"></i>
       </button>
     </div>
