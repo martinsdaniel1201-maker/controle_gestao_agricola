@@ -2296,15 +2296,16 @@
     .home-section-grid .tab-btn:nth-child(6) { animation-delay: 0.34s; }
 
     /* ── BARRA DE NAVEGAÇÃO (abaixo do header verde) — MELHORADA ── */
+    /* Mesmo visual do header do Planejamento de Safra (gradiente + textos brancos) */
     #btn-voltar-menu {
       display: none;
       position: sticky;
       top: 0;
       z-index: 9990;
       height: 58px;
-      background: var(--surface);
-      border-bottom: 2px solid var(--green-100);
-      box-shadow: 0 3px 20px rgba(27,94,32,0.10);
+      background: var(--grad);
+      border-bottom: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
       padding: 0 16px;
       align-items: center;
       justify-content: space-between;
@@ -2321,38 +2322,38 @@
     }
     #btn-voltar-menu .voltar-btn-inner {
       display: flex; align-items: center; gap: 8px;
-      background: var(--green-50);
-      border: 1.5px solid var(--green-100);
-      border-radius: var(--radius-md);
-      padding: 8px 14px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50px;
+      padding: 7px 14px;
       cursor: pointer;
       transition: all 0.18s;
-      color: var(--green-900);
-      font-weight: 800;
-      font-size: 12px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 11px;
       letter-spacing: 0.3px;
       white-space: nowrap;
     }
-    #btn-voltar-menu .voltar-btn-inner i { font-size: 13px; color: var(--green-700); }
+    #btn-voltar-menu .voltar-btn-inner i { font-size: 13px; color: #fff; }
     #btn-voltar-menu .voltar-btn-inner:hover {
-      background: var(--green-100);
-      border-color: var(--green-500);
+      background: rgba(255,255,255,0.28);
+      border-color: rgba(255,255,255,0.45);
     }
 
     /* Centro: nome da aba */
     #btn-voltar-menu .voltar-aba-nome {
       position: absolute; left: 50%; transform: translateX(-50%);
       font-size: 11px; font-weight: 800;
-      color: var(--green-900); letter-spacing: 0.8px;
+      color: #fff; letter-spacing: 0.8px;
       text-transform: uppercase; white-space: nowrap;
       pointer-events: none;
       display: flex; align-items: center; gap: 7px;
     }
     #btn-voltar-menu .voltar-aba-nome .vab-icon {
       width: 24px; height: 24px;
-      background: var(--green-50); border-radius: 6px;
+      background: rgba(255,255,255,0.18); border-radius: 6px;
       display: inline-flex; align-items: center; justify-content: center;
-      font-size: 11px; color: var(--green-700); flex-shrink: 0;
+      font-size: 11px; color: #fff; flex-shrink: 0;
     }
 
     /* Lado direito: área para botões futuros */
@@ -2367,19 +2368,38 @@
       display: flex; align-items: center; justify-content: center;
       width: 36px; height: 36px;
       border-radius: var(--radius-sm);
-      border: 1.5px solid var(--border);
-      background: var(--surface2);
-      color: var(--text-2);
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.14);
+      color: #fff;
       font-size: 14px;
       cursor: pointer;
       transition: all 0.18s;
       flex-shrink: 0;
     }
     #btn-voltar-menu .voltar-right .nav-action-btn:hover {
-      border-color: var(--green-500);
-      color: var(--green-700);
-      background: var(--green-50);
+      border-color: rgba(255,255,255,0.5);
+      color: #fff;
+      background: rgba(255,255,255,0.26);
     }
+
+    /* Botões auxiliares (logout / kebab) dentro da barra — mesmo tratamento branco/translúcido */
+    #btn-voltar-menu #btn-logout,
+    #btn-voltar-menu #kebab-btn {
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+    #btn-voltar-menu #btn-logout:hover {
+      border-color: rgba(255,80,80,0.6);
+      color: #fff;
+      background: rgba(198,40,40,0.35);
+    }
+    #btn-voltar-menu #kebab-btn:hover {
+      border-color: rgba(255,255,255,0.5);
+      color: #fff;
+      background: rgba(255,255,255,0.26);
+    }
+    #btn-voltar-menu #user-badge { color: rgba(255,255,255,0.85); }
 
     /* Toggle dark mode button */
     #btn-dark-mode {
@@ -3026,6 +3046,12 @@ body.dark-mode .resumo-cards .medal-text {
     display: none !important;
   }
 
+  /* Header do app some ao abrir qualquer aba, liberando espaço no mobile e no desktop.
+     Volta a aparecer normalmente na tela inicial (home). */
+  body.tab-open .app-header {
+    display: none !important;
+  }
+
   /* ══════════════════════════════════════════════
      MELHORIA 2 — STATUS SINCRONIZAÇÃO NA HOME
   ══════════════════════════════════════════════ */
@@ -3448,7 +3474,7 @@ body.dark-mode .resumo-cards .medal-text {
     <div class="home-section-title"><i class="fas fa-list-check"></i>Acompanhamento Diário</div>
     <div class="home-section-grid">
 
-      <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes')">
+      <button class="tab-btn menu-c2" onclick="showTab(event,'liberacoes_menu')">
         <span class="home-badge" id="badge-liberacoes" style="display:none"></span>
         <div class="menu-orb">
           <i class="fas fa-table"></i>
@@ -3799,6 +3825,32 @@ body.dark-mode .resumo-cards .medal-text {
 
   </section>
 
+ <!-- ══ ABA LIBERAÇÕES — MENU DE ESCOLHA ══ -->
+  <section id="liberacoes_menu" class="section">
+    <div id="liberacoes-seletor" style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 0 8px;">
+      <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; text-align:center;">
+        <i class="fas fa-table" style="margin-right:6px"></i>O que você deseja acessar?
+      </div>
+      <div class="plantio-safra-grid" style="grid-template-columns:1fr; width:100%;">
+        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'liberacoes')">
+          <div class="psb-icon"><i class="fas fa-table"></i></div>
+          <div>
+            <span class="psb-label">Ver Liberações</span>
+            <span class="psb-sub" style="text-align:left; display:block;">Acompanhamento diário · GATEC</span>
+          </div>
+        </button>
+        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="abrirPlanejamentoSafra()">
+          <div class="psb-icon"><i class="fas fa-route"></i></div>
+          <div>
+            <span class="psb-label">Planejamento de Safra</span>
+            <span class="psb-sub" style="text-align:left; display:block; margin-bottom:4px;">SF 2026 · 4 frentes</span>
+            <span class="psb-em-breve">Em construção</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </section>
+
  <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
     <div class="card" style="width: 100%; box-sizing: border-box;">
@@ -3834,13 +3886,6 @@ body.dark-mode .resumo-cards .medal-text {
 </div>
       <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
         <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Resumo por Frente para WhatsApp
-      </button>
-      <button class="plantio-safra-btn" onclick="abrirPlanejamentoSafra()" id="btn-planejamento-safra" style="width:100%; margin-bottom:10px;">
-        <div class="psb-icon"><i class="fas fa-route"></i></div>
-        <div>
-          <span class="psb-label">Planejamento de Safra · EM CONSTRUÇÃO...</span>
-          <span class="psb-sub" id="psb-sub-planejamento">SF 2026 · 4 frentes</span>
-        </div>
       </button>
       <!-- FILTROS LIBERAÇÕES -->
       <div class="lib-filtros-card">
@@ -5086,6 +5131,7 @@ function showTab(e, id) {
   // Indicador da aba ativa no botão voltar — com ícone
   const abaConfig = {
     'simulador':   { nome: 'SIMULADOR',    icon: 'fa-tractor' },
+    'liberacoes_menu': { nome: 'LIBERAÇÕES', icon: 'fa-table' },
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
     'conf_os_aba': { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
