@@ -6414,3 +6414,17 @@ function _onLogout() {
   document.getElementById('login-senha').value = '';
 }
   
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ⭐ MICROINTERAÇÃO — feedback tátil sutil em toques (mobile)
+   Aditivo e seguro: só age em dispositivos com suporte a vibração;
+   não altera nenhuma lógica de negócio ou estrutura existente.
+══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  if (!('vibrate' in navigator)) return;
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('.tab-btn, .sub-tab-btn, .mapas-sub-btn, button');
+    if (!el || el.disabled) return;
+    try { navigator.vibrate(8); } catch (_) {}
+  }, { passive: true });
+})();
