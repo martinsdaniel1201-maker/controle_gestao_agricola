@@ -342,6 +342,196 @@ _Gerado pelo CTT Controle Agrícola_`;
     });
 }
 
+/* ══════════════════════════════════════════════
+   CARD DE EXPORTAÇÃO — RESUMO POR FRENTE
+   (usado tanto pelo PDF quanto pelo envio de imagem)
+══════════════════════════════════════════════ */
+function _montarCardResumoExportacao() {
+  const resumoCardsOriginal = document.getElementById('resumoCards');
+  if (!resumoCardsOriginal || !resumoCardsOriginal.children.length) return null;
+
+  const now = new Date();
+  const dataFmt = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
+  const horaFmt = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+
+  const totalTxt = document.getElementById('totalProduzido')?.textContent || '0 t';
+  const liderTxt = document.getElementById('frenteLider')?.textContent || '-';
+
+  // Mesma leitura de filtros usada em copiarResumoLiberacoes()
+  const frentesSel = window._libFrentesSelecionadas || new Set();
+  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').trim();
+  const bStatus  = document.getElementById('filtroStatus')?.value || '';
+  const filtrosDesc = [
+    frentesSel.size > 0 ? `Frente(s) ${[...frentesSel].join(', ')}` : null,
+    bFazenda ? `Fazenda: ${bFazenda.toUpperCase()}` : null,
+    bStatus  ? `Status: ${bStatus === 'ENCERRADA' ? 'Encerradas' : 'Abertas'}` : null,
+  ].filter(Boolean);
+  const filtroLabel = filtrosDesc.length ? filtrosDesc.join(' · ') : 'Todos os registros';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'resumo-export-render';
+  wrap.style.cssText = `
+    position:fixed; left:-9999px; top:0; width:720px;
+    background:var(--surface); border-radius:24px; overflow:hidden;
+    font-family:'Inter', sans-serif; box-shadow:0 8px 30px rgba(0,0,0,0.12);
+  `;
+
+  wrap.innerHTML = `
+    <div style="background:var(--grad); padding:26px 30px; color:#fff; position:relative;">
+      <div style="font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; opacity:0.85;">
+        <i class="fas fa-seedling"></i> Usina Ipiranga · Unidade Passos/MG
+      </div>
+      <div style="font-size:24px; font-weight:800; margin-top:6px;">
+        🌾 Resumo de Produção por Frente
+      </div>
+      <div style="font-size:12px; opacity:0.85; margin-top:6px;">
+        ${dataFmt} às ${horaFmt} · ${filtroLabel}
+      </div>
+    </div>
+    <div style="padding:24px 30px 28px;">
+      <div class="resumo-cards" id="resumo-export-cards" style="margin-top:0;"></div>
+      <div class="resumo-total" style="margin-top:20px;">
+        <div>Total Produzido: <span>${totalTxt}</span></div>
+        <div>Frente Líder: <span>${liderTxt}</span></div>
+      </div>
+      <div style="text-align:center; margin-top:22px; font-size:10px; color:var(--text-3); letter-spacing:0.4px;">
+        Gerado pelo CTT Controle Agrícola
+      </div>
+    </div>
+  `;
+
+  wrap.querySelector('#resumo-export-cards').innerHTML = resumoCardsOriginal.innerHTML;
+  document.body.appendChild(wrap);
+  return wrap;
+}
+
+/* ══════════════════════════════════════════════
+   EXPORTAR RESUMO POR FRENTE — PDF (para impressão)
+══════════════════════════════════════════════ */
+async function exportarResumoFrentesPDF() {
+  if (!window._gatecDados || window._gatecDados.length === 0) {
+    showToast('⚠️ Nenhum dado carregado. Clique em "Atualizar dados" primeiro.', 'error', 3000);
+    return;
+  }
+
+  const node = _montarCardResumoExportacao();
+  if (!node) {
+    showToast('⚠️ Nenhum resumo disponível para exportar.', 'error', 2500);
+    return;
+  }
+
+  showToast('📄 Gerando PDF do resumo… aguarde', 'info', 5000);
+  await new Promise(r => setTimeout(r, 150));
+
+  try {
+    const canvas = await html2canvas(node, {
+      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: '#ffffff'
+    });
+
+    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    const pdf  = new jsPDFClass({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pgW  = pdf.internal.pageSize.getWidth();
+    const pgH  = pdf.internal.pageSize.getHeight();
+    const margem = 12;
+    const maxW = pgW - margem * 2;
+    const maxH = pgH - margem * 2;
+
+    let imgWmm = maxW;
+    let imgHmm = canvas.height * (imgWmm / canvas.width);
+    if (imgHmm > maxH) {
+      const fator = maxH / imgHmm;
+      imgHmm *= fator;
+      imgWmm *= fator;
+    }
+    const x = (pgW - imgWmm) / 2;
+    const y = (pgH - imgHmm) / 2;
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.97);
+    pdf.addImage(imgData, 'JPEG', x, y, imgWmm, imgHmm);
+
+    const now = new Date();
+    const nomeArq = `Resumo_Frentes_${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}.pdf`;
+    pdf.save(nomeArq);
+    showToast('✅ PDF do resumo gerado!');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao gerar PDF do resumo.', 'error', 3000);
+  } finally {
+    node.remove();
+  }
+}
+
+/* ══════════════════════════════════════════════
+   ENVIAR RESUMO POR FRENTE — IMAGEM (WhatsApp e outros apps)
+══════════════════════════════════════════════ */
+function _baixarImagemResumo(blob, nomeArq) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArq;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('✅ Imagem baixada! Envie pelo WhatsApp anexando o arquivo.', 'info', 4000);
+}
+
+async function compartilharResumoFrentesImagem() {
+  if (!window._gatecDados || window._gatecDados.length === 0) {
+    showToast('⚠️ Nenhum dado carregado. Clique em "Atualizar dados" primeiro.', 'error', 3000);
+    return;
+  }
+
+  const node = _montarCardResumoExportacao();
+  if (!node) {
+    showToast('⚠️ Nenhum resumo disponível para compartilhar.', 'error', 2500);
+    return;
+  }
+
+  showToast('🖼️ Gerando imagem do resumo… aguarde', 'info', 5000);
+  await new Promise(r => setTimeout(r, 150));
+
+  try {
+    const canvas = await html2canvas(node, {
+      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: '#ffffff'
+    });
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        showToast('❌ Erro ao gerar imagem do resumo.', 'error', 3000);
+        node.remove();
+        return;
+      }
+
+      const now = new Date();
+      const nomeArq = `Resumo_Frentes_${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}.png`;
+      const file = new File([blob], nomeArq, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Resumo por Frente',
+            text: 'Resumo de produção por frente — CTT Controle Agrícola'
+          });
+          showToast('✅ Resumo enviado!');
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            _baixarImagemResumo(blob, nomeArq);
+          }
+        }
+      } else {
+        _baixarImagemResumo(blob, nomeArq);
+      }
+      node.remove();
+    }, 'image/png', 1);
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao gerar imagem do resumo.', 'error', 3000);
+    node.remove();
+  }
+}
+
 async function sincronizarApp() {
   showToast('🔄 Verificando atualização…', 'info', 3000);
   

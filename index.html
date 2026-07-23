@@ -671,9 +671,17 @@
     </div>
   </div>
 </div>
-      <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;width:100%;justify-content:center;margin-bottom:10px;">
-        <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Resumo por Frente para WhatsApp
-      </button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+        <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;flex:1 1 100%;justify-content:center;">
+          <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Texto para WhatsApp
+        </button>
+        <button id="btn-pdf-resumo-lib" onclick="exportarResumoFrentesPDF()" style="background:var(--surface2);color:var(--blue);border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;flex:1 1 auto;justify-content:center;">
+          <i class="fas fa-file-pdf"></i> Exportar PDF (Impressão)
+        </button>
+        <button id="btn-imagem-resumo-lib" onclick="compartilharResumoFrentesImagem()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;flex:1 1 auto;justify-content:center;">
+          <i class="fas fa-share-alt"></i> Enviar Imagem no WhatsApp
+        </button>
+      </div>
       <!-- FILTROS LIBERAÇÕES -->
       <div class="lib-filtros-card">
         <div class="lib-filtros-title"><i class="fas fa-filter"></i> Filtrar Liberações</div>
