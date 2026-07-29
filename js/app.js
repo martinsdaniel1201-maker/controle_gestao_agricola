@@ -917,7 +917,7 @@ function atualizarResumoExecutivo() {
   if (!window._gatecDados || window._gatecDados.length === 0) return;
 
   const frentesPermitidas = ["401", "402", "403", "404", "451"];
-  const metasSafra = { "401": 330490.62, "402": 280186.42, "403": 258189.22, "404": 277888.36, "451": 280133.10 };
+  const metasSafra = { "401": 368491, "402": 310186, "403": 294189, "404": 307888, "451": 310433 };
   const metaTotal = Object.values(metasSafra).reduce((a, b) => a + b, 0);
 
   let totalProd = 0;
