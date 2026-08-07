@@ -532,6 +532,28 @@ async function compartilharResumoFrentesImagem() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   ⭐ MELHORIA UX — indicador de sincronização com cor por tempo decorrido
+   Verde: < 30 min · Laranja: 30–60 min · Vermelho: > 60 min sem atualizar.
+   Ajuda o usuário a perceber de relance se os dados podem estar desatualizados.
+══════════════════════════════════════════════════════════════════════════ */
+function _atualizarCorSyncStatus() {
+  const dot = document.getElementById('gatec-sync-dot');
+  const label = document.getElementById('gatec-sync-label');
+  if (!dot || !window._gatecUltimaSyncTs) return;
+
+  const minutos = (Date.now() - window._gatecUltimaSyncTs) / 60000;
+  if (minutos < 30) {
+    dot.style.color = 'var(--green-500)';
+  } else if (minutos < 60) {
+    dot.style.color = 'var(--amber)';
+  } else {
+    dot.style.color = 'var(--red)';
+    if (label) label.title = 'Dados podem estar desatualizados — toque em "Atualizar dados"';
+  }
+}
+setInterval(_atualizarCorSyncStatus, 60000);
+
 async function sincronizarApp() {
   showToast('🔄 Verificando atualização…', 'info', 3000);
   
@@ -1847,6 +1869,8 @@ if (resumoCards) {
         syncLabel.textContent = `Sync ${hh}:${mm}`;
         syncStatus.style.display = 'inline-flex';
         syncStatus.style.alignItems = 'center';
+        window._gatecUltimaSyncTs = Date.now();
+        _atualizarCorSyncStatus();
       }
       // MELHORIA 2+6: registra sincronização no histórico
       registrarSync('ok', 'GATEC/Liberações');
