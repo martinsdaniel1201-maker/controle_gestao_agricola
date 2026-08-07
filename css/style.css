@@ -2400,6 +2400,20 @@
     }
     #btn-dark-mode:hover { border-color: var(--green-500); color: var(--green-700); }
 
+    /* Botão flutuante "voltar ao menu" — espelha o dark-mode no canto oposto */
+    #btn-voltar-flutuante {
+      position: fixed; bottom: 76px; left: 20px;
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--grad); border: none;
+      color: #fff; font-size: 16px; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      box-shadow: var(--shadow-md, 0 4px 14px rgba(27,94,32,0.35));
+      z-index: 9998; transition: all 0.25s var(--ease-premium, ease);
+      opacity: 0; transform: translateY(8px) scale(0.9);
+    }
+    #btn-voltar-flutuante.visivel { display: flex; opacity: 1; transform: translateY(0) scale(1); }
+    #btn-voltar-flutuante:active { transform: scale(0.92); }
+
     /* ── TOAST / SNACKBAR ── */
     #toast-container {
       position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);

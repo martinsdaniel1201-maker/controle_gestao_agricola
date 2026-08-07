@@ -6466,3 +6466,26 @@ function _onLogout() {
     try { navigator.vibrate(8); } catch (_) {}
   }, { passive: true });
 })();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ⭐ MELHORIA UX — botão flutuante "voltar ao menu"
+   Aparece só quando o usuário já rolou a tela dentro de uma seção (facilita
+   alcançar com o polegar, sem precisar subir até a barra fixa no topo).
+   Aditivo: não interfere na barra #btn-voltar-menu já existente.
+══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  let ticking = false;
+  function _atualizarBotaoVoltarFlutuante() {
+    const btn = document.getElementById('btn-voltar-flutuante');
+    if (!btn) return;
+    const dentroDeSecao = document.body.classList.contains('tab-open');
+    const rolouBastante = window.scrollY > 220;
+    btn.classList.toggle('visivel', dentroDeSecao && rolouBastante);
+  }
+  window.addEventListener('scroll', function () {
+    if (!ticking) {
+      requestAnimationFrame(function () { _atualizarBotaoVoltarFlutuante(); ticking = false; });
+      ticking = true;
+    }
+  }, { passive: true });
+})();
