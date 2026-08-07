@@ -2545,6 +2545,15 @@
     }
     #kebab-btn-wrap { position: relative; }
 
+	/* Legenda de siglas da tabela de Liberações — fica fora da tabela, não altera colunas */
+    .tabela-legenda-siglas {
+      display: flex; flex-wrap: wrap; gap: 4px 16px;
+      margin-bottom: 10px; padding: 8px 12px;
+      background: var(--surface2); border: 1px dashed var(--border); border-radius: var(--radius-sm);
+    }
+    .tabela-legenda-siglas span { font-size: 10px; color: var(--text-3); font-weight: 500; }
+    .tabela-legenda-siglas b { color: var(--text-2); font-weight: 800; }
+
 	/* Legenda de cores de aderência do Resumo por Frente — sempre visível */
     .resumo-legenda-aderencia {
       display: flex; flex-wrap: wrap; gap: 4px 12px;
