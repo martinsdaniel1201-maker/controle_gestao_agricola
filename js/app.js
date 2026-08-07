@@ -3210,7 +3210,9 @@ function renderSabedoria(idx) {
         tagEl.textContent = '🚨 Alerta de Campo';
         tagEl.style.background = 'rgba(255,80,0,0.35)';
       } else {
-        tagEl.textContent = `🌾 ${s.tag}`;
+        // Cada dica já carrega seu próprio emoji temático (ex: 🍬 Maturação, 🐛 Pragas,
+        // 💧 Clima) — deixamos ele aparecer em vez de sempre sobrepor um 🌾 genérico.
+        tagEl.textContent = s.tag;
         tagEl.style.background = 'rgba(255,255,255,0.18)';
       }
     }
