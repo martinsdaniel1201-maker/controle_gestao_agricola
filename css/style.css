@@ -3362,16 +3362,17 @@ button:not(:disabled):active,
 }
 .app-title { text-shadow: 0 1px 3px rgba(0,0,0,0.15); }
 
-/* ── GLASSMORPHISM — barras fixas que ficam sobre conteúdo rolável ── */
+/* ── BARRAS FIXAS (sticky) — gradiente translúcido, SEM backdrop-filter.
+   Nota: backdrop-filter + position:sticky causa um bug de renderização
+   conhecido em navegadores desktop (o elemento "some"/pisca em branco
+   durante o scroll). Mantemos o tom mais profundo sem o blur. ── */
 #btn-voltar-menu,
 .pls-header {
-  background: linear-gradient(135deg, rgba(27,94,32,0.90) 0%, rgba(56,142,60,0.90) 100%);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: linear-gradient(135deg, rgba(27,94,32,0.97) 0%, rgba(56,142,60,0.97) 100%);
 }
 body.dark-mode #btn-voltar-menu,
 body.dark-mode .pls-header {
-  background: linear-gradient(135deg, rgba(13,59,16,0.90) 0%, rgba(27,94,32,0.90) 100%);
+  background: linear-gradient(135deg, rgba(13,59,16,0.97) 0%, rgba(27,94,32,0.97) 100%);
 }
 
 /* ── MODAIS — overlay com blur e entrada mais suave ── */
