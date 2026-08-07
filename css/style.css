@@ -2545,6 +2545,18 @@
     }
     #kebab-btn-wrap { position: relative; }
 
+	/* Legenda de cores de aderência do Resumo por Frente — sempre visível */
+    .resumo-legenda-aderencia {
+      display: flex; flex-wrap: wrap; gap: 4px 12px;
+      margin: 6px 0 12px 0; padding-bottom: 10px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .resumo-legenda-aderencia span {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 600; color: var(--text-3);
+    }
+    .resumo-legenda-aderencia i { font-size: 6px; }
+
 	/* ── NOVO BLOCO: RESUMO POR FRENTE COM RANKING (INTEGRADO) ── */
 /* ── RESUMO PRODUÇÃO: colapsável no mobile ── */
 @media (max-width: 699px) {
