@@ -2545,6 +2545,14 @@
     }
     #kebab-btn-wrap { position: relative; }
 
+	/* Contador de frentes selecionadas no filtro de Liberações */
+    .lib-frentes-contador {
+      font-size: 9px; font-weight: 800; color: var(--green-900);
+      background: var(--green-100); padding: 2px 7px; border-radius: 10px;
+      margin-left: 4px; vertical-align: middle;
+    }
+    body.dark-mode .lib-frentes-contador { background: var(--green-700); color: #fff; }
+
 	/* Legenda de siglas da tabela de Liberações — fica fora da tabela, não altera colunas */
     .tabela-legenda-siglas {
       display: flex; flex-wrap: wrap; gap: 4px 16px;

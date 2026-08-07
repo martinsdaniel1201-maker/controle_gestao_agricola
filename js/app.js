@@ -2092,7 +2092,21 @@ function libToggleFrente(btn) {
       document.querySelector('.lib-frente-chip[data-frente=""]')?.classList.add('active');
     }
   }
+  _atualizarContadorFrentesLib();
   filtrarTabela();
+}
+
+/* Contador "N selecionadas" ao lado do rótulo "Frente" — só aparece com 2+ */
+function _atualizarContadorFrentesLib() {
+  const contador = document.getElementById('lib-frentes-contador');
+  if (!contador) return;
+  const n = window._libFrentesSelecionadas.size;
+  if (n >= 2) {
+    contador.textContent = `${n} selecionadas`;
+    contador.style.display = 'inline';
+  } else {
+    contador.style.display = 'none';
+  }
 }
 
 /* ══════════════════════════════════════════════
