@@ -5245,6 +5245,7 @@ iniciarSabedoria();
   window.plantioToggleFazenda    = plantioToggleFazenda;
   window.plantioSelecionarTalhao   = plantioSelecionarTalhao;
   window.plantioSelecionarFazenda  = plantioSelecionarFazenda;
+  window.plantioToggleNaoIniciadas = plantioToggleNaoIniciadas;
   window.atualizarCardPlantioHome  = atualizarCardPlantioHome;
   window._renderizarBaseFiltrada   = _renderizarBaseFiltrada;
   window._garantirSafraCarregada   = _garantirSafraCarregada;
@@ -5773,28 +5774,43 @@ iniciarSabedoria();
     base.forEach(r => {
       const key = String(r.talhao || '').trim() || ('_' + porTalhao.size);
       porTalhao.set(key, {
-        talhao: r.talhao || '—', status: 'pendente', area: r.area,
-        variedade: r.variedade, data: null, refCiclo: r.refCiclo, motivo: r.motivo
+        talhao: r.talhao || '—', status: 'pendente', areaTotal: r.area, areaPlantada: 0,
+        variedade: r.variedade, ultimaData: null, refCiclo: r.refCiclo, motivo: r.motivo, datas: []
       });
     });
     diario.forEach(r => {
       const key = String(r.talhao || '').trim() || ('_d' + Math.random());
       const existente = porTalhao.get(key);
       if (existente) {
-        existente.status    = 'ok';
-        existente.variedade = r.variedade || existente.variedade;
-        existente.data      = r.data;
-        existente.area      = r.area || existente.area;
+        existente.areaPlantada += (r.area || 0);
+        existente.variedade     = r.variedade || existente.variedade;
+        if (r.data) existente.datas.push(r.data);
       } else {
         porTalhao.set(key, {
-          talhao: r.talhao || '—', status: 'ok', area: r.area,
-          variedade: r.variedade, data: r.data, refCiclo: '', motivo: ''
+          talhao: r.talhao || '—', status: 'ok', areaTotal: r.area, areaPlantada: r.area,
+          variedade: r.variedade, ultimaData: r.data, refCiclo: '', motivo: '', datas: r.data ? [r.data] : []
         });
       }
     });
 
+    // Define o status comparando o que foi executado com a área real do talhão
+    const TOLERANCIA_HA = 0.05; // margem para arredondamentos da planilha
+    porTalhao.forEach(t => {
+      t.ultimaData = t.datas.length ? new Date(Math.max(...t.datas.map(d => d.getTime()))) : null;
+      if (t.areaPlantada <= 0) {
+        t.status = 'pendente';
+      } else if (t.areaPlantada + TOLERANCIA_HA >= t.areaTotal) {
+        t.status = 'ok';
+      } else {
+        t.status = 'parcial';
+      }
+    });
+
+    const ordemStatus = { pendente: 0, parcial: 1, ok: 2 };
     return Array.from(porTalhao.values()).sort((a, b) =>
-      (a.status === b.status) ? String(a.talhao).localeCompare(String(b.talhao), 'pt-BR', { numeric: true }) : (a.status === 'pendente' ? -1 : 1)
+      (a.status === b.status)
+        ? String(a.talhao).localeCompare(String(b.talhao), 'pt-BR', { numeric: true })
+        : ordemStatus[a.status] - ordemStatus[b.status]
     );
   }
 
@@ -5816,13 +5832,13 @@ iniciarSabedoria();
       return;
     }
 
-    const totalPlanejado = talhoes.reduce((s, r) => s + (r.area || 0), 0);
-    const totalPlantado  = talhoes.filter(r => r.status === 'ok').reduce((s, r) => s + (r.area || 0), 0);
-    const qtdOk = talhoes.filter(r => r.status === 'ok').length;
+    const totalPlanejado = talhoes.reduce((s, r) => s + (r.areaTotal || 0), 0);
+    const totalPlantado  = talhoes.reduce((s, r) => s + (r.areaPlantada || 0), 0);
     const pct = totalPlanejado > 0 ? Math.min((totalPlantado / totalPlanejado) * 100, 100) : 0;
 
     const ciclos  = [...new Set(talhoes.map(r => r.refCiclo).filter(Boolean))];
     const motivos = [...new Set(talhoes.map(r => r.motivo).filter(Boolean))];
+    const multiCiclo = ciclos.length > 1;
 
     let html = '';
     if (ciclos.length || motivos.length) {
@@ -5837,19 +5853,21 @@ iniciarSabedoria();
     html += `
       <div class="pla-progress-wrap" style="margin:10px 0 12px;">
         <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:700; color:var(--text-3); margin-bottom:4px;">
-          <span>PROGRESSO · ${talhoes.length} TALHÕES</span><span style="color:var(--green-900);">${pct.toFixed(0)}%</span>
+          <span>PROGRESSO · ${talhoes.length} TALHÕES</span><span style="color:var(--green-900);">${pct.toFixed(0)}% · ${_fmtHa(totalPlantado)} de ${_fmtHa(totalPlanejado)}</span>
         </div>
         <div class="pla-progress-bg"><div class="pla-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
       </div>
       <div class="pla-mapa-legenda">
         <span><span class="pla-mapa-legenda-dot ok"></span>Plantado</span>
+        <span><span class="pla-mapa-legenda-dot parcial"></span>Parcial</span>
         <span><span class="pla-mapa-legenda-dot pendente"></span>Pendente</span>
       </div>
       <div class="pla-mapa-grid">
         ${talhoes.map((t, i) => `
           <div class="pla-mapa-tile ${t.status}" onclick="plantioSelecionarTalhao(${i})">
+            ${multiCiclo && t.refCiclo ? `<div class="pla-mapa-tile-ciclo">${_abreviaCiclo(t.refCiclo)}</div>` : ''}
             <div class="pla-mapa-tile-id">${t.talhao}</div>
-            <div class="pla-mapa-tile-sub">${t.status === 'ok' ? (t.variedade || '—') : 'pendente'}</div>
+            <div class="pla-mapa-tile-sub">${t.status === 'pendente' ? 'pendente' : t.status === 'parcial' ? 'parcial' : (t.variedade || '—')}</div>
           </div>`).join('')}
       </div>
       <div class="pla-mapa-painel" id="pla-mapa-painel">Toque em um talhão para ver os detalhes</div>
@@ -5858,16 +5876,33 @@ iniciarSabedoria();
     cont.innerHTML = html;
   }
 
+  // Abrevia o ciclo pra caber no talhão: "18 meses" -> "18M", "Meiose" -> "MEI"
+  function _abreviaCiclo(c) {
+    const s = String(c || '').trim();
+    const mNum = s.match(/(\d+)/);
+    if (mNum) return mNum[1] + 'M';
+    return s.slice(0, 3).toUpperCase();
+  }
+
   function plantioSelecionarTalhao(idx) {
     const t = _mapaTalhoesAtual[idx];
     const painel = document.getElementById('pla-mapa-painel');
     if (!t || !painel) return;
+    const falta = Math.max(t.areaTotal - t.areaPlantada, 0);
+    let statusHtml;
+    if (t.status === 'ok') {
+      statusHtml = `<div>Plantado em ${t.ultimaData ? _fmtData(t.ultimaData) : '—'}</div>`;
+    } else if (t.status === 'parcial') {
+      statusHtml = `
+        <div style="color:var(--amber); font-weight:600;">Plantio parcial — última execução em ${t.ultimaData ? _fmtData(t.ultimaData) : '—'}</div>
+        <div style="margin-top:2px;">Plantado: <b>${_fmtHa(t.areaPlantada)}</b> · Falta: <b style="color:var(--amber);">${_fmtHa(falta)}</b></div>`;
+    } else {
+      statusHtml = `<div class="pla-mapa-painel-pendente">Ainda não plantado — ${_fmtHa(t.areaTotal)} a plantar</div>`;
+    }
     painel.innerHTML = `
-      <div class="pla-mapa-painel-titulo">Talhão ${t.talhao} · ${_fmtHa(t.area || 0)}</div>
-      <div style="margin-bottom:4px;">Variedade: <b>${t.variedade || '—'}</b></div>
-      ${t.status === 'ok'
-        ? `<div>Plantado em ${t.data ? _fmtData(t.data) : '—'}</div>`
-        : `<div class="pla-mapa-painel-pendente">Ainda não plantado</div>`}
+      <div class="pla-mapa-painel-titulo">Talhão ${t.talhao} · ${_fmtHa(t.areaTotal || 0)}</div>
+      <div style="margin-bottom:4px;">Variedade: <b>${t.variedade || '—'}</b>${t.refCiclo ? ` · Ciclo: <b>${t.refCiclo}</b>` : ''}</div>
+      ${statusHtml}
     `;
   }
 
@@ -5898,10 +5933,12 @@ iniciarSabedoria();
       return pctA - pctB;
     });
 
-    let html = '';
-    sorted.forEach(([faz, d]) => {
+    const iniciadas    = sorted.filter(([, d]) => d.plantado > 0);
+    const naoIniciadas = sorted.filter(([, d]) => d.plantado <= 0);
+
+    const linhaFazenda = ([faz, d]) => {
       const pct = d.planejado > 0 ? Math.min((d.plantado / d.planejado) * 100, 100) : 0;
-      html += `
+      return `
         <div class="pla-rank-row" onclick="plantioSelecionarFazenda('${faz.replace(/'/g, "\\'")}')">
           <div class="pla-rank-row-header">
             <span class="pla-rank-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</span>
@@ -5910,9 +5947,31 @@ iniciarSabedoria();
           <div class="pla-progress-bg"><div class="pla-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
           <div class="pla-rank-sub">${d.talhoes} talhõe${d.talhoes !== 1 ? 's' : ''} · ${_fmtHa(d.plantado)} de ${_fmtHa(d.planejado)}</div>
         </div>`;
-    });
+    };
+
+    let html = '';
+    if (!iniciadas.length) {
+      html += '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhuma fazenda com plantio iniciado ainda.</div>';
+    } else {
+      html += iniciadas.map(linhaFazenda).join('');
+    }
+
+    if (naoIniciadas.length) {
+      html += `
+        <div class="pla-rank-naoiniciadas-toggle" onclick="plantioToggleNaoIniciadas(this)">
+          <i class="fas fa-chevron-right"></i> ${naoIniciadas.length} fazenda${naoIniciadas.length !== 1 ? 's' : ''} ainda não iniciada${naoIniciadas.length !== 1 ? 's' : ''}
+        </div>
+        <div class="pla-rank-naoiniciadas-wrap">${naoIniciadas.map(linhaFazenda).join('')}</div>`;
+    }
 
     cont.innerHTML = html;
+  }
+
+  function plantioToggleNaoIniciadas(el) {
+    const wrap = el.nextElementSibling;
+    if (!wrap) return;
+    const aberto = wrap.classList.toggle('open');
+    el.querySelector('i').style.transform = aberto ? 'rotate(90deg)' : '';
   }
 
   function plantioSelecionarFazenda(faz) {
