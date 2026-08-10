@@ -5216,13 +5216,6 @@ iniciarSabedoria();
   };
   const URL_PCP = BASE_URL + '?gid=724202507&single=true&output=csv';
 
-  const SEQUENCIA = [
-    { cod: 'PLANTIO', label: 'Plantio',            icon: 'fa-seedling',  fonte: 'diario' },
-    { cod: '1013',    label: '1013 · 1ª Herb.',    icon: 'fa-spray-can', fonte: 'pcp'    },
-    { cod: '1045',    label: '1045 · Quebra lombo', icon: 'fa-tractor',  fonte: 'pcp'    },
-    { cod: '1014',    label: '1014 · 2ª Herb.',    icon: 'fa-spray-can', fonte: 'pcp'    },
-  ];
-
   const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   // Cache por safra para não rebuscar ao trocar
@@ -5251,7 +5244,6 @@ iniciarSabedoria();
   window.filtrarPlantioComparar  = filtrarPlantioComparar;
   window.togglePlantioCard       = togglePlantioCard;
   window.plantioToggleDetalhe    = plantioToggleDetalhe;
-  window.plantioTogglePipeline   = plantioTogglePipeline;
   window.plantioToggleFazenda    = plantioToggleFazenda;
   window.atualizarCardPlantioHome  = atualizarCardPlantioHome;
   window._renderizarBaseFiltrada   = _renderizarBaseFiltrada;
@@ -5373,7 +5365,7 @@ iniciarSabedoria();
   }
 
   async function carregarDadosPlantio() {
-    ['pla-resumo-container','pla-pipeline-container','pla-base-container'].forEach(id => {
+    ['pla-resumo-container','pla-base-container'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     });
@@ -5710,7 +5702,6 @@ iniciarSabedoria();
     _popularFazendaSelect();
     _definirDatasDefault();
     filtrarPlantioAvanco();
-    _renderizarPipeline();
     _renderizarBase();
     atualizarCardPlantioHome();
   }
@@ -5885,121 +5876,6 @@ iniciarSabedoria();
     if (!el) return;
     el.classList.toggle('open');
     const ch = row.querySelector('.fa-chevron-down');
-    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
-  }
-
-  /* ══ BLOCO 2: Sequência pós-plantio ══════════════════════════════ */
-  function _renderizarPipeline() {
-    const cont   = document.getElementById('pla-pipeline-container');
-    if (!cont) return;
-    const diario = _d();
-    if (!diario.length) {
-      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão plantado encontrado.</div>';
-      return;
-    }
-
-    // Agrupa talhões plantados por fazenda (deduplica por talhão)
-    const porFaz = {};
-    diario.forEach(r => {
-      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
-      if (!porFaz[faz]) porFaz[faz] = new Map();
-      const key = r.talhao || '—';
-      if (!porFaz[faz].has(key)) porFaz[faz].set(key, { data: r.data, area: r.area });
-    });
-
-    const sorted = Object.entries(porFaz).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
-
-    let html = '';
-    sorted.forEach(([faz, talhoes], idxFaz) => {
-      let totOk = 0, totPend = 0, totBlq = 0;
-      let talhoesList = '';
-
-      Array.from(talhoes.entries()).forEach(([tal, info]) => {
-        const etapas = _calcularEtapas(faz, tal, info.data);
-        etapas.forEach(e => {
-          if (e.status === 'ok') totOk++;
-          else if (e.status === 'pendente') totPend++;
-          else totBlq++;
-        });
-
-        let etapasHtml = '';
-        etapas.forEach(e => {
-          const icon = { ok: '✓', pendente: '⏳', bloqueado: '🔒' }[e.status];
-          etapasHtml += `
-            <div class="pla-pipe-etapa">
-              <div class="pla-pipe-status-icon ${e.status}">${icon}</div>
-              <span class="pla-pipe-etapa-nome"><i class="fas ${e.icon}" style="margin-right:5px;font-size:9px;opacity:0.7;"></i>${e.label}</span>
-              <span class="pla-pipe-etapa-data">${e.data ? _fmtData(e.data) : '—'}</span>
-            </div>`;
-        });
-
-        talhoesList += `
-          <div class="pla-pipeline-talhao">
-            <div class="pla-pipe-talhao-id">Tal. ${tal}</div>
-            <div class="pla-pipe-etapas">${etapasHtml}</div>
-          </div>`;
-      });
-
-      const chipsHtml =
-        (totOk   > 0 ? `<span class="pla-pipe-chip ok">✓ ${totOk} feito${totOk > 1 ? 's' : ''}</span>` : '') +
-        (totPend > 0 ? `<span class="pla-pipe-chip pendente">⏳ ${totPend} pendente${totPend > 1 ? 's' : ''}</span>` : '') +
-        (totBlq  > 0 ? `<span class="pla-pipe-chip bloqueado">🔒 ${totBlq} aguarda${totBlq > 1 ? 'm' : ''}</span>` : '');
-
-      html += `
-        <div class="pla-pipeline-fazenda">
-          <div class="pla-pipeline-header" onclick="plantioTogglePipeline('pla-pipe-faz-${idxFaz}', this)">
-            <span class="pla-pipeline-fazenda-nome">
-              <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${faz}
-              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${talhoes.size} ${talhoes.size === 1 ? 'talhão' : 'talhões'})</span>
-            </span>
-            <div class="pla-pipeline-chips">${chipsHtml}<i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:6px;"></i></div>
-          </div>
-          <div class="pla-pipeline-talhoes" id="pla-pipe-faz-${idxFaz}">
-            ${talhoesList}
-          </div>
-        </div>`;
-    });
-
-    cont.innerHTML = html || '<div class="pla-empty">Nenhum dado encontrado.</div>';
-  }
-
-  function _calcularEtapas(fazenda, talhao, dataPlantio) {
-    const etapas = [];
-    let anteriorOk = true;
-
-    SEQUENCIA.forEach(seq => {
-      let status = 'pendente';
-      let dataFeita = null;
-
-      if (seq.fonte === 'diario') {
-        status    = 'ok';
-        dataFeita = dataPlantio;
-      } else {
-        if (!anteriorOk) {
-          status = 'bloqueado';
-        } else {
-          const match = _p() ? _p().find(p =>
-            p.codOp === seq.cod && (
-              (p.talhao && String(p.talhao).trim() === String(talhao).trim()) ||
-              (_norm(p.fazenda || '') === _norm(fazenda) && _norm(fazenda) !== '')
-            )
-          ) : null;
-          if (match) { status = 'ok'; dataFeita = match.data; }
-        }
-      }
-
-      anteriorOk = (status === 'ok');
-      etapas.push({ ...seq, status, data: dataFeita });
-    });
-
-    return etapas;
-  }
-
-  function plantioTogglePipeline(id, headerEl) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.toggle('open');
-    const ch = headerEl ? headerEl.querySelector('.fa-chevron-down') : null;
     if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
   }
 
