@@ -1848,6 +1848,10 @@ if (resumoCards) {
         </tr>`;
       }).join('');
 
+      // Reaplica o filtro que estava ativo (frente/fazenda/status),
+      // já que a tabela acabou de ser reconstruída do zero
+      filtrarTabela();
+
       // Atualizar badge de abertas no menu home
       const abertas = results.data.filter(row => {
         const s = (row["STATUS OS"] || "").toUpperCase().trim();
