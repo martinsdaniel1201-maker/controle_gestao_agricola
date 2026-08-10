@@ -443,6 +443,56 @@
       display: grid; grid-template-columns: 90px auto 1fr 60px;
       gap: 6px; font-size: 10px; align-items: center;
     }
+
+    /* Mapa de talhões: ranking de fazendas (nenhuma selecionada) */
+    .pla-rank-row {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+      cursor: pointer; transition: all 0.15s; margin-bottom: 6px;
+    }
+    .pla-rank-row:hover { border-color: var(--green-500); }
+    .pla-rank-row-header { display: flex; justify-content: space-between; align-items: center; }
+    .pla-rank-fazenda { font-size: 12px; font-weight: 700; color: var(--text); }
+    .pla-rank-pct { font-size: 12px; font-weight: 800; color: var(--green-700); }
+    .pla-rank-sub { font-size: 10px; color: var(--text-3); font-weight: 600; }
+
+    /* Mapa de talhões: cabeçalho fazenda selecionada */
+    .pla-mapa-tags-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 3px; }
+    .pla-mapa-tags-label { font-size: 9px; font-weight: 700; color: var(--text-3); width: 40px; flex-shrink: 0; }
+    .pla-mapa-tag {
+      font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text-2);
+    }
+    .pla-mapa-tag.motivo { background: var(--amber-bg); color: var(--amber); border: none; }
+    .pla-mapa-tag.expansao { background: var(--blue-bg); color: var(--blue); border: none; }
+
+    .pla-mapa-legenda { display: flex; gap: 10px; font-size: 10px; color: var(--text-3); font-weight: 600; margin: 10px 0; flex-wrap: wrap; }
+    .pla-mapa-legenda-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
+    .pla-mapa-legenda-dot.ok { background: var(--green-500); }
+    .pla-mapa-legenda-dot.pendente { border: 1.5px dashed var(--border-strong); }
+
+    .pla-mapa-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+    .pla-mapa-tile {
+      border-radius: var(--radius-sm); padding: 7px 4px; text-align: center;
+      cursor: pointer; transition: transform 0.1s;
+    }
+    .pla-mapa-tile:active { transform: scale(0.96); }
+    .pla-mapa-tile.ok { background: var(--green-500); }
+    .pla-mapa-tile.pendente { background: var(--surface2); border: 1.5px dashed var(--border-strong); }
+    .pla-mapa-tile-id { font-size: 11px; font-weight: 700; }
+    .pla-mapa-tile.ok .pla-mapa-tile-id { color: #fff; }
+    .pla-mapa-tile.pendente .pla-mapa-tile-id { color: var(--text-3); }
+    .pla-mapa-tile-sub { font-size: 9px; font-weight: 600; margin-top: 2px; opacity: 0.9; }
+    .pla-mapa-tile.ok .pla-mapa-tile-sub { color: #fff; }
+    .pla-mapa-tile.pendente .pla-mapa-tile-sub { color: var(--text-3); }
+
+    .pla-mapa-painel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: var(--text-2);
+    }
+    .pla-mapa-painel-titulo { font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .pla-mapa-painel-pendente { color: var(--amber); font-weight: 600; }
     .pla-det-data { color: var(--text-3); font-weight: 700; }
     .pla-det-talhao {
       background: var(--amber-bg); color: var(--amber);
