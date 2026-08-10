@@ -5743,17 +5743,41 @@ iniciarSabedoria();
   }
 
   /* ── select de fazenda ───────────────────────────────────────────── */
+  // Normaliza código (remove zeros à esquerda) — a mesma fazenda/talhão pode
+  // vir com formatação diferente entre as abas "base" e "diário" da planilha.
+  function _normCod(c) {
+    const s = String(c || '').trim().replace(/^0+/, '');
+    return s || '0';
+  }
+  function _chaveFaz(cod, nome) {
+    return _normCod(cod) + '|' + _norm(nome);
+  }
+  function _chaveTalhao(t) {
+    const s = String(t || '').trim().replace(/^0+/, '');
+    return s || String(t || '').trim();
+  }
+
   function _popularFazendaSelect() {
     const sel = document.getElementById('pla-filtro-fazenda');
     if (!sel) return;
-    const diario   = _d();
-    const fazendas = [...new Set(diario.map(r => _nomeFaz(r.codFazenda, r.fazenda)).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true }));
+    // Une fazendas da base e do diário (uma fazenda pode existir na base
+    // e ainda não ter nenhum registro no diário, ou vice-versa)
+    const mapa = new Map();
+    _b().forEach(r => {
+      const k = _chaveFaz(r.codFazenda, r.fazenda);
+      if (!mapa.has(k)) mapa.set(k, _nomeFaz(r.codFazenda, r.fazenda));
+    });
+    _d().forEach(r => {
+      const k = _chaveFaz(r.codFazenda, r.fazenda);
+      if (!mapa.has(k)) mapa.set(k, _nomeFaz(r.codFazenda, r.fazenda));
+    });
+    const fazendas = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR', { sensitivity: 'base', numeric: true }));
     const anterior = sel.value;
     sel.innerHTML  = '<option value="">— Todas —</option>';
-    fazendas.forEach(f => {
+    fazendas.forEach(([chave, label]) => {
       const o = document.createElement('option');
-      o.value = f; o.textContent = f;
-      if (f === anterior) o.selected = true;
+      o.value = chave; o.textContent = label;
+      if (chave === anterior) o.selected = true;
       sel.appendChild(o);
     });
   }
@@ -5765,21 +5789,28 @@ iniciarSabedoria();
     _renderizarMapaPlantio();
   }
 
-  // Une base (planejado) + diário (executado) por talhão dentro da fazenda
-  function _montarTalhoesFazenda(fazenda) {
-    const base   = _b().filter(r => _nomeFaz(r.codFazenda, r.fazenda) === fazenda);
-    const diario = _d().filter(r => _nomeFaz(r.codFazenda, r.fazenda) === fazenda);
+  // Une base (planejado) + diário (executado) por talhão dentro da fazenda.
+  // "fazendaChave" é a chave normalizada (código sem zero à esquerda + nome).
+  function _montarTalhoesFazenda(fazendaChave) {
+    const base   = _b().filter(r => _chaveFaz(r.codFazenda, r.fazenda) === fazendaChave);
+    const diario = _d().filter(r => _chaveFaz(r.codFazenda, r.fazenda) === fazendaChave);
 
     const porTalhao = new Map();
     base.forEach(r => {
-      const key = String(r.talhao || '').trim() || ('_' + porTalhao.size);
-      porTalhao.set(key, {
-        talhao: r.talhao || '—', status: 'pendente', areaTotal: r.area, areaPlantada: 0,
-        variedade: r.variedade, ultimaData: null, refCiclo: r.refCiclo, motivo: r.motivo, datas: []
-      });
+      const key = _chaveTalhao(r.talhao) || ('_' + porTalhao.size);
+      const existente = porTalhao.get(key);
+      if (existente) {
+        // Mesmo talhão com mais de uma linha na base: soma a área
+        existente.areaTotal += (r.area || 0);
+      } else {
+        porTalhao.set(key, {
+          talhao: r.talhao || '—', status: 'pendente', areaTotal: r.area || 0, areaPlantada: 0,
+          variedade: r.variedade, ultimaData: null, refCiclo: r.refCiclo, motivo: r.motivo, datas: []
+        });
+      }
     });
     diario.forEach(r => {
-      const key = String(r.talhao || '').trim() || ('_d' + Math.random());
+      const key = _chaveTalhao(r.talhao) || ('_d' + Math.random());
       const existente = porTalhao.get(key);
       if (existente) {
         existente.areaPlantada += (r.area || 0);
@@ -5916,15 +5947,15 @@ iniciarSabedoria();
 
     const porFaz = {};
     base.forEach(r => {
-      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
-      if (!porFaz[faz]) porFaz[faz] = { planejado: 0, plantado: 0, talhoes: 0 };
-      porFaz[faz].planejado += r.area;
-      porFaz[faz].talhoes++;
+      const chave = _chaveFaz(r.codFazenda, r.fazenda);
+      if (!porFaz[chave]) porFaz[chave] = { label: _nomeFaz(r.codFazenda, r.fazenda), planejado: 0, plantado: 0, talhoes: 0 };
+      porFaz[chave].planejado += (r.area || 0);
+      porFaz[chave].talhoes++;
     });
     diario.forEach(r => {
-      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
-      if (!porFaz[faz]) porFaz[faz] = { planejado: 0, plantado: 0, talhoes: 0 };
-      porFaz[faz].plantado += r.area;
+      const chave = _chaveFaz(r.codFazenda, r.fazenda);
+      if (!porFaz[chave]) porFaz[chave] = { label: _nomeFaz(r.codFazenda, r.fazenda), planejado: 0, plantado: 0, talhoes: 0 };
+      porFaz[chave].plantado += (r.area || 0);
     });
 
     const sorted = Object.entries(porFaz).sort((a, b) => {
@@ -5936,12 +5967,12 @@ iniciarSabedoria();
     const iniciadas    = sorted.filter(([, d]) => d.plantado > 0);
     const naoIniciadas = sorted.filter(([, d]) => d.plantado <= 0);
 
-    const linhaFazenda = ([faz, d]) => {
+    const linhaFazenda = ([chave, d]) => {
       const pct = d.planejado > 0 ? Math.min((d.plantado / d.planejado) * 100, 100) : 0;
       return `
-        <div class="pla-rank-row" onclick="plantioSelecionarFazenda('${faz.replace(/'/g, "\\'")}')">
+        <div class="pla-rank-row" onclick="plantioSelecionarFazenda('${chave.replace(/'/g, "\\'")}')">
           <div class="pla-rank-row-header">
-            <span class="pla-rank-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</span>
+            <span class="pla-rank-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${d.label}</span>
             <span class="pla-rank-pct">${pct.toFixed(0)}%</span>
           </div>
           <div class="pla-progress-bg"><div class="pla-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
