@@ -5225,7 +5225,6 @@ iniciarSabedoria();
   };
 
   let _safraAtual  = null;
-  let _diarioFilt  = null;
   let _compararAberto = false;
 
   // Atalhos para safra atual
@@ -5243,8 +5242,9 @@ iniciarSabedoria();
   window.filtrarPlantioBase      = filtrarPlantioBase;
   window.filtrarPlantioComparar  = filtrarPlantioComparar;
   window.togglePlantioCard       = togglePlantioCard;
-  window.plantioToggleDetalhe    = plantioToggleDetalhe;
   window.plantioToggleFazenda    = plantioToggleFazenda;
+  window.plantioSelecionarTalhao   = plantioSelecionarTalhao;
+  window.plantioSelecionarFazenda  = plantioSelecionarFazenda;
   window.atualizarCardPlantioHome  = atualizarCardPlantioHome;
   window._renderizarBaseFiltrada   = _renderizarBaseFiltrada;
   window._garantirSafraCarregada   = _garantirSafraCarregada;
@@ -5700,7 +5700,6 @@ iniciarSabedoria();
     _renderizarKpis();
     _atualizarSubTextoSafra(_safraAtual);
     _popularFazendaSelect();
-    _definirDatasDefault();
     filtrarPlantioAvanco();
     _renderizarBase();
     atualizarCardPlantioHome();
@@ -5758,127 +5757,170 @@ iniciarSabedoria();
     });
   }
 
-  /* ── datas padrão ────────────────────────────────────────────────── */
-  function _definirDatasDefault() {
-    const ini = document.getElementById('pla-data-ini');
-    const fim = document.getElementById('pla-data-fim');
-    if (!ini || !fim || ini.value) return;
-    const diario = _d();
-    if (!diario.length) return;
-    const datas = diario.map(r => r.data).filter(Boolean).sort((a, b) => a - b);
-    ini.value = datas[0].toISOString().split('T')[0];
-    fim.value = datas[datas.length - 1].toISOString().split('T')[0];
+  /* ══ BLOCO 1: O que foi plantado? — mapa de talhões ══════════════ */
+  let _mapaTalhoesAtual = [];
+
+  function filtrarPlantioAvanco() {
+    _renderizarMapaPlantio();
   }
 
-  /* ══ BLOCO 1: O que foi plantado? ════════════════════════════════ */
-  function filtrarPlantioAvanco() {
-    const diario = _d();
-    if (!diario.length) return;
-    const iniVal    = document.getElementById('pla-data-ini')?.value;
-    const fimVal    = document.getElementById('pla-data-fim')?.value;
-    const fazFiltro = document.getElementById('pla-filtro-fazenda')?.value || '';
-    const dIni = iniVal ? new Date(iniVal + 'T00:00:00') : null;
-    const dFim = fimVal ? new Date(fimVal + 'T23:59:59') : null;
+  // Une base (planejado) + diário (executado) por talhão dentro da fazenda
+  function _montarTalhoesFazenda(fazenda) {
+    const base   = _b().filter(r => _nomeFaz(r.codFazenda, r.fazenda) === fazenda);
+    const diario = _d().filter(r => _nomeFaz(r.codFazenda, r.fazenda) === fazenda);
 
-    _diarioFilt = diario.filter(r => {
-      if (dIni && r.data < dIni) return false;
-      if (dFim && r.data > dFim) return false;
-      if (fazFiltro && _nomeFaz(r.codFazenda, r.fazenda) !== fazFiltro) return false;
-      return true;
+    const porTalhao = new Map();
+    base.forEach(r => {
+      const key = String(r.talhao || '').trim() || ('_' + porTalhao.size);
+      porTalhao.set(key, {
+        talhao: r.talhao || '—', status: 'pendente', area: r.area,
+        variedade: r.variedade, data: null, refCiclo: r.refCiclo, motivo: r.motivo
+      });
+    });
+    diario.forEach(r => {
+      const key = String(r.talhao || '').trim() || ('_d' + Math.random());
+      const existente = porTalhao.get(key);
+      if (existente) {
+        existente.status    = 'ok';
+        existente.variedade = r.variedade || existente.variedade;
+        existente.data      = r.data;
+        existente.area      = r.area || existente.area;
+      } else {
+        porTalhao.set(key, {
+          talhao: r.talhao || '—', status: 'ok', area: r.area,
+          variedade: r.variedade, data: r.data, refCiclo: '', motivo: ''
+        });
+      }
     });
 
-    const total = _diarioFilt.reduce((s, r) => s + r.area, 0);
-    const cont  = document.getElementById('pla-avanço-contador');
-    if (cont) cont.textContent = `${_diarioFilt.length} registro${_diarioFilt.length !== 1 ? 's' : ''} · ${_fmtHa(total)} no período`;
-
-    _renderizarAvancoFazenda();
+    return Array.from(porTalhao.values()).sort((a, b) =>
+      (a.status === b.status) ? String(a.talhao).localeCompare(String(b.talhao), 'pt-BR', { numeric: true }) : (a.status === 'pendente' ? -1 : 1)
+    );
   }
 
-  function _renderizarAvancoFazenda() {
+  function _renderizarMapaPlantio() {
     const cont = document.getElementById('pla-resumo-container');
     if (!cont) return;
+    const fazFiltro = document.getElementById('pla-filtro-fazenda')?.value || '';
 
-    if (!_diarioFilt || !_diarioFilt.length) {
-      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum registro no período selecionado.</div>';
+    if (!fazFiltro) {
+      _renderizarRankingFazendas(cont);
       return;
     }
 
-    // Agrupa por fazenda (código · nome)
-    const porFaz = {};
-    _diarioFilt.forEach(r => {
-      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
-      if (!porFaz[faz]) porFaz[faz] = { total: 0, regs: [] };
-      porFaz[faz].total += r.area;
-      porFaz[faz].regs.push(r);
-    });
+    const talhoes = _montarTalhoesFazenda(fazFiltro);
+    _mapaTalhoesAtual = talhoes;
 
-    const sorted = Object.entries(porFaz).sort((a, b) => b[1].total - a[1].total);
+    if (!talhoes.length) {
+      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão encontrado para esta fazenda.</div>';
+      return;
+    }
 
-    let html = '<div class="pla-resumo-grid">';
-    sorted.forEach(([faz, dados], idx) => {
-      // Agrupa detalhes por data
-      const porData = {};
-      dados.regs.forEach(r => {
-        const k = _fmtData(r.data);
-        if (!porData[k]) porData[k] = [];
-        porData[k].push(r);
-      });
+    const totalPlanejado = talhoes.reduce((s, r) => s + (r.area || 0), 0);
+    const totalPlantado  = talhoes.filter(r => r.status === 'ok').reduce((s, r) => s + (r.area || 0), 0);
+    const qtdOk = talhoes.filter(r => r.status === 'ok').length;
+    const pct = totalPlanejado > 0 ? Math.min((totalPlantado / totalPlanejado) * 100, 100) : 0;
 
-      // Média de data
-      const timestamps = dados.regs.map(r => r.data?.getTime()).filter(Boolean);
-      const mediaData  = timestamps.length
-        ? _fmtData(new Date(timestamps.reduce((s, t) => s + t, 0) / timestamps.length))
-        : '—';
+    const ciclos  = [...new Set(talhoes.map(r => r.refCiclo).filter(Boolean))];
+    const motivos = [...new Set(talhoes.map(r => r.motivo).filter(Boolean))];
 
-      let detalheHtml = `
-        <div style="display:grid; grid-template-columns:90px 1fr 60px; gap:4px; font-size:9px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px; padding-bottom:4px; border-bottom:1px solid var(--border); margin-bottom:4px;">
-          <span>Data</span><span>Talhão · Tipo</span><span style="text-align:right">Área</span>
-        </div>`;
+    let html = '';
+    if (ciclos.length || motivos.length) {
+      if (ciclos.length) {
+        html += `<div class="pla-mapa-tags-row"><span class="pla-mapa-tags-label">CICLO</span>${ciclos.map(c => `<span class="pla-mapa-tag">${c}</span>`).join('')}</div>`;
+      }
+      if (motivos.length) {
+        html += `<div class="pla-mapa-tags-row"><span class="pla-mapa-tags-label">MOTIVO</span>${motivos.map(m => `<span class="pla-mapa-tag motivo${_norm(m) === 'EXPANSAO' ? ' expansao' : ''}">${m}</span>`).join('')}</div>`;
+      }
+    }
 
-      Object.entries(porData)
-        .sort(([a], [b]) => {
-          const p = s => { const [d,m,y] = s.split('/'); return new Date(+y,+m-1,+d); };
-          return p(a) - p(b);
-        })
-        .forEach(([data, regs]) => {
-          regs.forEach(r => {
-            detalheHtml += `
-              <div style="display:grid; grid-template-columns:90px 1fr 60px; gap:4px; font-size:10px; align-items:center; padding:3px 0; border-bottom:1px dashed var(--border);">
-                <span style="color:var(--text-3); font-weight:700;">${data}</span>
-                <span style="color:var(--text-2);">Tal.&nbsp;${r.talhao || '—'} · ${r.tipo}</span>
-                <span style="color:#E65100; font-weight:800; text-align:right;">${_fmtHa(r.area)}</span>
-              </div>`;
-          });
-        });
-
-      html += `
-        <div class="pla-resumo-row" onclick="plantioToggleDetalhe('pla-det-${idx}', this)">
-          <div class="pla-resumo-row-header">
-            <span class="pla-resumo-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</span>
-            <span class="pla-resumo-ha">${_fmtHa(dados.total)}</span>
-          </div>
-          <div class="pla-resumo-sub">${dados.regs.length} registro${dados.regs.length > 1 ? 's' : ''} · média: ${mediaData} · toque para detalhes <i class="fas fa-chevron-down" id="chev-det-${idx}" style="font-size:9px;color:var(--text-3);"></i></div>
-          <div class="pla-detalhe-wrap" id="pla-det-${idx}">${detalheHtml}</div>
-        </div>`;
-    });
-
-    const grandTotal = _diarioFilt.reduce((s, r) => s + r.area, 0);
-    html += `</div>
-      <div style="text-align:right; padding:10px 4px 0; font-size:11px; font-weight:800; color:#E65100; border-top:1px solid var(--border); margin-top:8px;">
-        Total: ${_fmtHa(grandTotal)}
-      </div>`;
+    html += `
+      <div class="pla-progress-wrap" style="margin:10px 0 12px;">
+        <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:700; color:var(--text-3); margin-bottom:4px;">
+          <span>PROGRESSO · ${talhoes.length} TALHÕES</span><span style="color:var(--green-900);">${pct.toFixed(0)}%</span>
+        </div>
+        <div class="pla-progress-bg"><div class="pla-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      </div>
+      <div class="pla-mapa-legenda">
+        <span><span class="pla-mapa-legenda-dot ok"></span>Plantado</span>
+        <span><span class="pla-mapa-legenda-dot pendente"></span>Pendente</span>
+      </div>
+      <div class="pla-mapa-grid">
+        ${talhoes.map((t, i) => `
+          <div class="pla-mapa-tile ${t.status}" onclick="plantioSelecionarTalhao(${i})">
+            <div class="pla-mapa-tile-id">${t.talhao}</div>
+            <div class="pla-mapa-tile-sub">${t.status === 'ok' ? (t.variedade || '—') : 'pendente'}</div>
+          </div>`).join('')}
+      </div>
+      <div class="pla-mapa-painel" id="pla-mapa-painel">Toque em um talhão para ver os detalhes</div>
+    `;
 
     cont.innerHTML = html;
   }
 
-  function plantioToggleDetalhe(id, row) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.toggle('open');
-    const ch = row.querySelector('.fa-chevron-down');
-    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
+  function plantioSelecionarTalhao(idx) {
+    const t = _mapaTalhoesAtual[idx];
+    const painel = document.getElementById('pla-mapa-painel');
+    if (!t || !painel) return;
+    painel.innerHTML = `
+      <div class="pla-mapa-painel-titulo">Talhão ${t.talhao} · ${_fmtHa(t.area || 0)}</div>
+      <div style="margin-bottom:4px;">Variedade: <b>${t.variedade || '—'}</b></div>
+      ${t.status === 'ok'
+        ? `<div>Plantado em ${t.data ? _fmtData(t.data) : '—'}</div>`
+        : `<div class="pla-mapa-painel-pendente">Ainda não plantado</div>`}
+    `;
   }
 
+  function _renderizarRankingFazendas(cont) {
+    const base   = _b();
+    const diario = _d();
+    if (!base.length) {
+      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum dado encontrado.</div>';
+      return;
+    }
+
+    const porFaz = {};
+    base.forEach(r => {
+      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
+      if (!porFaz[faz]) porFaz[faz] = { planejado: 0, plantado: 0, talhoes: 0 };
+      porFaz[faz].planejado += r.area;
+      porFaz[faz].talhoes++;
+    });
+    diario.forEach(r => {
+      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
+      if (!porFaz[faz]) porFaz[faz] = { planejado: 0, plantado: 0, talhoes: 0 };
+      porFaz[faz].plantado += r.area;
+    });
+
+    const sorted = Object.entries(porFaz).sort((a, b) => {
+      const pctA = a[1].planejado > 0 ? a[1].plantado / a[1].planejado : 0;
+      const pctB = b[1].planejado > 0 ? b[1].plantado / b[1].planejado : 0;
+      return pctA - pctB;
+    });
+
+    let html = '';
+    sorted.forEach(([faz, d]) => {
+      const pct = d.planejado > 0 ? Math.min((d.plantado / d.planejado) * 100, 100) : 0;
+      html += `
+        <div class="pla-rank-row" onclick="plantioSelecionarFazenda('${faz.replace(/'/g, "\\'")}')">
+          <div class="pla-rank-row-header">
+            <span class="pla-rank-fazenda"><i class="fas fa-map-marker-alt" style="margin-right:5px;color:var(--text-3);font-size:10px;"></i>${faz}</span>
+            <span class="pla-rank-pct">${pct.toFixed(0)}%</span>
+          </div>
+          <div class="pla-progress-bg"><div class="pla-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
+          <div class="pla-rank-sub">${d.talhoes} talhõe${d.talhoes !== 1 ? 's' : ''} · ${_fmtHa(d.plantado)} de ${_fmtHa(d.planejado)}</div>
+        </div>`;
+    });
+
+    cont.innerHTML = html;
+  }
+
+  function plantioSelecionarFazenda(faz) {
+    const sel = document.getElementById('pla-filtro-fazenda');
+    if (!sel) return;
+    sel.value = faz;
+    filtrarPlantioAvanco();
+  }
   /* ══ BLOCO 3: Planejamento — lista de fazendas colapsável ════════ */
   function _renderizarBase() {
     const base = _b();
