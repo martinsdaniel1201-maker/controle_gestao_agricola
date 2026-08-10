@@ -3819,7 +3819,14 @@ iniciarSabedoria();
       const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
       if (val && !mapa[val]) mapa[val] = cod;
     });
-    const vals = Object.keys(mapa).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true }));
+    const vals = Object.keys(mapa).sort((a, b) => {
+      const codA = parseInt(mapa[a], 10);
+      const codB = parseInt(mapa[b], 10);
+      if (!isNaN(codA) && !isNaN(codB) && codA !== codB) return codA - codB;
+      if (!isNaN(codA) && isNaN(codB)) return -1;
+      if (isNaN(codA) && !isNaN(codB)) return 1;
+      return a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true });
+    });
     sel.innerHTML = `<option value="">${defaultLabel}</option>`;
     vals.forEach(val => {
       const o = document.createElement('option');
