@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-<head> 
+<head>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icone_agro.png">
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
@@ -1891,20 +1891,10 @@
       <!-- BLOCO 1: O QUE FOI PLANTADO? -->
       <div class="card plantio-card-collapsible open">
         <div class="plantio-card-header" onclick="togglePlantioCard(this)">
-          <div class="card-title" style="margin:0"><i class="fas fa-calendar-alt"></i> O que foi plantado?</div>
+          <div class="card-title" style="margin:0"><i class="fas fa-map-marked-alt"></i> O que foi plantado?</div>
           <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
         </div>
         <div class="plantio-card-body">
-          <div class="pla-filtros-row">
-            <div class="field">
-              <label>De</label>
-              <input type="date" id="pla-data-ini" onchange="filtrarPlantioAvanco()">
-            </div>
-            <div class="field">
-              <label>Até</label>
-              <input type="date" id="pla-data-fim" onchange="filtrarPlantioAvanco()">
-            </div>
-          </div>
           <div class="field" style="margin-bottom:12px">
             <label>Fazenda</label>
             <div class="app-select-wrap">
@@ -1914,9 +1904,8 @@
               <i class="fas fa-chevron-down app-select-chevron"></i>
             </div>
           </div>
-          <div id="pla-avanço-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">—</div>
           <div id="pla-resumo-container">
-            <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período para ver o plantio realizado</div>
+            <div class="pla-empty"><i class="fas fa-seedling"></i>Carregando...</div>
           </div>
         </div>
       </div>
