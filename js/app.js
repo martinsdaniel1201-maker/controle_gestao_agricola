@@ -2213,7 +2213,8 @@ function popularFazendaLibSelect() {
   const sel = document.getElementById('lib-fazenda-select');
   if (!sel || !window._gatecDados) return;
   const escHtml = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const fazendas = [...new Set(window._gatecDados.map(r => (r['DESC.FAZENDA'] || '').trim()).filter(Boolean))].sort();
+  const fazendas = [...new Set(window._gatecDados.map(r => (r['DESC.FAZENDA'] || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
   sel.innerHTML = '<option value="">— Todas —</option>' + fazendas.map(f => `<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('');
   // Associa o ss ao select
   const wrap = document.getElementById('ss-lib-fazenda');
