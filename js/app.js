@@ -3819,7 +3819,7 @@ iniciarSabedoria();
       const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
       if (val && !mapa[val]) mapa[val] = cod;
     });
-    const vals = Object.keys(mapa).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const vals = Object.keys(mapa).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true }));
     sel.innerHTML = `<option value="">${defaultLabel}</option>`;
     vals.forEach(val => {
       const o = document.createElement('option');
@@ -5749,7 +5749,7 @@ iniciarSabedoria();
     const sel = document.getElementById('pla-filtro-fazenda');
     if (!sel) return;
     const diario   = _d();
-    const fazendas = [...new Set(diario.map(r => _nomeFaz(r.codFazenda, r.fazenda)).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+    const fazendas = [...new Set(diario.map(r => _nomeFaz(r.codFazenda, r.fazenda)).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true }));
     const anterior = sel.value;
     sel.innerHTML  = '<option value="">— Todas —</option>';
     fazendas.forEach(f => {
