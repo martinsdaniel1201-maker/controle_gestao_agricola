@@ -3825,23 +3825,58 @@ function toggleTratosCard(headerEl) {
   }
 })();
 
+/* ══════════════════════════════════════════════════════════════════════════
+   SERVICE WORKER + AUTO-ATUALIZAÇÃO
+   Além de registrar o SW, fica verificando de tempos em tempos se existe uma
+   versão nova publicada (troca de CACHE_NAME no sw.js). Quando encontra,
+   manda o novo worker assumir e recarrega a aba sozinho — o usuário nunca
+   fica preso numa versão antiga em cache, sem precisar limpar nada na mão.
+══════════════════════════════════════════════════════════════════════════ */
 if ('serviceWorker' in navigator) {
+  const SW_CHECK_INTERVAL_MS = 15 * 60 * 1000; // verifica a cada 15 min
+  let atualizacaoEmAndamento = false;
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => {
         console.log('[SW] Registrado com sucesso. Escopo:', reg.scope);
 
-        // Notifica quando uma nova versão estiver disponível
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              showToast('🔄 Nova versão disponível! Recarregue o app para atualizar.', 'info', 6000);
+        function assumirNovaVersao(worker) {
+          if (!worker) return;
+          worker.addEventListener('statechange', () => {
+            // "installed" + já existe um controller = havia uma versão antiga
+            // rodando, ou seja, isso é de fato uma ATUALIZAÇÃO (não a 1ª instalação)
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              atualizacaoEmAndamento = true;
+              showToast('🔄 Nova versão encontrada, atualizando…', 'info', 4000);
+              worker.postMessage({ type: 'SKIP_WAITING' });
             }
           });
+        }
+
+        // Já havia um worker esperando (aba ficou aberta enquanto publicava)
+        if (reg.waiting) assumirNovaVersao(reg.waiting);
+        if (reg.installing) assumirNovaVersao(reg.installing);
+        reg.addEventListener('updatefound', () => assumirNovaVersao(reg.installing));
+
+        // ── Verificação periódica: pede pro navegador checar se o sw.js do
+        //    servidor mudou, mesmo sem o usuário recarregar a página ──
+        setInterval(() => reg.update().catch(() => {}), SW_CHECK_INTERVAL_MS);
+
+        // ── Também verifica sempre que o usuário volta pro app (troca de
+        //    aba, minimizou o celular e voltou etc.) ──
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
         });
       })
       .catch(err => console.warn('[SW] Falha no registro:', err));
+
+    // Quando o novo worker assume o controle da página, recarrega sozinho
+    // para o usuário já ver a versão nova (sem precisar clicar em nada).
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!atualizacaoEmAndamento) return;
+      setTimeout(() => window.location.reload(), 500);
+    });
   });
 }
 
