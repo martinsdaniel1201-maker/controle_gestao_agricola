@@ -5226,6 +5226,7 @@ iniciarSabedoria();
 
   let _safraAtual  = null;
   let _compararAberto = false;
+  let _ultimoComparativoMeses = null; // guarda o último cálculo pra exportar em Excel
 
   // Atalhos para safra atual
   const _d = () => _cache[_safraAtual]?.diario || [];
@@ -5239,15 +5240,12 @@ iniciarSabedoria();
   window.plantioAbrirComparar    = plantioAbrirComparar;
   window.carregarDadosPlantio    = carregarDadosPlantio;
   window.filtrarPlantioAvanco    = filtrarPlantioAvanco;
-  window.filtrarPlantioBase      = filtrarPlantioBase;
   window.filtrarPlantioComparar  = filtrarPlantioComparar;
   window.togglePlantioCard       = togglePlantioCard;
-  window.plantioToggleFazenda    = plantioToggleFazenda;
   window.plantioSelecionarTalhao   = plantioSelecionarTalhao;
   window.plantioSelecionarFazenda  = plantioSelecionarFazenda;
   window.plantioToggleNaoIniciadas = plantioToggleNaoIniciadas;
   window.atualizarCardPlantioHome  = atualizarCardPlantioHome;
-  window._renderizarBaseFiltrada   = _renderizarBaseFiltrada;
   window._garantirSafraCarregada   = _garantirSafraCarregada;
 
   // DEBUG — remover após diagnóstico
@@ -5366,7 +5364,7 @@ iniciarSabedoria();
   }
 
   async function carregarDadosPlantio() {
-    ['pla-resumo-container','pla-base-container'].forEach(id => {
+    ['pla-resumo-container'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
     });
@@ -5702,7 +5700,6 @@ iniciarSabedoria();
     _atualizarSubTextoSafra(_safraAtual);
     _popularFazendaSelect();
     filtrarPlantioAvanco();
-    _renderizarBase();
     atualizarCardPlantioHome();
   }
 
@@ -6011,126 +6008,6 @@ iniciarSabedoria();
     sel.value = faz;
     filtrarPlantioAvanco();
   }
-  /* ══ BLOCO 3: Planejamento — lista de fazendas colapsável ════════ */
-  function _renderizarBase() {
-    const base = _b();
-    if (!base.length) return;
-
-    // Chips de mês
-    const meses = [...new Set(base.map(r => r.mes).filter(m => m > 0))].sort((a, b) => a - b);
-    const chipsEl = document.getElementById('pla-mes-chips');
-    if (chipsEl) {
-      let html = '<button class="pla-mes-chip active" data-mes="0" onclick="filtrarPlantioBase(this)">Todos</button>';
-      meses.forEach(m => {
-        const ha = base.filter(r => r.mes === m).reduce((s, r) => s + r.area, 0);
-        html += `<button class="pla-mes-chip" data-mes="${m}" onclick="filtrarPlantioBase(this)">${MESES_NOME[m]}<span style="font-size:8px;opacity:0.65;margin-left:3px;">${ha.toFixed(0)}ha</span></button>`;
-      });
-      chipsEl.innerHTML = html;
-    }
-
-    _renderizarBaseFiltrada(0);
-  }
-
-  function filtrarPlantioBase(btn) {
-    document.querySelectorAll('.pla-mes-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    _renderizarBaseFiltrada(parseInt(btn.dataset.mes) || 0);
-  }
-
-  function _renderizarBaseFiltrada(mes) {
-    const cont = document.getElementById('pla-base-container');
-    const base = _b();
-    if (!cont || !base.length) return;
-
-    const filtrado = mes === 0 ? base : base.filter(r => r.mes === mes);
-    if (!filtrado.length) {
-      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-seedling"></i>Nenhum talhão para este mês.</div>';
-      return;
-    }
-
-    // Agrupa por fazenda (código · nome)
-    const porFaz = {};
-    filtrado.forEach(r => {
-      const faz = _nomeFaz(r.codFazenda, r.fazenda) || 'Sem fazenda';
-      if (!porFaz[faz]) porFaz[faz] = [];
-      porFaz[faz].push(r);
-    });
-
-    // Ordenação
-    const sortVal = document.getElementById('pla-base-sort')?.value || 'faz-az';
-    const sorted = Object.entries(porFaz).sort((a, b) => {
-      if (sortVal === 'faz-az')  return a[0].localeCompare(b[0], 'pt-BR');
-      if (sortVal === 'faz-za')  return b[0].localeCompare(a[0], 'pt-BR');
-      const haA = a[1].reduce((s, r) => s + r.area, 0);
-      const haB = b[1].reduce((s, r) => s + r.area, 0);
-      if (sortVal === 'ha-desc') return haB - haA;
-      if (sortVal === 'ha-asc')  return haA - haB;
-      // mes-asc: menor mês primeiro
-      const mesA = Math.min(...a[1].map(r => r.mes || 99));
-      const mesB = Math.min(...b[1].map(r => r.mes || 99));
-      return mesA - mesB;
-    });
-    const grandTotal = filtrado.reduce((s, r) => s + r.area, 0);
-
-    let html = '';
-    sorted.forEach(([faz, talhoes], idxFaz) => {
-      const totalFaz = talhoes.reduce((s, r) => s + r.area, 0);
-      const idBody   = `pla-faz-body-${idxFaz}`;
-
-      // Lista de talhões da fazenda (montada uma vez)
-      let talhoesHtml = '';
-      talhoes.forEach(r => {
-        const tags = [];
-        if (r.variedade) tags.push(`<span class="pla-talhao-tag variedade">${r.variedade}</span>`);
-        if (r.tipo)      tags.push(`<span class="pla-talhao-tag tipo">${r.tipo}</span>`);
-        if (r.ambiente)  tags.push(`<span class="pla-talhao-tag ambiente">${r.ambiente}</span>`);
-        if (r.modelo)    tags.push(`<span class="pla-talhao-tag">${r.modelo}</span>`);
-        if (r.mes)       tags.push(`<span class="pla-talhao-tag">${MESES_NOME[r.mes]}${r.dataPlant ? '/' + r.dataPlant.getFullYear().toString().slice(-2) : ''}</span>`);
-
-        talhoesHtml += `
-          <div class="pla-talhao-card">
-            <div class="pla-talhao-card-row">
-              <span class="pla-talhao-nome">Talhão ${r.talhao}</span>
-              <span class="pla-talhao-ha">${_fmtHa(r.area)}</span>
-            </div>
-            ${tags.length ? `<div class="pla-talhao-info">${tags.join('')}</div>` : ''}
-          </div>`;
-      });
-
-      html += `
-        <div class="pla-pipeline-fazenda" style="margin-bottom:8px;">
-          <div class="pla-pipeline-header" onclick="plantioToggleFazenda('${idBody}', this)">
-            <span class="pla-pipeline-fazenda-nome">
-              <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${faz}
-            </span>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:11px;font-weight:800;color:#E65100;">${_fmtHa(totalFaz)}</span>
-              <span style="font-size:10px;color:var(--text-3);">${talhoes.length} ${talhoes.length === 1 ? 'talhão' : 'talhões'}</span>
-              <i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);"></i>
-            </div>
-          </div>
-          <div class="pla-pipeline-talhoes" id="${idBody}" style="padding:8px 0 4px;">
-            ${talhoesHtml}
-          </div>
-        </div>`;
-    });
-
-    html += `
-      <div style="text-align:right; padding:10px 4px 2px; font-size:11px; font-weight:800; color:#E65100; border-top:1px solid var(--border); margin-top:4px;">
-        ${filtrado.length} talhões · Total: ${_fmtHa(grandTotal)}
-      </div>`;
-
-    cont.innerHTML = html;
-  }
-
-  function plantioToggleFazenda(id, headerEl) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.toggle('open');
-    const ch = headerEl ? headerEl.querySelector('.fa-chevron-down') : null;
-    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
-  }
-
   /* ══ CONSULTA ENTRE SAFRAS ════════════════════════════════════════ */
   function filtrarPlantioComparar() {
     const iniVal = document.getElementById('pla-comp-ini')?.value;
@@ -6164,7 +6041,7 @@ iniciarSabedoria();
     if ($('pla-comp-contador')) $('pla-comp-contador').textContent =
       `25/26: ${_fmtHa(ha2526)} · 26/27: ${_fmtHa(ha2627)} · Total: ${_fmtHa(total)}`;
 
-    if (!iniVal && !fimVal) return;
+    if (!iniVal && !fimVal) { _ultimoComparativoMeses = null; return; }
 
     // Monta mapa de mês → fazendas → { a, b }
     const mesMap = {}; // { 'AAAA-MM': { label, a, b, fazendas: { nomeFaz: {a,b} } } }
@@ -6186,6 +6063,7 @@ iniciarSabedoria();
 
     const maxHa      = Math.max(...Object.values(mesMap).map(m => Math.max(m.a, m.b)), 1);
     const mesesSorted = Object.entries(mesMap).sort(([a], [b]) => a.localeCompare(b));
+    _ultimoComparativoMeses = mesesSorted;
 
     let htmlMeses = '';
     if (!mesesSorted.length) {
@@ -6242,6 +6120,48 @@ iniciarSabedoria();
     rowEl.classList.toggle('open');
   }
   window.plaToggleMesFaz = plaToggleMesFaz;
+
+  // Exporta o resumo Mês × Fazenda × Safra pra Excel (CSV com BOM, abre certo com acento)
+  function exportarExcelComparar() {
+    if (!_ultimoComparativoMeses || !_ultimoComparativoMeses.length) {
+      showToast('⚠️ Selecione um período com dados antes de exportar.', 'error', 2500);
+      return;
+    }
+
+    const cabecalho = ['Mês', 'Fazenda', 'Safra 25/26 (ha)', 'Safra 26/27 (ha)'];
+    const linhas = [];
+
+    _ultimoComparativoMeses.forEach(([, m]) => {
+      const fazendas = Object.entries(m.fazendas).sort(([a], [b]) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+      fazendas.forEach(([faz, d]) => {
+        linhas.push([
+          m.label,
+          faz,
+          d.a ? d.a.toFixed(2).replace('.', ',') : '0,00',
+          d.b ? d.b.toFixed(2).replace('.', ',') : '0,00',
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+      });
+      // linha de subtotal do mês
+      linhas.push([
+        m.label, 'TOTAL DO MÊS',
+        m.a.toFixed(2).replace('.', ','),
+        m.b.toFixed(2).replace('.', ','),
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+    });
+
+    const csv  = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `comparativo_safras_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('✅ Excel exportado!', 'success', 2500);
+  }
+  window.exportarExcelComparar = exportarExcelComparar;
 
   /* ── toggle colapsável ───────────────────────────────────────────── */
   function togglePlantioCard(headerEl) {
