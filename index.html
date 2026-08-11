@@ -1847,6 +1847,15 @@
           <div class="pla-empty"><i class="fas fa-seedling"></i>Selecione um período acima</div>
         </div>
       </div>
+
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn-pdf-contextual" onclick="gerarPDF()" style="flex:1; margin:0;">
+          <i class="fas fa-print"></i> Gerar PDF
+        </button>
+        <button class="btn-pdf-contextual" onclick="exportarExcelComparar()" style="flex:1; margin:0;">
+          <i class="fas fa-file-excel"></i> Exportar Excel
+        </button>
+      </div>
     </div>
 
     <!-- CONTEÚDO DA SAFRA (oculto até selecionar) -->
@@ -1906,35 +1915,6 @@
           </div>
           <div id="pla-resumo-container">
             <div class="pla-empty"><i class="fas fa-seedling"></i>Carregando...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- BLOCO 2: PLANEJAMENTO -->
-      <div class="card plantio-card-collapsible">
-        <div class="plantio-card-header" onclick="togglePlantioCard(this)">
-          <div class="card-title" style="margin:0"><i class="fas fa-clipboard-list"></i> Planejamento — talhões a plantar</div>
-          <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="plantio-card-body">
-          <div class="pla-mes-chips" id="pla-mes-chips">
-            <button class="pla-mes-chip active" data-mes="0" onclick="filtrarPlantioBase(this)">Todos</button>
-          </div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <span style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.4px;">Ordenar:</span>
-            <div class="app-select-wrap" style="flex:1;">
-              <select id="pla-base-sort" class="app-select" onchange="_renderizarBaseFiltrada(parseInt(document.querySelector('.pla-mes-chip.active')?.dataset.mes)||0)" style="font-size:11px;">
-                <option value="faz-az">Fazenda A→Z</option>
-                <option value="faz-za">Fazenda Z→A</option>
-                <option value="ha-desc">Maior área</option>
-                <option value="ha-asc">Menor área</option>
-                <option value="mes-asc">Mês previsto ↑</option>
-              </select>
-              <i class="fas fa-chevron-down app-select-chevron"></i>
-            </div>
-          </div>
-          <div id="pla-base-container">
-            <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando planejamento...</div>
           </div>
         </div>
       </div>
