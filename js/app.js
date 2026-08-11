@@ -72,6 +72,37 @@ function showTab(e, id) {
       containerPrincipal.classList.remove('container-larga');
     }
   }
+
+  atualizarBottomNavAtivo(id);
+}
+
+/* Destaca o item correspondente na barra de navegação inferior. Seções sem
+   ícone próprio na barra (Conferências, Simulador, Clima, Calculadora)
+   destacam o botão "Mais", já que vivem dentro daquele sheet. */
+function atualizarBottomNavAtivo(id) {
+  const mapa = {
+    'liberacoes_menu':     'bn-liberacoes',
+    'liberacoes':          'bn-liberacoes',
+    'tratos_menu':         'bn-tratos',
+    'tratos_aba':          'bn-tratos',
+    'tratos_novo_recurso': 'bn-tratos',
+    'plantio_aba':         'bn-plantio',
+    'mapas_aba':           'bn-mapas'
+  };
+  const alvoId = mapa[id] || 'bn-mais';
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  const alvo = document.getElementById(alvoId);
+  if (alvo) alvo.classList.add('active');
+}
+
+function abrirMaisSheet() {
+  document.getElementById('mais-sheet-overlay').classList.add('open');
+}
+
+function fecharMaisSheet(e) {
+  // Se veio de um clique no overlay, só fecha se o clique foi fora da caixa
+  if (e && e.target && e.target.id !== 'mais-sheet-overlay') return;
+  document.getElementById('mais-sheet-overlay').classList.remove('open');
 }
 
 /* Sub-tab da Calculadora */
@@ -111,6 +142,8 @@ function voltarParaHome() {
 
   document.getElementById('btn-voltar-menu').style.display = 'none';
   document.getElementById('btn-atualizar-global').style.display = 'none';
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('mais-sheet-overlay').classList.remove('open');
 
   // Reexibe a Sabedoria de Campo
   document.body.classList.remove('tab-open');
