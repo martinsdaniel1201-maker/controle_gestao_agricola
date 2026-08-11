@@ -6774,3 +6774,80 @@ function _onLogout() {
     }
   }, { passive: true });
 })();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GESTO EDGE-SWIPE (estilo iOS) — arrastar da borda esquerda para a direita
+   volta para o menu Home. Só ativa dentro de uma seção (body.tab-open) e só
+   quando o toque começa perto da borda esquerda da tela.
+══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  const EDGE_ZONE     = 24;   // px a partir da borda esquerda que ativa o gesto
+  const MIN_DIST      = 90;   // distância mínima arrastada para confirmar "voltar"
+  const MAX_VERTICAL  = 60;   // tolerância vertical antes de cancelar o gesto
+  const MAX_DRAG       = 140; // limite visual de arrasto do conteúdo/hint
+
+  let startX = 0, startY = 0, tracking = false, activeSection = null;
+  const hint = () => document.getElementById('swipe-back-hint');
+
+  function onStart(e) {
+    if (!document.body.classList.contains('tab-open')) return;
+    // Ignora se o toque começou dentro de um modal/overlay aberto
+    if (document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open')) return;
+    const t = e.touches[0];
+    if (t.clientX > EDGE_ZONE) return;
+    startX = t.clientX;
+    startY = t.clientY;
+    tracking = true;
+    activeSection = document.querySelector('.section.active');
+    if (activeSection) activeSection.classList.add('swipe-tracking');
+    const h = hint();
+    if (h) h.classList.add('dragging');
+  }
+
+  function onMove(e) {
+    if (!tracking) return;
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    if (dy > MAX_VERTICAL) { onEnd(); return; }
+    if (dx <= 0) return;
+    const drag = Math.min(dx, MAX_DRAG);
+    const progress = drag / MIN_DIST;
+    if (activeSection) activeSection.style.transform = `translateX(${drag}px)`;
+    const h = hint();
+    if (h) {
+      h.style.opacity = Math.min(progress, 1);
+      h.style.transform = `translate(${-100 + Math.min(progress, 1) * 160}%, -50%)`;
+    }
+  }
+
+  function onEnd(e) {
+    if (!tracking) return;
+    tracking = false;
+    const h = hint();
+    const dx = e && e.changedTouches ? (e.changedTouches[0].clientX - startX) : 0;
+    const dy = e && e.changedTouches ? Math.abs(e.changedTouches[0].clientY - startY) : 999;
+    const confirmou = dx > MIN_DIST && dy < MAX_VERTICAL;
+
+    if (activeSection) {
+      activeSection.classList.remove('swipe-tracking');
+      activeSection.classList.add('swipe-snapping');
+      activeSection.style.transform = '';
+      setTimeout(() => { if (activeSection) activeSection.classList.remove('swipe-snapping'); }, 260);
+    }
+    if (h) {
+      h.classList.remove('dragging');
+      h.classList.add('snapping');
+      h.style.opacity = 0;
+      h.style.transform = 'translate(-100%, -50%)';
+      setTimeout(() => h.classList.remove('snapping'), 260);
+    }
+    if (confirmou) voltarParaHome();
+    activeSection = null;
+  }
+
+  document.addEventListener('touchstart', onStart, { passive: true });
+  document.addEventListener('touchmove', onMove, { passive: true });
+  document.addEventListener('touchend', onEnd, { passive: true });
+  document.addEventListener('touchcancel', onEnd, { passive: true });
+})();
