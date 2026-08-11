@@ -216,6 +216,62 @@
   </span>
 </div>
 
+<!-- ══ BARRA DE NAVEGAÇÃO INFERIOR (estilo Facebook) ══
+     Visível apenas dentro de uma seção (body.tab-open). Permite pular entre
+     os módulos mais usados sem precisar voltar para a Home a cada troca. -->
+<nav class="bottom-nav" id="bottom-nav" aria-label="Navegação rápida">
+  <button class="bn-item" id="bn-home" onclick="voltarParaHome()">
+    <span class="bn-icon"><i class="fas fa-house"></i></span>
+    <span class="bn-label">Início</span>
+  </button>
+  <button class="bn-item" id="bn-liberacoes" onclick="showTab(event,'liberacoes_menu')">
+    <span class="bn-icon"><i class="fas fa-table"></i></span>
+    <span class="bn-label">Liberações</span>
+  </button>
+  <button class="bn-item" id="bn-tratos" onclick="showTab(event,'tratos_menu')">
+    <span class="bn-icon"><i class="fas fa-spray-can"></i></span>
+    <span class="bn-label">Tratos</span>
+  </button>
+  <button class="bn-item" id="bn-plantio" onclick="showTab(event,'plantio_aba'); iniciarModuloPlantio()">
+    <span class="bn-icon"><i class="fas fa-seedling"></i></span>
+    <span class="bn-label">Plantio</span>
+  </button>
+  <button class="bn-item" id="bn-mapas" onclick="showTab(event,'mapas_aba')">
+    <span class="bn-icon"><i class="fas fa-map"></i></span>
+    <span class="bn-label">Mapas</span>
+  </button>
+  <button class="bn-item" id="bn-mais" onclick="abrirMaisSheet()">
+    <span class="bn-icon"><i class="fas fa-bars"></i></span>
+    <span class="bn-label">Mais</span>
+  </button>
+</nav>
+
+<!-- ══ SHEET "MAIS" — restante dos módulos, aberto por cima da barra inferior ══ -->
+<div class="mais-sheet-overlay" id="mais-sheet-overlay" onclick="fecharMaisSheet(event)">
+  <div class="mais-sheet-box" id="mais-sheet-box" role="dialog" aria-label="Mais módulos">
+    <div class="mais-sheet-handle"></div>
+    <div class="mais-sheet-title">Mais módulos</div>
+    <div class="mais-sheet-grid">
+      <button class="mais-sheet-item" onclick="fecharMaisSheet(); showTab(event,'conf_menu')">
+        <span class="mais-sheet-orb"><i class="fas fa-clipboard-check"></i></span>
+        <span>Conferências</span>
+      </button>
+      <button class="mais-sheet-item" onclick="fecharMaisSheet(); showTab(event,'simulador')">
+        <span class="mais-sheet-orb"><i class="fas fa-tractor"></i></span>
+        <span>Simulador</span>
+      </button>
+      <button class="mais-sheet-item" onclick="fecharMaisSheet(); showTab(event,'clima_aba')">
+        <span class="mais-sheet-orb"><i class="fas fa-cloud-sun"></i></span>
+        <span>Clima & Agro</span>
+      </button>
+      <button class="mais-sheet-item" onclick="fecharMaisSheet(); showTab(event,'calc_aba')">
+        <span class="mais-sheet-orb"><i class="fas fa-calculator"></i></span>
+        <span>Calculadora</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="container" id="app-root">
 
 
