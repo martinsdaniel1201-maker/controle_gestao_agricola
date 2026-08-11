@@ -13,6 +13,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- jsPDF exposto como window.jspdf.jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- html2pdf (já inclui html2canvas internamente, mas agora usamos os globais acima) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
@@ -611,10 +612,6 @@
       </div>
     </div>
 
-    <button class="btn-pdf-contextual" onclick="gerarPDF()">
-      <i class="fas fa-print"></i> Gerar PDF desta aba
-    </button>
-
   </section>
 
  <!-- ══ ABA LIBERAÇÕES — MENU DE ESCOLHA ══ -->
@@ -793,8 +790,8 @@
       </div>
     </div>
 
-    <button class="btn-pdf-contextual" onclick="gerarPDF()">
-      <i class="fas fa-print"></i> Gerar PDF desta aba
+    <button class="btn-pdf-contextual" onclick="exportarPDFLiberacoes()">
+      <i class="fas fa-file-pdf"></i> Exportar PDF da Tabela
     </button>
   </section>
 
@@ -1085,10 +1082,6 @@
     </div>
 
     </div><!-- /calc_custos -->
-
-    <button class="btn-pdf-contextual" onclick="gerarPDF()">
-      <i class="fas fa-print"></i> Gerar PDF desta aba
-    </button>
 
   </section>
 
@@ -1515,8 +1508,8 @@
       </div>
     </div>
 
-    <button class="btn-pdf-contextual" onclick="gerarPDF()">
-      <i class="fas fa-print"></i> Gerar PDF desta aba
+    <button class="btn-pdf-contextual" onclick="exportarPDFConfOS()">
+      <i class="fas fa-file-pdf"></i> Exportar PDF da Tabela
     </button>
 
   </section>
@@ -1767,8 +1760,8 @@
         </div>
       </div>
 
-      <button class="btn-pdf-contextual" onclick="gerarPDF()">
-        <i class="fas fa-print"></i> Gerar PDF desta aba
+      <button class="btn-pdf-contextual" onclick="exportarPDFTratos()">
+        <i class="fas fa-file-pdf"></i> Exportar PDF da Tabela
       </button>
 
   </section>
@@ -1849,8 +1842,8 @@
       </div>
 
       <div style="display:flex; gap:8px; margin-top:10px;">
-        <button class="btn-pdf-contextual" onclick="gerarPDF()" style="flex:1; margin:0;">
-          <i class="fas fa-print"></i> Gerar PDF
+        <button class="btn-pdf-contextual" onclick="exportarPDFComparar()" style="flex:1; margin:0;">
+          <i class="fas fa-file-pdf"></i> Exportar PDF
         </button>
         <button class="btn-pdf-contextual" onclick="exportarExcelComparar()" style="flex:1; margin:0;">
           <i class="fas fa-file-excel"></i> Exportar Excel
@@ -1919,8 +1912,8 @@
         </div>
       </div>
 
-      <button class="btn-pdf-contextual" onclick="gerarPDF()">
-        <i class="fas fa-print"></i> Gerar PDF desta aba
+      <button class="btn-pdf-contextual" onclick="exportarPDFMapaPlantio()">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
       </button>
 
     </div><!-- fim plantio-conteudo -->
