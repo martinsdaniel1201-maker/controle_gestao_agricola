@@ -465,8 +465,23 @@ async function exportarResumoFrentesPDF() {
 
     const now = new Date();
     const nomeArq = `Resumo_Frentes_${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}.pdf`;
-    pdf.save(nomeArq);
-    showToast('✅ PDF do resumo gerado!');
+    const blobPdf = pdf.output('blob');
+    const filePdf = new File([blobPdf], nomeArq, { type: 'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files: [filePdf] })) {
+      try {
+        await navigator.share({ files: [filePdf], title: 'Resumo por Frente' });
+        showToast('✅ PDF do resumo gerado!');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          _baixarArquivo(blobPdf, nomeArq);
+          showToast('✅ PDF do resumo baixado!');
+        }
+      }
+    } else {
+      _baixarArquivo(blobPdf, nomeArq);
+      showToast('✅ PDF do resumo baixado!');
+    }
   } catch (e) {
     console.error(e);
     showToast('❌ Erro ao gerar PDF do resumo.', 'error', 3000);
@@ -652,7 +667,22 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
   return { pdf, y, pgW };
 }
 
-function _finalizarPDFRelatorio(pdf, nomeArquivo) {
+function _baixarArquivo(blob, nomeArquivo) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Gera o PDF como Blob/File nomeado e usa o Web Share nativo (com fallback de
+// download direto) em vez de pdf.save(), que no iOS abre o PDF como blob:
+// dentro do próprio site — expondo o domínio do GitHub Pages e mostrando
+// "blob:https://..." no menu de compartilhar em vez do nome do arquivo.
+async function _finalizarPDFRelatorio(pdf, nomeArquivo) {
   const paginas = pdf.internal.getNumberOfPages();
   const pgW = pdf.internal.pageSize.getWidth();
   const pgH = pdf.internal.pageSize.getHeight();
@@ -664,8 +694,23 @@ function _finalizarPDFRelatorio(pdf, nomeArquivo) {
     pdf.text(`Página ${i} de ${paginas}`, pgW - 30, pgH - 6);
     pdf.text('Gerado pelo app de Gestão Agrícola', 12, pgH - 6);
   }
-  pdf.save(nomeArquivo);
-  showToast('✅ PDF gerado!', 'success', 2500);
+
+  const blob = pdf.output('blob');
+  const file = new File([blob], nomeArquivo, { type: 'application/pdf' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: nomeArquivo.replace(/\.pdf$/i, '') });
+      showToast('✅ PDF gerado!', 'success', 2500);
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return; // usuário cancelou o compartilhamento
+      // se o share falhar por outro motivo, cai para o download normal abaixo
+    }
+  }
+
+  _baixarArquivo(blob, nomeArquivo);
+  showToast('✅ PDF baixado!', 'success', 2500);
 }
 
 // Estilo padrão de tabela, reaproveitado em todos os relatórios
