@@ -2370,10 +2370,14 @@
       transition: background 0.18s;
     }
 
-    /* Lado esquerdo: botão voltar */
+    /* Lado esquerdo: botão voltar — oculto (redundante com o "Início" da barra
+       inferior); visibility:hidden em vez de display:none para manter o espaço
+       e a barra continuar simétrica/centralizada. */
     #btn-voltar-menu .voltar-left {
       display: flex; align-items: center; gap: 0;
       flex-shrink: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
     #btn-voltar-menu .voltar-btn-inner {
       display: flex; align-items: center; gap: 8px;
@@ -3521,12 +3525,15 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
 .bottom-nav {
   display: none;
   position: fixed;
-  left: 0; right: 0; bottom: 0;
+  left: 10px; right: 10px; bottom: 10px;
   z-index: 9500;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 20px rgba(20,40,20,0.08);
-  padding: 6px 4px calc(env(safe-area-inset-bottom) + 6px);
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(20,40,20,0.06);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(20,40,20,0.16), 0 2px 8px rgba(20,40,20,0.06);
+  padding: 7px 6px calc(env(safe-area-inset-bottom) + 7px);
   justify-content: space-around;
   align-items: stretch;
   gap: 2px;
@@ -3535,36 +3542,59 @@ body.tab-open .bottom-nav { display: flex; }
 /* A barra inferior substitui o botão flutuante "voltar" — evita redundância */
 body.tab-open #btn-voltar-flutuante { display: none !important; }
 /* Reserva espaço no fim da página para a barra não cobrir conteúdo */
-body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 74px); }
+body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 88px); }
 
 .bn-item {
+  position: relative;
   flex: 1 1 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 3px;
   background: none; border: none; cursor: pointer;
-  padding: 6px 2px 4px;
-  border-radius: var(--radius-md);
+  padding: 7px 2px 5px;
+  border-radius: 16px;
   color: var(--text-3);
   transition: color 0.2s var(--ease-premium), transform 0.15s var(--ease-premium);
 }
-.bn-item:active { transform: scale(0.92); }
+.bn-item:active { transform: scale(0.90); }
 .bn-icon {
   font-size: 17px;
-  height: 26px; display: flex; align-items: center; justify-content: center;
+  height: 28px; width: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: background 0.22s var(--ease-premium), transform 0.22s var(--ease-premium);
 }
-.bn-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1px; white-space: nowrap; }
+.bn-label {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1px; white-space: nowrap;
+  transition: color 0.2s var(--ease-premium), opacity 0.2s var(--ease-premium);
+}
 
-/* Estado ativo — orbe preenchida, igual ao ícone da Home, em vez de só cor */
+/* Estado ativo — orbe preenchida + leve elevação + ponto indicador embaixo */
 .bn-item.active { color: var(--green-700); }
 .bn-item.active .bn-icon {
   background: var(--green-50);
-  border-radius: 50%;
-  width: 34px; height: 26px;
+  width: 46px; height: 28px;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(67,160,71,0.22);
 }
-body.dark-mode .bn-item.active .bn-icon { background: rgba(67,160,71,0.18); }
-body.dark-mode .bottom-nav { background: #161c16; border-top-color: #23291f; }
+.bn-item.active .bn-label { font-weight: 800; }
+.bn-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 1px; left: 50%;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--green-700);
+  transform: translateX(-50%);
+}
+body.dark-mode .bottom-nav {
+  background: rgba(22,28,22,0.82);
+  border-color: rgba(255,255,255,0.06);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+}
 body.dark-mode .bn-item { color: #8a998a; }
 body.dark-mode .bn-item.active { color: #81C784; }
+body.dark-mode .bn-item.active .bn-icon { background: rgba(67,160,71,0.18); }
+body.dark-mode .bn-item.active::after { background: #81C784; }
 
 /* ── Sheet "Mais" — desliza de baixo, mesma lógica de modal já usada no app ── */
 .mais-sheet-overlay {
@@ -3638,3 +3668,28 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     max-width: 1760px !important;
   }
 }
+
+/* ══════════════════════════════════════════════
+   GESTO EDGE-SWIPE (estilo iOS) — indicador visual
+══════════════════════════════════════════════ */
+#swipe-back-hint {
+  position: fixed;
+  top: 50%; left: 0;
+  transform: translate(-100%, -50%);
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: var(--grad);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  z-index: 10000;
+  box-shadow: 0 6px 16px rgba(20,40,20,0.3);
+  opacity: 0;
+  pointer-events: none;
+}
+#swipe-back-hint.dragging { transition: none; }
+#swipe-back-hint.snapping { transition: transform 0.25s var(--ease-premium), opacity 0.25s var(--ease-premium); }
+
+/* Enquanto arrasta, o conteúdo da seção ativa acompanha o dedo */
+.section.active.swipe-tracking { transition: none !important; }
+.section.active.swipe-snapping { transition: transform 0.25s var(--ease-premium) !important; }
