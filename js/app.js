@@ -170,8 +170,6 @@ function atualizarKebabMenu() {
 
   if (abaId === 'simulador') {
     itens = [
-      { secao: 'Exportar' },
-      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
@@ -199,11 +197,16 @@ function atualizarKebabMenu() {
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
-  } else {
-    // Clima, Mapas, Calculadora — só PDF e sincronizar
+  } else if (abaId === 'plantio_aba') {
     itens = [
       { secao: 'Exportar' },
       { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
+  } else {
+    // Clima, Mapas, Calculadora — sem exportação, só sincronizar
+    itens = [
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
@@ -220,9 +223,20 @@ function atualizarKebabMenu() {
 function kebabAcao(acao) {
   fecharKebab();
   switch (acao) {
-    case 'pdf':
-      gerarPDF();
+    case 'pdf': {
+      const secAtiva = document.querySelector('.section.active');
+      if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
+      const sid = secAtiva.id;
+      if (sid === 'liberacoes') exportarPDFLiberacoes();
+      else if (sid === 'conf_os_aba') exportarPDFConfOS();
+      else if (sid === 'tratos_aba') exportarPDFTratos();
+      else if (sid === 'plantio_aba') {
+        if (document.getElementById('plantio-comparar')?.style.display !== 'none') exportarPDFComparar();
+        else exportarPDFMapaPlantio();
+      }
+      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Conferências, Tratos e Plantio.', 'info', 3000);
       break;
+    }
     case 'excel': {
       const secAtiva = document.querySelector('.section.active');
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
@@ -604,115 +618,66 @@ async function sincronizarApp() {
 }
 
 
-async function gerarPDF() {
-  const secaoAtiva = document.querySelector('.section.active');
-  if (!secaoAtiva) {
-    showToast('⚠️ Abra uma aba antes de exportar.', 'error', 2500);
-    return;
+/* ══════════════════════════════════════════════
+   HELPER COMPARTILHADO — PDFs vetoriais (tabela real, não print da tela)
+══════════════════════════════════════════════ */
+function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
+  const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  const pdf = new jsPDFClass({ unit: 'mm', format: 'a4', orientation: orientacao || 'portrait' });
+  const pgW = pdf.internal.pageSize.getWidth();
+
+  // Faixa verde de cabeçalho
+  pdf.setFillColor(27, 94, 32); // --green-900
+  pdf.rect(0, 0, pgW, 20, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(13);
+  pdf.text(titulo, 12, 12);
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  const dataHoje = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const larguraData = pdf.getTextWidth(dataHoje);
+  pdf.text(dataHoje, pgW - 12 - larguraData, 12);
+
+  let y = 27;
+  if (subtitulo) {
+    pdf.setTextColor(74, 85, 74);
+    pdf.setFontSize(9.5);
+    pdf.setFont('helvetica', 'normal');
+    const linhas = pdf.splitTextToSize(subtitulo, pgW - 24);
+    pdf.text(linhas, 12, y);
+    y += linhas.length * 4.2 + 4;
   }
-
-  showToast('📄 Gerando PDF… aguarde', 'info', 8000);
-
-  /* ── 1. Abre cards colapsados temporariamente ── */
-  const colapsados = [];
-  secaoAtiva.querySelectorAll('.card-collapsible:not(.open)').forEach(card => {
-    const body = card.querySelector('.card-collapse-body');
-    colapsados.push({ card, body });
-    card.classList.add('open');
-    if (body) {
-      body.style.transition = 'none';
-      body.style.maxHeight  = 'none';
-      body.style.opacity    = '1';
-      body.style.overflow   = 'visible';
-    }
-  });
-
-  /* ── 2. Esconde elementos que não devem aparecer no PDF ── */
-  const escondidos = [];
-  secaoAtiva.querySelectorAll(
-    '.btn-pdf-contextual, .collapse-hint, .collapse-chevron'
-  ).forEach(el => {
-    escondidos.push({ el, vis: el.style.visibility });
-    el.style.visibility = 'hidden';
-  });
-
-  /* Aguarda layout estabilizar após abrir os cards */
-  await new Promise(r => setTimeout(r, 220));
-
-  try {
-    /* ── 3. html2canvas direto no elemento vivo (preserva todas as cores) ── */
-    const dpr   = Math.min(window.devicePixelRatio || 1, 2); // cap 2x
-    const scale = Math.max(dpr, 2);                           // mínimo 2x para nitidez
-
-    const canvas = await html2canvas(secaoAtiva, {
-      scale,
-      useCORS      : true,
-      allowTaint   : true,
-      logging      : false,
-      scrollX      : 0,
-      scrollY      : -window.scrollY,
-      windowWidth  : document.documentElement.scrollWidth,
-      windowHeight : secaoAtiva.scrollHeight,
-      /* backgroundColor null = usa o fundo computado do próprio elemento */
-      backgroundColor: window.getComputedStyle(secaoAtiva).backgroundColor || null,
-    });
-
-    /* ── 4. Monta PDF A4 multi-página via fatiamento do canvas ── */
-    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-    const pdf  = new jsPDFClass({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const pgW  = pdf.internal.pageSize.getWidth();   // 210 mm
-    const pgH  = pdf.internal.pageSize.getHeight();  // 297 mm
-
-    /* Proporção: largura do canvas → largura da página */
-    const ratio     = pgW / canvas.width;
-    const fatiaHpx  = Math.floor(pgH / ratio);       // altura de 1 página em px do canvas
-    let   yPx       = 0;
-    let   pagina    = 0;
-
-    while (yPx < canvas.height) {
-      const restante = canvas.height - yPx;
-      const hPx      = Math.min(fatiaHpx, restante);
-
-      /* Fatia o canvas para esta página */
-      const fatia    = document.createElement('canvas');
-      fatia.width    = canvas.width;
-      fatia.height   = hPx;
-      fatia.getContext('2d').drawImage(canvas, 0, -yPx);
-
-      const imgData  = fatia.toDataURL('image/jpeg', 0.96);
-      const imgH     = hPx * ratio;
-
-      if (pagina > 0) pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, 0, pgW, imgH);
-
-      yPx    += fatiaHpx;
-      pagina += 1;
-    }
-
-    /* ── 5. Salva ── */
-    const nomeAba  = secaoAtiva.id.replace('_aba','').replace(/_/g,'-');
-    const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
-    pdf.save(`CTT_${nomeAba}_${dataHoje}.pdf`);
-
-    showToast(`✅ PDF gerado! (${pagina} página${pagina > 1 ? 's' : ''})`, 'success', 3000);
-
-  } catch (err) {
-    showToast('❌ Erro ao gerar PDF: ' + (err.message || err), 'error', 4000);
-    console.error('[gerarPDF]', err);
-  } finally {
-    /* ── 6. Restaura estado original ── */
-    colapsados.forEach(({ card, body }) => {
-      card.classList.remove('open');
-      if (body) {
-        body.style.transition  = '';
-        body.style.maxHeight   = '';
-        body.style.opacity     = '';
-        body.style.overflow    = '';
-      }
-    });
-    escondidos.forEach(({ el, vis }) => { el.style.visibility = vis; });
-  }
+  return { pdf, y, pgW };
 }
+
+function _finalizarPDFRelatorio(pdf, nomeArquivo) {
+  const paginas = pdf.internal.getNumberOfPages();
+  const pgW = pdf.internal.pageSize.getWidth();
+  const pgH = pdf.internal.pageSize.getHeight();
+  for (let i = 1; i <= paginas; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(8);
+    pdf.setTextColor(150, 150, 150);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Página ${i} de ${paginas}`, pgW - 30, pgH - 6);
+    pdf.text('Gerado pelo app de Gestão Agrícola', 12, pgH - 6);
+  }
+  pdf.save(nomeArquivo);
+  showToast('✅ PDF gerado!', 'success', 2500);
+}
+
+// Estilo padrão de tabela, reaproveitado em todos os relatórios
+const _PDF_TABLE_ESTILO = {
+  theme: 'striped',
+  headStyles: { fillColor: [27, 94, 32], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+  bodyStyles: { fontSize: 8, textColor: [34, 40, 31] },
+  alternateRowStyles: { fillColor: [249, 250, 249] },
+  margin: { left: 12, right: 12 },
+};
+
+
 
 /* ══════════════════════════════════════════════
    BARRA DE BOAS-VINDAS (HOME)
@@ -2015,6 +1980,55 @@ function exportarConfOsExcel() {
   showToast(`✅ ${filtrados.length} registros exportados!`, 'success', 2500);
 }
 
+function exportarPDFConfOS() {
+  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+
+  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
+  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
+  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  const filtrados = window._confOsDados.filter(row => {
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  const filtrosTxt = [
+    bFazenda  ? 'Fazenda: "' + bFazenda + '"' : null,
+    bOperacao ? 'Operação: "' + bOperacao + '"' : null,
+    bObs      ? 'OBS: "' + bObs + '"' : null,
+  ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
+
+  const { pdf, y } = _novoPDFRelatorio('Conferência Operadores × O.S.', `${filtrados.length} registros   ·   ${filtrosTxt}`, 'portrait');
+
+  pdf.autoTable({
+    ...(_PDF_TABLE_ESTILO),
+    startY: y,
+    head: [['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS']],
+    body: filtrados.map(row => [
+      row[colOS]       || '—',
+      row[colData]     || '—',
+      row[colFazenda]  || '—',
+      row[colOperacao] || '—',
+      row[colObs]      || '—',
+    ]),
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 4) {
+        const raw = String(data.cell.raw || '').toUpperCase();
+        if (raw.includes('SEM APONTAMENTO')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
+        else if (raw === 'OK') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
+      }
+    },
+  });
+
+  const nomeArq = `Conferencia_OS_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
+  _finalizarPDFRelatorio(pdf, nomeArq);
+}
+
 
 function exportarExcelLiberacoes() {
   if (!window._gatecDados || window._gatecDados.length === 0) {
@@ -2063,6 +2077,83 @@ function exportarExcelLiberacoes() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(`✅ ${filtrados.length} liberações exportadas!`, 'success', 2500);
+}
+
+function exportarPDFLiberacoes() {
+  if (!window._gatecDados || window._gatecDados.length === 0) {
+    showToast('⚠️ Nenhum dado de Liberações carregado para exportar.', 'error', 2500);
+    return;
+  }
+  const frentesSel = window._libFrentesSelecionadas || new Set();
+  const bFazenda   = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
+  const bStatus    = (document.getElementById('filtroStatus')?.value  || '');
+
+  const filtrados = window._gatecDados.filter(row => {
+    const frente  = (row['FRENTE']       || '').trim();
+    const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
+    const status  = (row['STATUS OS']    || '').toUpperCase();
+    const okFrente = frentesSel.size === 0 || frentesSel.has(frente);
+    const statusOk = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
+    return okFrente && fazenda.includes(bFazenda) && statusOk;
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  const filtrosTxt = [
+    frentesSel.size ? 'Frente: ' + [...frentesSel].join(', ') : null,
+    bFazenda ? 'Fazenda: "' + bFazenda + '"' : null,
+    bStatus  ? 'Status: ' + (bStatus === 'ENCERRADA' ? 'Encerradas' : 'Abertas') : null,
+  ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
+
+  const totalProd = filtrados.reduce((s, r) => s + (parseFloat(String(r['PROD. REAL']||'0').replace(/\./g,'').replace(',','.')) || 0), 0);
+  const subtitulo = `${filtrados.length} liberações   ·   ${filtrosTxt}   ·   Total produzido: ${totalProd.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})} t`;
+
+  const { pdf, y } = _novoPDFRelatorio('Liberações', subtitulo, 'landscape');
+
+  const linhas = filtrados.map(row => {
+    const status = (row['STATUS OS'] || '').toUpperCase();
+    return [
+      row['LIBERAÇÃO']       || '—',
+      row['FRENTE']          || '—',
+      row['DESC.FAZENDA']    || '—',
+      row['LISTAGEM TALHAO'] || '—',
+      row['PROD. ESTIMADA']  || '—',
+      row['PROD. REAL']      || '—',
+      row['DIF PROD.']       || '—',
+      row['TCH']             || '—',
+      status.includes('ENCERRADA') ? 'ENCERRADA' : 'ABERTA',
+    ];
+  });
+
+  pdf.autoTable({
+    ...(_PDF_TABLE_ESTILO),
+    startY: y,
+    head: [['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Prod. Est.', 'Prod. Real', 'Dif. Prod.', 'TCH', 'Status']],
+    body: linhas,
+    columnStyles: {
+      3: { cellWidth: 55 },
+      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
+      8: { halign: 'center' },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        if (data.column.index === 6) { // Dif. Prod.
+          const raw = String(data.cell.raw || '');
+          if (raw.includes('-')) data.cell.styles.textColor = [198, 40, 40];
+          else if (raw !== '—' && raw !== 'SEM PRODUÇÃO') data.cell.styles.textColor = [46, 125, 50];
+          if (raw !== '—') data.cell.styles.fontStyle = 'bold';
+        }
+        if (data.column.index === 8) { // Status
+          const raw = String(data.cell.raw || '');
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = raw === 'ENCERRADA' ? [120, 120, 120] : [46, 125, 50];
+        }
+      }
+    },
+  });
+
+  const nomeArq = `Liberacoes_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
+  _finalizarPDFRelatorio(pdf, nomeArq);
 }
 
 /* ══════════════════════════════════════════════
@@ -4010,6 +4101,73 @@ iniciarSabedoria();
     });
   }
 
+  // ── Exporta PDF da tabela filtrada ──────────────────────────────────────
+  function exportarPDFTratos() {
+    const dados = window._tratosFiltrados || window._tratosDados;
+    if (!dados || !dados.length) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+    const { colData, colOS, colCodProd, colDescProd, colCodOp,
+            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+
+    const bProd = selectVal('tratos-filtro-produto');
+    const bFaz  = selectVal('tratos-filtro-fazenda');
+    const bOp   = selectVal('tratos-filtro-operacao');
+    const bIni  = document.getElementById('tratos-filtro-data-ini')?.value || '';
+    const bFim  = document.getElementById('tratos-filtro-data-fim')?.value || '';
+    const filtrosTxt = [
+      bProd ? 'Produto: ' + bProd : null,
+      bFaz  ? 'Fazenda: ' + bFaz  : null,
+      bOp   ? 'Operação: ' + bOp  : null,
+      (bIni || bFim) ? 'Período: ' + (bIni || '…') + ' a ' + (bFim || '…') : null,
+    ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
+
+    const areaTotal = new Set();
+    let somaArea = 0;
+    dados.forEach(row => {
+      const osKey = (row[colOS] || '').trim();
+      if (!osKey || !areaTotal.has(osKey)) { somaArea += parseNum(row[colArea]) || 0; if (osKey) areaTotal.add(osKey); }
+    });
+
+    const { pdf, y } = _novoPDFRelatorio('Tratos Culturais', `${dados.length} registros   ·   ${filtrosTxt}   ·   Área total: ${somaArea.toFixed(1)} ha`, 'landscape');
+
+    pdf.autoTable({
+      ...(_PDF_TABLE_ESTILO),
+      startY: y,
+      head: [['Data', 'Nº O.S.', 'Cód. Fazenda', 'Fazenda', 'Produto', 'Operação', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']],
+      body: dados.map(row => {
+        const dr = parseNum(row[colDoseRec]);
+        const da = parseNum(row[colDoseAplic]);
+        let difPct = '—';
+        if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
+          const pct = ((da - dr) / dr) * 100;
+          difPct = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+        }
+        return [
+          row[colData]        || '—',
+          row[colOS]          || '—',
+          row[colCodFazenda]  || '—',
+          row[colFazenda]     || row[colCodFazenda] || '—',
+          [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || '—',
+          [row[colCodOp], row[colDescOp]].filter(Boolean).join(' · ') || '—',
+          row[colArea]        || '—',
+          row[colDoseRec]     || '—',
+          row[colDoseAplic]   || '—',
+          difPct,
+        ];
+      }),
+      columnStyles: { 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' } },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 9) {
+          const raw = String(data.cell.raw || '');
+          if (raw.includes('-')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
+          else if (raw !== '—') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
+        }
+      },
+    });
+
+    _finalizarPDFRelatorio(pdf, `Tratos_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+  }
+  window.exportarPDFTratos = exportarPDFTratos;
+
   // ── Aplica filtros ───────────────────────────────────────────────────────
   function filtrarTratos() {
     if (!window._tratosDados) return;
@@ -5781,6 +5939,7 @@ iniciarSabedoria();
 
   /* ══ BLOCO 1: O que foi plantado? — mapa de talhões ══════════════ */
   let _mapaTalhoesAtual = [];
+  let _rankingFazendasAtual = [];
 
   function filtrarPlantioAvanco() {
     _renderizarMapaPlantio();
@@ -5963,6 +6122,7 @@ iniciarSabedoria();
 
     const iniciadas    = sorted.filter(([, d]) => d.plantado > 0);
     const naoIniciadas = sorted.filter(([, d]) => d.plantado <= 0);
+    _rankingFazendasAtual = sorted;
 
     const linhaFazenda = ([chave, d]) => {
       const pct = d.planejado > 0 ? Math.min((d.plantado / d.planejado) * 100, 100) : 0;
@@ -6008,6 +6168,70 @@ iniciarSabedoria();
     sel.value = faz;
     filtrarPlantioAvanco();
   }
+
+  function exportarPDFMapaPlantio() {
+    const fazFiltro = document.getElementById('pla-filtro-fazenda')?.value || '';
+    const fazLabel  = document.getElementById('pla-filtro-fazenda')?.selectedOptions?.[0]?.textContent || '';
+
+    if (fazFiltro) {
+      // Exporta os talhões da fazenda selecionada
+      if (!_mapaTalhoesAtual.length) { showToast('⚠️ Nenhum talhão para exportar.', 'error', 2500); return; }
+      const totalPlanejado = _mapaTalhoesAtual.reduce((s, r) => s + (r.areaTotal || 0), 0);
+      const totalPlantado  = _mapaTalhoesAtual.reduce((s, r) => s + (r.areaPlantada || 0), 0);
+      const pct = totalPlanejado > 0 ? Math.min((totalPlantado / totalPlanejado) * 100, 100) : 0;
+      const subtitulo = `${fazLabel}   ·   ${_mapaTalhoesAtual.length} talhões   ·   ${pct.toFixed(0)}% concluído   ·   ${_fmtHa(totalPlantado)} de ${_fmtHa(totalPlanejado)}`;
+
+      const { pdf, y } = _novoPDFRelatorio('O que foi plantado — por talhão', subtitulo, 'portrait');
+      const statusLabel = { ok: 'PLANTADO', parcial: 'PARCIAL', pendente: 'PENDENTE' };
+
+      pdf.autoTable({
+        ...(_PDF_TABLE_ESTILO),
+        startY: y,
+        head: [['Talhão', 'Status', 'Variedade', 'Ciclo', 'Área Total', 'Plantado', 'Falta', 'Última Data']],
+        body: _mapaTalhoesAtual.map(t => [
+          t.talhao, statusLabel[t.status] || t.status, t.variedade || '—', t.refCiclo || '—',
+          _fmtHa(t.areaTotal || 0), _fmtHa(t.areaPlantada || 0),
+          _fmtHa(Math.max((t.areaTotal || 0) - (t.areaPlantada || 0), 0)),
+          t.ultimaData ? _fmtData(t.ultimaData) : '—',
+        ]),
+        columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            const raw = String(data.cell.raw || '');
+            data.cell.styles.fontStyle = 'bold';
+            if (raw === 'PLANTADO') data.cell.styles.textColor = [46, 125, 50];
+            else if (raw === 'PARCIAL') data.cell.styles.textColor = [230, 81, 0];
+            else data.cell.styles.textColor = [120, 120, 120];
+          }
+        },
+      });
+
+      _finalizarPDFRelatorio(pdf, `Plantio_${fazLabel.replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+    } else {
+      // Exporta o ranking de todas as fazendas
+      if (!_rankingFazendasAtual.length) { showToast('⚠️ Nenhum dado para exportar.', 'error', 2500); return; }
+      const totalPlanejado = _rankingFazendasAtual.reduce((s, [, d]) => s + d.planejado, 0);
+      const totalPlantado  = _rankingFazendasAtual.reduce((s, [, d]) => s + d.plantado, 0);
+      const subtitulo = `${_rankingFazendasAtual.length} fazendas   ·   ${_fmtHa(totalPlantado)} de ${_fmtHa(totalPlanejado)} plantados`;
+
+      const { pdf, y } = _novoPDFRelatorio('O que foi plantado — por fazenda', subtitulo, 'portrait');
+
+      pdf.autoTable({
+        ...(_PDF_TABLE_ESTILO),
+        startY: y,
+        head: [['Fazenda', '% Concluído', 'Talhões', 'Planejado', 'Plantado']],
+        body: _rankingFazendasAtual.map(([, d]) => {
+          const pct = d.planejado > 0 ? Math.min((d.plantado / d.planejado) * 100, 100) : 0;
+          return [d.label, pct.toFixed(0) + '%', d.talhoes, _fmtHa(d.planejado), _fmtHa(d.plantado)];
+        }),
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+      });
+
+      _finalizarPDFRelatorio(pdf, `Plantio_Ranking_Fazendas_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+    }
+  }
+  window.exportarPDFMapaPlantio = exportarPDFMapaPlantio;
+
   /* ══ CONSULTA ENTRE SAFRAS ════════════════════════════════════════ */
   function filtrarPlantioComparar() {
     const iniVal = document.getElementById('pla-comp-ini')?.value;
@@ -6162,6 +6386,47 @@ iniciarSabedoria();
     showToast('✅ Excel exportado!', 'success', 2500);
   }
   window.exportarExcelComparar = exportarExcelComparar;
+
+  function exportarPDFComparar() {
+    if (!_ultimoComparativoMeses || !_ultimoComparativoMeses.length) {
+      showToast('⚠️ Selecione um período com dados antes de exportar.', 'error', 2500);
+      return;
+    }
+
+    const iniVal = document.getElementById('pla-comp-ini')?.value || '';
+    const fimVal = document.getElementById('pla-comp-fim')?.value || '';
+    const totalA = _ultimoComparativoMeses.reduce((s, [, m]) => s + m.a, 0);
+    const totalB = _ultimoComparativoMeses.reduce((s, [, m]) => s + m.b, 0);
+    const subtitulo = `Período: ${iniVal || '…'} a ${fimVal || '…'}   ·   Safra 25/26: ${_fmtHa(totalA)}   ·   Safra 26/27: ${_fmtHa(totalB)}`;
+
+    const { pdf, y } = _novoPDFRelatorio('Consulta entre Safras — Mês × Fazenda', subtitulo, 'portrait');
+
+    const linhas = [];
+    _ultimoComparativoMeses.forEach(([, m]) => {
+      const fazendas = Object.entries(m.fazendas).sort(([a], [b]) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+      fazendas.forEach(([faz, d]) => {
+        linhas.push([m.label, faz, _fmtHa(d.a || 0), _fmtHa(d.b || 0), '']);
+      });
+      linhas.push([{ content: m.label, styles: { fontStyle: 'bold' } }, { content: 'TOTAL DO MÊS', styles: { fontStyle: 'bold' } },
+        { content: _fmtHa(m.a), styles: { fontStyle: 'bold' } }, { content: _fmtHa(m.b), styles: { fontStyle: 'bold' } }, '']);
+    });
+
+    pdf.autoTable({
+      ...(_PDF_TABLE_ESTILO),
+      startY: y,
+      head: [['Mês', 'Fazenda', 'Safra 25/26', 'Safra 26/27']],
+      body: linhas.map(l => l.slice(0, 4)),
+      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
+      didParseCell: (data) => {
+        if (data.section === 'body' && String(data.row.raw[1]?.content || data.row.raw[1]) === 'TOTAL DO MÊS') {
+          data.cell.styles.fillColor = [232, 245, 233];
+        }
+      },
+    });
+
+    _finalizarPDFRelatorio(pdf, `Comparativo_Safras_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+  }
+  window.exportarPDFComparar = exportarPDFComparar;
 
   /* ── toggle colapsável ───────────────────────────────────────────── */
   function togglePlantioCard(headerEl) {
