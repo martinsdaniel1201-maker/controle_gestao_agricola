@@ -3624,15 +3624,13 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
 .bottom-nav {
   display: none;
   position: fixed;
-  left: 10px; right: 10px; bottom: 10px;
+  left: 0; right: 0; bottom: 0;
   z-index: 9500;
-  background: rgba(255,255,255,0.82);
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid rgba(20,40,20,0.07);
-  border-radius: 26px;
-  box-shadow: 0 12px 32px rgba(20,40,20,0.18), 0 2px 8px rgba(20,40,20,0.06),
-              inset 0 1px 0 rgba(255,255,255,0.6);
+  background: #FFFFFF;
+  border: none;
+  border-top: 1px solid rgba(20,40,20,0.09);
+  border-radius: 0;
+  box-shadow: 0 -2px 12px rgba(20,40,20,0.08);
   padding: 9px 7px calc(env(safe-area-inset-bottom) + 9px);
   justify-content: space-around;
   align-items: flex-end;
@@ -3641,8 +3639,8 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
 body.tab-open .bottom-nav { display: flex; }
 /* A barra inferior substitui o botão flutuante "voltar" — evita redundância */
 body.tab-open #btn-voltar-flutuante { display: none !important; }
-/* Reserva espaço no fim da página para a barra não cobrir conteúdo */
-body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 92px); }
+/* Reserva espaço no fim da página igual à altura real da barra — evita que ela sobreponha a lista */
+body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 76px); }
 
 .bn-item {
   position: relative;
@@ -3679,10 +3677,9 @@ body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 92px); }
 }
 .bn-item.active .bn-label { font-weight: 800; transform: translateY(-4px); }
 body.dark-mode .bottom-nav {
-  background: rgba(22,28,22,0.85);
-  border-color: rgba(255,255,255,0.07);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.22),
-              inset 0 1px 0 rgba(255,255,255,0.04);
+  background: #161C16;
+  border-top-color: rgba(255,255,255,0.08);
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.35);
 }
 body.dark-mode .bn-item { color: #8a998a; }
 body.dark-mode .bn-item.active { color: #81C784; }
