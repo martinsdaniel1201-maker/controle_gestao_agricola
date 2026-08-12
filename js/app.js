@@ -962,6 +962,39 @@ function registrarSync(status, fonte) {
 
   // MELHORIA 6: atualiza lista do histórico
   renderSyncHistorico();
+
+  atualizarHubStatusLiberacoes();
+}
+
+// Faixa de status ao vivo no topo do hub "Liberações"
+function atualizarHubStatusLiberacoes() {
+  const dot = document.getElementById('hub-status-liberacoes-dot');
+  const txt = document.getElementById('hub-status-liberacoes-txt');
+  if (!txt) return;
+
+  const ultima = window._syncHistorico && window._syncHistorico[0];
+  let partes = [];
+  if (ultima) {
+    partes.push(`${ultima.status === 'ok' ? 'Sincronizado' : 'Falha na sync'} às ${ultima.hora}`);
+    if (dot) dot.style.background = ultima.status === 'ok' ? 'var(--green-500)' : 'var(--red)';
+  } else {
+    partes.push('Ainda sem sincronização nesta sessão');
+    if (dot) dot.style.background = 'var(--text-3)';
+  }
+
+  if (window._gatecDados && window._gatecDados.length) {
+    const frentesPermitidas = ["401", "402", "403", "404", "451"];
+    const abertas = new Set();
+    window._gatecDados.forEach(row => {
+      const frente = (row["FRENTE"] || "").trim();
+      if (!frentesPermitidas.includes(frente)) return;
+      const status = (row["STATUS OS"] || "").toUpperCase();
+      if (!status.includes("ENCERRADA")) abertas.add(frente);
+    });
+    partes.push(`${abertas.size} frente${abertas.size === 1 ? '' : 's'} em aberto`);
+  }
+
+  txt.textContent = partes.join(' · ');
 }
 
 function renderSyncHistorico() {
@@ -1021,6 +1054,8 @@ function atualizarResumoExecutivo() {
 
   // Popula select oculto de fazendas no filtro de Liberações
   popularFazendaLibSelect();
+
+  atualizarHubStatusLiberacoes();
 }
 
 // MELHORIA 3: Dias sem chuva via Open-Meteo
