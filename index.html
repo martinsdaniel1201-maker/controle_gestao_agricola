@@ -687,6 +687,33 @@
         <span class="hub-status-dot" id="hub-status-liberacoes-dot"></span>
         <span id="hub-status-liberacoes-txt">Sincronizando dados do GATEC…</span>
       </div>
+
+      <!-- RESUMO POR FRENTE — sempre visível, sem colapsar -->
+      <div id="resumoFrentes" class="card">
+        <div class="card-title" style="margin-bottom:0;">
+          <i class="fas fa-chart-pie"></i> Resumo de Produção por Frente
+        </div>
+
+        <!-- Legenda das cores de aderência à meta -->
+        <div class="resumo-legenda-aderencia">
+          <span><i class="fas fa-circle" style="color:#1B5E20;"></i> ≥ 90% da meta</span>
+          <span><i class="fas fa-circle" style="color:#E65100;"></i> 70–89%</span>
+          <span><i class="fas fa-circle" style="color:#C62828;"></i> &lt; 70%</span>
+        </div>
+
+        <div id="resumoCards" class="resumo-cards">
+          <!-- Os cards dinâmicos injetados via JS ficarão aqui -->
+        </div>
+        <div class="resumo-total">
+          <div>
+            Total Produzido: <span id="totalProduzido">0 t</span>
+          </div>
+          <div>
+            Frente Líder: <span id="frenteLider">-</span>
+          </div>
+        </div>
+      </div>
+
       <div class="hub-grid">
         <button class="hub-card" onclick="showTab(event,'liberacoes')">
           <div class="hub-card-icon"><i class="fas fa-table"></i></div>
@@ -712,43 +739,6 @@
  <!-- ══ ABA LIBERAÇÕES ══ -->
   <section id="liberacoes" class="section">
     <div class="card" style="width: 100%; box-sizing: border-box;">
-	<!-- RESUMO POR FRENTE -->
-<div id="resumoFrentes" class="card">
-  <!-- Cabeçalho sempre visível -->
-  <div class="card-title" style="margin-bottom:0;">
-    <i class="fas fa-chart-pie"></i> Resumo de Produção por Frente
-  </div>
-
-  <!-- Legenda das cores de aderência à meta — sempre visível, não depende de hover -->
-  <div class="resumo-legenda-aderencia">
-    <span><i class="fas fa-circle" style="color:#1B5E20;"></i> ≥ 90% da meta</span>
-    <span><i class="fas fa-circle" style="color:#E65100;"></i> 70–89%</span>
-    <span><i class="fas fa-circle" style="color:#C62828;"></i> &lt; 70%</span>
-  </div>
-
-  <!-- Toggle só aparece no mobile -->
-  <div class="resumo-mobile-toggle" onclick="toggleResumoMobile()">
-    <span class="toggle-label" id="resumo-mobile-label">Toque para expandir</span>
-    <button class="toggle-btn">
-      Ver <i class="fas fa-chevron-down toggle-chevron"></i>
-    </button>
-  </div>
-
-  <!-- Conteúdo colapsável no mobile, sempre visível no desktop -->
-  <div class="resumo-collapsible">
-    <div id="resumoCards" class="resumo-cards">
-      <!-- Os cards dinâmicos injetados via JS ficarão aqui -->
-    </div>
-    <div class="resumo-total">
-      <div>
-        Total Produzido: <span id="totalProduzido">0 t</span>
-      </div>
-      <div>
-        Frente Líder: <span id="frenteLider">-</span>
-      </div>
-    </div>
-  </div>
-</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
         <button id="btn-copiar-resumo-lib" onclick="copiarResumoLiberacoes()" style="background:var(--surface2);color:#1B8E1B;border:1.5px solid var(--border);padding:9px 14px;border-radius:var(--radius-sm);font-weight:700;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.18s;flex:1 1 100%;justify-content:center;">
           <i class="fab fa-whatsapp" style="font-size:15px;"></i> Copiar Texto para WhatsApp
