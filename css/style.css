@@ -2567,6 +2567,9 @@
       z-index: 9998; transition: all 0.2s;
     }
     #btn-dark-mode:hover { border-color: var(--green-500); color: var(--green-700); }
+    /* Com a barra inferior redesenhada (mais alta + pastilha ativa que sobe),
+       o botão precisa subir para não ficar por baixo dela quando uma aba está aberta. */
+    body.tab-open #btn-dark-mode { bottom: calc(env(safe-area-inset-bottom) + 102px); }
 
     /* Botão flutuante "voltar ao menu" — espelha o dark-mode no canto oposto */
     #btn-voltar-flutuante {
