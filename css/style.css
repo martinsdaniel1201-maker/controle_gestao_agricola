@@ -3742,7 +3742,7 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
 ══════════════════════════════════════════════ */
 @media screen and (max-width: 768px) {
   #tabela-liberacoes-gatec tbody tr {
-    display: grid !important;
+    display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     grid-template-areas:
       "lib     lib     status  status"
