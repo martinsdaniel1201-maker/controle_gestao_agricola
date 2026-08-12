@@ -2768,49 +2768,80 @@
     .resumo-legenda-aderencia i { font-size: 6px; }
 
 	/* ── NOVO BLOCO: RESUMO POR FRENTE COM RANKING (INTEGRADO) ── */
+/* ── Botões de exportação (movidos para dentro do card de Resumo) ── */
+.resumo-export-btns {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.btn-resumo-export {
+  flex: 1 1 140px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  padding: 9px 10px; border-radius: var(--radius-sm);
+  font-weight: 700; font-size: 10.5px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.18s;
+}
+.btn-resumo-export:hover { border-color: var(--green-500); background: var(--green-50); }
+.btn-resumo-export.verde { color: #1B8E1B; }
+.btn-resumo-export.azul  { color: var(--blue); }
+
 /* ── RESUMO PRODUÇÃO: bem compacto no mobile ── */
 @media (max-width: 699px) {
   #resumoFrentes {
-    padding: 12px 14px;
+    padding: 10px 12px;
   }
   #resumoFrentes .card-title {
-    font-size: 10px;
-    margin-bottom: 8px;
+    font-size: 9.5px;
+    margin-bottom: 6px;
   }
   #resumoFrentes .card-title i {
-    width: 22px; height: 22px; font-size: 11px;
+    width: 20px; height: 20px; font-size: 10px;
   }
   #resumoFrentes .resumo-legenda-aderencia {
-    gap: 3px 8px;
-    margin: 2px 0 8px 0;
-    padding-bottom: 6px;
+    gap: 2px 7px;
+    margin: 0 0 6px 0;
+    padding-bottom: 5px;
   }
   #resumoFrentes .resumo-legenda-aderencia span {
-    font-size: 8.5px;
+    font-size: 8px;
   }
   /* Cards bem menores no mobile */
   .resumo-cards {
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-top: 8px;
-    margin-bottom: 8px;
+    gap: 5px;
+    margin-top: 6px;
+    margin-bottom: 6px;
   }
-  .resumo-cards .frente-card { padding: 6px 7px; }
-  .resumo-cards .frente-card-header { gap: 3px; margin-bottom: 4px; }
-  .resumo-cards .frente-value { font-size: 12.5px; }
-  .resumo-cards .frente-title { font-size: 8.5px; }
-  .resumo-cards .frente-unit { font-size: 9px; }
-  .resumo-total { font-size: 10px; padding: 5px 0; margin-top: 8px; padding-top: 8px; }
-  .resumo-total div span { font-size: 11px; }
+  .resumo-cards .frente-card { padding: 5px 6px; }
+  .resumo-cards .frente-card-header { gap: 3px; margin-bottom: 3px; }
+  .resumo-cards .frente-value { font-size: 11px; }
+  .resumo-cards .frente-title { font-size: 7.5px; }
+  .resumo-cards .frente-unit { font-size: 8px; }
+  /* Linha "Meta / aderência" dentro do card (estilo inline no HTML gerado via JS) */
+  .resumo-cards .frente-card > div:last-child {
+    margin-top: 4px !important;
+    padding-top: 4px !important;
+  }
+  .resumo-total { font-size: 9px; padding: 4px 0; margin-top: 6px; padding-top: 6px; }
+  .resumo-total div span { font-size: 10px; }
+  /* Botões de exportação — 3 por linha, bem enxutos */
+  #resumoFrentes .resumo-export-btns { gap: 5px; margin-top: 8px; padding-top: 8px; }
+  #resumoFrentes .btn-resumo-export {
+    flex: 1 1 30%; padding: 6px 3px; font-size: 8px; gap: 3px; line-height: 1.15;
+  }
+  #resumoFrentes .btn-resumo-export i { font-size: 10px; }
 }
 
-/* ── RESUMO PRODUÇÃO: estendido em telas de desktop ── */
+/* ── RESUMO PRODUÇÃO: um pouco mais largo no desktop, sem esticar demais ── */
 @media (min-width: 900px) {
   #resumoFrentes {
-    max-width: 100%;
+    max-width: 900px;
   }
   #resumoFrentes .resumo-cards {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
+    justify-content: flex-start;
   }
 }
 
