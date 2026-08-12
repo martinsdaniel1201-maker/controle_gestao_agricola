@@ -433,12 +433,39 @@
       font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
       background: var(--amber-bg); color: var(--amber); border-radius: 50px;
     }
+    /* Destaque visual para deixar óbvio que o card é clicável (leva a outra tela) */
+    .hub-card.hub-card-destaque {
+      border: 1.5px solid var(--green-500);
+      background: linear-gradient(135deg, var(--green-50), var(--surface) 65%);
+      box-shadow: var(--shadow-brand), var(--shadow-sm);
+    }
+    .hub-card.hub-card-destaque .hub-card-icon {
+      background: var(--grad); color: #fff;
+    }
+    .hub-card.hub-card-destaque .hub-card-chevron {
+      color: var(--green-700); font-size: 15px;
+      animation: hubChevronHint 1.6s ease-in-out infinite;
+    }
+    @keyframes hubChevronHint {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(4px); }
+    }
     @media (min-width: 900px) {
+      #liberacoes_menu .hub-head,
+      #conf_menu .hub-head,
+      #tratos_menu .hub-head,
+      #liberacoes_menu .hub-status,
+      #conf_menu .hub-status,
+      #tratos_menu .hub-status,
+      #liberacoes_menu .hub-grid,
+      #conf_menu .hub-grid,
+      #tratos_menu .hub-grid {
+        max-width: 900px;
+      }
       #liberacoes_menu .hub-grid,
       #conf_menu .hub-grid,
       #tratos_menu .hub-grid {
         flex-direction: row;
-        max-width: 900px;
       }
       #liberacoes_menu .hub-grid .hub-card,
       #conf_menu .hub-grid .hub-card,
