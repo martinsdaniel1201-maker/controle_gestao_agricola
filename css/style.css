@@ -434,6 +434,17 @@
       background: var(--amber-bg); color: var(--amber); border-radius: 50px;
     }
     @media (min-width: 900px) {
+      #liberacoes_menu .hub-grid,
+      #conf_menu .hub-grid,
+      #tratos_menu .hub-grid {
+        flex-direction: row;
+        max-width: 900px;
+      }
+      #liberacoes_menu .hub-grid .hub-card,
+      #conf_menu .hub-grid .hub-card,
+      #tratos_menu .hub-grid .hub-card {
+        flex: 1 1 0;
+      }
       #liberacoes_menu.active, #conf_menu.active, #tratos_menu.active {
         display: flex !important; align-items: center; justify-content: center;
         min-height: calc(100vh - 220px);
