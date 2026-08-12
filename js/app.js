@@ -66,7 +66,7 @@ function showTab(e, id) {
   // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
   const containerPrincipal = document.querySelector('.container');
   if (containerPrincipal) {
-    if (id === 'liberacoes' || id === 'liberacoes_menu' || id === 'conf_os_aba') {
+    if (id === 'liberacoes' || id === 'conf_os_aba') {
       containerPrincipal.classList.add('container-larga');
     } else {
       containerPrincipal.classList.remove('container-larga');
