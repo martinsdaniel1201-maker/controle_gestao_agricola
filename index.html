@@ -675,25 +675,35 @@
 
  <!-- ══ ABA LIBERAÇÕES — MENU DE ESCOLHA ══ -->
   <section id="liberacoes_menu" class="section">
-    <div id="liberacoes-seletor" style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 0 8px;">
-      <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; text-align:center;">
-        <i class="fas fa-table" style="margin-right:6px"></i>O que você deseja acessar?
+    <div id="liberacoes-seletor" class="hub-screen">
+      <div class="hub-head">
+        <div class="hub-head-icon"><i class="fas fa-table"></i></div>
+        <div class="hub-head-text">
+          <h2>Liberações</h2>
+          <p>Escolha o que deseja acessar</p>
+        </div>
       </div>
-      <div class="plantio-safra-grid" style="grid-template-columns:1fr; width:100%;">
-        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'liberacoes')">
-          <div class="psb-icon"><i class="fas fa-table"></i></div>
-          <div>
-            <span class="psb-label">Ver Liberações</span>
-            <span class="psb-sub" style="text-align:left; display:block;">Acompanhamento diário · GATEC</span>
+      <div class="hub-status" id="hub-status-liberacoes">
+        <span class="hub-status-dot" id="hub-status-liberacoes-dot"></span>
+        <span id="hub-status-liberacoes-txt">Sincronizando dados do GATEC…</span>
+      </div>
+      <div class="hub-grid">
+        <button class="hub-card" onclick="showTab(event,'liberacoes')">
+          <div class="hub-card-icon"><i class="fas fa-table"></i></div>
+          <div class="hub-card-text">
+            <span class="hub-card-label">Ver Liberações</span>
+            <span class="hub-card-sub">Acompanhamento diário · GATEC</span>
           </div>
+          <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
-        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="abrirPlanejamentoSafra()">
-          <div class="psb-icon"><i class="fas fa-route"></i></div>
-          <div>
-            <span class="psb-label">Planejamento de Safra</span>
-            <span class="psb-sub" style="text-align:left; display:block; margin-bottom:4px;">SF 2026 · 4 frentes</span>
-            <span class="psb-em-breve">Em construção</span>
+        <button class="hub-card is-soon" onclick="abrirPlanejamentoSafra()">
+          <div class="hub-card-icon"><i class="fas fa-route"></i></div>
+          <div class="hub-card-text">
+            <span class="hub-card-label">Planejamento de Safra</span>
+            <span class="hub-card-sub">SF 2026 · 4 frentes</span>
+            <span class="hub-card-badge">Em construção</span>
           </div>
+          <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
       </div>
     </div>
@@ -1459,25 +1469,31 @@
   <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
  <!-- ══ ABA CONFERÊNCIAS — MENU DE ESCOLHA ══ -->
   <section id="conf_menu" class="section">
-    <div style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 0 8px;">
-      <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; text-align:center;">
-        <i class="fas fa-clipboard-check" style="margin-right:6px"></i>O que você deseja acessar?
+    <div class="hub-screen">
+      <div class="hub-head">
+        <div class="hub-head-icon"><i class="fas fa-clipboard-check"></i></div>
+        <div class="hub-head-text">
+          <h2>Conferências</h2>
+          <p>Escolha o que deseja acessar</p>
+        </div>
       </div>
-      <div class="plantio-safra-grid" style="grid-template-columns:1fr; width:100%;">
-        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'conf_os_aba')">
-          <div class="psb-icon"><i class="fas fa-clipboard-check"></i></div>
-          <div>
-            <span class="psb-label">Conferência Operadores × O.S</span>
-            <span class="psb-sub" style="text-align:left; display:block;">O.S encerradas, fazenda e observações</span>
+      <div class="hub-grid">
+        <button class="hub-card" onclick="showTab(event,'conf_os_aba')">
+          <div class="hub-card-icon"><i class="fas fa-clipboard-check"></i></div>
+          <div class="hub-card-text">
+            <span class="hub-card-label">Conferência Operadores × O.S</span>
+            <span class="hub-card-sub">O.S encerradas, fazenda e observações</span>
           </div>
+          <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
-        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'conf_novo_recurso')">
-          <div class="psb-icon"><i class="fas fa-plus"></i></div>
-          <div>
-            <span class="psb-label">Novo Recurso</span>
-            <span class="psb-sub" style="text-align:left; display:block; margin-bottom:4px;">Nome e conteúdo a definir</span>
-            <span class="psb-em-breve">Em construção</span>
+        <button class="hub-card is-soon" onclick="showTab(event,'conf_novo_recurso')">
+          <div class="hub-card-icon"><i class="fas fa-plus"></i></div>
+          <div class="hub-card-text">
+            <span class="hub-card-label">Novo Recurso</span>
+            <span class="hub-card-sub">Nome e conteúdo a definir</span>
+            <span class="hub-card-badge">Em construção</span>
           </div>
+          <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
       </div>
     </div>
@@ -1575,25 +1591,31 @@
 
  <!-- ══ ABA TRATOS CULTURAIS — MENU DE ESCOLHA ══ -->
   <section id="tratos_menu" class="section">
-    <div style="display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px 0 8px;">
-      <div style="font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.8px; text-align:center;">
-        <i class="fas fa-spray-can" style="margin-right:6px"></i>O que você deseja acessar?
+    <div class="hub-screen">
+      <div class="hub-head">
+        <div class="hub-head-icon"><i class="fas fa-spray-can"></i></div>
+        <div class="hub-head-text">
+          <h2>Tratos Culturais</h2>
+          <p>Escolha o que deseja acessar</p>
+        </div>
       </div>
-      <div class="plantio-safra-grid" style="grid-template-columns:1fr; width:100%;">
-        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'tratos_aba'); iniciarModuloTratos()">
-          <div class="psb-icon"><i class="fas fa-spray-can"></i></div>
-          <div>
-            <span class="psb-label">Tratos Culturais</span>
-            <span class="psb-sub" style="text-align:left; display:block;">Acompanhamento de aplicações</span>
+      <div class="hub-grid">
+        <button class="hub-card" onclick="showTab(event,'tratos_aba'); iniciarModuloTratos()">
+          <div class="hub-card-icon"><i class="fas fa-spray-can"></i></div>
+          <div class="hub-card-text">
+            <span class="hub-card-label">Tratos Culturais</span>
+            <span class="hub-card-sub">Acompanhamento de aplicações</span>
           </div>
+          <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
-        <button class="plantio-safra-btn" style="flex-direction:row; text-align:left; justify-content:flex-start; padding:16px;" onclick="showTab(event,'tratos_novo_recurso')">
-          <div class="psb-icon"><i class="fas fa-plus"></i></div>
-          <div>
-            <span class="psb-label">Novo Recurso</span>
-            <span class="psb-sub" style="text-align:left; display:block; margin-bottom:4px;">Nome e conteúdo a definir</span>
-            <span class="psb-em-breve">Em construção</span>
+        <button class="hub-card is-soon" onclick="showTab(event,'tratos_novo_recurso')">
+          <div class="hub-card-icon"><i class="fas fa-plus"></i></div>
+          <div class="hub-card-text">
+            <span class="hub-card-label">Novo Recurso</span>
+            <span class="hub-card-sub">Nome e conteúdo a definir</span>
+            <span class="hub-card-badge">Em construção</span>
           </div>
+          <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
       </div>
     </div>
