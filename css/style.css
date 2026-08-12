@@ -339,6 +339,102 @@
     .plantio-safra-btn .psb-sub {
       font-size: 10px; font-weight: 600; color: var(--text-3); text-align: center;
     }
+    /* ══════════════════════════════════════════════
+       HUB DE MENU — LIBERAÇÕES / CONFERÊNCIAS / TRATOS
+       Tela "o que você deseja acessar?": cabeçalho com
+       identidade do módulo + cartões de navegação com
+       hierarquia clara (ação principal vs. em construção).
+    ══════════════════════════════════════════════ */
+    .hub-screen {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      width: 100%; padding: 26px 4px 8px;
+    }
+    .hub-screen::before {
+      content: ''; position: absolute; top: -18px; left: 50%;
+      width: 340px; height: 220px; transform: translateX(-50%);
+      background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+      background-size: 16px 16px;
+      -webkit-mask-image: radial-gradient(ellipse 60% 100% at 50% 0%, #000 0%, transparent 72%);
+              mask-image: radial-gradient(ellipse 60% 100% at 50% 0%, #000 0%, transparent 72%);
+      opacity: 0.55; pointer-events: none; z-index: 0;
+    }
+    body.dark-mode .hub-screen::before { opacity: 0.22; }
+    .hub-head {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 13px;
+      width: 100%; max-width: 460px; margin-bottom: 18px;
+    }
+    .hub-head-icon {
+      flex: 0 0 auto; width: 50px; height: 50px; border-radius: 15px;
+      background: var(--grad); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; box-shadow: var(--shadow-brand);
+    }
+    .hub-head-text h2 {
+      margin: 0; font-size: 15.5px; font-weight: 800; color: var(--text); letter-spacing: -0.2px;
+    }
+    .hub-head-text p {
+      margin: 2px 0 0; font-size: 11px; font-weight: 600; color: var(--text-3);
+    }
+    .hub-status {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; gap: 8px;
+      width: 100%; max-width: 460px; margin-bottom: 16px;
+      padding: 7px 14px; font-size: 10.5px; font-weight: 700; color: var(--text-2);
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 50px;
+    }
+    .hub-status .hub-status-dot {
+      flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--green-500);
+    }
+    .hub-grid {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; gap: 10px;
+      width: 100%; max-width: 460px;
+    }
+    .hub-card {
+      display: flex; align-items: center; gap: 14px; width: 100%;
+      padding: 15px 16px 15px 14px; text-align: left;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-left: 4px solid var(--green-700); border-radius: var(--radius-lg);
+      cursor: pointer; box-shadow: var(--shadow-sm);
+      transition: transform 0.2s var(--ease-premium), box-shadow 0.2s var(--ease-premium), border-color 0.2s ease;
+    }
+    .hub-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--green-500); }
+    .hub-card:active { transform: translateY(0) scale(0.99); }
+    .hub-card-icon {
+      flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+      background: var(--green-50); color: var(--green-700);
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .hub-card-text { flex: 1 1 auto; min-width: 0; }
+    .hub-card-label { display: block; font-size: 13px; font-weight: 800; color: var(--text); }
+    .hub-card-sub { display: block; font-size: 10.5px; font-weight: 600; color: var(--text-3); margin-top: 2px; }
+    .hub-card-chevron {
+      flex: 0 0 auto; color: var(--text-3); font-size: 12px;
+      transition: transform 0.2s var(--ease-premium), color 0.2s ease;
+    }
+    .hub-card:hover .hub-card-chevron { transform: translateX(3px); color: var(--green-700); }
+    .hub-card.is-soon {
+      border-left-color: transparent; border-style: dashed; box-shadow: none; opacity: 0.78;
+    }
+    .hub-card.is-soon .hub-card-icon { background: var(--surface2); color: var(--text-3); }
+    .hub-card.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
+    .hub-card-badge {
+      display: inline-block; margin-top: 6px; padding: 2px 8px;
+      font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
+      background: var(--amber-bg); color: var(--amber); border-radius: 50px;
+    }
+    @media (min-width: 900px) {
+      #liberacoes_menu.active, #conf_menu.active, #tratos_menu.active {
+        display: flex !important; align-items: center; justify-content: center;
+        min-height: calc(100vh - 220px);
+      }
+      #liberacoes_menu.active > .hub-screen,
+      #conf_menu.active > .hub-screen,
+      #tratos_menu.active > .hub-screen { padding-top: 0; }
+    }
+
     .plantio-safra-btn .psb-em-breve {
       font-size: 9px; font-weight: 700; padding: 2px 8px;
       background: var(--amber-bg); color: var(--amber);
@@ -3530,71 +3626,64 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
   background: rgba(255,255,255,0.82);
   backdrop-filter: blur(18px) saturate(180%);
   -webkit-backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid rgba(20,40,20,0.06);
-  border-radius: 24px;
-  box-shadow: 0 10px 30px rgba(20,40,20,0.16), 0 2px 8px rgba(20,40,20,0.06);
-  padding: 7px 6px calc(env(safe-area-inset-bottom) + 7px);
+  border: 1px solid rgba(20,40,20,0.07);
+  border-radius: 26px;
+  box-shadow: 0 12px 32px rgba(20,40,20,0.18), 0 2px 8px rgba(20,40,20,0.06),
+              inset 0 1px 0 rgba(255,255,255,0.6);
+  padding: 9px 7px calc(env(safe-area-inset-bottom) + 9px);
   justify-content: space-around;
-  align-items: stretch;
+  align-items: flex-end;
   gap: 2px;
 }
 body.tab-open .bottom-nav { display: flex; }
 /* A barra inferior substitui o botão flutuante "voltar" — evita redundância */
 body.tab-open #btn-voltar-flutuante { display: none !important; }
 /* Reserva espaço no fim da página para a barra não cobrir conteúdo */
-body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 88px); }
+body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 92px); }
 
 .bn-item {
   position: relative;
   flex: 1 1 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 4px;
   background: none; border: none; cursor: pointer;
-  padding: 7px 2px 5px;
+  padding: 6px 2px 4px;
   border-radius: 16px;
   color: var(--text-3);
   transition: color 0.2s var(--ease-premium), transform 0.15s var(--ease-premium);
 }
 .bn-item:active { transform: scale(0.90); }
 .bn-icon {
-  font-size: 17px;
-  height: 28px; width: 44px;
+  font-size: 16px;
+  height: 30px; width: 42px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  transition: background 0.22s var(--ease-premium), transform 0.22s var(--ease-premium);
+  border-radius: 14px;
+  transition: background 0.25s var(--ease-spring), color 0.2s ease, transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
 }
 .bn-label {
   font-size: 9.5px; font-weight: 700; letter-spacing: 0.1px; white-space: nowrap;
-  transition: color 0.2s var(--ease-premium), opacity 0.2s var(--ease-premium);
+  transition: color 0.2s var(--ease-premium), opacity 0.2s var(--ease-premium), transform 0.2s var(--ease-premium);
 }
 
-/* Estado ativo — orbe preenchida + leve elevação + ponto indicador embaixo */
+/* Estado ativo — pastilha em gradiente flutuando acima da barra */
 .bn-item.active { color: var(--green-700); }
 .bn-item.active .bn-icon {
-  background: var(--green-50);
-  width: 46px; height: 28px;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(67,160,71,0.22);
+  background: var(--grad);
+  color: #fff;
+  width: 52px; height: 34px;
+  transform: translateY(-11px);
+  box-shadow: var(--shadow-brand), 0 3px 8px rgba(0,0,0,0.14);
 }
-.bn-item.active .bn-label { font-weight: 800; }
-.bn-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 1px; left: 50%;
-  width: 4px; height: 4px;
-  border-radius: 50%;
-  background: var(--green-700);
-  transform: translateX(-50%);
-}
+.bn-item.active .bn-label { font-weight: 800; transform: translateY(-4px); }
 body.dark-mode .bottom-nav {
-  background: rgba(22,28,22,0.82);
-  border-color: rgba(255,255,255,0.06);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+  background: rgba(22,28,22,0.85);
+  border-color: rgba(255,255,255,0.07);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.22),
+              inset 0 1px 0 rgba(255,255,255,0.04);
 }
 body.dark-mode .bn-item { color: #8a998a; }
 body.dark-mode .bn-item.active { color: #81C784; }
-body.dark-mode .bn-item.active .bn-icon { background: rgba(67,160,71,0.18); }
-body.dark-mode .bn-item.active::after { background: #81C784; }
+body.dark-mode .bn-item.active .bn-icon { color: #0F1410; box-shadow: 0 8px 20px rgba(129,199,132,0.35), 0 3px 8px rgba(0,0,0,0.3); }
 
 /* ── Sheet "Mais" — desliza de baixo, mesma lógica de modal já usada no app ── */
 .mais-sheet-overlay {
@@ -3694,43 +3783,8 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
 .section.active.swipe-tracking { transition: none !important; }
 .section.active.swipe-snapping { transition: transform 0.25s var(--ease-premium) !important; }
 
-/* ══════════════════════════════════════════════
-   TELAS "O QUE VOCÊ DESEJA ACESSAR?" NO DESKTOP
-   (Liberações, Conferências, Tratos) — no celular os cards em linha
-   única fazem sentido; em tela larga eles ficavam esticados e sobrava
-   muito vazio embaixo. A partir de 900px: 2 colunas, largura limitada,
-   centralizado e ocupando melhor a altura da tela.
-══════════════════════════════════════════════ */
-@media (min-width: 900px) {
-  #liberacoes_menu.active,
-  #conf_menu.active,
-  #tratos_menu.active {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 220px);
-  }
-  #liberacoes_menu.active > div,
-  #conf_menu.active > div,
-  #tratos_menu.active > div {
-    width: 100%;
-  }
-  #liberacoes_menu .plantio-safra-grid,
-  #conf_menu .plantio-safra-grid,
-  #tratos_menu .plantio-safra-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    max-width: 860px !important;
-    margin: 0 auto !important;
-    gap: 16px !important;
-  }
-  #liberacoes_menu .plantio-safra-btn,
-  #conf_menu .plantio-safra-btn,
-  #tratos_menu .plantio-safra-btn {
-    flex-direction: row !important;
-    align-items: center !important;
-    padding: 22px 20px !important;
-  }
-}
+/* Telas "hub" (Liberações, Conferências, Tratos) no desktop: a centralização
+   e o layout em coluna única já são resolvidos pelo sistema .hub-screen. */
 
 /* ══════════════════════════════════════════════
    CARD DE LIBERAÇÃO NO CELULAR — REDESENHO
