@@ -2760,41 +2760,9 @@
     .resumo-legenda-aderencia i { font-size: 6px; }
 
 	/* ── NOVO BLOCO: RESUMO POR FRENTE COM RANKING (INTEGRADO) ── */
-/* ── RESUMO PRODUÇÃO: colapsável no mobile ── */
+/* ── RESUMO PRODUÇÃO: sempre expandido, em qualquer tamanho de tela ── */
 @media (max-width: 699px) {
-  #resumoFrentes .resumo-mobile-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    user-select: none;
-    padding: 2px 0 6px 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 4px;
-  }
-  #resumoFrentes .resumo-mobile-toggle .toggle-label {
-    font-size: 10px; font-weight: 700; color: var(--text-3);
-    text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  #resumoFrentes .resumo-mobile-toggle .toggle-btn {
-    font-size: 10px; font-weight: 700; color: var(--green-700);
-    display: inline-flex; align-items: center; gap: 4px;
-    background: none; border: none; cursor: pointer; padding: 0;
-  }
-  #resumoFrentes .resumo-mobile-toggle .toggle-chevron {
-    transition: transform 0.2s;
-  }
-  #resumoFrentes.mobile-aberto .resumo-mobile-toggle .toggle-chevron {
-    transform: rotate(180deg);
-  }
-  /* Conteúdo colapsado por padrão no mobile */
-  #resumoFrentes .resumo-collapsible {
-    display: none;
-  }
-  #resumoFrentes.mobile-aberto .resumo-collapsible {
-    display: block;
-  }
-  /* Cards menores no mobile quando aberto */
+  /* Cards menores no mobile */
   .resumo-cards {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
@@ -2805,11 +2773,6 @@
   .resumo-cards .frente-value { font-size: 16px; }
   .resumo-cards .frente-title { font-size: 10px; }
   .resumo-total { font-size: 11px; padding: 6px 0; }
-}
-
-@media (min-width: 700px) {
-  #resumoFrentes .resumo-mobile-toggle { display: none; }
-  #resumoFrentes .resumo-collapsible { display: block !important; }
 }
 
 .resumo-cards {
