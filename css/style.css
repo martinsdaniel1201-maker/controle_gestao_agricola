@@ -392,6 +392,14 @@
       display: flex; flex-direction: column; gap: 10px;
       width: 100%; max-width: 460px;
     }
+    /* Resumo por Frente dentro do hub — mesma largura da coluna por padrão,
+       alargado à parte em telas maiores (ver regra @media min-width:900px abaixo) */
+    #resumoFrentes {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 460px;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
     .hub-card {
       display: flex; align-items: center; gap: 14px; width: 100%;
       padding: 15px 16px 15px 14px; text-align: left;
@@ -2760,19 +2768,50 @@
     .resumo-legenda-aderencia i { font-size: 6px; }
 
 	/* ── NOVO BLOCO: RESUMO POR FRENTE COM RANKING (INTEGRADO) ── */
-/* ── RESUMO PRODUÇÃO: sempre expandido, em qualquer tamanho de tela ── */
+/* ── RESUMO PRODUÇÃO: bem compacto no mobile ── */
 @media (max-width: 699px) {
-  /* Cards menores no mobile */
-  .resumo-cards {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+  #resumoFrentes {
+    padding: 12px 14px;
   }
-  .resumo-cards .frente-card { padding: 8px 10px; }
-  .resumo-cards .frente-value { font-size: 16px; }
-  .resumo-cards .frente-title { font-size: 10px; }
-  .resumo-total { font-size: 11px; padding: 6px 0; }
+  #resumoFrentes .card-title {
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+  #resumoFrentes .card-title i {
+    width: 22px; height: 22px; font-size: 11px;
+  }
+  #resumoFrentes .resumo-legenda-aderencia {
+    gap: 3px 8px;
+    margin: 2px 0 8px 0;
+    padding-bottom: 6px;
+  }
+  #resumoFrentes .resumo-legenda-aderencia span {
+    font-size: 8.5px;
+  }
+  /* Cards bem menores no mobile */
+  .resumo-cards {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+  .resumo-cards .frente-card { padding: 6px 7px; }
+  .resumo-cards .frente-card-header { gap: 3px; margin-bottom: 4px; }
+  .resumo-cards .frente-value { font-size: 12.5px; }
+  .resumo-cards .frente-title { font-size: 8.5px; }
+  .resumo-cards .frente-unit { font-size: 9px; }
+  .resumo-total { font-size: 10px; padding: 5px 0; margin-top: 8px; padding-top: 8px; }
+  .resumo-total div span { font-size: 11px; }
+}
+
+/* ── RESUMO PRODUÇÃO: estendido em telas de desktop ── */
+@media (min-width: 900px) {
+  #resumoFrentes {
+    max-width: 100%;
+  }
+  #resumoFrentes .resumo-cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
 }
 
 .resumo-cards {
