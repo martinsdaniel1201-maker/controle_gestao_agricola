@@ -3745,41 +3745,46 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     display: grid !important;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     grid-template-areas:
-      "lib     lib     lib     status"
-      "faz     faz     faz     faz"
+      "lib     lib     status  status"
+      "frente  faz     faz     faz"
       "talh    talh    talh    talh"
       "est     real    dif     tch";
     column-gap: 4px;
+    row-gap: 2px;
     padding: 12px 14px 10px !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-md) !important;
     margin-bottom: 10px !important;
     background: var(--surface) !important;
   }
-  #tabela-liberacoes-gatec tbody td { border-bottom: none !important; padding: 0 !important; }
+  #tabela-liberacoes-gatec tbody td { border-bottom: none !important; padding: 0 !important; min-width: 0; }
 
   #tabela-liberacoes-gatec tbody td:nth-child(1) {
-    grid-area: lib; display: block !important;
+    grid-area: lib; display: flex !important; align-items: center;
     font-size: 15px !important; font-weight: 800 !important; color: var(--text) !important;
   }
   #tabela-liberacoes-gatec tbody td:nth-child(1)::before { content: none !important; }
 
   #tabela-liberacoes-gatec tbody td:nth-child(9) {
     grid-area: status; display: flex !important;
-    justify-content: flex-end; align-items: flex-start;
+    justify-content: flex-end; align-items: center;
   }
   #tabela-liberacoes-gatec tbody td:nth-child(9)::before { content: none !important; }
+  #tabela-liberacoes-gatec tbody td:nth-child(9) .badge {
+    white-space: nowrap !important; font-size: 9.5px !important; padding: 4px 9px !important;
+  }
 
   #tabela-liberacoes-gatec tbody td:nth-child(3) {
     grid-area: faz; display: block !important; text-align: left !important;
     font-size: 12.5px !important; font-weight: 600 !important; color: var(--text-2) !important;
-    margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   #tabela-liberacoes-gatec tbody td:nth-child(3)::before { content: none !important; }
 
   #tabela-liberacoes-gatec tbody td:nth-child(2) {
-    grid-area: faz; display: inline !important; text-align: left !important;
+    grid-area: frente; display: block !important; text-align: left !important;
     font-size: 11px !important; font-weight: 700 !important; color: var(--text-3) !important;
+    white-space: nowrap;
   }
   #tabela-liberacoes-gatec tbody td:nth-child(2)::before {
     content: 'Frente ' !important; font-weight: 700 !important; text-transform: none !important;
@@ -3787,7 +3792,7 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
 
   #tabela-liberacoes-gatec tbody td:nth-child(4) {
     grid-area: talh; display: block !important; text-align: left !important;
-    font-size: 11px !important; color: var(--text-3) !important; margin-bottom: 8px;
+    font-size: 11px !important; color: var(--text-3) !important; margin: 4px 0 8px;
   }
   #tabela-liberacoes-gatec tbody td:nth-child(4)::before {
     content: 'Talhões ' !important; font-weight: 700 !important; text-transform: uppercase !important;
