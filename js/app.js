@@ -3948,10 +3948,41 @@ iniciarSabedoria();
   window._tratosCols      = null;
   let   _tratosIniciado   = false;
 
-  window.iniciarModuloTratos = iniciarModuloTratos;
-  window.carregarDadosTratos = carregarDadosTratos;
-  window.filtrarTratos       = filtrarTratos;
-  window.exportarTratosExcel = exportarTratosExcel;
+  window.iniciarModuloTratos  = iniciarModuloTratos;
+  window.carregarDadosTratos  = carregarDadosTratos;
+  window.filtrarTratos        = filtrarTratos;
+  window.exportarTratosExcel  = exportarTratosExcel;
+  window.abrirRelatorioTratos = abrirRelatorioTratos;
+  window.avisoColunaPendente  = avisoColunaPendente;
+
+  // ── Menu de Relatórios (tela inicial de Tratos) ────────────────────────
+  // Dimensões já suportadas pela planilha PCP atual: leva direto ao filtro certo.
+  let _tratosFocoPendente = null;
+  function abrirRelatorioTratos(tipo) {
+    const campoPorTipo = {
+      fazenda : 'tratos-filtro-fazenda',
+      produto : 'tratos-filtro-produto',
+      operacao: 'tratos-filtro-operacao',
+    };
+    showTab(event, 'tratos_aba');
+    iniciarModuloTratos();
+    const campo = campoPorTipo[tipo];
+    if (campo) {
+      if (window._tratosDados && window._tratosDados.length) {
+        setTimeout(() => tratosSSAbrir(campo), 200);
+      } else {
+        _tratosFocoPendente = campo; // dados ainda carregando — abre assim que popular
+      }
+    }
+    // tipo === 'analitico' apenas leva à tabela completa, sem focar filtro específico
+  }
+
+  // Dimensão ainda não existe na planilha PCP — avisa o que precisa ser adicionado
+  function avisoColunaPendente(nomeRelatorio, colunaNecessaria) {
+    if (typeof showToast === 'function') {
+      showToast(`🚧 "${nomeRelatorio}" ainda não está na planilha PCP. Adicione a coluna: ${colunaNecessaria}`, 'error', 4500);
+    }
+  }
   window.tratosSSAbrir       = tratosSSAbrir;
   window.tratosSSFiltrar     = tratosSSFiltrar;
   window.tratosSSLimpar      = tratosSSLimpar;
@@ -4236,6 +4267,13 @@ iniciarSabedoria();
 
         renderizarTratos(results.data);
         if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
+
+        // Se o usuário chegou aqui via um botão do menu de relatórios, abre o filtro certo agora
+        if (_tratosFocoPendente) {
+          const campo = _tratosFocoPendente;
+          _tratosFocoPendente = null;
+          setTimeout(() => tratosSSAbrir(campo), 200);
+        }
       },
       error: function(err) {
         console.error('[Tratos] Erro CSV:', err);
