@@ -4042,18 +4042,28 @@ iniciarSabedoria();
     }
 
     // Candidatos ordenados por especificidade (mais específico primeiro)
+    // Layout atual da aba PCP: Data Aplicação | Nr. O.S. | Cód./Desc. Produto |
+    // Cód./Desc. Operação Agr. | Cód./Desc. Fazenda | Cod./Abv. Empresa |
+    // Nro. Lançamento | Safra | Funcionário | Processo | Subprocesso | Grupo Op. |
+    // Unidade | Setor | Bloco | Cód. Talhao | ... | Área Aplicada |
+    // Dose Recomendada | Dose Aplicada
     return {
       colData      : findCol(['DATA APLICACAO','DATAAPLIC','DT APLIC','DATA']),
       colOS        : findCol(['NR OS','NROS','NR. O.S.','N OS','NUMEROOS','OS']),
       colCodProd   : findCol(['COD PRODUTO','CODPROD','CODIGO PRODUTO','COD PROD']),
       colDescProd  : findCol(['DESC PRODUTO','DESCPROD','DESCRICAO PRODUTO','NOME PRODUTO','PRODUTO']),
-      colCodOp     : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
+      colCodOp     : findCol(['COD OPERACAO AGR','CODOPERACAOAGR','COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
       colDescOp    : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
       colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ','CODFAZ']),
-      colFazenda   : findCol(['DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','DESC FAZENDA','DESCFAZENDA','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE','UNIDADE','LOCAL']),
+      colFazenda   : findCol(['DESC FAZENDA','DESCFAZENDA','DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE','LOCAL']),
       colArea      : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
       colDoseRec   : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
       colDoseAplic : findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
+      // Novas colunas usadas apenas nas regras de duplicidade
+      colTalhao    : findCol(['COD TALHAO','CODTALHAO','TALHAO','TALHÃO']),
+      colLancamento: findCol(['NRO LANCAMENTO','NROLANCAMENTO','NR LANCAMENTO','NUMERO LANCAMENTO','LANCAMENTO']),
+      colSetor     : findCol(['DESC SETOR','DESCSETOR','COD SETOR']),
+      colBloco     : findCol(['DESC BLOCO','DESCBLOCO','COD BLOCO']),
     };
   }
 
@@ -4253,19 +4263,23 @@ iniciarSabedoria();
         }
 
         const cols = detectarColunas(results.meta.fields || []);
+        // Duplicidade: Nro. Lançamento é a chave única do apontamento.
+        // Linhas repetidas (reexportação da planilha) são descartadas aqui,
+        // antes de qualquer soma de área ou média de dose.
+        const dadosUnicos = _dedupLancamentos(results.data, cols.colLancamento);
         window._tratosCols      = cols;
-        window._tratosDados     = results.data;
-        window._tratosFiltrados = results.data;
+        window._tratosDados     = dadosUnicos;
+        window._tratosFiltrados = dadosUnicos;
 
         // Popula os 3 dropdowns de filtro com valores únicos reais
-        popularSelectCodDesc('tratos-filtro-produto',  results.data, cols.colCodProd,    cols.colDescProd, '— Todos —');
-        popularSelectCodDesc('tratos-filtro-fazenda',  results.data, cols.colCodFazenda, cols.colFazenda,  '— Todas —');
-        popularSelectCodDesc('tratos-filtro-operacao', results.data, cols.colCodOp,      cols.colDescOp,   '— Todas —');
+        popularSelectCodDesc('tratos-filtro-produto',  dadosUnicos, cols.colCodProd,    cols.colDescProd, '— Todos —');
+        popularSelectCodDesc('tratos-filtro-fazenda',  dadosUnicos, cols.colCodFazenda, cols.colFazenda,  '— Todas —');
+        popularSelectCodDesc('tratos-filtro-operacao', dadosUnicos, cols.colCodOp,      cols.colDescOp,   '— Todas —');
         _tratosSSSync('tratos-filtro-produto');
         _tratosSSSync('tratos-filtro-fazenda');
         _tratosSSSync('tratos-filtro-operacao');
 
-        renderizarTratos(results.data);
+        renderizarTratos(dadosUnicos);
         if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
 
         // Se o usuário chegou aqui via um botão do menu de relatórios, abre o filtro certo agora
@@ -4306,11 +4320,11 @@ iniciarSabedoria();
       (bIni || bFim) ? 'Período: ' + (bIni || '…') + ' a ' + (bFim || '…') : null,
     ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
 
-    const areaTotal = new Set();
-    let somaArea = 0;
+    // Mesma regra de duplicidade da tela (O.S. + talhão) — ver _calcAreaOS
+    const areaPorOS = _calcAreaOS(dados, colOS, colArea);
+    let somaArea = Object.values(areaPorOS).reduce((s, v) => s + v, 0);
     dados.forEach(row => {
-      const osKey = (row[colOS] || '').trim();
-      if (!osKey || !areaTotal.has(osKey)) { somaArea += parseNum(row[colArea]) || 0; if (osKey) areaTotal.add(osKey); }
+      if (!(row[colOS] || '').trim()) somaArea += parseNum(row[colArea]) || 0; // linhas sem O.S.
     });
 
     const { pdf, y } = _novoPDFRelatorio('Tratos Culturais', `${dados.length} registros   ·   ${filtrosTxt}   ·   Área total: ${somaArea.toFixed(1)} ha`, 'landscape');
@@ -4482,23 +4496,51 @@ iniciarSabedoria();
   //   · Se as linhas de uma O.S. têm ÁREAS DIFERENTES  → soma (sub-talhões distintos)
   //   Isso resolve casos como Água Residuária, onde uma única O.S. aplica em vários
   //   talhões menores registrados linha a linha com áreas distintas.
+  // Remove linhas repetidas pelo Nro. Lançamento (chave única do apontamento).
+  // Sem a coluna, devolve os dados intactos.
+  function _dedupLancamentos(dados, colLancamento) {
+    if (!colLancamento || !Array.isArray(dados)) return dados;
+    const vistos = new Set();
+    return dados.filter(row => {
+      const k = (row[colLancamento] || '').trim();
+      if (!k) return true;                 // sem lançamento → mantém
+      if (vistos.has(k)) return false;     // lançamento repetido → descarta
+      vistos.add(k);
+      return true;
+    });
+  }
+
   function _calcAreaOS(dados, colOS, colArea) {
-    const osLinhas = {};
+    // Agora a planilha traz Cód. Talhao (e Setor/Bloco): a área é única por
+    // O.S. + talhão. Linhas repetidas do MESMO talhão (produtos/lançamentos
+    // diferentes na mesma O.S.) não somam área; talhões distintos somam.
+    const { colTalhao, colSetor, colBloco } = window._tratosCols || {};
+    const osTalhoes = {};
     dados.forEach(row => {
-      const os   = (row[colOS]   || '').trim();
+      const os   = (row[colOS] || '').trim();
       const area = parseNum(row[colArea]) || 0;
       if (!os) return;
-      if (!osLinhas[os]) osLinhas[os] = [];
-      osLinhas[os].push(area);
+      const talhao = colTalhao ? (row[colTalhao] || '').trim() : '';
+      const escopo = [
+        colSetor ? (row[colSetor] || '').trim() : '',
+        colBloco ? (row[colBloco] || '').trim() : '',
+        talhao,
+      ].join('|');
+      // Sem talhão identificado, cai no comportamento antigo (chave única por O.S.)
+      const chave = talhao ? escopo : '__semtalhao__';
+      if (!osTalhoes[os]) osTalhoes[os] = {};
+      if (!osTalhoes[os][chave]) osTalhoes[os][chave] = [];
+      osTalhoes[os][chave].push(area);
     });
     const areaOS = {};
-    Object.entries(osLinhas).forEach(([os, areas]) => {
-      const unicas = new Set(areas.map(a => Math.round(a * 10000)));
-      if (unicas.size === 1) {
-        areaOS[os] = areas[0];                              // todas iguais → pega uma
-      } else {
-        areaOS[os] = areas.reduce((s, v) => s + v, 0);     // diferentes → soma
-      }
+    Object.entries(osTalhoes).forEach(([os, grupos]) => {
+      let total = 0;
+      Object.values(grupos).forEach(areas => {
+        const unicas = new Set(areas.map(a => Math.round(a * 10000)));
+        if (unicas.size === 1) total += areas[0];                        // mesmas áreas → conta uma vez
+        else total += areas.reduce((s, v) => s + v, 0);                  // áreas distintas → soma
+      });
+      areaOS[os] = total;
     });
     return areaOS;
   }
