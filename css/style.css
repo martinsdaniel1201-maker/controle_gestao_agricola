@@ -433,6 +433,50 @@
       font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
       background: var(--amber-bg); color: var(--amber); border-radius: 50px;
     }
+    /* ══════════════════════════════════════════════
+       MENU DE RELATÓRIOS — TRATOS CULTURAIS
+       Inspirado em telas clássicas de emissão de relatório
+       (grupos por dimensão + grade de botões), redesenhado
+       com a identidade visual do app.
+    ══════════════════════════════════════════════ */
+    .report-menu { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 22px; width: 100%; max-width: 620px; margin: 0 auto; }
+    .report-group-title {
+      display: flex; align-items: center; gap: 8px; margin: 0 0 10px 2px;
+      font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3);
+    }
+    .report-group-title i { color: var(--green-700); font-size: 11px; }
+    .report-group-title .report-group-note {
+      margin-left: auto; font-weight: 700; text-transform: none; letter-spacing: 0; font-size: 9.5px; color: var(--amber);
+    }
+    .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 9px; }
+    .report-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+      padding: 14px 6px 12px; text-align: center; cursor: pointer;
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xs); transition: transform 0.2s var(--ease-premium), box-shadow 0.2s var(--ease-premium), border-color 0.2s ease;
+    }
+    .report-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--green-500); }
+    .report-btn:active { transform: translateY(0) scale(0.98); }
+    .report-btn-icon {
+      width: 36px; height: 36px; border-radius: 10px; background: var(--green-50); color: var(--green-700);
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .report-btn-label { font-size: 10px; font-weight: 800; color: var(--text); line-height: 1.25; }
+    .report-btn.is-soon { border-style: dashed; box-shadow: none; }
+    .report-btn.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
+    .report-btn.is-soon .report-btn-icon { background: var(--surface2); color: var(--text-3); }
+    .report-btn.is-soon .report-btn-label { color: var(--text-3); }
+    .report-btn-badge {
+      display: inline-block; margin-top: -1px; padding: 1.5px 6px; border-radius: 50px;
+      font-size: 7px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
+      background: var(--amber-bg); color: var(--amber);
+    }
+    .tratos-mais-filtros-toggle {
+      display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
+      padding: 8px 2px; margin: 2px 0 10px; font-size: 11px; font-weight: 700; color: var(--green-700);
+    }
+    .tratos-mais-filtros-toggle .toggle-chevron { margin-left: auto; font-size: 10px; transition: transform 0.2s ease; }
+    .tratos-mais-filtros-toggle.open .toggle-chevron { transform: rotate(180deg); }
     /* Destaque visual para deixar óbvio que o card é clicável (leva a outra tela) */
     .hub-card.hub-card-destaque {
       border: 1.5px solid var(--green-500);
