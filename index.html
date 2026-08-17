@@ -1597,7 +1597,7 @@
           <div class="hub-card-icon"><i class="fas fa-spray-can"></i></div>
           <div class="hub-card-text">
             <span class="hub-card-label">Tratos Culturais</span>
-            <span class="hub-card-sub">Acompanhamento de aplicações</span>
+            <span class="hub-card-sub">Filtros e emissão de relatórios por aplicação</span>
           </div>
           <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
@@ -1715,6 +1715,130 @@
             </div>
           </div>
 
+          <!-- Linha 2.5: Mais filtros (Setor / Bloco / Talhão / Aplicador / Município / Processo / Empresa / Safra) -->
+          <div class="tratos-mais-filtros-toggle" onclick="toggleMaisFiltrosTratos(this)">
+            <i class="fas fa-sliders"></i> <span>Mais filtros</span> <i class="fas fa-chevron-down toggle-chevron"></i>
+          </div>
+          <div class="tratos-filtros-grid" id="tratos-filtros-mais" style="display:none;">
+
+            <div class="field tratos-ss-field" data-ss="tratos-filtro-setor">
+              <label>Setor</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-setor">
+                <div class="tratos-ss-input-wrap">
+                  <i class="fas fa-search tratos-ss-icon"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-setor')"
+                         onfocus="tratosSSAbrir('tratos-filtro-setor')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-setor')"></i>
+                </div>
+                <div class="tratos-ss-lista"></div>
+              </div>
+              <select id="tratos-filtro-setor" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+
+            <div class="field tratos-ss-field" data-ss="tratos-filtro-bloco">
+              <label>Bloco</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-bloco">
+                <div class="tratos-ss-input-wrap">
+                  <i class="fas fa-search tratos-ss-icon"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-bloco')"
+                         onfocus="tratosSSAbrir('tratos-filtro-bloco')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-bloco')"></i>
+                </div>
+                <div class="tratos-ss-lista"></div>
+              </div>
+              <select id="tratos-filtro-bloco" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+
+            <div class="field tratos-ss-field" data-ss="tratos-filtro-talhao">
+              <label>Talhão</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-talhao">
+                <div class="tratos-ss-input-wrap">
+                  <i class="fas fa-search tratos-ss-icon"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-talhao')"
+                         onfocus="tratosSSAbrir('tratos-filtro-talhao')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-talhao')"></i>
+                </div>
+                <div class="tratos-ss-lista"></div>
+              </div>
+              <select id="tratos-filtro-talhao" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+
+            <div class="field tratos-ss-field" data-ss="tratos-filtro-aplicador">
+              <label>Aplicador</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-aplicador">
+                <div class="tratos-ss-input-wrap">
+                  <i class="fas fa-search tratos-ss-icon"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-aplicador')"
+                         onfocus="tratosSSAbrir('tratos-filtro-aplicador')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-aplicador')"></i>
+                </div>
+                <div class="tratos-ss-lista"></div>
+              </div>
+              <select id="tratos-filtro-aplicador" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+
+            <div class="field tratos-ss-field" data-ss="tratos-filtro-municipio">
+              <label>Município</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-municipio">
+                <div class="tratos-ss-input-wrap">
+                  <i class="fas fa-search tratos-ss-icon"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-municipio')"
+                         onfocus="tratosSSAbrir('tratos-filtro-municipio')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-municipio')"></i>
+                </div>
+                <div class="tratos-ss-lista"></div>
+              </div>
+              <select id="tratos-filtro-municipio" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+
+            <div class="field field-full tratos-ss-field" data-ss="tratos-filtro-processo">
+              <label>Processo</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-processo">
+                <div class="tratos-ss-input-wrap">
+                  <i class="fas fa-search tratos-ss-icon"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-processo')"
+                         onfocus="tratosSSAbrir('tratos-filtro-processo')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-processo')"></i>
+                </div>
+                <div class="tratos-ss-lista"></div>
+              </div>
+              <select id="tratos-filtro-processo" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Empresa</label>
+              <select id="tratos-filtro-empresa" onchange="filtrarTratos()">
+                <option value="">— Todas —</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Safra</label>
+              <select id="tratos-filtro-safra" onchange="filtrarTratos()">
+                <option value="">— Todas —</option>
+              </select>
+            </div>
+
+          </div>
+
           <!-- Linha 3: Datas lado a lado -->
           <div class="tratos-filtros-datas">
             <div class="field">
@@ -1734,12 +1858,142 @@
               <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
                 <i class="fas fa-sync-alt"></i> Atualizar
               </button>
+              <button id="btn-tratos-sync-supabase" onclick="sincronizarTratosSupabase()" style="background:#2b6cb0; color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                <i class="fas fa-cloud-arrow-up"></i> Sincronizar Supabase
+              </button>
               <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
                 <i class="fas fa-file-excel"></i> Exportar
               </button>
             </div>
           </div>
 
+        </div>
+      </div>
+
+      <!-- CARD: Emitir Relatório — o usuário já filtrou acima; aqui escolhe SÓ o agrupamento -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-file-lines"></i> Emitir Relatório</div>
+        <p style="font-size:11px; color:var(--text-3); margin:-6px 0 14px;">
+          Os filtros acima já valem para o relatório. Escolha por qual coluna agrupar.
+        </p>
+        <div class="report-menu">
+
+          <div>
+            <div class="report-group-title"><i class="fas fa-layer-group"></i> Resumo de aplicação por</div>
+            <div class="report-grid">
+              <button class="report-btn" onclick="gerarRelatorioTratos('fazenda')">
+                <div class="report-btn-icon"><i class="fas fa-warehouse"></i></div>
+                <span class="report-btn-label">Fazenda</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('setor')">
+                <div class="report-btn-icon"><i class="fas fa-people-group"></i></div>
+                <span class="report-btn-label">Setor</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('bloco')">
+                <div class="report-btn-icon"><i class="fas fa-border-all"></i></div>
+                <span class="report-btn-label">Bloco</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('talhao')">
+                <div class="report-btn-icon"><i class="fas fa-draw-polygon"></i></div>
+                <span class="report-btn-label">Talhão</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('produto')">
+                <div class="report-btn-icon"><i class="fas fa-flask"></i></div>
+                <span class="report-btn-label">Produto</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('operacao')">
+                <div class="report-btn-icon"><i class="fas fa-tractor"></i></div>
+                <span class="report-btn-label">Operação</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('aplicador')">
+                <div class="report-btn-icon"><i class="fas fa-user-check"></i></div>
+                <span class="report-btn-label">Aplicador</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('analitico')">
+                <div class="report-btn-icon"><i class="fas fa-table-list"></i></div>
+                <span class="report-btn-label">Analítico de Insumos</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="report-group-title"><i class="fas fa-map-location-dot"></i> Localização e organização</div>
+            <div class="report-grid">
+              <button class="report-btn" onclick="gerarRelatorioTratos('municipio')">
+                <div class="report-btn-icon"><i class="fas fa-map-location-dot"></i></div>
+                <span class="report-btn-label">Município</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('processo')">
+                <div class="report-btn-icon"><i class="fas fa-diagram-project"></i></div>
+                <span class="report-btn-label">Processo</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('empresa')">
+                <div class="report-btn-icon"><i class="fas fa-building"></i></div>
+                <span class="report-btn-label">Empresa</span>
+              </button>
+              <button class="report-btn" onclick="gerarRelatorioTratos('safra')">
+                <div class="report-btn-icon"><i class="fas fa-calendar-days"></i></div>
+                <span class="report-btn-label">Safra</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="report-group-title"><i class="fas fa-sliders"></i> Classificação da aplicação<span class="report-group-note">requer novas colunas</span></div>
+            <div class="report-grid">
+              <button class="report-btn is-soon" onclick="avisoColunaPendente('Sistema de Aplicação', 'Sistema de Aplicação (ex.: Terrestre / Aéreo)')">
+                <div class="report-btn-icon"><i class="fas fa-spray-can-sparkles"></i></div>
+                <span class="report-btn-label">Sist. Aplicação</span>
+                <span class="report-btn-badge">Em breve</span>
+              </button>
+              <button class="report-btn is-soon" onclick="avisoColunaPendente('Almoxarifado', 'Almoxarifado de origem do insumo')">
+                <div class="report-btn-icon"><i class="fas fa-boxes-stacked"></i></div>
+                <span class="report-btn-label">Almoxarifado</span>
+                <span class="report-btn-badge">Em breve</span>
+              </button>
+              <button class="report-btn is-soon" onclick="avisoColunaPendente('Categoria', 'Categoria do Produto (herbicida, adubo, etc.)')">
+                <div class="report-btn-icon"><i class="fas fa-tags"></i></div>
+                <span class="report-btn-label">Categoria</span>
+                <span class="report-btn-badge">Em breve</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="report-group-title"><i class="fas fa-coins"></i> Valor de custeio por aplicação<span class="report-group-note">requer Valor Unitário</span></div>
+            <div class="report-grid">
+              <button class="report-btn is-soon" onclick="avisoColunaPendente('Custeio por Fazenda', 'Valor Unitário (R$) do produto')">
+                <div class="report-btn-icon"><i class="fas fa-warehouse"></i></div>
+                <span class="report-btn-label">Fazenda</span>
+                <span class="report-btn-badge">Em breve</span>
+              </button>
+              <button class="report-btn is-soon" onclick="avisoColunaPendente('Custeio por Produto', 'Valor Unitário (R$) do produto')">
+                <div class="report-btn-icon"><i class="fas fa-flask"></i></div>
+                <span class="report-btn-label">Produto</span>
+                <span class="report-btn-badge">Em breve</span>
+              </button>
+              <button class="report-btn is-soon" onclick="avisoColunaPendente('Custeio por Talhão', 'Valor Unitário (R$) do produto')">
+                <div class="report-btn-icon"><i class="fas fa-draw-polygon"></i></div>
+                <span class="report-btn-label">Talhão</span>
+                <span class="report-btn-badge">Em breve</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CARD: Resultado do relatório gerado — some até o usuário clicar num botão acima -->
+      <div class="card" id="card-tratos-relatorio-resultado" style="display:none;">
+        <div class="card-title" style="display:flex; align-items:center; gap:8px;">
+          <i class="fas fa-chart-simple"></i> <span id="tr-resultado-titulo">Relatório</span>
+        </div>
+        <div id="tr-resultado-filtros" style="font-size:10.5px; color:var(--text-3); margin:-8px 0 12px; line-height:1.5;"></div>
+        <div id="tr-resultado-corpo"></div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button onclick="exportarPDFRelatorioAgrupado()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+            <i class="fas fa-file-pdf"></i> Exportar PDF deste relatório
+          </button>
         </div>
       </div>
 
