@@ -3948,33 +3948,369 @@ iniciarSabedoria();
   window._tratosCols      = null;
   let   _tratosIniciado   = false;
 
-  window.iniciarModuloTratos  = iniciarModuloTratos;
-  window.carregarDadosTratos  = carregarDadosTratos;
-  window.filtrarTratos        = filtrarTratos;
-  window.exportarTratosExcel  = exportarTratosExcel;
-  window.abrirRelatorioTratos = abrirRelatorioTratos;
-  window.avisoColunaPendente  = avisoColunaPendente;
+  window.iniciarModuloTratos     = iniciarModuloTratos;
+  window.carregarDadosTratos     = carregarDadosTratos;
+  window.filtrarTratos           = filtrarTratos;
+  window.exportarTratosExcel     = exportarTratosExcel;
+  window.gerarRelatorioTratos    = gerarRelatorioTratos;
+  window.avisoColunaPendente     = avisoColunaPendente;
+  window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
+  window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
 
-  // ── Menu de Relatórios (tela inicial de Tratos) ────────────────────────
-  // Dimensões já suportadas pela planilha PCP atual: leva direto ao filtro certo.
-  let _tratosFocoPendente = null;
-  function abrirRelatorioTratos(tipo) {
-    const campoPorTipo = {
-      fazenda : 'tratos-filtro-fazenda',
-      produto : 'tratos-filtro-produto',
-      operacao: 'tratos-filtro-operacao',
+  /* ══════════════════════════════════════════════════════════════
+     SINCRONIZAÇÃO COM SUPABASE (ctt.tratos_pcp)
+     — Lê o que já está carregado em window._tratosDados (planilha PCP)
+     — Monta 1 registro por linha, com um hash SHA-256 de TODO o
+       conteúdo relevante da linha como chave de upsert idempotente.
+       Isso é o que garante "não duplicar": resincronizar a mesma
+       planilha nunca cria linha nova, e uma linha genuinamente
+       diferente (mesmo que só a área mude, por fracionamento) sempre
+       vira um registro à parte — nunca sobrescreve outra por engano.
+     — Nro. Lançamento sozinho NÃO é chave (pode cobrir vários
+       produtos da mesma O.S.), por isso não é usado como PK.
+  ══════════════════════════════════════════════════════════════ */
+  function _txtOuNull(v) {
+    const s = (v == null ? '' : String(v)).trim();
+    return s === '' ? null : s;
+  }
+  function _numOuNull(v) {
+    const n = parseNum(v);
+    return isNaN(n) ? null : n;
+  }
+  function _dataISOOuNull(v) {
+    const d = parseData(v);
+    if (!d) return null;
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  async function _sha256Hex(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function _montarRegistroTratosSupabase(row, cols) {
+    const reg = {
+      data_aplicacao   : _dataISOOuNull(row[cols.colData]),
+      nr_os            : _txtOuNull(row[cols.colOS]),
+      cod_produto      : _txtOuNull(row[cols.colCodProd]),
+      desc_produto     : _txtOuNull(row[cols.colDescProd]),
+      cod_operacao     : _txtOuNull(row[cols.colCodOp]),
+      desc_operacao    : _txtOuNull(row[cols.colDescOp]),
+      cod_fazenda      : _txtOuNull(row[cols.colCodFazenda]),
+      desc_fazenda     : _txtOuNull(row[cols.colFazenda]),
+      cod_empresa      : _txtOuNull(row[cols.colCodEmpresa]),
+      abv_empresa      : _txtOuNull(row[cols.colAbvEmpresa]),
+      nro_lancamento   : _txtOuNull(row[cols.colLancamento]),
+      safra            : _txtOuNull(row[cols.colSafra]),
+      cod_funcionario  : _txtOuNull(row[cols.colCodFuncionario]),
+      nome_funcionario : _txtOuNull(row[cols.colFuncionario]),
+      cod_processo     : _txtOuNull(row[cols.colCodProcesso]),
+      desc_processo    : _txtOuNull(row[cols.colDescProcesso]),
+      cod_subprocesso  : _txtOuNull(row[cols.colCodSubprocesso]),
+      desc_subprocesso : _txtOuNull(row[cols.colDescSubprocesso]),
+      cod_grupo_op     : _txtOuNull(row[cols.colCodGrupoOp]),
+      desc_grupo_op    : _txtOuNull(row[cols.colDescGrupoOp]),
+      unidade          : _txtOuNull(row[cols.colUnidade]),
+      cod_setor        : _txtOuNull(row[cols.colCodSetor]),
+      desc_setor       : _txtOuNull(row[cols.colDescSetor]),
+      cod_bloco        : _txtOuNull(row[cols.colCodBloco]),
+      desc_bloco       : _txtOuNull(row[cols.colDescBloco]),
+      cod_talhao       : _txtOuNull(row[cols.colCodTalhao]),
+      municipio        : _txtOuNull(row[cols.colMunicipio]),
+      variedade        : _txtOuNull(row[cols.colVariedade]),
+      situacao_talhao  : _txtOuNull(row[cols.colSituacaoTalhao]),
+      area_aplicada    : _numOuNull(row[cols.colArea]),
+      dose_recomendada : _numOuNull(row[cols.colDoseRec]),
+      dose_aplicada    : _numOuNull(row[cols.colDoseAplic]),
     };
-    showTab(event, 'tratos_aba');
-    iniciarModuloTratos();
-    const campo = campoPorTipo[tipo];
-    if (campo) {
-      if (window._tratosDados && window._tratosDados.length) {
-        setTimeout(() => tratosSSAbrir(campo), 200);
-      } else {
-        _tratosFocoPendente = campo; // dados ainda carregando — abre assim que popular
-      }
+    // Chave canônica: todas as colunas em ordem fixa (alfabética) — não importa
+    // a ordem em que a planilha manda as colunas, o hash sai sempre igual
+    // pro mesmo conteúdo.
+    const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
+    reg.linha_hash = await _sha256Hex(base);
+    return reg;
+  }
+
+  async function sincronizarTratosSupabase() {
+    if (!window._tratosDados || !window._tratosDados.length) {
+      if (typeof showToast === 'function') showToast('⚠️ Carregue os dados de Tratos primeiro (abra a tela e aguarde).', 'error', 3000);
+      return;
     }
-    // tipo === 'analitico' apenas leva à tabela completa, sem focar filtro específico
+    if (typeof _sbClient === 'undefined') {
+      if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000);
+      return;
+    }
+    const btn = document.getElementById('btn-tratos-sync-supabase');
+    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando...'; }
+
+    try {
+      const cols = window._tratosCols || {};
+      const dados = window._tratosDados;
+      const total = dados.length;
+
+      // 1) Monta os registros (com hash) em blocos, sem travar a UI
+      const registros = [];
+      for (let i = 0; i < total; i += 1000) {
+        const bloco = dados.slice(i, i + 1000);
+        const blocoPronto = await Promise.all(bloco.map(row => _montarRegistroTratosSupabase(row, cols)));
+        registros.push(...blocoPronto);
+        if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Preparando... ${Math.min(i + 1000, total)}/${total}`;
+      }
+
+      // 2) Envia em lotes via upsert (chave = linha_hash → idempotente, nunca duplica)
+      const LOTE = 300;
+      let enviados = 0, erros = 0;
+      for (let i = 0; i < registros.length; i += LOTE) {
+        const lote = registros.slice(i, i + LOTE);
+        const { error } = await _sbClient.schema('ctt').from('tratos_pcp').upsert(lote, { onConflict: 'linha_hash' });
+        if (error) { erros++; console.error('[Tratos→Supabase] erro no lote', i, error); }
+        enviados += lote.length;
+        if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Enviando... ${enviados}/${registros.length}`;
+      }
+
+      if (erros === 0) {
+        if (typeof showToast === 'function') showToast(`✅ Supabase sincronizado: ${registros.length} linhas.`, 'success', 4000);
+      } else {
+        if (typeof showToast === 'function') showToast(`⚠️ Sincronizado com ${erros} lote(s) com erro — veja o console (F12).`, 'error', 5000);
+      }
+    } catch (e) {
+      console.error('[Tratos→Supabase] erro geral', e);
+      if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar com o Supabase — veja o console (F12).', 'error', 5000);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i> Sincronizar Supabase'; }
+    }
+  }
+
+  // ── Definição de cada dimensão de relatório ─────────────────────────────
+  // colCod/colDesc: colunas usadas pro agrupamento (Desc. tem prioridade; cai pro Cód. se não houver)
+  function _defDimensao(tipo) {
+    const c = window._tratosCols || {};
+    const defs = {
+      fazenda  : { titulo: 'Fazenda',   colCod: c.colCodFazenda,     colDesc: c.colFazenda },
+      setor    : { titulo: 'Setor',     colCod: c.colCodSetor,       colDesc: c.colDescSetor },
+      bloco    : { titulo: 'Bloco',     colCod: c.colCodBloco,       colDesc: c.colDescBloco },
+      talhao   : { titulo: 'Talhão',    colCod: c.colCodTalhao,      colDesc: null },
+      produto  : { titulo: 'Produto',   colCod: c.colCodProd,        colDesc: c.colDescProd,  comDose: true },
+      operacao : { titulo: 'Operação',  colCod: c.colCodOp,          colDesc: c.colDescOp },
+      aplicador: { titulo: 'Aplicador', colCod: c.colCodFuncionario, colDesc: c.colFuncionario },
+      municipio: { titulo: 'Município', colCod: null,                colDesc: c.colMunicipio },
+      processo : { titulo: 'Processo',  colCod: c.colCodProcesso,    colDesc: c.colDescProcesso },
+      empresa  : { titulo: 'Empresa',   colCod: c.colCodEmpresa,     colDesc: c.colAbvEmpresa },
+      safra    : { titulo: 'Safra',     colCod: null,                colDesc: c.colSafra },
+    };
+    return defs[tipo] || null;
+  }
+
+  // ── Gera o relatório agrupado pela dimensão escolhida, respeitando os
+  //    filtros JÁ aplicados na tela (window._tratosFiltrados) ──────────────
+  function gerarRelatorioTratos(tipo) {
+    if (!window._tratosDados || !window._tratosDados.length) {
+      if (typeof showToast === 'function') showToast('⚠️ Aguarde os dados carregarem e tente novamente.', 'error', 2500);
+      return;
+    }
+    const dados = window._tratosFiltrados && window._tratosFiltrados.length ? window._tratosFiltrados : window._tratosDados;
+    const { colOS, colArea, colDoseRec, colDoseAplic, colCodTalhao, colData } = window._tratosCols || {};
+
+    if (tipo === 'analitico') {
+      _mostrarResultadoAnalitico(dados);
+      return;
+    }
+
+    const def = _defDimensao(tipo);
+    if (!def) return;
+    const colGroup = def.colDesc || def.colCod;
+    if (!colGroup) {
+      avisoColunaPendente(def.titulo, 'coluna correspondente na planilha PCP');
+      return;
+    }
+
+    // Agrupa: para cada (grupo, O.S., Talhão) calcula área sem duplicar
+    const grupos = {}; // grupoLabel -> { cod, label, ossPorTalhao:{os:{talhao:[areas]}}, cnt, somaRec, cntRec, somaAplic, cntAplic }
+    dados.forEach(row => {
+      const label = (row[colGroup] || '').trim() || 'Sem ' + def.titulo;
+      const cod = def.colCod ? (row[def.colCod] || '').trim() : '';
+      if (!grupos[label]) grupos[label] = { cod, label, os: {}, cnt: 0, somaRec: 0, cntRec: 0, somaAplic: 0, cntAplic: 0 };
+      const g = grupos[label];
+      g.cnt++;
+      const os = (row[colOS] || '').trim();
+      const talhaoKey = colCodTalhao ? ((row[colCodTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
+      const area = parseNum(row[colArea]) || 0;
+      if (os) {
+        if (!g.os[os]) g.os[os] = {};
+        if (!g.os[os][talhaoKey]) g.os[os][talhaoKey] = [];
+        g.os[os][talhaoKey].push(area);
+      }
+      const dr = parseNum(row[colDoseRec]);
+      const da = parseNum(row[colDoseAplic]);
+      if (!isNaN(dr)) { g.somaRec += dr; g.cntRec++; }
+      if (!isNaN(da)) { g.somaAplic += da; g.cntAplic++; }
+    });
+
+    // Resolve a área de cada grupo com a mesma regra "não duplicar" (por O.S.+Talhão)
+    const linhas = Object.values(grupos).map(g => {
+      let area = 0;
+      Object.values(g.os).forEach(porTalhao => {
+        Object.values(porTalhao).forEach(areas => {
+          const unicas = new Set(areas.map(a => Math.round(a * 10000)));
+          area += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
+        });
+      });
+      const nOS = Object.keys(g.os).length;
+      const doseRecMedia   = g.cntRec   > 0 ? g.somaRec   / g.cntRec   : NaN;
+      const doseAplicMedia = g.cntAplic > 0 ? g.somaAplic / g.cntAplic : NaN;
+      let difPct = NaN;
+      if (!isNaN(doseRecMedia) && doseRecMedia > 0 && !isNaN(doseAplicMedia)) {
+        difPct = ((doseAplicMedia - doseRecMedia) / doseRecMedia) * 100;
+      }
+      return { cod: g.cod, label: g.label, area, nOS, registros: g.cnt, doseRecMedia, doseAplicMedia, difPct };
+    }).sort((a, b) => b.area - a.area);
+
+    _mostrarResultadoAgrupado(def, linhas, dados.length);
+  }
+
+  // ── Texto-resumo dos filtros atualmente aplicados (reaproveitado no card e no PDF) ──
+  function _tratosFiltrosAtivosTexto() {
+    const pares = [
+      ['Fazenda', 'tratos-filtro-fazenda'], ['Setor', 'tratos-filtro-setor'],
+      ['Bloco', 'tratos-filtro-bloco'], ['Talhão', 'tratos-filtro-talhao'],
+      ['Produto', 'tratos-filtro-produto'], ['Operação', 'tratos-filtro-operacao'],
+      ['Aplicador', 'tratos-filtro-aplicador'], ['Município', 'tratos-filtro-municipio'],
+      ['Processo', 'tratos-filtro-processo'], ['Empresa', 'tratos-filtro-empresa'],
+      ['Safra', 'tratos-filtro-safra'],
+    ];
+    const ativos = pares.map(([lbl, id]) => {
+      const v = selectVal(id);
+      return v ? `${lbl}: ${v}` : null;
+    }).filter(Boolean);
+    const bIni = document.getElementById('tratos-filtro-data-ini')?.value || '';
+    const bFim = document.getElementById('tratos-filtro-data-fim')?.value || '';
+    if (bIni || bFim) ativos.push('Período: ' + (bIni || '…') + ' a ' + (bFim || '…'));
+    return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
+  }
+
+  // ── Renderiza o card de resultado (relatório agrupado) ──────────────────
+  function _mostrarResultadoAgrupado(def, linhas, totalRegistrosBase) {
+    const card = document.getElementById('card-tratos-relatorio-resultado');
+    const titulo = document.getElementById('tr-resultado-titulo');
+    const filtrosEl = document.getElementById('tr-resultado-filtros');
+    const corpo = document.getElementById('tr-resultado-corpo');
+    if (!card || !corpo) return;
+
+    const totalArea = linhas.reduce((s, l) => s + l.area, 0);
+    titulo.textContent = `Resumo de Aplicação por ${def.titulo}`;
+    filtrosEl.textContent = `${totalRegistrosBase} registro${totalRegistrosBase !== 1 ? 's' : ''} no filtro   ·   ${linhas.length} ${def.titulo.toLowerCase()}(s)   ·   Área total: ${totalArea.toLocaleString('pt-BR',{maximumFractionDigits:1})} ha   ·   ${_tratosFiltrosAtivosTexto()}`;
+
+    const mostrarDose = !!def.comDose;
+    corpo.innerHTML = `<div class="tratos-table-wrap"><table class="tratos-resumo-table">
+      <thead><tr>
+        <th>${esc(def.titulo)}</th>
+        <th style="text-align:right;">Área (ha)</th>
+        <th style="text-align:right;">Nº O.S.</th>
+        <th style="text-align:right;">Registros</th>
+        ${mostrarDose ? '<th style="text-align:right;">Dose Média Rec.</th><th style="text-align:right;">Dose Média Aplic.</th><th style="text-align:right;">Diferença</th>' : ''}
+      </tr></thead><tbody>
+      ${linhas.map(l => {
+        let difCell = '';
+        if (mostrarDose) {
+          let difStr = '—', difStyle = '';
+          if (!isNaN(l.difPct)) {
+            difStr = (l.difPct >= 0 ? '+' : '') + l.difPct.toFixed(1) + '%';
+            difStyle = Math.abs(l.difPct) > ALERTA_DOSE_PCT ? 'color:var(--red);font-weight:800;' : 'color:var(--green-700);font-weight:700;';
+          }
+          difCell = `<td style="text-align:right;">${isNaN(l.doseRecMedia) ? '—' : l.doseRecMedia.toFixed(2)}</td>
+                     <td style="text-align:right;">${isNaN(l.doseAplicMedia) ? '—' : l.doseAplicMedia.toFixed(2)}</td>
+                     <td style="text-align:right;${difStyle}">${difStr}</td>`;
+        }
+        const labelCompleto = [l.cod, l.label].filter(Boolean).join(' · ');
+        return `<tr>
+          <td style="font-weight:600;">${esc(labelCompleto)}</td>
+          <td style="text-align:right;font-weight:700;color:var(--green-900);">${l.area.toLocaleString('pt-BR',{maximumFractionDigits:1})}</td>
+          <td style="text-align:right;">${l.nOS}</td>
+          <td style="text-align:right;">${l.registros}</td>
+          ${difCell}
+        </tr>`;
+      }).join('')}
+      </tbody></table></div>`;
+
+    window._tratosRelatorioAtual = { def, linhas, totalRegistrosBase };
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── "Analítico de Insumos" — tabela linha a linha, com limite de exibição ──
+  const TRATOS_LIMITE_TABELA_BRUTA = 500;
+  function _mostrarResultadoAnalitico(dados) {
+    const card = document.getElementById('card-tratos-relatorio-resultado');
+    const titulo = document.getElementById('tr-resultado-titulo');
+    const filtrosEl = document.getElementById('tr-resultado-filtros');
+    const corpo = document.getElementById('tr-resultado-corpo');
+    if (!card || !corpo) return;
+
+    titulo.textContent = 'Analítico de Insumos';
+    const excedeu = dados.length > TRATOS_LIMITE_TABELA_BRUTA;
+    const amostra = excedeu ? dados.slice(0, TRATOS_LIMITE_TABELA_BRUTA) : dados;
+    filtrosEl.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} no filtro`
+      + (excedeu ? ` — exibindo os primeiros ${TRATOS_LIMITE_TABELA_BRUTA} (refine os filtros para ver o restante)` : '')
+      + `   ·   ${_tratosFiltrosAtivosTexto()}`;
+
+    const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    corpo.innerHTML = `<div class="tratos-table-wrap" style="max-height:520px; overflow:auto;"><table class="tratos-resumo-table">
+      <thead><tr>
+        <th>Data</th><th>Nº O.S.</th><th>Fazenda</th><th>Produto</th><th>Operação</th>
+        <th style="text-align:right;">Área (ha)</th><th style="text-align:right;">Dose Rec.</th><th style="text-align:right;">Dose Aplic.</th>
+      </tr></thead><tbody>
+      ${amostra.map(row => `<tr>
+        <td>${esc(row[colData])}</td>
+        <td style="font-weight:700;color:var(--green-900);">${esc(row[colOS])}</td>
+        <td>${esc([row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · '))}</td>
+        <td>${esc([row[colCodProd], row[colDescProd]].filter(Boolean).join(' · '))}</td>
+        <td>${esc([row[colCodOp], row[colDescOp]].filter(Boolean).join(' · '))}</td>
+        <td style="text-align:right;">${esc(row[colArea])}</td>
+        <td style="text-align:right;">${esc(row[colDoseRec])}</td>
+        <td style="text-align:right;">${esc(row[colDoseAplic])}</td>
+      </tr>`).join('')}
+      </tbody></table></div>`;
+
+    window._tratosRelatorioAtual = { analitico: true, dados };
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Exporta em PDF o relatório agrupado (ou analítico) que está na tela ──
+  function exportarPDFRelatorioAgrupado() {
+    const atual = window._tratosRelatorioAtual;
+    if (!atual) { if (typeof showToast === 'function') showToast('⚠️ Gere um relatório primeiro.', 'error', 2500); return; }
+
+    if (atual.analitico) {
+      exportarPDFTratos(); // reaproveita o export detalhado já existente
+      return;
+    }
+
+    const { def, linhas, totalRegistrosBase } = atual;
+    const totalArea = linhas.reduce((s, l) => s + l.area, 0);
+    const mostrarDose = !!def.comDose;
+    const head = mostrarDose
+      ? [[def.titulo, 'Área (ha)', 'Nº O.S.', 'Registros', 'Dose Média Rec.', 'Dose Média Aplic.', 'Dif. (%)']]
+      : [[def.titulo, 'Área (ha)', 'Nº O.S.', 'Registros']];
+
+    const body = linhas.map(l => {
+      const labelCompleto = [l.cod, l.label].filter(Boolean).join(' · ');
+      const linha = [labelCompleto, l.area.toFixed(1), String(l.nOS), String(l.registros)];
+      if (mostrarDose) {
+        linha.push(isNaN(l.doseRecMedia) ? '—' : l.doseRecMedia.toFixed(2));
+        linha.push(isNaN(l.doseAplicMedia) ? '—' : l.doseAplicMedia.toFixed(2));
+        linha.push(isNaN(l.difPct) ? '—' : (l.difPct >= 0 ? '+' : '') + l.difPct.toFixed(1) + '%');
+      }
+      return linha;
+    });
+
+    const { pdf, y } = _novoPDFRelatorio(
+      `Tratos Culturais — Resumo por ${def.titulo}`,
+      `${totalRegistrosBase} registros   ·   ${linhas.length} ${def.titulo.toLowerCase()}(s)   ·   Área total: ${totalArea.toFixed(1)} ha   ·   ${_tratosFiltrosAtivosTexto()}`,
+      'landscape'
+    );
+    pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body });
+    _finalizarPDFRelatorio(pdf, `Tratos_${def.titulo.replace(/\s+/g,'_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
   }
 
   // Dimensão ainda não existe na planilha PCP — avisa o que precisa ser adicionado
@@ -4050,10 +4386,43 @@ iniciarSabedoria();
       colCodOp     : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
       colDescOp    : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
       colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ','CODFAZ']),
-      colFazenda   : findCol(['DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','DESC FAZENDA','DESCFAZENDA','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE','UNIDADE','LOCAL']),
+      colFazenda   : findCol(['DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','DESC FAZENDA','DESCFAZENDA','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE']),
       colArea      : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
       colDoseRec   : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
       colDoseAplic : findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
+
+      // ── Colunas adicionadas com a nova estrutura da planilha PCP ──────────
+      colCodEmpresa   : findCol(['COD EMPRESA','CODIGO EMPRESA']),
+      colAbvEmpresa   : findCol(['ABV EMPRESA','ABREVIACAO EMPRESA']),
+      colLancamento   : findCol(['NRO LANCAMENTO','NUMERO LANCAMENTO','LANCAMENTO']),
+      colSafra        : findCol(['SAFRA']),
+      colCodFuncionario: findCol(['COD FUNCIONARIO','CODIGO FUNCIONARIO']),
+      colFuncionario  : findCol(['NOME FUNCIONARIO','FUNCIONARIO','APLICADOR']), // = Aplicador
+      colCodProcesso  : findCol(['COD PROCESSO','CODIGO PROCESSO']),
+      colDescProcesso : findCol(['DESC PROCESSO','PROCESSO']),
+      colCodSubprocesso : findCol(['COD SUBPROCESSO','CODIGO SUBPROCESSO']),
+      colDescSubprocesso: findCol(['DESC SUBPROCESSO','SUBPROCESSO']),
+      colCodGrupoOp   : findCol(['COD GRUPO OP','CODIGO GRUPO OPERACAO']),
+      colDescGrupoOp  : findCol(['DESC GRUPO OP','GRUPO OPERACAO']),
+      colUnidade      : findCol(['UNIDADE']),
+      colCodSetor     : findCol(['COD SETOR','CODIGO SETOR']),
+      colDescSetor    : findCol(['DESC SETOR','SETOR']),
+      colCodBloco     : findCol(['COD BLOCO','CODIGO BLOCO']),
+      colDescBloco    : findCol(['DESC BLOCO','BLOCO']),
+      colCodTalhao    : findCol(['COD TALHAO','CODIGO TALHAO','TALHAO']),
+      colMunicipio    : findCol(['MUNICIPIO']),
+      colVariedade    : findCol(['VARIEDADE']),
+      colPrimeiraEntradaCana: findCol(['PRIMEIRA ENTRADA CANA']),
+      colUltimaEntradaCana  : findCol(['ULTIMA ENTRADA CANA']),
+      colAbvEstagioCorte    : findCol(['ABV ESTAGIO CORTE']),
+      colCodEstagioCorte    : findCol(['COD ESTAGIO CORTE','CODIGO ESTAGIO CORTE']),
+      colDtCorteAtual : findCol(['DT CORTE ATUAL']),
+      colDtPlantio    : findCol(['DT PLANTIO']),
+      colDtPrimCorte  : findCol(['DT PRIM CORTE']),
+      colDtUltCorte   : findCol(['DT ULT CORTE']),
+      colMesAplic     : findCol(['MES APLIC']),
+      colMesAnoAplic  : findCol(['MES ANO APLIC']),
+      colSituacaoTalhao: findCol(['SITUACAO TALHAO']),
     };
   }
 
@@ -4265,15 +4634,24 @@ iniciarSabedoria();
         _tratosSSSync('tratos-filtro-fazenda');
         _tratosSSSync('tratos-filtro-operacao');
 
+        // Filtros novos (colunas trazidas pela planilha PCP atualizada)
+        popularSelectCodDesc('tratos-filtro-setor',     results.data, cols.colCodSetor,       cols.colDescSetor,       '— Todos —');
+        popularSelectCodDesc('tratos-filtro-bloco',     results.data, cols.colCodBloco,       cols.colDescBloco,       '— Todos —');
+        popularSelect       ('tratos-filtro-talhao',    results.data, cols.colCodTalhao,                               '— Todos —');
+        popularSelectCodDesc('tratos-filtro-aplicador', results.data, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
+        popularSelect       ('tratos-filtro-municipio', results.data, cols.colMunicipio,                               '— Todos —');
+        popularSelectCodDesc('tratos-filtro-processo',  results.data, cols.colCodProcesso,    cols.colDescProcesso,    '— Todos —');
+        popularSelectCodDesc('tratos-filtro-empresa',   results.data, cols.colCodEmpresa,     cols.colAbvEmpresa,      '— Todas —');
+        popularSelect       ('tratos-filtro-safra',     results.data, cols.colSafra,                                   '— Todas —');
+        _tratosSSSync('tratos-filtro-setor');
+        _tratosSSSync('tratos-filtro-bloco');
+        _tratosSSSync('tratos-filtro-talhao');
+        _tratosSSSync('tratos-filtro-aplicador');
+        _tratosSSSync('tratos-filtro-municipio');
+        _tratosSSSync('tratos-filtro-processo');
+
         renderizarTratos(results.data);
         if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
-
-        // Se o usuário chegou aqui via um botão do menu de relatórios, abre o filtro certo agora
-        if (_tratosFocoPendente) {
-          const campo = _tratosFocoPendente;
-          _tratosFocoPendente = null;
-          setTimeout(() => tratosSSAbrir(campo), 200);
-        }
       },
       error: function(err) {
         console.error('[Tratos] Erro CSV:', err);
@@ -4292,7 +4670,7 @@ iniciarSabedoria();
     const dados = window._tratosFiltrados || window._tratosDados;
     if (!dados || !dados.length) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
     const { colData, colOS, colCodProd, colDescProd, colCodOp,
-            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
 
     const bProd = selectVal('tratos-filtro-produto');
     const bFaz  = selectVal('tratos-filtro-fazenda');
@@ -4306,19 +4684,16 @@ iniciarSabedoria();
       (bIni || bFim) ? 'Período: ' + (bIni || '…') + ' a ' + (bFim || '…') : null,
     ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
 
-    const areaTotal = new Set();
-    let somaArea = 0;
-    dados.forEach(row => {
-      const osKey = (row[colOS] || '').trim();
-      if (!osKey || !areaTotal.has(osKey)) { somaArea += parseNum(row[colArea]) || 0; if (osKey) areaTotal.add(osKey); }
-    });
+    // Área total sem duplicar (ver _calcAreaOS)
+    const areaOSMap = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
+    const somaArea = Object.values(areaOSMap).reduce((s, v) => s + v, 0);
 
     const { pdf, y } = _novoPDFRelatorio('Tratos Culturais', `${dados.length} registros   ·   ${filtrosTxt}   ·   Área total: ${somaArea.toFixed(1)} ha`, 'landscape');
 
     pdf.autoTable({
       ...(_PDF_TABLE_ESTILO),
       startY: y,
-      head: [['Data', 'Nº O.S.', 'Cód. Fazenda', 'Fazenda', 'Produto', 'Operação', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']],
+      head: [['Data', 'Nº O.S.', 'Fazenda', 'Talhão', 'Produto', 'Operação', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']],
       body: dados.map(row => {
         const dr = parseNum(row[colDoseRec]);
         const da = parseNum(row[colDoseAplic]);
@@ -4330,8 +4705,8 @@ iniciarSabedoria();
         return [
           row[colData]        || '—',
           row[colOS]          || '—',
-          row[colCodFazenda]  || '—',
-          row[colFazenda]     || row[colCodFazenda] || '—',
+          [row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · ') || row[colFazenda] || row[colCodFazenda] || '—',
+          row[colCodTalhao]   || '—',
           [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || '—',
           [row[colCodOp], row[colDescOp]].filter(Boolean).join(' · ') || '—',
           row[colArea]        || '—',
@@ -4357,23 +4732,47 @@ iniciarSabedoria();
   // ── Aplica filtros ───────────────────────────────────────────────────────
   function filtrarTratos() {
     if (!window._tratosDados) return;
-    const { colData, colDescProd, colFazenda, colCodFazenda, colDescOp } = window._tratosCols || {};
+    const { colData, colDescProd, colFazenda, colCodFazenda, colDescOp,
+            colDescSetor, colCodSetor, colDescBloco, colCodBloco, colCodTalhao,
+            colFuncionario, colCodFuncionario, colMunicipio, colDescProcesso, colCodProcesso,
+            colAbvEmpresa, colCodEmpresa, colSafra } = window._tratosCols || {};
     // Mesma coluna usada pelo popularSelectCodDesc para montar os values
-    const colFazEfetiva = colFazenda || colCodFazenda;
+    const colFazEfetiva    = colFazenda        || colCodFazenda;
+    const colSetorEfetivo  = colDescSetor       || colCodSetor;
+    const colBlocoEfetivo  = colDescBloco       || colCodBloco;
+    const colAplicEfetivo  = colFuncionario     || colCodFuncionario;
+    const colProcEfetivo   = colDescProcesso    || colCodProcesso;
+    const colEmpresaEfetiva= colAbvEmpresa      || colCodEmpresa;
 
     // selectVal lê o value real da option selecionada, evitando bugs em browsers mobile
-    const bProd    = selectVal('tratos-filtro-produto');
-    const bFaz     = selectVal('tratos-filtro-fazenda');
-    const bOp      = selectVal('tratos-filtro-operacao');
+    const bProd      = selectVal('tratos-filtro-produto');
+    const bFaz       = selectVal('tratos-filtro-fazenda');
+    const bOp        = selectVal('tratos-filtro-operacao');
+    const bSetor     = selectVal('tratos-filtro-setor');
+    const bBloco     = selectVal('tratos-filtro-bloco');
+    const bTalhao    = selectVal('tratos-filtro-talhao');
+    const bAplicador = selectVal('tratos-filtro-aplicador');
+    const bMunicipio = selectVal('tratos-filtro-municipio');
+    const bProcesso  = selectVal('tratos-filtro-processo');
+    const bEmpresa   = selectVal('tratos-filtro-empresa');
+    const bSafra     = selectVal('tratos-filtro-safra');
     const bDataIni = (document.getElementById('tratos-filtro-data-ini')?.value || '').trim();
     const bDataFim = (document.getElementById('tratos-filtro-data-fim')?.value || '').trim();
     const dIni     = bDataIni ? new Date(bDataIni + 'T00:00:00') : null;
     const dFim     = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
 
     const filtrados = window._tratosDados.filter(row => {
-      if (bProd && (row[colDescProd]    || '').trim() !== bProd) return false;
-      if (bFaz  && (row[colFazEfetiva]  || '').trim() !== bFaz)  return false;
-      if (bOp   && (row[colDescOp]      || '').trim() !== bOp)   return false;
+      if (bProd      && (row[colDescProd]     || '').trim() !== bProd)      return false;
+      if (bFaz       && (row[colFazEfetiva]   || '').trim() !== bFaz)       return false;
+      if (bOp        && (row[colDescOp]       || '').trim() !== bOp)        return false;
+      if (bSetor     && (row[colSetorEfetivo] || '').trim() !== bSetor)     return false;
+      if (bBloco     && (row[colBlocoEfetivo] || '').trim() !== bBloco)     return false;
+      if (bTalhao    && (row[colCodTalhao]    || '').trim() !== bTalhao)    return false;
+      if (bAplicador && (row[colAplicEfetivo] || '').trim() !== bAplicador) return false;
+      if (bMunicipio && (row[colMunicipio]    || '').trim() !== bMunicipio) return false;
+      if (bProcesso  && (row[colProcEfetivo]  || '').trim() !== bProcesso)  return false;
+      if (bEmpresa   && (row[colEmpresaEfetiva] || '').trim() !== bEmpresa) return false;
+      if (bSafra     && (row[colSafra]        || '').trim() !== bSafra)     return false;
       if (dIni || dFim) {
         const dRow = parseData(row[colData]);
         if (dRow) {
@@ -4395,6 +4794,16 @@ iniciarSabedoria();
     }
     renderizarTratos(filtrados);
   }
+
+  // ── Mostra/oculta o bloco "Mais filtros" ────────────────────────────────
+  function toggleMaisFiltrosTratos(el) {
+    const bloco = document.getElementById('tratos-filtros-mais');
+    if (!bloco) return;
+    const aberto = bloco.style.display !== 'none';
+    bloco.style.display = aberto ? 'none' : 'grid';
+    el.classList.toggle('open', !aberto);
+  }
+  window.toggleMaisFiltrosTratos = toggleMaisFiltrosTratos;
 
   // ── Orquestra renderização ───────────────────────────────────────────────
   function renderizarTratos(dados) {
@@ -4421,10 +4830,10 @@ iniciarSabedoria();
     }
     box.style.display = 'grid';
 
-    const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic, colOS } = window._tratosCols || {};
+    const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic, colOS, colCodTalhao } = window._tratosCols || {};
 
-    // Área por O.S. com lógica inteligente (ver _calcAreaOS)
-    const areaOS = _calcAreaOS(dados, colOS, colArea);
+    // Área por O.S. sem duplicar (ver _calcAreaOS)
+    const areaOS = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
     const ossSet = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean));
     const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
 
@@ -4477,28 +4886,38 @@ iniciarSabedoria();
     if (elAlertPct) elAlertPct.textContent = ALERTA_DOSE_PCT;
   }
 
-  // ── HELPER: Calcula mapa OS → área com lógica inteligente ──────────────
-  //   · Se todas as linhas de uma O.S. têm a MESMA área → deduplica (1 área por O.S.)
-  //   · Se as linhas de uma O.S. têm ÁREAS DIFERENTES  → soma (sub-talhões distintos)
-  //   Isso resolve casos como Água Residuária, onde uma única O.S. aplica em vários
-  //   talhões menores registrados linha a linha com áreas distintas.
-  function _calcAreaOS(dados, colOS, colArea) {
-    const osLinhas = {};
+  // ── HELPER: Calcula mapa OS → área SEM duplicar ─────────────────────────
+  //   Agora que a planilha PCP traz o Cód. Talhão explícito, a regra passa
+  //   a ser exata em vez de heurística:
+  //     · Agrupa cada linha por (O.S. + Talhão)
+  //     · Dentro do mesmo (O.S. + Talhão): se as áreas registradas forem
+  //       todas IGUAIS → conta uma vez só (são linhas repetidas por produto
+  //       aplicado na mesma passada, ex.: 2 produtos na mesma aplicação)
+  //     · Se forem DIFERENTES → soma (fracionamento dentro do próprio talhão)
+  //     · Talhões DIFERENTES dentro da mesma O.S. são SEMPRE somados —
+  //       nunca deduplicados entre si, pois são áreas fisicamente distintas
+  //       (ex.: Água Residuária aplicada em vários talhões numa única O.S.)
+  //   Se colTalhao não for informado (compatibilidade com planilhas antigas),
+  //   cai de volta na heurística por O.S. isolada, como antes.
+  function _calcAreaOS(dados, colOS, colArea, colTalhao) {
+    const osGrupos = {}; // os -> { talhaoKey -> [areas] }
     dados.forEach(row => {
-      const os   = (row[colOS]   || '').trim();
-      const area = parseNum(row[colArea]) || 0;
+      const os = (row[colOS] || '').trim();
       if (!os) return;
-      if (!osLinhas[os]) osLinhas[os] = [];
-      osLinhas[os].push(area);
+      const talhaoKey = colTalhao ? ((row[colTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
+      const area = parseNum(row[colArea]) || 0;
+      if (!osGrupos[os]) osGrupos[os] = {};
+      if (!osGrupos[os][talhaoKey]) osGrupos[os][talhaoKey] = [];
+      osGrupos[os][talhaoKey].push(area);
     });
     const areaOS = {};
-    Object.entries(osLinhas).forEach(([os, areas]) => {
-      const unicas = new Set(areas.map(a => Math.round(a * 10000)));
-      if (unicas.size === 1) {
-        areaOS[os] = areas[0];                              // todas iguais → pega uma
-      } else {
-        areaOS[os] = areas.reduce((s, v) => s + v, 0);     // diferentes → soma
-      }
+    Object.entries(osGrupos).forEach(([os, porTalhao]) => {
+      let total = 0;
+      Object.values(porTalhao).forEach(areas => {
+        const unicas = new Set(areas.map(a => Math.round(a * 10000)));
+        total += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
+      });
+      areaOS[os] = total;
     });
     return areaOS;
   }
@@ -4516,13 +4935,13 @@ iniciarSabedoria();
 
     card.style.display = 'block';
     const { colDescProd, colDescOp, colFazenda, colCodFazenda, colArea,
-            colDoseRec, colDoseAplic, colOS, colData } = window._tratosCols || {};
+            colDoseRec, colDoseAplic, colOS, colData, colCodTalhao } = window._tratosCols || {};
     const colFazEfetiva = colFazenda || colCodFazenda;
 
     const insights = [];
 
-    // ── Área por O.S. com lógica inteligente (ver _calcAreaOS) ──
-    const areaOS   = _calcAreaOS(dados, colOS, colArea);
+    // ── Área por O.S. sem duplicar (ver _calcAreaOS) ──
+    const areaOS   = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
     const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
 
     // ── Agrega por produto para análise de dosagem ──
@@ -4672,10 +5091,17 @@ iniciarSabedoria();
       return;
     }
 
+    // Com a planilha PCP na casa dos milhares de linhas, jogar tudo no DOM de uma vez
+    // trava o navegador (principalmente no celular). Mostra só uma amostra aqui —
+    // para ver o conjunto completo, use "Emitir Relatório → Analítico de Insumos" acima,
+    // que também respeita esse mesmo limite, ou refine os filtros.
+    const excedeu = dados.length > TRATOS_LIMITE_TABELA_BRUTA;
+    const amostra = excedeu ? dados.slice(0, TRATOS_LIMITE_TABELA_BRUTA) : dados;
+
     // Rastreia quais O.S. já tiveram a área contabilizada para indicação visual
     const ossAreaVista = new Set();
 
-    corpo.innerHTML = dados.map(row => {
+    corpo.innerHTML = amostra.map(row => {
       const dr = parseNum(row[colDoseRec]);
       const da = parseNum(row[colDoseAplic]);
       let difPct = '—', difStyle = '';
@@ -4718,22 +5144,26 @@ iniciarSabedoria();
         <td data-label="Dose Aplic." style="text-align:right;">${esc(row[colDoseAplic])}</td>
         <td data-label="Dif. (%)" style="text-align:right;${difStyle}">${difPct}</td>
       </tr>`;
-    }).join('');
+    }).join('') + (excedeu
+      ? `<tr><td colspan="10" style="text-align:center;color:var(--amber);font-weight:700;padding:12px;font-size:11px;">
+           Mostrando ${TRATOS_LIMITE_TABELA_BRUTA} de ${dados.length} registros — refine os filtros (Fazenda, Setor, Período...) para ver o restante.
+         </td></tr>`
+      : '');
   }
 
   // ── CARD 1 — RESUMO POR PRODUTO × OPERAÇÃO ──────────────────────────────
   function renderResumoTratos(dados) {
     const el = document.getElementById('tratos-resumo-produto-op');
     if (!el) return;
-    const { colDescProd, colCodProd, colDescOp, colCodOp, colOS, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const { colDescProd, colCodProd, colDescOp, colCodOp, colOS, colArea, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
       return;
     }
 
-    // Mapa OS → área com lógica inteligente (ver _calcAreaOS)
-    const areaOS = _calcAreaOS(dados, colOS, colArea);
+    // Mapa OS → área sem duplicar (ver _calcAreaOS)
+    const areaOS = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
 
     const grupos = {};
     dados.forEach(row => {
@@ -4888,15 +5318,15 @@ iniciarSabedoria();
   function renderAreaOperacao(dados) {
     const el = document.getElementById('tratos-area-operacao');
     if (!el) return;
-    const { colDescOp, colCodOp, colArea, colOS } = window._tratosCols || {};
+    const { colDescOp, colCodOp, colArea, colOS, colCodTalhao } = window._tratosCols || {};
 
     if (!dados || dados.length === 0) {
       el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
       return;
     }
 
-    // Mapa OS → área com lógica inteligente (ver _calcAreaOS)
-    const areaOS = _calcAreaOS(dados, colOS, colArea);
+    // Mapa OS → área sem duplicar (ver _calcAreaOS)
+    const areaOS = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
 
     const ops = {};
     dados.forEach(row => {
