@@ -4308,6 +4308,39 @@ iniciarSabedoria();
   window.tratosSSFiltrar     = tratosSSFiltrar;
   window.tratosSSLimpar      = tratosSSLimpar;
 
+  // ── HELPER: Calcula mapa OS → área SEM duplicar ─────────────────────────
+  //   A planilha PCP traz o Cód. Talhão explícito, então a regra é exata:
+  //     · Agrupa cada linha por (O.S. + Talhão)
+  //     · Dentro do mesmo (O.S. + Talhão): se as áreas registradas forem
+  //       todas IGUAIS → conta uma vez só (linhas repetidas por produto
+  //       aplicado na mesma passada, ex.: 2 produtos na mesma aplicação)
+  //     · Se forem DIFERENTES → soma (fracionamento dentro do próprio talhão)
+  //     · Talhões DIFERENTES dentro da mesma O.S. são SEMPRE somados —
+  //       nunca deduplicados entre si, pois são áreas fisicamente distintas
+  //   Se colTalhao não for informado, cai de volta na heurística por O.S. isolada.
+  function _calcAreaOS(dados, colOS, colArea, colTalhao) {
+    const osGrupos = {}; // os -> { talhaoKey -> [areas] }
+    dados.forEach(row => {
+      const os = (row[colOS] || '').trim();
+      if (!os) return;
+      const talhaoKey = colTalhao ? ((row[colTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
+      const area = parseNum(row[colArea]) || 0;
+      if (!osGrupos[os]) osGrupos[os] = {};
+      if (!osGrupos[os][talhaoKey]) osGrupos[os][talhaoKey] = [];
+      osGrupos[os][talhaoKey].push(area);
+    });
+    const areaOS = {};
+    Object.entries(osGrupos).forEach(([os, porTalhao]) => {
+      let total = 0;
+      Object.values(porTalhao).forEach(areas => {
+        const unicas = new Set(areas.map(a => Math.round(a * 10000)));
+        total += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
+      });
+      areaOS[os] = total;
+    });
+    return areaOS;
+  }
+
   // ── Lazy init ────────────────────────────────────────────────────────────
   function iniciarModuloTratos() {
     if (!_tratosIniciado) {
