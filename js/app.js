@@ -3953,7 +3953,6 @@ iniciarSabedoria();
   window.filtrarTratos           = filtrarTratos;
   window.exportarTratosExcel     = exportarTratosExcel;
   window.gerarRelatorioTratos    = gerarRelatorioTratos;
-  window.avisoColunaPendente     = avisoColunaPendente;
   window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
   window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
 
@@ -4081,48 +4080,75 @@ iniciarSabedoria();
     }
   }
 
-  // ── Definição de cada dimensão de relatório ─────────────────────────────
-  // colCod/colDesc: colunas usadas pro agrupamento (Desc. tem prioridade; cai pro Cód. se não houver)
-  function _defDimensao(tipo) {
+  // ── Definição dos NÍVEIS de agrupamento por dimensão de relatório ───────
+  //   Cada nível tem uma chave de agrupamento (key) e um texto de exibição
+  //   (label) — às vezes iguais, às vezes o label combina código+descrição.
+  function _tratosNiveisDisponiveis() {
     const c = window._tratosCols || {};
-    const defs = {
-      fazenda  : { titulo: 'Fazenda',   colCod: c.colCodFazenda,     colDesc: c.colFazenda },
-      setor    : { titulo: 'Setor',     colCod: c.colCodSetor,       colDesc: c.colDescSetor },
-      bloco    : { titulo: 'Bloco',     colCod: c.colCodBloco,       colDesc: c.colDescBloco },
-      talhao   : { titulo: 'Talhão',    colCod: c.colCodTalhao,      colDesc: null },
-      produto  : { titulo: 'Produto',   colCod: c.colCodProd,        colDesc: c.colDescProd },
-      operacao : { titulo: 'Operação',  colCod: c.colCodOp,          colDesc: c.colDescOp },
-      aplicador: { titulo: 'Aplicador', colCod: c.colCodFuncionario, colDesc: c.colFuncionario },
-      municipio: { titulo: 'Município', colCod: null,                colDesc: c.colMunicipio },
-      processo : { titulo: 'Processo',  colCod: c.colCodProcesso,    colDesc: c.colDescProcesso },
-      empresa  : { titulo: 'Empresa',   colCod: c.colCodEmpresa,     colDesc: c.colAbvEmpresa },
-      safra    : { titulo: 'Safra',     colCod: null,                colDesc: c.colSafra },
+    return {
+      produto: {
+        key:   r => (r[c.colDescProd] || r[c.colCodProd] || '').trim(),
+        label: r => [r[c.colCodProd], r[c.colDescProd]].filter(Boolean).join(' · ') || 'Sem produto',
+      },
+      fazenda: {
+        key:   r => (r[c.colFazenda] || r[c.colCodFazenda] || '').trim(),
+        label: r => [r[c.colCodFazenda], r[c.colFazenda]].filter(Boolean).join(' · ') || 'Sem fazenda',
+      },
+      setor: {
+        key:   r => (r[c.colDescSetor] || r[c.colCodSetor] || '').trim(),
+        label: r => (r[c.colDescSetor] || r[c.colCodSetor] || 'Sem setor').trim(),
+      },
+      talhao: {
+        key:   r => (r[c.colCodTalhao] || '').trim(),
+        label: r => (r[c.colCodTalhao] || 'Sem talhão').trim(),
+      },
+      grupoOp: {
+        key:   r => (r[c.colDescGrupoOp] || '').trim(),
+        label: r => (r[c.colDescGrupoOp] || 'Sem grupo').trim(),
+      },
+      subgrupo: {
+        key:   r => (r[c.colDescSubprocesso] || '').trim(),
+        label: r => (r[c.colDescSubprocesso] || 'Sem subgrupo').trim(),
+      },
+      operacao: {
+        key:   r => (r[c.colDescOp] || r[c.colCodOp] || '').trim(),
+        label: r => [r[c.colCodOp], r[c.colDescOp]].filter(Boolean).join(' · ') || 'Sem operação',
+      },
     };
-    return defs[tipo] || null;
   }
 
-  // ── Gera o relatório DETALHADO (linha a linha, agrupado pela dimensão
-  //    escolhida) respeitando os filtros já aplicados na tela ─────────────
+  // ── Quais níveis (em ordem) cada botão de relatório usa ─────────────────
+  //   "fazenda" e "talhao" mudam de comportamento conforme o filtro de
+  //   Produto já estar ativo ou não (ver pedido do usuário).
+  const TRATOS_RELATORIO_TITULOS = {
+    fazenda : 'Aplicação por Fazenda',
+    setor   : 'Aplicação por Setor',
+    talhao  : 'Aplicação por Talhão',
+    produto : 'Aplicação por Produto',
+    operacao: 'Aplicação por Operação',
+  };
+  function _tratosNiveisRelatorio(tipo) {
+    const filtroProdutoAtivo = !!selectVal('tratos-filtro-produto');
+    switch (tipo) {
+      case 'fazenda':  return filtroProdutoAtivo ? ['fazenda'] : ['produto', 'fazenda'];
+      case 'setor':    return ['setor'];
+      case 'talhao':   return ['fazenda', 'talhao'];
+      case 'produto':  return ['produto'];
+      case 'operacao': return ['grupoOp', 'subgrupo', 'operacao'];
+      default:         return null;
+    }
+  }
+
+  // ── Gera o relatório hierárquico respeitando os filtros já aplicados ────
   function gerarRelatorioTratos(tipo) {
     if (!window._tratosDados || !window._tratosDados.length) {
       if (typeof showToast === 'function') showToast('⚠️ Aguarde os dados carregarem e tente novamente.', 'error', 2500);
       return;
     }
+    const niveis = _tratosNiveisRelatorio(tipo);
+    if (!niveis) return;
     const dados = window._tratosFiltrados && window._tratosFiltrados.length ? window._tratosFiltrados : window._tratosDados;
-
-    if (tipo === 'analitico') {
-      _mostrarResultadoDetalhado({ titulo: 'Todos os Registros' }, dados, null);
-      return;
-    }
-
-    const def = _defDimensao(tipo);
-    if (!def) return;
-    const colGroup = def.colDesc || def.colCod;
-    if (!colGroup) {
-      avisoColunaPendente(def.titulo, 'coluna correspondente na planilha PCP');
-      return;
-    }
-    _mostrarResultadoDetalhado(def, dados, colGroup);
+    _mostrarResultadoHierarquico(tipo, niveis, dados);
   }
 
   // ── Texto-resumo dos filtros atualmente aplicados (reaproveitado no card e no PDF) ──
@@ -4145,44 +4171,65 @@ iniciarSabedoria();
     return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
   }
 
-  // ── Monta as 13 colunas de detalhe de UMA linha (reaproveitado na tela e no PDF) ──
-  function _tratosLinhaDetalhe(row) {
-    const { colData, colOS, colCodFazenda, colFazenda, colCodSetor, colDescSetor,
-            colCodBloco, colDescBloco, colCodTalhao, colCodProd, colDescProd,
-            colCodOp, colDescOp, colCodFuncionario, colFuncionario,
-            colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+  // ── Card compacto de UMA aplicação (linha de detalhe) — pensado pro mobile:
+  //    empilhado, sem tabela larga, sem precisar rolar pro lado ────────────
+  function _tratosLeafCardHTML(row) {
+    const { colData, colOS, colDoseRec, colDoseAplic, colArea } = window._tratosCols || {};
     const dr = parseNum(row[colDoseRec]);
     const da = parseNum(row[colDoseAplic]);
-    let difPct = NaN;
-    if (!isNaN(dr) && dr > 0 && !isNaN(da)) difPct = ((da - dr) / dr) * 100;
-    return {
-      data: row[colData] || '—',
-      os: row[colOS] || '—',
-      fazenda: [row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · ') || '—',
-      setor: [row[colCodSetor], row[colDescSetor]].filter(Boolean).join(' · ') || '—',
-      bloco: [row[colCodBloco], row[colDescBloco]].filter(Boolean).join(' · ') || '—',
-      talhao: row[colCodTalhao] || '—',
-      produto: [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || '—',
-      operacao: [row[colCodOp], row[colDescOp]].filter(Boolean).join(' · ') || '—',
-      aplicador: [row[colCodFuncionario], row[colFuncionario]].filter(Boolean).join(' · ') || '—',
-      area: row[colArea] || '—',
-      doseRec: row[colDoseRec] || '—',
-      doseAplic: row[colDoseAplic] || '—',
-      difPct,
-    };
+    let difStr = '', difStyle = '';
+    if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
+      const pct = ((da - dr) / dr) * 100;
+      difStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+      difStyle = Math.abs(pct) > ALERTA_DOSE_PCT ? 'color:var(--red);' : 'color:var(--green-700);';
+    }
+    return `<div class="tratos-leaf-card">
+      <div class="tlc-topo">
+        <span class="tlc-data">${esc(row[colData])}</span>
+        <span class="tlc-os">O.S. ${esc(row[colOS])}</span>
+      </div>
+      <div class="tlc-area-linha">
+        <span class="tlc-area-val">${esc(row[colArea])} ha</span>
+        <span class="tlc-dose">${esc(row[colDoseRec])} → ${esc(row[colDoseAplic])}${difStr ? ` <b style="${difStyle}">(${difStr})</b>` : ''}</span>
+      </div>
+    </div>`;
   }
 
-  const TRATOS_COLUNAS_DETALHE = [
-    ['Data', 'data'], ['Nº O.S.', 'os'], ['Fazenda', 'fazenda'], ['Setor', 'setor'],
-    ['Bloco', 'bloco'], ['Talhão', 'talhao'], ['Produto', 'produto'], ['Operação', 'operacao'],
-    ['Aplicador', 'aplicador'],
-  ];
+  // ── Renderiza recursivamente os níveis de agrupamento; no nível final,
+  //    mostra os cards de detalhe. Cada nível de grupo mostra SÓ o total
+  //    (área + registros) — o detalhe fica só na folha ─────────────────────
+  function _tratosRenderNivel(rows, niveisDefs, niveisChaves, idx, colOS, colArea, colCodTalhao) {
+    if (idx >= niveisChaves.length) {
+      return rows.map(_tratosLeafCardHTML).join('');
+    }
+    const nivelDef = niveisDefs[niveisChaves[idx]];
+    const grupos = new Map(); // key -> { label, rows }
+    [...rows]
+      .sort((a, b) => nivelDef.key(a).localeCompare(nivelDef.key(b), 'pt-BR'))
+      .forEach(row => {
+        const key = nivelDef.key(row) || '—';
+        if (!grupos.has(key)) grupos.set(key, { label: nivelDef.label(row), rows: [] });
+        grupos.get(key).rows.push(row);
+      });
 
-  // ── Renderiza o card de resultado: linha a linha, tudo detalhado,
-  //    agrupado (com subtotal) pela dimensão escolhida — ou sem agrupar,
-  //    no caso do "Analítico de Insumos" (Todos os Registros) ────────────
-  const TRATOS_LIMITE_TABELA_BRUTA = 500;
-  function _mostrarResultadoDetalhado(def, dadosFiltrados, colGroup) {
+    let html = '';
+    grupos.forEach(({ label, rows: gRows }) => {
+      const areaMap = _calcAreaOS(gRows, colOS, colArea, colCodTalhao);
+      const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
+      html += `<div class="tratos-grupo-bar nivel-${idx}">
+        <span class="tgb-label">${esc(label)}</span>
+        <span class="tgb-stats">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha · ${gRows.length} reg.</span>
+      </div>
+      <div class="tratos-grupo-corpo nivel-${idx}">
+        ${_tratosRenderNivel(gRows, niveisDefs, niveisChaves, idx + 1, colOS, colArea, colCodTalhao)}
+      </div>`;
+    });
+    return html;
+  }
+
+  const TRATOS_LIMITE_REGISTROS = 800; // limite de linhas processadas por relatório (performance no celular)
+
+  function _mostrarResultadoHierarquico(tipo, niveisChaves, dadosFiltrados) {
     const card = document.getElementById('card-tratos-relatorio-resultado');
     const titulo = document.getElementById('tr-resultado-titulo');
     const filtrosEl = document.getElementById('tr-resultado-filtros');
@@ -4190,119 +4237,61 @@ iniciarSabedoria();
     if (!card || !corpo) return;
 
     const { colOS, colArea, colCodTalhao } = window._tratosCols || {};
-    const excedeu = dadosFiltrados.length > TRATOS_LIMITE_TABELA_BRUTA;
-    const base = excedeu ? dadosFiltrados.slice(0, TRATOS_LIMITE_TABELA_BRUTA) : dadosFiltrados;
+    const excedeu = dadosFiltrados.length > TRATOS_LIMITE_REGISTROS;
+    const base = excedeu ? dadosFiltrados.slice(0, TRATOS_LIMITE_REGISTROS) : dadosFiltrados;
 
-    // Ordena (e agrupa, se houver dimensão) mantendo a ordem alfabética do grupo
-    const ordenado = colGroup
-      ? [...base].sort((a, b) => (a[colGroup] || '').trim().localeCompare((b[colGroup] || '').trim(), 'pt-BR'))
-      : base;
-
-    titulo.textContent = colGroup ? `${def.titulo} — Detalhado` : def.titulo;
+    titulo.textContent = TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório';
     const areaGeralMap = _calcAreaOS(dadosFiltrados, colOS, colArea, colCodTalhao);
     const areaGeral = Object.values(areaGeralMap).reduce((s, v) => s + v, 0);
     filtrosEl.textContent = `${dadosFiltrados.length} registro${dadosFiltrados.length !== 1 ? 's' : ''} no filtro`
-      + (excedeu ? ` — exibindo os primeiros ${TRATOS_LIMITE_TABELA_BRUTA} (refine os filtros pra ver o restante)` : '')
+      + (excedeu ? ` — processando os primeiros ${TRATOS_LIMITE_REGISTROS} (refine os filtros pra ver o restante)` : '')
       + `   ·   Área total: ${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha   ·   ${_tratosFiltrosAtivosTexto()}`;
 
-    let html = `<div class="tratos-table-wrap" style="max-height:600px; overflow:auto;"><table class="tratos-resumo-table">
-      <thead><tr>
-        ${TRATOS_COLUNAS_DETALHE.map(([lbl]) => `<th>${esc(lbl)}</th>`).join('')}
-        <th style="text-align:right;">Área (ha)</th>
-        <th style="text-align:right;">Dose Rec.</th>
-        <th style="text-align:right;">Dose Aplic.</th>
-        <th style="text-align:right;">Dif. (%)</th>
-      </tr></thead><tbody>`;
+    const niveisDefs = _tratosNiveisDisponiveis();
+    corpo.innerHTML = `<div class="tratos-hierarquia">${_tratosRenderNivel(base, niveisDefs, niveisChaves, 0, colOS, colArea, colCodTalhao)}</div>`;
 
-    const linhaHTML = (row) => {
-      const d = _tratosLinhaDetalhe(row);
-      let difStr = '—', difStyle = '';
-      if (!isNaN(d.difPct)) {
-        difStr = (d.difPct >= 0 ? '+' : '') + d.difPct.toFixed(1) + '%';
-        difStyle = Math.abs(d.difPct) > ALERTA_DOSE_PCT ? 'color:var(--red);font-weight:800;' : 'color:var(--green-700);font-weight:700;';
-      }
-      return `<tr>
-        ${TRATOS_COLUNAS_DETALHE.map(([, key]) => `<td>${esc(d[key])}</td>`).join('')}
-        <td style="text-align:right;">${esc(d.area)}</td>
-        <td style="text-align:right;">${esc(d.doseRec)}</td>
-        <td style="text-align:right;">${esc(d.doseAplic)}</td>
-        <td style="text-align:right;${difStyle}">${difStr}</td>
-      </tr>`;
-    };
-
-    if (!colGroup) {
-      html += ordenado.map(linhaHTML).join('');
-    } else {
-      let grupoAtual = null, linhasGrupo = [];
-      const totalCols = TRATOS_COLUNAS_DETALHE.length + 4;
-      const fecharGrupo = () => {
-        if (grupoAtual === null) return '';
-        const areaGrupoMap = _calcAreaOS(linhasGrupo, colOS, colArea, colCodTalhao);
-        const areaGrupo = Object.values(areaGrupoMap).reduce((s, v) => s + v, 0);
-        return `<tr class="tratos-grupo-header">
-          <td colspan="${totalCols - 2}">${esc(grupoAtual)}</td>
-          <td style="text-align:right;font-weight:800;">${areaGrupo.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</td>
-          <td style="text-align:right;color:var(--text-3);font-weight:600;">${linhasGrupo.length} reg.</td>
-        </tr>` + linhasGrupo.map(linhaHTML).join('');
-      };
-      let out = '';
-      ordenado.forEach(row => {
-        const label = (row[colGroup] || '').trim() || `Sem ${def.titulo}`;
-        if (label !== grupoAtual) {
-          out += fecharGrupo();
-          grupoAtual = label;
-          linhasGrupo = [];
-        }
-        linhasGrupo.push(row);
-      });
-      out += fecharGrupo();
-      html += out;
-    }
-
-    html += `</tbody></table></div>`;
-    corpo.innerHTML = html;
-
-    window._tratosRelatorioAtual = { def, dados: dadosFiltrados, colGroup };
+    window._tratosRelatorioAtual = { tipo, niveisChaves, dados: dadosFiltrados };
     card.style.display = 'block';
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // ── Exporta em PDF o relatório detalhado que está na tela ────────────────
+  // ── Exporta em PDF o relatório hierárquico que está na tela (formato plano,
+  //    uma coluna por nível + os dados de cada aplicação) ──────────────────
   function exportarPDFRelatorioAgrupado() {
     const atual = window._tratosRelatorioAtual;
     if (!atual) { if (typeof showToast === 'function') showToast('⚠️ Gere um relatório primeiro.', 'error', 2500); return; }
 
-    const { def, dados, colGroup } = atual;
-    const ordenado = colGroup
-      ? [...dados].sort((a, b) => (a[colGroup] || '').trim().localeCompare((b[colGroup] || '').trim(), 'pt-BR'))
-      : dados;
+    const { tipo, niveisChaves, dados } = atual;
+    const { colData, colOS, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const niveisDefs = _tratosNiveisDisponiveis();
 
-    const head = [[
-      ...(colGroup ? [def.titulo] : []),
-      ...TRATOS_COLUNAS_DETALHE.map(([lbl]) => lbl),
-      'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)',
-    ]];
+    const ordenado = [...dados].sort((a, b) => {
+      for (const nk of niveisChaves) {
+        const cmp = niveisDefs[nk].key(a).localeCompare(niveisDefs[nk].key(b), 'pt-BR');
+        if (cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+
+    const nomesNiveis = { produto: 'Produto', fazenda: 'Fazenda', setor: 'Setor', talhao: 'Talhão', grupoOp: 'Grupo', subgrupo: 'Subgrupo', operacao: 'Operação' };
+    const head = [[...niveisChaves.map(nk => nomesNiveis[nk] || nk), 'Data', 'Nº O.S.', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']];
     const body = ordenado.map(row => {
-      const d = _tratosLinhaDetalhe(row);
-      const difStr = isNaN(d.difPct) ? '—' : (d.difPct >= 0 ? '+' : '') + d.difPct.toFixed(1) + '%';
-      const grupoLabel = colGroup ? [(row[colGroup] || '').trim() || `Sem ${def.titulo}`] : [];
-      return [...grupoLabel, ...TRATOS_COLUNAS_DETALHE.map(([, key]) => d[key]), d.area, d.doseRec, d.doseAplic, difStr];
+      const dr = parseNum(row[colDoseRec]);
+      const da = parseNum(row[colDoseAplic]);
+      const difStr = (!isNaN(dr) && dr > 0 && !isNaN(da)) ? (((da - dr) / dr) * 100 >= 0 ? '+' : '') + (((da - dr) / dr) * 100).toFixed(1) + '%' : '—';
+      return [
+        ...niveisChaves.map(nk => niveisDefs[nk].label(row)),
+        row[colData] || '—', row[colOS] || '—', row[colArea] || '—', row[colDoseRec] || '—', row[colDoseAplic] || '—', difStr,
+      ];
     });
 
     const { pdf, y } = _novoPDFRelatorio(
-      `Tratos Culturais — ${def.titulo}${colGroup ? ' (detalhado)' : ''}`,
+      `Tratos Culturais — ${TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório'}`,
       _tratosFiltrosAtivosTexto(),
       'landscape'
     );
     pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body });
-    _finalizarPDFRelatorio(pdf, `Tratos_${def.titulo.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
-  }
-
-  // Dimensão ainda não existe na planilha PCP — avisa o que precisa ser adicionado
-  function avisoColunaPendente(nomeRelatorio, colunaNecessaria) {
-    if (typeof showToast === 'function') {
-      showToast(`🚧 "${nomeRelatorio}" ainda não está na planilha PCP. Adicione a coluna: ${colunaNecessaria}`, 'error', 4500);
-    }
+    _finalizarPDFRelatorio(pdf, `Tratos_${(TRATOS_RELATORIO_TITULOS[tipo] || 'relatorio').replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
   }
   window.tratosSSAbrir       = tratosSSAbrir;
   window.tratosSSFiltrar     = tratosSSFiltrar;
