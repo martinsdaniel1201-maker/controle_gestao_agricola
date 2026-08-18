@@ -1628,30 +1628,6 @@
   <!-- ══ ABA TRATOS CULTURAIS (própria, separada de Conferências) ══ -->
   <section id="tratos_aba" class="section">
 
-      <!-- RESUMO EXECUTIVO — visão geral em 4 números, sempre visível -->
-      <div id="tratos-resumo-executivo" style="display:none;">
-        <div class="tre-card">
-          <span class="tre-label"><i class="fas fa-map-marked-alt" style="margin-right:3px"></i>Área Total</span>
-          <span class="tre-val" id="tre-area">—</span>
-          <span class="tre-sub">hectares aplicados</span>
-        </div>
-        <div class="tre-card">
-          <span class="tre-label"><i class="fas fa-clipboard-list" style="margin-right:3px"></i>O.S. no Filtro</span>
-          <span class="tre-val" id="tre-os">—</span>
-          <span class="tre-sub">ordens de serviço</span>
-        </div>
-        <div class="tre-card" id="tre-card-alerta">
-          <span class="tre-label"><i class="fas fa-exclamation-triangle" style="margin-right:3px"></i>Produtos em Alerta</span>
-          <span class="tre-val" id="tre-alerta">—</span>
-          <span class="tre-sub">desvio de dose &gt; <span id="tre-alerta-pct">10</span>%</span>
-        </div>
-        <div class="tre-card">
-          <span class="tre-label"><i class="fas fa-seedling" style="margin-right:3px"></i>Operação Predominante</span>
-          <span class="tre-val" id="tre-op-top" style="font-size:13px;">—</span>
-          <span class="tre-sub" id="tre-op-top-sub">% da área filtrada</span>
-        </div>
-      </div>
-
       <!-- CARD: Filtros — primeiro passo, logo após o resumo, sempre aberto -->
       <div class="card tratos-card-collapsible open">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
@@ -1996,101 +1972,6 @@
           </button>
         </div>
       </div>
-
-      <!-- CARD: Insights Operacionais — leitura em linguagem natural, sempre aberto -->
-      <div class="card tratos-card-collapsible open" id="card-tratos-insights" style="display:none;">
-        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-lightbulb"></i> O que isso significa</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="tratos-card-body">
-          <div id="tratos-insights-container"></div>
-        </div>
-      </div>
-
-      <!-- CARD: Resumo por Produto × Operação (colapsável) -->
-      <div class="card tratos-card-collapsible open">
-        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-layer-group"></i> Dose Aplicada por Produto e Operação</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="tratos-card-body">
-          <div class="tratos-legenda">
-            <span><b>Dose Rec.</b> = dose recomendada na receita/plano</span>
-            <span><b>Dose Aplic.</b> = média do que foi de fato aplicado em campo</span>
-            <span><b>Diferença</b> = quanto a dose aplicada ficou acima (+) ou abaixo (−) da recomendada</span>
-          </div>
-          <div id="tratos-resumo-produto-op">
-            <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CARD: Comparativo de Dosagem (colapsável) -->
-      <div class="card tratos-card-collapsible">
-        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-vials"></i> Consistência da Dosagem (mín. / média / máx.)</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="tratos-card-body">
-          <div class="tratos-legenda">
-            <span>Mostra se um mesmo produto foi aplicado de forma <b>parecida</b> em todas as aplicações, ou se <b>variou muito</b> entre uma O.S. e outra (indício de erro de operador, calibração ou apontamento)</span>
-          </div>
-          <div id="tratos-comparativo-dose">
-            <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- CARD: Área Total por Operação (colapsável) -->
-      <div class="card tratos-card-collapsible">
-        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-map-marked-alt"></i> Área Total por Operação Agrícola</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="tratos-card-body">
-          <div id="tratos-area-operacao">
-            <div style="text-align:center; color:var(--text-3); padding:20px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Aguardando dados...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- (filtros movidos para o topo, logo após o resumo executivo) -->
-
-      <!-- CARD: Registros Filtrados (colapsável, FECHADO por padrão — tabela bruta é "ver detalhes") -->
-      <div class="card tratos-card-collapsible">
-        <div class="tratos-card-header" onclick="toggleTratosCard(this)">
-          <div class="card-title" style="margin:0;"><i class="fas fa-table"></i> Ver Todos os Registros (detalhe linha a linha)</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="tratos-card-body">
-          <div style="overflow-x:auto;">
-            <table id="tabela-tratos">
-              <thead>
-                <tr>
-                  <th>Data Aplic.</th>
-                  <th>Nº O.S.</th>
-                  <th>Cód. Fazenda</th>
-                  <th>Desc. Fazenda</th>
-                  <th>Produto</th>
-                  <th>Operação Agr.</th>
-                  <th style="text-align:right;">Área Aplic. (ha)</th>
-                  <th style="text-align:right;">Dose Rec.</th>
-                  <th style="text-align:right;">Dose Aplic.</th>
-                  <th style="text-align:right;">Dif. (%)</th>
-                </tr>
-              </thead>
-              <tbody id="corpo-tabela-tratos">
-                <tr><td colspan="10" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <button class="btn-pdf-contextual" onclick="exportarPDFTratos()">
-        <i class="fas fa-file-pdf"></i> Exportar PDF da Tabela
-      </button>
 
   </section>
 
