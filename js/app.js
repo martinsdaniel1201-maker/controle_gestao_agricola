@@ -4090,7 +4090,7 @@ iniciarSabedoria();
       setor    : { titulo: 'Setor',     colCod: c.colCodSetor,       colDesc: c.colDescSetor },
       bloco    : { titulo: 'Bloco',     colCod: c.colCodBloco,       colDesc: c.colDescBloco },
       talhao   : { titulo: 'Talhão',    colCod: c.colCodTalhao,      colDesc: null },
-      produto  : { titulo: 'Produto',   colCod: c.colCodProd,        colDesc: c.colDescProd,  comDose: true },
+      produto  : { titulo: 'Produto',   colCod: c.colCodProd,        colDesc: c.colDescProd },
       operacao : { titulo: 'Operação',  colCod: c.colCodOp,          colDesc: c.colDescOp },
       aplicador: { titulo: 'Aplicador', colCod: c.colCodFuncionario, colDesc: c.colFuncionario },
       municipio: { titulo: 'Município', colCod: null,                colDesc: c.colMunicipio },
@@ -4101,18 +4101,17 @@ iniciarSabedoria();
     return defs[tipo] || null;
   }
 
-  // ── Gera o relatório agrupado pela dimensão escolhida, respeitando os
-  //    filtros JÁ aplicados na tela (window._tratosFiltrados) ──────────────
+  // ── Gera o relatório DETALHADO (linha a linha, agrupado pela dimensão
+  //    escolhida) respeitando os filtros já aplicados na tela ─────────────
   function gerarRelatorioTratos(tipo) {
     if (!window._tratosDados || !window._tratosDados.length) {
       if (typeof showToast === 'function') showToast('⚠️ Aguarde os dados carregarem e tente novamente.', 'error', 2500);
       return;
     }
     const dados = window._tratosFiltrados && window._tratosFiltrados.length ? window._tratosFiltrados : window._tratosDados;
-    const { colOS, colArea, colDoseRec, colDoseAplic, colCodTalhao, colData } = window._tratosCols || {};
 
     if (tipo === 'analitico') {
-      _mostrarResultadoAnalitico(dados);
+      _mostrarResultadoDetalhado({ titulo: 'Todos os Registros' }, dados, null);
       return;
     }
 
@@ -4123,49 +4122,7 @@ iniciarSabedoria();
       avisoColunaPendente(def.titulo, 'coluna correspondente na planilha PCP');
       return;
     }
-
-    // Agrupa: para cada (grupo, O.S., Talhão) calcula área sem duplicar
-    const grupos = {}; // grupoLabel -> { cod, label, ossPorTalhao:{os:{talhao:[areas]}}, cnt, somaRec, cntRec, somaAplic, cntAplic }
-    dados.forEach(row => {
-      const label = (row[colGroup] || '').trim() || 'Sem ' + def.titulo;
-      const cod = def.colCod ? (row[def.colCod] || '').trim() : '';
-      if (!grupos[label]) grupos[label] = { cod, label, os: {}, cnt: 0, somaRec: 0, cntRec: 0, somaAplic: 0, cntAplic: 0 };
-      const g = grupos[label];
-      g.cnt++;
-      const os = (row[colOS] || '').trim();
-      const talhaoKey = colCodTalhao ? ((row[colCodTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
-      const area = parseNum(row[colArea]) || 0;
-      if (os) {
-        if (!g.os[os]) g.os[os] = {};
-        if (!g.os[os][talhaoKey]) g.os[os][talhaoKey] = [];
-        g.os[os][talhaoKey].push(area);
-      }
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      if (!isNaN(dr)) { g.somaRec += dr; g.cntRec++; }
-      if (!isNaN(da)) { g.somaAplic += da; g.cntAplic++; }
-    });
-
-    // Resolve a área de cada grupo com a mesma regra "não duplicar" (por O.S.+Talhão)
-    const linhas = Object.values(grupos).map(g => {
-      let area = 0;
-      Object.values(g.os).forEach(porTalhao => {
-        Object.values(porTalhao).forEach(areas => {
-          const unicas = new Set(areas.map(a => Math.round(a * 10000)));
-          area += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
-        });
-      });
-      const nOS = Object.keys(g.os).length;
-      const doseRecMedia   = g.cntRec   > 0 ? g.somaRec   / g.cntRec   : NaN;
-      const doseAplicMedia = g.cntAplic > 0 ? g.somaAplic / g.cntAplic : NaN;
-      let difPct = NaN;
-      if (!isNaN(doseRecMedia) && doseRecMedia > 0 && !isNaN(doseAplicMedia)) {
-        difPct = ((doseAplicMedia - doseRecMedia) / doseRecMedia) * 100;
-      }
-      return { cod: g.cod, label: g.label, area, nOS, registros: g.cnt, doseRecMedia, doseAplicMedia, difPct };
-    }).sort((a, b) => b.area - a.area);
-
-    _mostrarResultadoAgrupado(def, linhas, dados.length);
+    _mostrarResultadoDetalhado(def, dados, colGroup);
   }
 
   // ── Texto-resumo dos filtros atualmente aplicados (reaproveitado no card e no PDF) ──
@@ -4188,129 +4145,157 @@ iniciarSabedoria();
     return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
   }
 
-  // ── Renderiza o card de resultado (relatório agrupado) ──────────────────
-  function _mostrarResultadoAgrupado(def, linhas, totalRegistrosBase) {
-    const card = document.getElementById('card-tratos-relatorio-resultado');
-    const titulo = document.getElementById('tr-resultado-titulo');
-    const filtrosEl = document.getElementById('tr-resultado-filtros');
-    const corpo = document.getElementById('tr-resultado-corpo');
-    if (!card || !corpo) return;
-
-    const totalArea = linhas.reduce((s, l) => s + l.area, 0);
-    titulo.textContent = `Resumo de Aplicação por ${def.titulo}`;
-    filtrosEl.textContent = `${totalRegistrosBase} registro${totalRegistrosBase !== 1 ? 's' : ''} no filtro   ·   ${linhas.length} ${def.titulo.toLowerCase()}(s)   ·   Área total: ${totalArea.toLocaleString('pt-BR',{maximumFractionDigits:1})} ha   ·   ${_tratosFiltrosAtivosTexto()}`;
-
-    const mostrarDose = !!def.comDose;
-    corpo.innerHTML = `<div class="tratos-table-wrap"><table class="tratos-resumo-table">
-      <thead><tr>
-        <th>${esc(def.titulo)}</th>
-        <th style="text-align:right;">Área (ha)</th>
-        <th style="text-align:right;">Nº O.S.</th>
-        <th style="text-align:right;">Registros</th>
-        ${mostrarDose ? '<th style="text-align:right;">Dose Média Rec.</th><th style="text-align:right;">Dose Média Aplic.</th><th style="text-align:right;">Diferença</th>' : ''}
-      </tr></thead><tbody>
-      ${linhas.map(l => {
-        let difCell = '';
-        if (mostrarDose) {
-          let difStr = '—', difStyle = '';
-          if (!isNaN(l.difPct)) {
-            difStr = (l.difPct >= 0 ? '+' : '') + l.difPct.toFixed(1) + '%';
-            difStyle = Math.abs(l.difPct) > ALERTA_DOSE_PCT ? 'color:var(--red);font-weight:800;' : 'color:var(--green-700);font-weight:700;';
-          }
-          difCell = `<td style="text-align:right;">${isNaN(l.doseRecMedia) ? '—' : l.doseRecMedia.toFixed(2)}</td>
-                     <td style="text-align:right;">${isNaN(l.doseAplicMedia) ? '—' : l.doseAplicMedia.toFixed(2)}</td>
-                     <td style="text-align:right;${difStyle}">${difStr}</td>`;
-        }
-        const labelCompleto = [l.cod, l.label].filter(Boolean).join(' · ');
-        return `<tr>
-          <td style="font-weight:600;">${esc(labelCompleto)}</td>
-          <td style="text-align:right;font-weight:700;color:var(--green-900);">${l.area.toLocaleString('pt-BR',{maximumFractionDigits:1})}</td>
-          <td style="text-align:right;">${l.nOS}</td>
-          <td style="text-align:right;">${l.registros}</td>
-          ${difCell}
-        </tr>`;
-      }).join('')}
-      </tbody></table></div>`;
-
-    window._tratosRelatorioAtual = { def, linhas, totalRegistrosBase };
-    card.style.display = 'block';
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // ── Monta as 13 colunas de detalhe de UMA linha (reaproveitado na tela e no PDF) ──
+  function _tratosLinhaDetalhe(row) {
+    const { colData, colOS, colCodFazenda, colFazenda, colCodSetor, colDescSetor,
+            colCodBloco, colDescBloco, colCodTalhao, colCodProd, colDescProd,
+            colCodOp, colDescOp, colCodFuncionario, colFuncionario,
+            colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const dr = parseNum(row[colDoseRec]);
+    const da = parseNum(row[colDoseAplic]);
+    let difPct = NaN;
+    if (!isNaN(dr) && dr > 0 && !isNaN(da)) difPct = ((da - dr) / dr) * 100;
+    return {
+      data: row[colData] || '—',
+      os: row[colOS] || '—',
+      fazenda: [row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · ') || '—',
+      setor: [row[colCodSetor], row[colDescSetor]].filter(Boolean).join(' · ') || '—',
+      bloco: [row[colCodBloco], row[colDescBloco]].filter(Boolean).join(' · ') || '—',
+      talhao: row[colCodTalhao] || '—',
+      produto: [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || '—',
+      operacao: [row[colCodOp], row[colDescOp]].filter(Boolean).join(' · ') || '—',
+      aplicador: [row[colCodFuncionario], row[colFuncionario]].filter(Boolean).join(' · ') || '—',
+      area: row[colArea] || '—',
+      doseRec: row[colDoseRec] || '—',
+      doseAplic: row[colDoseAplic] || '—',
+      difPct,
+    };
   }
 
-  // ── "Analítico de Insumos" — tabela linha a linha, com limite de exibição ──
+  const TRATOS_COLUNAS_DETALHE = [
+    ['Data', 'data'], ['Nº O.S.', 'os'], ['Fazenda', 'fazenda'], ['Setor', 'setor'],
+    ['Bloco', 'bloco'], ['Talhão', 'talhao'], ['Produto', 'produto'], ['Operação', 'operacao'],
+    ['Aplicador', 'aplicador'],
+  ];
+
+  // ── Renderiza o card de resultado: linha a linha, tudo detalhado,
+  //    agrupado (com subtotal) pela dimensão escolhida — ou sem agrupar,
+  //    no caso do "Analítico de Insumos" (Todos os Registros) ────────────
   const TRATOS_LIMITE_TABELA_BRUTA = 500;
-  function _mostrarResultadoAnalitico(dados) {
+  function _mostrarResultadoDetalhado(def, dadosFiltrados, colGroup) {
     const card = document.getElementById('card-tratos-relatorio-resultado');
     const titulo = document.getElementById('tr-resultado-titulo');
     const filtrosEl = document.getElementById('tr-resultado-filtros');
     const corpo = document.getElementById('tr-resultado-corpo');
     if (!card || !corpo) return;
 
-    titulo.textContent = 'Analítico de Insumos';
-    const excedeu = dados.length > TRATOS_LIMITE_TABELA_BRUTA;
-    const amostra = excedeu ? dados.slice(0, TRATOS_LIMITE_TABELA_BRUTA) : dados;
-    filtrosEl.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} no filtro`
-      + (excedeu ? ` — exibindo os primeiros ${TRATOS_LIMITE_TABELA_BRUTA} (refine os filtros para ver o restante)` : '')
-      + `   ·   ${_tratosFiltrosAtivosTexto()}`;
+    const { colOS, colArea, colCodTalhao } = window._tratosCols || {};
+    const excedeu = dadosFiltrados.length > TRATOS_LIMITE_TABELA_BRUTA;
+    const base = excedeu ? dadosFiltrados.slice(0, TRATOS_LIMITE_TABELA_BRUTA) : dadosFiltrados;
 
-    const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    corpo.innerHTML = `<div class="tratos-table-wrap" style="max-height:520px; overflow:auto;"><table class="tratos-resumo-table">
+    // Ordena (e agrupa, se houver dimensão) mantendo a ordem alfabética do grupo
+    const ordenado = colGroup
+      ? [...base].sort((a, b) => (a[colGroup] || '').trim().localeCompare((b[colGroup] || '').trim(), 'pt-BR'))
+      : base;
+
+    titulo.textContent = colGroup ? `${def.titulo} — Detalhado` : def.titulo;
+    const areaGeralMap = _calcAreaOS(dadosFiltrados, colOS, colArea, colCodTalhao);
+    const areaGeral = Object.values(areaGeralMap).reduce((s, v) => s + v, 0);
+    filtrosEl.textContent = `${dadosFiltrados.length} registro${dadosFiltrados.length !== 1 ? 's' : ''} no filtro`
+      + (excedeu ? ` — exibindo os primeiros ${TRATOS_LIMITE_TABELA_BRUTA} (refine os filtros pra ver o restante)` : '')
+      + `   ·   Área total: ${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha   ·   ${_tratosFiltrosAtivosTexto()}`;
+
+    let html = `<div class="tratos-table-wrap" style="max-height:600px; overflow:auto;"><table class="tratos-resumo-table">
       <thead><tr>
-        <th>Data</th><th>Nº O.S.</th><th>Fazenda</th><th>Produto</th><th>Operação</th>
-        <th style="text-align:right;">Área (ha)</th><th style="text-align:right;">Dose Rec.</th><th style="text-align:right;">Dose Aplic.</th>
-      </tr></thead><tbody>
-      ${amostra.map(row => `<tr>
-        <td>${esc(row[colData])}</td>
-        <td style="font-weight:700;color:var(--green-900);">${esc(row[colOS])}</td>
-        <td>${esc([row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · '))}</td>
-        <td>${esc([row[colCodProd], row[colDescProd]].filter(Boolean).join(' · '))}</td>
-        <td>${esc([row[colCodOp], row[colDescOp]].filter(Boolean).join(' · '))}</td>
-        <td style="text-align:right;">${esc(row[colArea])}</td>
-        <td style="text-align:right;">${esc(row[colDoseRec])}</td>
-        <td style="text-align:right;">${esc(row[colDoseAplic])}</td>
-      </tr>`).join('')}
-      </tbody></table></div>`;
+        ${TRATOS_COLUNAS_DETALHE.map(([lbl]) => `<th>${esc(lbl)}</th>`).join('')}
+        <th style="text-align:right;">Área (ha)</th>
+        <th style="text-align:right;">Dose Rec.</th>
+        <th style="text-align:right;">Dose Aplic.</th>
+        <th style="text-align:right;">Dif. (%)</th>
+      </tr></thead><tbody>`;
 
-    window._tratosRelatorioAtual = { analitico: true, dados };
+    const linhaHTML = (row) => {
+      const d = _tratosLinhaDetalhe(row);
+      let difStr = '—', difStyle = '';
+      if (!isNaN(d.difPct)) {
+        difStr = (d.difPct >= 0 ? '+' : '') + d.difPct.toFixed(1) + '%';
+        difStyle = Math.abs(d.difPct) > ALERTA_DOSE_PCT ? 'color:var(--red);font-weight:800;' : 'color:var(--green-700);font-weight:700;';
+      }
+      return `<tr>
+        ${TRATOS_COLUNAS_DETALHE.map(([, key]) => `<td>${esc(d[key])}</td>`).join('')}
+        <td style="text-align:right;">${esc(d.area)}</td>
+        <td style="text-align:right;">${esc(d.doseRec)}</td>
+        <td style="text-align:right;">${esc(d.doseAplic)}</td>
+        <td style="text-align:right;${difStyle}">${difStr}</td>
+      </tr>`;
+    };
+
+    if (!colGroup) {
+      html += ordenado.map(linhaHTML).join('');
+    } else {
+      let grupoAtual = null, linhasGrupo = [];
+      const totalCols = TRATOS_COLUNAS_DETALHE.length + 4;
+      const fecharGrupo = () => {
+        if (grupoAtual === null) return '';
+        const areaGrupoMap = _calcAreaOS(linhasGrupo, colOS, colArea, colCodTalhao);
+        const areaGrupo = Object.values(areaGrupoMap).reduce((s, v) => s + v, 0);
+        return `<tr class="tratos-grupo-header">
+          <td colspan="${totalCols - 2}">${esc(grupoAtual)}</td>
+          <td style="text-align:right;font-weight:800;">${areaGrupo.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</td>
+          <td style="text-align:right;color:var(--text-3);font-weight:600;">${linhasGrupo.length} reg.</td>
+        </tr>` + linhasGrupo.map(linhaHTML).join('');
+      };
+      let out = '';
+      ordenado.forEach(row => {
+        const label = (row[colGroup] || '').trim() || `Sem ${def.titulo}`;
+        if (label !== grupoAtual) {
+          out += fecharGrupo();
+          grupoAtual = label;
+          linhasGrupo = [];
+        }
+        linhasGrupo.push(row);
+      });
+      out += fecharGrupo();
+      html += out;
+    }
+
+    html += `</tbody></table></div>`;
+    corpo.innerHTML = html;
+
+    window._tratosRelatorioAtual = { def, dados: dadosFiltrados, colGroup };
     card.style.display = 'block';
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // ── Exporta em PDF o relatório agrupado (ou analítico) que está na tela ──
+  // ── Exporta em PDF o relatório detalhado que está na tela ────────────────
   function exportarPDFRelatorioAgrupado() {
     const atual = window._tratosRelatorioAtual;
     if (!atual) { if (typeof showToast === 'function') showToast('⚠️ Gere um relatório primeiro.', 'error', 2500); return; }
 
-    if (atual.analitico) {
-      exportarPDFTratos(); // reaproveita o export detalhado já existente
-      return;
-    }
+    const { def, dados, colGroup } = atual;
+    const ordenado = colGroup
+      ? [...dados].sort((a, b) => (a[colGroup] || '').trim().localeCompare((b[colGroup] || '').trim(), 'pt-BR'))
+      : dados;
 
-    const { def, linhas, totalRegistrosBase } = atual;
-    const totalArea = linhas.reduce((s, l) => s + l.area, 0);
-    const mostrarDose = !!def.comDose;
-    const head = mostrarDose
-      ? [[def.titulo, 'Área (ha)', 'Nº O.S.', 'Registros', 'Dose Média Rec.', 'Dose Média Aplic.', 'Dif. (%)']]
-      : [[def.titulo, 'Área (ha)', 'Nº O.S.', 'Registros']];
-
-    const body = linhas.map(l => {
-      const labelCompleto = [l.cod, l.label].filter(Boolean).join(' · ');
-      const linha = [labelCompleto, l.area.toFixed(1), String(l.nOS), String(l.registros)];
-      if (mostrarDose) {
-        linha.push(isNaN(l.doseRecMedia) ? '—' : l.doseRecMedia.toFixed(2));
-        linha.push(isNaN(l.doseAplicMedia) ? '—' : l.doseAplicMedia.toFixed(2));
-        linha.push(isNaN(l.difPct) ? '—' : (l.difPct >= 0 ? '+' : '') + l.difPct.toFixed(1) + '%');
-      }
-      return linha;
+    const head = [[
+      ...(colGroup ? [def.titulo] : []),
+      ...TRATOS_COLUNAS_DETALHE.map(([lbl]) => lbl),
+      'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)',
+    ]];
+    const body = ordenado.map(row => {
+      const d = _tratosLinhaDetalhe(row);
+      const difStr = isNaN(d.difPct) ? '—' : (d.difPct >= 0 ? '+' : '') + d.difPct.toFixed(1) + '%';
+      const grupoLabel = colGroup ? [(row[colGroup] || '').trim() || `Sem ${def.titulo}`] : [];
+      return [...grupoLabel, ...TRATOS_COLUNAS_DETALHE.map(([, key]) => d[key]), d.area, d.doseRec, d.doseAplic, difStr];
     });
 
     const { pdf, y } = _novoPDFRelatorio(
-      `Tratos Culturais — Resumo por ${def.titulo}`,
-      `${totalRegistrosBase} registros   ·   ${linhas.length} ${def.titulo.toLowerCase()}(s)   ·   Área total: ${totalArea.toFixed(1)} ha   ·   ${_tratosFiltrosAtivosTexto()}`,
+      `Tratos Culturais — ${def.titulo}${colGroup ? ' (detalhado)' : ''}`,
+      _tratosFiltrosAtivosTexto(),
       'landscape'
     );
     pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body });
-    _finalizarPDFRelatorio(pdf, `Tratos_${def.titulo.replace(/\s+/g,'_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+    _finalizarPDFRelatorio(pdf, `Tratos_${def.titulo.replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
   }
 
   // Dimensão ainda não existe na planilha PCP — avisa o que precisa ser adicionado
@@ -4807,576 +4792,21 @@ iniciarSabedoria();
 
   // ── Orquestra renderização ───────────────────────────────────────────────
   function renderizarTratos(dados) {
-    renderResumoExecutivoTratos(dados);
-    renderInsightsTratos(dados);
-    renderTabelaTratos(dados);
-    renderResumoTratos(dados);
-    renderComparativoDose(dados);
-    renderAreaOperacao(dados);
+    // As visões pesadas (Resumo Executivo, Insights, Resumo Produto×Operação,
+    // Comparativo de Dose, Área por Operação, tabela crua) foram substituídas
+    // pelo card "Emitir Relatório" — só processam dado depois que o usuário
+    // escolhe filtro + agrupamento. Isso é o que evita travar com 30+ mil linhas
+    // a cada abertura da tela ou troca de filtro.
     const contador = document.getElementById('tratos-contador');
     if (contador)
       contador.textContent =
         `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+
+    // Filtro mudou → o relatório que estava na tela não vale mais pro filtro atual
+    const cardResultado = document.getElementById('card-tratos-relatorio-resultado');
+    if (cardResultado) cardResultado.style.display = 'none';
   }
 
-  // ── RESUMO EXECUTIVO — 4 números no topo, visão geral antes de qualquer detalhe ──
-  function renderResumoExecutivoTratos(dados) {
-    const box = document.getElementById('tratos-resumo-executivo');
-    if (!box) return;
-
-    if (!dados || dados.length === 0) {
-      box.style.display = 'none';
-      return;
-    }
-    box.style.display = 'grid';
-
-    const { colDescProd, colDescOp, colArea, colDoseRec, colDoseAplic, colOS, colCodTalhao } = window._tratosCols || {};
-
-    // Área por O.S. sem duplicar (ver _calcAreaOS)
-    const areaOS = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-    const ossSet = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean));
-    const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
-
-    // Produtos em alerta (mesmo critério usado nos insights/resumo: desvio médio > ALERTA_DOSE_PCT)
-    const porProd = {};
-    dados.forEach(row => {
-      const p  = (row[colDescProd] || 'Sem Produto').trim();
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      if (!porProd[p]) porProd[p] = [];
-      if (!isNaN(dr) && dr > 0 && !isNaN(da)) porProd[p].push(((da - dr) / dr) * 100);
-    });
-    let qtdAlerta = 0;
-    Object.values(porProd).forEach(difs => {
-      if (!difs.length) return;
-      const med = difs.reduce((s, v) => s + v, 0) / difs.length;
-      if (Math.abs(med) > ALERTA_DOSE_PCT) qtdAlerta++;
-    });
-
-    // Operação predominante em área
-    const porOp = {};
-    dados.forEach(row => {
-      const op = (row[colDescOp] || 'Sem Operação').trim();
-      const os = (row[colOS] || '').trim();
-      if (!porOp[op]) porOp[op] = { area: 0, oss: new Set() };
-      if (os && !porOp[op].oss.has(os)) {
-        porOp[op].oss.add(os);
-        porOp[op].area += areaOS[os] || 0;
-      }
-    });
-    const opsOrdenadas = Object.entries(porOp).sort((a, b) => b[1].area - a[1].area);
-    const opTop    = opsOrdenadas[0];
-    const opTopPct = opTop && totalArea > 0 ? (opTop[1].area / totalArea * 100) : 0;
-
-    // Preenche o DOM
-    const elArea  = document.getElementById('tre-area');
-    const elOS    = document.getElementById('tre-os');
-    const elAlert = document.getElementById('tre-alerta');
-    const elOpTop = document.getElementById('tre-op-top');
-    const elOpSub = document.getElementById('tre-op-top-sub');
-    const cardAlerta = document.getElementById('tre-card-alerta');
-
-    if (elArea)  elArea.textContent  = totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' ha';
-    if (elOS)    elOS.textContent    = ossSet.size.toLocaleString('pt-BR');
-    if (elAlert) elAlert.textContent = qtdAlerta.toString();
-    if (cardAlerta) cardAlerta.classList.toggle('tre-ok', qtdAlerta === 0);
-    if (elOpTop) elOpTop.textContent = opTop ? opTop[0] : '—';
-    if (elOpSub) elOpSub.textContent = opTop ? `${opTopPct.toFixed(0)}% da área filtrada` : '% da área filtrada';
-    const elAlertPct = document.getElementById('tre-alerta-pct');
-    if (elAlertPct) elAlertPct.textContent = ALERTA_DOSE_PCT;
-  }
-
-  // ── HELPER: Calcula mapa OS → área SEM duplicar ─────────────────────────
-  //   Agora que a planilha PCP traz o Cód. Talhão explícito, a regra passa
-  //   a ser exata em vez de heurística:
-  //     · Agrupa cada linha por (O.S. + Talhão)
-  //     · Dentro do mesmo (O.S. + Talhão): se as áreas registradas forem
-  //       todas IGUAIS → conta uma vez só (são linhas repetidas por produto
-  //       aplicado na mesma passada, ex.: 2 produtos na mesma aplicação)
-  //     · Se forem DIFERENTES → soma (fracionamento dentro do próprio talhão)
-  //     · Talhões DIFERENTES dentro da mesma O.S. são SEMPRE somados —
-  //       nunca deduplicados entre si, pois são áreas fisicamente distintas
-  //       (ex.: Água Residuária aplicada em vários talhões numa única O.S.)
-  //   Se colTalhao não for informado (compatibilidade com planilhas antigas),
-  //   cai de volta na heurística por O.S. isolada, como antes.
-  function _calcAreaOS(dados, colOS, colArea, colTalhao) {
-    const osGrupos = {}; // os -> { talhaoKey -> [areas] }
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (!os) return;
-      const talhaoKey = colTalhao ? ((row[colTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
-      const area = parseNum(row[colArea]) || 0;
-      if (!osGrupos[os]) osGrupos[os] = {};
-      if (!osGrupos[os][talhaoKey]) osGrupos[os][talhaoKey] = [];
-      osGrupos[os][talhaoKey].push(area);
-    });
-    const areaOS = {};
-    Object.entries(osGrupos).forEach(([os, porTalhao]) => {
-      let total = 0;
-      Object.values(porTalhao).forEach(areas => {
-        const unicas = new Set(areas.map(a => Math.round(a * 10000)));
-        total += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
-      });
-      areaOS[os] = total;
-    });
-    return areaOS;
-  }
-
-  // ── CARD INSIGHTS ────────────────────────────────────────────────────────
-  function renderInsightsTratos(dados) {
-    const card = document.getElementById('card-tratos-insights');
-    const el   = document.getElementById('tratos-insights-container');
-    if (!card || !el) return;
-
-    if (!dados || dados.length === 0) {
-      card.style.display = 'none';
-      return;
-    }
-
-    card.style.display = 'block';
-    const { colDescProd, colDescOp, colFazenda, colCodFazenda, colArea,
-            colDoseRec, colDoseAplic, colOS, colData, colCodTalhao } = window._tratosCols || {};
-    const colFazEfetiva = colFazenda || colCodFazenda;
-
-    const insights = [];
-
-    // ── Área por O.S. sem duplicar (ver _calcAreaOS) ──
-    const areaOS   = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-    const totalArea = Object.values(areaOS).reduce((s, v) => s + v, 0);
-
-    // ── Agrega por produto para análise de dosagem ──
-    const porProd = {};
-    dados.forEach(row => {
-      const p  = (row[colDescProd] || 'Sem Produto').trim();
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      if (!porProd[p]) porProd[p] = { difs: [], rec: [], aplic: [] };
-      if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
-        const pct = ((da - dr) / dr) * 100;
-        porProd[p].difs.push(pct);
-      }
-      if (!isNaN(dr)) porProd[p].rec.push(dr);
-      if (!isNaN(da)) porProd[p].aplic.push(da);
-    });
-
-    // ── Insight 1: produto com maior desvio médio de dosagem ──
-    let piorProd = null, piorDesvio = 0;
-    Object.entries(porProd).forEach(([p, g]) => {
-      if (!g.difs.length) return;
-      const med = g.difs.reduce((s, v) => s + v, 0) / g.difs.length;
-      if (Math.abs(med) > Math.abs(piorDesvio)) { piorDesvio = med; piorProd = p; }
-    });
-    if (piorProd && Math.abs(piorDesvio) > ALERTA_DOSE_PCT) {
-      const sinal = piorDesvio > 0 ? 'acima' : 'abaixo';
-      const cor   = piorDesvio > 0 ? 'warn' : 'warn';
-      insights.push({ type: 'warn',
-        msg: `<b>${esc(piorProd)}</b> apresenta dose média aplicada <b>${Math.abs(piorDesvio).toFixed(1)}% ${sinal}</b> da dose recomendada (média de ${porProd[piorProd].difs.length} aplicação${porProd[piorProd].difs.length !== 1 ? 'ões' : ''}). Verifique calibração do equipamento e apontamento de campo.`,
-        icon: 'fas fa-exclamation-triangle'
-      });
-    }
-
-    // ── Insight 2: produto com alta dispersão mín→máx (inconsistência) ──
-    let prodDisperso = null, maiorDisp = 0;
-    Object.entries(porProd).forEach(([p, g]) => {
-      if (g.aplic.length < 3) return;
-      const mn  = Math.min(...g.aplic);
-      const mx  = Math.max(...g.aplic);
-      const med = g.aplic.reduce((s, v) => s + v, 0) / g.aplic.length;
-      if (med > 0) {
-        const disp = ((mx - mn) / med) * 100;
-        if (disp > maiorDisp) { maiorDisp = disp; prodDisperso = { nome: p, mn, mx, med, disp, n: g.aplic.length }; }
-      }
-    });
-    if (prodDisperso && prodDisperso.disp > 20) {
-      const fmt = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
-      insights.push({ type: 'warn',
-        msg: `<b>${esc(prodDisperso.nome)}</b> tem alta variação de dose aplicada: mín. <b>${fmt(prodDisperso.mn)}</b> → máx. <b>${fmt(prodDisperso.mx)}</b> (dispersão de ${prodDisperso.disp.toFixed(0)}% sobre a média). Possível inconsistência entre operadores ou lotes.`,
-        icon: 'fas fa-chart-bar'
-      });
-    }
-
-    // ── Insight 3: operação / produto dominante em área ──
-    const porCombo = {};
-    dados.forEach(row => {
-      const p  = (row[colDescProd] || 'Sem Produto').trim();
-      const op = (row[colDescOp]   || 'Sem Operação').trim();
-      const k  = p + '|||' + op;
-      const ar = parseNum(row[colArea]) || 0;
-      if (!porCombo[k]) porCombo[k] = { prod: p, op, area: 0 };
-      porCombo[k].area += ar;
-    });
-    const combos         = Object.values(porCombo).sort((a, b) => b.area - a.area);
-    const totalAreaCombos = combos.reduce((s, c) => s + c.area, 0);
-    if (combos.length > 0 && totalAreaCombos > 0) {
-      const top = combos[0];
-      const pct = (top.area / totalAreaCombos * 100).toFixed(0);
-      if (combos.length === 1) {
-        insights.push({ type: 'tip',
-          msg: `Filtro atual mostra <b>somente uma combinação</b>: <b>${esc(top.prod)}</b> via <b>${esc(top.op)}</b> — ${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha no total.`,
-          icon: 'fas fa-filter'
-        });
-      } else if (+pct >= 60) {
-        insights.push({ type: 'tip',
-          msg: `<b>${esc(top.prod)}</b> / <b>${esc(top.op)}</b> representa <b>${pct}%</b> da área filtrada (${top.area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha de ${totalAreaCombos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha totais). Operação predominante no período.`,
-          icon: 'fas fa-seedling'
-        });
-      }
-    }
-
-    // ── Insight 4: concentração fazenda ──
-    const porFaz = {};
-    dados.forEach(row => {
-      const f  = (row[colFazEfetiva] || 'Sem Fazenda').trim();
-      const ar = parseNum(row[colArea]) || 0;
-      if (!porFaz[f]) porFaz[f] = { area: 0, oss: new Set() };
-      porFaz[f].area += ar;
-      if (row[colOS]) porFaz[f].oss.add((row[colOS] || '').trim());
-    });
-    const fazendas   = Object.entries(porFaz).sort((a, b) => b[1].area - a[1].area);
-    const nFazendas  = fazendas.length;
-    if (nFazendas >= 3 && totalArea > 0) {
-      const top1area = fazendas[0][1].area;
-      const top1pct  = (top1area / totalArea * 100).toFixed(0);
-      if (+top1pct >= 50) {
-        insights.push({ type: 'tip',
-          msg: `A fazenda <b>${esc(fazendas[0][0])}</b> concentra <b>${top1pct}%</b> da área aplicada (${top1area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha) entre as ${nFazendas} fazendas no filtro atual.`,
-          icon: 'fas fa-map-marker-alt'
-        });
-      }
-    }
-
-    // ── Insight 5: janela de datas (se filtro ativo) ──
-    const dIni = document.getElementById('tratos-filtro-data-ini')?.value;
-    const dFim = document.getElementById('tratos-filtro-data-fim')?.value;
-    if (dIni || dFim) {
-      const fmt = s => s ? s.split('-').reverse().join('/') : '—';
-      const totalOS = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean)).size;
-      insights.push({ type: 'tip',
-        msg: `Período filtrado: <b>${fmt(dIni)}</b> a <b>${fmt(dFim)}</b> — <b>${dados.length}</b> registro${dados.length !== 1 ? 's' : ''} · <b>${totalOS}</b> O.S. distinta${totalOS !== 1 ? 's' : ''} · <b>${totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b> aplicados.`,
-        icon: 'fas fa-calendar-alt'
-      });
-    }
-
-    // ── Insight 6: tudo OK ──
-    if (insights.length === 0) {
-      const totalOS = new Set(dados.map(r => (r[colOS] || '').trim()).filter(Boolean)).size;
-      const nProds  = Object.keys(porProd).length;
-      insights.push({ type: 'ok',
-        msg: `<b>${dados.length} registro${dados.length !== 1 ? 's' : ''}</b> analisados — Todas as dosagens dentro dos limites aceitáveis (&lt;${ALERTA_DOSE_PCT}% de desvio). <b>${nProds} produto${nProds !== 1 ? 's' : ''}</b> · <b>${totalOS} O.S.</b> · <b>${totalArea.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b>.`,
-        icon: 'fas fa-check-circle'
-      });
-    }
-
-    el.innerHTML = `<div class="insights-box">` +
-      insights.map(ins => `
-        <div class="insight-item ${ins.type}">
-          <i class="${ins.icon}"></i>
-          <span>${ins.msg}</span>
-        </div>`).join('') +
-      `</div>`;
-  }
-
-  // ── TABELA COMPLETA ──────────────────────────────────────────────────────
-  function renderTabelaTratos(dados) {
-    const corpo = document.getElementById('corpo-tabela-tratos');
-    if (!corpo) return;
-    const { colData, colOS, colCodProd, colDescProd, colCodOp,
-            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
-
-    if (!dados || dados.length === 0) {
-      corpo.innerHTML =
-      `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:20px;font-size:12px;">
-          Nenhum registro encontrado para os filtros aplicados.
-        </td></tr>`;
-      return;
-    }
-
-    // Com a planilha PCP na casa dos milhares de linhas, jogar tudo no DOM de uma vez
-    // trava o navegador (principalmente no celular). Mostra só uma amostra aqui —
-    // para ver o conjunto completo, use "Emitir Relatório → Analítico de Insumos" acima,
-    // que também respeita esse mesmo limite, ou refine os filtros.
-    const excedeu = dados.length > TRATOS_LIMITE_TABELA_BRUTA;
-    const amostra = excedeu ? dados.slice(0, TRATOS_LIMITE_TABELA_BRUTA) : dados;
-
-    // Rastreia quais O.S. já tiveram a área contabilizada para indicação visual
-    const ossAreaVista = new Set();
-
-    corpo.innerHTML = amostra.map(row => {
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      let difPct = '—', difStyle = '';
-      if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
-        const pct = ((da - dr) / dr) * 100;
-        difPct    = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-        difStyle  = Math.abs(pct) > ALERTA_DOSE_PCT
-          ? 'color:var(--red);font-weight:800;'
-          : 'color:var(--green-700);font-weight:700;';
-      }
-      const codFazRaw  = (row[colCodFazenda] || '').trim();
-      // Se colFazenda (descrição) não foi detectada, mostra o código na coluna de descrição também
-      const descFazRaw = colFazenda ? (row[colFazenda] || '').trim() : '';
-      const codFaz     = esc(codFazRaw);
-      const descFaz    = esc(descFazRaw || codFazRaw); // fallback: usa código se sem descrição
-      const prodLabel = [row[colCodProd], row[colDescProd]].filter(v => v && v.trim()).join(' · ');
-      const opLabel   = [row[colCodOp],   row[colDescOp]  ].filter(v => v && v.trim()).join(' · ');
-
-      // Indicação visual de área: se a mesma O.S. já apareceu antes, marca como "compartilhada"
-      const osKey = (row[colOS] || '').trim();
-      const areaJaContada = ossAreaVista.has(osKey) && osKey !== '';
-      if (osKey) ossAreaVista.add(osKey);
-      const areaVal   = esc(row[colArea]);
-      const areaStyle = areaJaContada
-        ? 'text-align:right;font-weight:600;color:var(--text-3);font-style:italic;'
-        : 'text-align:right;font-weight:600;color:var(--green-900);';
-      const areaTip   = areaJaContada
-        ? ` title="Mesma O.S. — área não duplicada nos totais"`
-        : '';
-
-      return `<tr>
-        <td data-label="Data Aplic.">${esc(row[colData])}</td>
-        <td data-label="Nº O.S." style="font-weight:700;color:var(--green-900);">${esc(row[colOS])}</td>
-        <td data-label="Cód. Fazenda" style="font-weight:600;color:var(--text-3);">${codFaz || '—'}</td>
-        <td data-label="Desc. Fazenda" style="font-weight:600;">${descFaz || '—'}</td>
-        <td data-label="Produto" style="font-weight:600;">${esc(prodLabel)}</td>
-        <td data-label="Operação Agr.">${esc(opLabel)}</td>
-        <td data-label="Área Aplic. (ha)" style="${areaStyle}"${areaTip}>${areaVal}${areaJaContada ? ' <span style="font-size:9px;vertical-align:middle;" title="Mesma O.S.">⚠</span>' : ''}</td>
-        <td data-label="Dose Rec." style="text-align:right;">${esc(row[colDoseRec])}</td>
-        <td data-label="Dose Aplic." style="text-align:right;">${esc(row[colDoseAplic])}</td>
-        <td data-label="Dif. (%)" style="text-align:right;${difStyle}">${difPct}</td>
-      </tr>`;
-    }).join('') + (excedeu
-      ? `<tr><td colspan="10" style="text-align:center;color:var(--amber);font-weight:700;padding:12px;font-size:11px;">
-           Mostrando ${TRATOS_LIMITE_TABELA_BRUTA} de ${dados.length} registros — refine os filtros (Fazenda, Setor, Período...) para ver o restante.
-         </td></tr>`
-      : '');
-  }
-
-  // ── CARD 1 — RESUMO POR PRODUTO × OPERAÇÃO ──────────────────────────────
-  function renderResumoTratos(dados) {
-    const el = document.getElementById('tratos-resumo-produto-op');
-    if (!el) return;
-    const { colDescProd, colCodProd, colDescOp, colCodOp, colOS, colArea, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-
-    if (!dados || dados.length === 0) {
-      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
-      return;
-    }
-
-    // Mapa OS → área sem duplicar (ver _calcAreaOS)
-    const areaOS = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-
-    const grupos = {};
-    dados.forEach(row => {
-      const codP = (row[colCodProd] || '').trim();
-      const prod  = (row[colDescProd] || 'Sem Produto').trim();
-      const codO = (row[colCodOp]   || '').trim();
-      const op    = (row[colDescOp]   || 'Sem Operação').trim();
-      const os    = (row[colOS]       || '').trim();
-      const chave = prod + '|||' + op;
-      if (!grupos[chave]) grupos[chave] = { codP, prod, codO, op, ossVistas: new Set(), area:0, somaRec:0, somaAplic:0, cnt:0, cntRec:0 };
-      const g  = grupos[chave];
-      // Soma área só na primeira vez que essa O.S. aparece neste grupo produto×op
-      if (os && !g.ossVistas.has(os)) {
-        g.ossVistas.add(os);
-        g.area += areaOS[os] || 0;
-      }
-      g.cnt++;
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      if (!isNaN(da)) { g.somaAplic += da; }
-      if (!isNaN(dr)) { g.somaRec   += dr; g.cntRec++; }
-    });
-
-    const linhas    = Object.values(grupos).sort((a,b) => b.area - a.area);
-    let   temAlerta = false;
-
-    let html = `<div class="tratos-table-wrap"><table class="tratos-resumo-table">
-      <thead><tr>
-        <th>Produto</th>
-        <th>Operação Agrícola</th>
-        <th style="text-align:right;">Área Total (ha)</th>
-        <th style="text-align:right;">Dose Média Rec.</th>
-        <th style="text-align:right;">Dose Média Aplic.</th>
-        <th style="text-align:right;">Diferença</th>
-      </tr></thead><tbody>`;
-
-    linhas.forEach(g => {
-      const drm = g.cntRec > 0 ? g.somaRec   / g.cntRec : NaN;
-      const dam = g.cnt    > 0 ? g.somaAplic / g.cnt    : NaN;
-      let difStr = '—', difStyle = '', rowStyle = '';
-
-      if (!isNaN(drm) && drm > 0 && !isNaN(dam)) {
-        const pct = ((dam - drm) / drm) * 100;
-        difStr    = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-        if (Math.abs(pct) > ALERTA_DOSE_PCT) {
-          difStyle  = 'color:var(--red);font-weight:800;';
-          rowStyle  = 'background:rgba(255,235,238,0.65);';
-          temAlerta = true;
-        } else {
-          difStyle  = 'color:var(--green-700);font-weight:700;';
-        }
-      }
-
-      const prodLabel = g.codP ? `<span style="font-size:10px;color:var(--text-3);font-weight:700;">${esc(g.codP)}</span> ${esc(g.prod)}` : esc(g.prod);
-      const opLabel   = g.codO ? `<span style="font-size:10px;color:var(--text-3);font-weight:700;">${esc(g.codO)}</span> ${esc(g.op)}`   : esc(g.op);
-
-      html += `<tr style="${rowStyle}">
-        <td data-label="Produto" style="font-weight:600;">${prodLabel}</td>
-        <td data-label="Operação Agr.">${opLabel}</td>
-        <td data-label="Área Total (ha)" style="text-align:right;font-weight:700;color:var(--green-900);">
-          ${g.area.toLocaleString('pt-BR',{maximumFractionDigits:2})} ha</td>
-        <td data-label="Dose Méd. Rec." style="text-align:right;">
-          ${isNaN(drm) ? '—' : drm.toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
-        <td data-label="Dose Méd. Aplic." style="text-align:right;">
-          ${isNaN(dam) ? '—' : dam.toLocaleString('pt-BR',{maximumFractionDigits:3})}</td>
-        <td data-label="Diferença" style="text-align:right;${difStyle}">${difStr}</td>
-      </tr>`;
-    });
-
-    html += '</tbody></table></div>';
-    if (temAlerta) {
-      html += `<div style="margin-top:10px;padding:10px 14px;background:rgba(255,235,238,0.85);
-                  border-left:3px solid var(--red);border-radius:var(--radius-sm);
-                  font-size:11px;color:var(--red);font-weight:700;">
-        <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
-        Linhas em vermelho: diferença de dosagem superior a ${ALERTA_DOSE_PCT}%.
-      </div>`;
-    }
-    el.innerHTML = html;
-  }
-
-  // ── CARD 2 — COMPARATIVO DE DOSAGEM ─────────────────────────────────────
-  function renderComparativoDose(dados) {
-    const el = document.getElementById('tratos-comparativo-dose');
-    if (!el) return;
-    const { colDescProd, colCodProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
-
-    if (!dados || dados.length === 0) {
-      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
-      return;
-    }
-
-    const prods = {};
-    dados.forEach(row => {
-      const cod = (row[colCodProd]  || '').trim();
-      const p   = (row[colDescProd] || 'Sem Produto').trim();
-      const key = cod ? cod + ' · ' + p : p;
-      const dr  = parseNum(row[colDoseRec]);
-      const da  = parseNum(row[colDoseAplic]);
-      if (!prods[key]) prods[key] = { rec:[], aplic:[] };
-      if (!isNaN(dr)) prods[key].rec.push(dr);
-      if (!isNaN(da)) prods[key].aplic.push(da);
-    });
-
-    const lista = Object.keys(prods).sort();
-    if (!lista.length) {
-      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado de dosagem disponível.</p>';
-      return;
-    }
-
-    const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : NaN;
-    const fmt = v   => isNaN(v)  ? '—' : v.toLocaleString('pt-BR',{maximumFractionDigits:3});
-
-    let html = `<div class="tratos-table-wrap"><table class="tratos-resumo-table">
-      <thead><tr>
-        <th>Produto</th>
-        <th style="text-align:right;">Dose Rec. (média)</th>
-        <th style="text-align:right;">Aplic. Mín.</th>
-        <th style="text-align:right;">Aplic. Média</th>
-        <th style="text-align:right;">Aplic. Máx.</th>
-        <th style="text-align:right;">Amostras</th>
-      </tr></thead><tbody>`;
-
-    lista.forEach(p => {
-      const g   = prods[p];
-      const rec = avg(g.rec);
-      const mn  = g.aplic.length ? Math.min(...g.aplic) : NaN;
-      const med = avg(g.aplic);
-      const mx  = g.aplic.length ? Math.max(...g.aplic) : NaN;
-      let rowStyle = '';
-      if (!isNaN(med) && med > 0 && !isNaN(mn) && !isNaN(mx) && ((mx-mn)/med)*100 > ALERTA_DOSE_PCT)
-        rowStyle = 'background:rgba(255,235,238,0.45);';
-
-      html += `<tr style="${rowStyle}">
-        <td data-label="Produto" style="font-weight:600;">${esc(p)}</td>
-        <td data-label="Dose Rec." style="text-align:right;">${fmt(rec)}</td>
-        <td data-label="Mín." style="text-align:right;color:var(--blue);font-weight:700;">${fmt(mn)}</td>
-        <td data-label="Média" style="text-align:right;font-weight:700;">${fmt(med)}</td>
-        <td data-label="Máx." style="text-align:right;color:var(--amber);font-weight:700;">${fmt(mx)}</td>
-        <td data-label="Amostras" style="text-align:right;color:var(--text-3);">${g.aplic.length}</td>
-      </tr>`;
-    });
-
-    html += `</tbody></table></div>
-      <p style="font-size:9px;color:var(--text-3);margin-top:8px;">
-        Fundo rosado = variação mín-máx supera ${ALERTA_DOSE_PCT}% da média aplicada.
-      </p>`;
-    el.innerHTML = html;
-  }
-
-  // ── CARD 3 — ÁREA TOTAL POR OPERAÇÃO ────────────────────────────────────
-  function renderAreaOperacao(dados) {
-    const el = document.getElementById('tratos-area-operacao');
-    if (!el) return;
-    const { colDescOp, colCodOp, colArea, colOS, colCodTalhao } = window._tratosCols || {};
-
-    if (!dados || dados.length === 0) {
-      el.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0;">Nenhum dado para exibir.</p>';
-      return;
-    }
-
-    // Mapa OS → área sem duplicar (ver _calcAreaOS)
-    const areaOS = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-
-    const ops = {};
-    dados.forEach(row => {
-      const cod = (row[colCodOp]  || '').trim();
-      const op  = (row[colDescOp] || 'Sem Operação').trim();
-      const key = cod ? cod + ' · ' + op : op;
-      const os  = (row[colOS]     || '').trim();
-      if (!ops[key]) ops[key] = { area:0, oss:new Set() };
-      if (os && !ops[key].oss.has(os)) {
-        ops[key].oss.add(os);
-        ops[key].area += areaOS[os] || 0;
-      }
-    });
-
-    const lista     = Object.entries(ops).sort((a,b) => b[1].area - a[1].area);
-    const totalArea = lista.reduce((s,[,v]) => s + v.area, 0);
-    const cores     = ['var(--green-900)','var(--blue)','var(--amber)','var(--red)'];
-
-    let html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">`;
-    lista.forEach(([op,g],idx) => {
-      const pct = totalArea > 0 ? (g.area/totalArea)*100 : 0;
-      const cor = cores[idx % cores.length];
-      html += `
-        <div style="background:var(--surface2);border:1px solid var(--border);
-                    border-radius:var(--radius-md);padding:14px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;
-                      letter-spacing:0.5px;margin-bottom:8px;">${esc(op)}</div>
-          <div style="font-size:22px;font-weight:800;color:${cor};line-height:1;">
-            ${g.area.toLocaleString('pt-BR',{maximumFractionDigits:1})} ha</div>
-          <div style="font-size:10px;color:var(--text-3);margin-top:4px;">
-            ${g.oss.size} O.S. distinta${g.oss.size!==1?'s':''}</div>
-          <div style="margin-top:8px;background:var(--border);height:6px;border-radius:99px;overflow:hidden;">
-            <div style="height:100%;width:${pct.toFixed(1)}%;background:${cor};border-radius:99px;"></div>
-          </div>
-          <div style="font-size:9px;color:var(--text-3);margin-top:3px;font-weight:700;">
-            ${pct.toFixed(1)}% do total</div>
-        </div>`;
-    });
-
-    html += `</div>
-      <div style="margin-top:10px;padding:10px 14px;
-                  background:rgba(0,100,0,0.06);border:1px solid rgba(0,100,0,0.15);
-                  border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:11px;font-weight:700;color:var(--green-900);">Área Total Filtrada</span>
-        <span style="font-size:18px;font-weight:800;color:var(--green-900);">
-          ${totalArea.toLocaleString('pt-BR',{maximumFractionDigits:1})} ha</span>
-      </div>`;
-
-    el.innerHTML = html;
-  }
 
   // ── EXPORTAR EXCEL (CSV BOM UTF-8) ───────────────────────────────────────
   function exportarTratosExcel() {
