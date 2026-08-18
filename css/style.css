@@ -477,6 +477,11 @@
     }
     .tratos-mais-filtros-toggle .toggle-chevron { margin-left: auto; font-size: 10px; transition: transform 0.2s ease; }
     .tratos-mais-filtros-toggle.open .toggle-chevron { transform: rotate(180deg); }
+    .tratos-resumo-table tr.tratos-grupo-header td {
+      background: var(--green-50); color: var(--green-900); font-weight: 800;
+      font-size: 11px; padding-top: 8px; padding-bottom: 8px;
+      position: sticky; top: 0; z-index: 1;
+    }
     /* Destaque visual para deixar óbvio que o card é clicável (leva a outra tela) */
     .hub-card.hub-card-destaque {
       border: 1.5px solid var(--green-500);
