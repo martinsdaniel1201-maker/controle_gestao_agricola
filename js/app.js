@@ -4171,36 +4171,74 @@ iniciarSabedoria();
     return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
   }
 
-  // ── Card compacto de UMA aplicação (linha de detalhe) — pensado pro mobile:
-  //    empilhado, sem tabela larga, sem precisar rolar pro lado ────────────
-  function _tratosLeafCardHTML(row) {
-    const { colData, colOS, colDoseRec, colDoseAplic, colArea } = window._tratosCols || {};
+  // ── Linha de UM produto aplicado, dentro do card da O.S. — dose SEMPRE
+  //    rotulada ("Recomendada" / "Aplicada"), pra quem não conhece a planilha
+  //    conseguir entender sem precisar adivinhar qual número é qual ────────
+  function _tratosProdutoLinhaHTML(row, mostrarTalhao) {
+    const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
     const dr = parseNum(row[colDoseRec]);
     const da = parseNum(row[colDoseAplic]);
-    let difStr = '', difStyle = '';
+    let difHtml = '';
     if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
       const pct = ((da - dr) / dr) * 100;
-      difStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-      difStyle = Math.abs(pct) > ALERTA_DOSE_PCT ? 'color:var(--red);' : 'color:var(--green-700);';
+      const difStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+      const cor = Math.abs(pct) > ALERTA_DOSE_PCT ? 'var(--red)' : 'var(--green-700)';
+      difHtml = ` <b style="color:${cor}">(${difStr})</b>`;
     }
-    return `<div class="tratos-leaf-card">
-      <div class="tlc-topo">
-        <span class="tlc-data">${esc(row[colData])}</span>
-        <span class="tlc-os">O.S. ${esc(row[colOS])}</span>
+    const produto = [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
+    const talhaoHtml = (mostrarTalhao && colCodTalhao)
+      ? `<span class="tpl-talhao">Talhão ${esc((row[colCodTalhao] || '—').trim() || '—')}</span>` : '';
+    return `<div class="tratos-produto-linha">
+      <div class="tpl-topo">
+        <span class="tpl-produto">${esc(produto)}</span>
+        ${talhaoHtml}
       </div>
-      <div class="tlc-area-linha">
-        <span class="tlc-area-val">${esc(row[colArea])} ha</span>
-        <span class="tlc-dose">${esc(row[colDoseRec])} → ${esc(row[colDoseAplic])}${difStr ? ` <b style="${difStyle}">(${difStr})</b>` : ''}</span>
+      <div class="tpl-dose">
+        <span class="tpl-dose-item">Recomendada: <b>${esc(row[colDoseRec] || '—')}</b></span>
+        <span class="tpl-dose-item">Aplicada: <b>${esc(row[colDoseAplic] || '—')}</b>${difHtml}</span>
       </div>
     </div>`;
   }
 
+  // ── Card de UMA Ordem de Serviço, com todos os produtos aplicados nela
+  //    juntos — é o nível de detalhe (folha) de qualquer relatório. Assim
+  //    a O.S. aparece UMA vez só (com a área certa, sem duplicar) e não fica
+  //    uma área solta por produto/talhão espalhada pela tela ───────────────
+  function _tratosOSCardHTML(osRows, colOS, colArea, colCodTalhao, mostrarTalhao) {
+    const { colData } = window._tratosCols || {};
+    const os = (osRows[0][colOS] || '—').trim() || '—';
+    const dataLinha = osRows.find(r => (r[colData] || '').trim())?.[colData] || '—';
+    const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
+    const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
+    const linhas = osRows.map(r => _tratosProdutoLinhaHTML(r, mostrarTalhao)).join('');
+    return `<div class="tratos-os-card">
+      <div class="toc-topo">
+        <span class="toc-os">O.S. ${esc(os)}</span>
+        <span class="toc-data">${esc(dataLinha)}</span>
+        <span class="toc-area">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</span>
+      </div>
+      <div class="toc-produtos">${linhas}</div>
+    </div>`;
+  }
+
   // ── Renderiza recursivamente os níveis de agrupamento; no nível final,
-  //    mostra os cards de detalhe. Cada nível de grupo mostra SÓ o total
-  //    (área + registros) — o detalhe fica só na folha ─────────────────────
+  //    agrupa por O.S. (nunca por produto/talhão solto) e mostra um card por
+  //    O.S. — código de talhão só aparece nesse card quando o relatório
+  //    escolhido for justamente o "Aplicação por Talhão" ───────────────────
   function _tratosRenderNivel(rows, niveisDefs, niveisChaves, idx, colOS, colArea, colCodTalhao) {
     if (idx >= niveisChaves.length) {
-      return rows.map(_tratosLeafCardHTML).join('');
+      const mostrarTalhao = niveisChaves.includes('talhao');
+      const { colData } = window._tratosCols || {};
+      const porOS = new Map(); // O.S. -> linhas daquela O.S.
+      rows.forEach(row => {
+        const chave = (row[colOS] || '').trim() || '—';
+        if (!porOS.has(chave)) porOS.set(chave, []);
+        porOS.get(chave).push(row);
+      });
+      return [...porOS.values()]
+        .sort((a, b) => (a[0][colData] || '').localeCompare(b[0][colData] || '', 'pt-BR'))
+        .map(osRows => _tratosOSCardHTML(osRows, colOS, colArea, colCodTalhao, mostrarTalhao))
+        .join('');
     }
     const nivelDef = niveisDefs[niveisChaves[idx]];
     const grupos = new Map(); // key -> { label, rows }
@@ -4262,7 +4300,7 @@ iniciarSabedoria();
     if (!atual) { if (typeof showToast === 'function') showToast('⚠️ Gere um relatório primeiro.', 'error', 2500); return; }
 
     const { tipo, niveisChaves, dados } = atual;
-    const { colData, colOS, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const { colData, colOS, colArea, colCodTalhao, colCodProd, colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
     const niveisDefs = _tratosNiveisDisponiveis();
 
     const ordenado = [...dados].sort((a, b) => {
@@ -4270,18 +4308,41 @@ iniciarSabedoria();
         const cmp = niveisDefs[nk].key(a).localeCompare(niveisDefs[nk].key(b), 'pt-BR');
         if (cmp !== 0) return cmp;
       }
-      return 0;
+      return (a[colOS] || '').localeCompare(b[colOS] || '', 'pt-BR');
+    });
+
+    // Agrupa por (níveis do relatório + O.S.) — cada O.S. vira UMA linha na
+    // tabela, com todos os produtos aplicados nela juntos numa célula só,
+    // em vez de 1 linha solta por produto/talhão (o que espalhava a mesma
+    // O.S. em várias linhas com pedaços de área que pareciam de talhão).
+    const grupos = new Map();
+    ordenado.forEach(row => {
+      const chaveNiveis = niveisChaves.map(nk => niveisDefs[nk].key(row)).join('§');
+      const os = (row[colOS] || '').trim() || '—';
+      const chave = chaveNiveis + '§§' + os;
+      if (!grupos.has(chave)) grupos.set(chave, []);
+      grupos.get(chave).push(row);
     });
 
     const nomesNiveis = { produto: 'Produto', fazenda: 'Fazenda', setor: 'Setor', talhao: 'Talhão', grupoOp: 'Grupo', subgrupo: 'Subgrupo', operacao: 'Operação' };
-    const head = [[...niveisChaves.map(nk => nomesNiveis[nk] || nk), 'Data', 'Nº O.S.', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']];
-    const body = ordenado.map(row => {
-      const dr = parseNum(row[colDoseRec]);
-      const da = parseNum(row[colDoseAplic]);
-      const difStr = (!isNaN(dr) && dr > 0 && !isNaN(da)) ? (((da - dr) / dr) * 100 >= 0 ? '+' : '') + (((da - dr) / dr) * 100).toFixed(1) + '%' : '—';
+    const head = [[...niveisChaves.map(nk => nomesNiveis[nk] || nk), 'Data', 'Nº O.S.', 'Área (ha)', 'Produtos aplicados — dose recomendada → dose aplicada']];
+    const body = [...grupos.values()].map(osRows => {
+      const first = osRows[0];
+      const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
+      const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
+      const produtosTxt = osRows.map(r => {
+        const dr = parseNum(r[colDoseRec]);
+        const da = parseNum(r[colDoseAplic]);
+        const difStr = (!isNaN(dr) && dr > 0 && !isNaN(da))
+          ? ' (' + (((da - dr) / dr) * 100 >= 0 ? '+' : '') + (((da - dr) / dr) * 100).toFixed(1) + '%)' : '';
+        const nome = [r[colCodProd], r[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
+        return `${nome}: ${r[colDoseRec] || '—'} → ${r[colDoseAplic] || '—'}${difStr}`;
+      }).join('\n');
       return [
-        ...niveisChaves.map(nk => niveisDefs[nk].label(row)),
-        row[colData] || '—', row[colOS] || '—', row[colArea] || '—', row[colDoseRec] || '—', row[colDoseAplic] || '—', difStr,
+        ...niveisChaves.map(nk => niveisDefs[nk].label(first)),
+        first[colData] || '—', first[colOS] || '—',
+        area.toLocaleString('pt-BR', { maximumFractionDigits: 1 }),
+        produtosTxt,
       ];
     });
 
@@ -4290,7 +4351,7 @@ iniciarSabedoria();
       _tratosFiltrosAtivosTexto(),
       'landscape'
     );
-    pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body });
+    pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body, bodyStyles: { ...(_PDF_TABLE_ESTILO.bodyStyles || {}), valign: 'top' } });
     _finalizarPDFRelatorio(pdf, `Tratos_${(TRATOS_RELATORIO_TITULOS[tipo] || 'relatorio').replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
   }
   window.tratosSSAbrir       = tratosSSAbrir;
