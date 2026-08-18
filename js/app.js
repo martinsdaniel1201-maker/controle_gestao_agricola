@@ -4174,7 +4174,7 @@ iniciarSabedoria();
   // ── Linha de UM produto aplicado, dentro do card da O.S. — dose SEMPRE
   //    rotulada ("Recomendada" / "Aplicada"), pra quem não conhece a planilha
   //    conseguir entender sem precisar adivinhar qual número é qual ────────
-  function _tratosProdutoLinhaHTML(row, mostrarTalhao) {
+  function _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem) {
     const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
     const dr = parseNum(row[colDoseRec]);
     const da = parseNum(row[colDoseAplic]);
@@ -4188,16 +4188,40 @@ iniciarSabedoria();
     const produto = [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
     const talhaoHtml = (mostrarTalhao && colCodTalhao)
       ? `<span class="tpl-talhao">Talhão ${esc((row[colCodTalhao] || '—').trim() || '—')}</span>` : '';
+    const contagemHtml = (contagem && contagem > 1)
+      ? `<span class="tpl-talhao">× ${contagem} talhões</span>` : '';
     return `<div class="tratos-produto-linha">
       <div class="tpl-topo">
         <span class="tpl-produto">${esc(produto)}</span>
-        ${talhaoHtml}
+        ${talhaoHtml}${contagemHtml}
       </div>
       <div class="tpl-dose">
         <span class="tpl-dose-item">Recomendada: <b>${esc(row[colDoseRec] || '—')}</b></span>
         <span class="tpl-dose-item">Aplicada: <b>${esc(row[colDoseAplic] || '—')}</b>${difHtml}</span>
       </div>
     </div>`;
+  }
+
+  // ── Colapsa linhas de produto repetidas dentro da MESMA O.S. — a planilha
+  //    PCP traz uma linha por talhão, então um produto com a mesma dose
+  //    aparecia repetido N vezes (uma por talhão) no card. Quando o relatório
+  //    não mostra o talhão (ex.: "Aplicação por Fazenda"), agrupa por
+  //    (produto + dose recomendada + dose aplicada) e mostra 1 linha só,
+  //    com "× N talhões" quando fizer sentido. Quando o relatório é por
+  //    Talhão, mantém o comportamento anterior (1 linha por talhão) ────────
+  function _tratosProdutoLinhasDedup(osRows, mostrarTalhao) {
+    const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
+    const grupos = new Map(); // chave -> { row, contagem }
+    osRows.forEach(row => {
+      const chave = mostrarTalhao
+        ? [row[colCodProd], row[colDescProd], row[colDoseRec], row[colDoseAplic], row[colCodTalhao]].join('§')
+        : [row[colCodProd], row[colDescProd], row[colDoseRec], row[colDoseAplic]].join('§');
+      if (!grupos.has(chave)) grupos.set(chave, { row, contagem: 0 });
+      grupos.get(chave).contagem++;
+    });
+    return [...grupos.values()]
+      .map(({ row, contagem }) => _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem))
+      .join('');
   }
 
   // ── Card de UMA Ordem de Serviço, com todos os produtos aplicados nela
@@ -4210,7 +4234,7 @@ iniciarSabedoria();
     const dataLinha = osRows.find(r => (r[colData] || '').trim())?.[colData] || '—';
     const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
     const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-    const linhas = osRows.map(r => _tratosProdutoLinhaHTML(r, mostrarTalhao)).join('');
+    const linhas = _tratosProdutoLinhasDedup(osRows, mostrarTalhao);
     return `<div class="tratos-os-card">
       <div class="toc-topo">
         <span class="toc-os">O.S. ${esc(os)}</span>
