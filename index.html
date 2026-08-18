@@ -1655,98 +1655,63 @@
               </select>
             </div>
 
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-fazenda">
+            <div class="field tratos-ms-field" data-ms="fazenda">
               <label>Fazenda</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-fazenda">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todas —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-fazenda')"
-                         onfocus="tratosSSAbrir('tratos-filtro-fazenda')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-fazenda')"></i>
+              <div class="tratos-ms" id="ms-tratos-filtro-fazenda">
+                <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('fazenda')">
+                  <i class="fas fa-search tratos-ms-icon"></i>
+                  <span class="tratos-ms-display" id="ms-display-fazenda">— Todas —</span>
+                  <i class="fas fa-times tratos-ms-clear" id="ms-clear-fazenda" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('fazenda')"></i>
+                  <i class="fas fa-chevron-down tratos-ms-chevron"></i>
                 </div>
-                <div class="tratos-ss-lista"></div>
+                <div class="tratos-ms-lista">
+                  <div class="tratos-ms-search"><input type="text" placeholder="Buscar fazenda..." oninput="tratosMSFiltrarTexto('fazenda', this.value)" onclick="event.stopPropagation()"></div>
+                  <div class="tratos-ms-opcoes" id="ms-opcoes-fazenda"></div>
+                </div>
               </div>
-              <select id="tratos-filtro-fazenda" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todas —</option>
-              </select>
             </div>
 
             <!-- Linha 2: Operação (full width em mobile) -->
-            <div class="field field-full tratos-ss-field" data-ss="tratos-filtro-operacao">
+            <div class="field field-full tratos-ms-field" data-ms="operacao">
               <label>Operação Agrícola</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-operacao">
+              <div class="tratos-ms" id="ms-tratos-filtro-operacao">
+                <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('operacao')">
+                  <i class="fas fa-search tratos-ms-icon"></i>
+                  <span class="tratos-ms-display" id="ms-display-operacao">— Todas —</span>
+                  <i class="fas fa-times tratos-ms-clear" id="ms-clear-operacao" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('operacao')"></i>
+                  <i class="fas fa-chevron-down tratos-ms-chevron"></i>
+                </div>
+                <div class="tratos-ms-lista">
+                  <div class="tratos-ms-search"><input type="text" placeholder="Buscar operação..." oninput="tratosMSFiltrarTexto('operacao', this.value)" onclick="event.stopPropagation()"></div>
+                  <div class="tratos-ms-opcoes" id="ms-opcoes-operacao"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Linha 3: Grupo de Operação (full width em mobile) -->
+            <div class="field field-full tratos-ss-field" data-ss="tratos-filtro-grupoop">
+              <label>Grupo de Operação</label>
+              <div class="tratos-ss" id="ss-tratos-filtro-grupoop">
                 <div class="tratos-ss-input-wrap">
                   <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todas —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-operacao')"
-                         onfocus="tratosSSAbrir('tratos-filtro-operacao')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-operacao')"></i>
+                  <input type="text" class="tratos-ss-input" placeholder="Ex.: TRATOS SOCA — Todos —" autocomplete="off"
+                         oninput="tratosSSFiltrar('tratos-filtro-grupoop')"
+                         onfocus="tratosSSAbrir('tratos-filtro-grupoop')">
+                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-grupoop')"></i>
                 </div>
                 <div class="tratos-ss-lista"></div>
               </div>
-              <select id="tratos-filtro-operacao" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todas —</option>
+              <select id="tratos-filtro-grupoop" onchange="filtrarTratos()" style="display:none;">
+                <option value="">— Todos —</option>
               </select>
             </div>
           </div>
 
-          <!-- Linha 2.5: Mais filtros (Setor / Bloco / Talhão / Aplicador / Município / Processo / Empresa / Safra) -->
+          <!-- Linha 2.5: Mais filtros (Aplicador / Empresa / Safra) -->
           <div class="tratos-mais-filtros-toggle" onclick="toggleMaisFiltrosTratos(this)">
             <i class="fas fa-sliders"></i> <span>Mais filtros</span> <i class="fas fa-chevron-down toggle-chevron"></i>
           </div>
           <div class="tratos-filtros-grid" id="tratos-filtros-mais" style="display:none;">
-
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-setor">
-              <label>Setor</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-setor">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-setor')"
-                         onfocus="tratosSSAbrir('tratos-filtro-setor')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-setor')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-setor" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
-            </div>
-
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-bloco">
-              <label>Bloco</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-bloco">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-bloco')"
-                         onfocus="tratosSSAbrir('tratos-filtro-bloco')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-bloco')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-bloco" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
-            </div>
-
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-talhao">
-              <label>Talhão</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-talhao">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-talhao')"
-                         onfocus="tratosSSAbrir('tratos-filtro-talhao')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-talhao')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-talhao" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
-            </div>
 
             <div class="field tratos-ss-field" data-ss="tratos-filtro-aplicador">
               <label>Aplicador</label>
@@ -1761,40 +1726,6 @@
                 <div class="tratos-ss-lista"></div>
               </div>
               <select id="tratos-filtro-aplicador" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
-            </div>
-
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-municipio">
-              <label>Município</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-municipio">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-municipio')"
-                         onfocus="tratosSSAbrir('tratos-filtro-municipio')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-municipio')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-municipio" onchange="filtrarTratos()" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
-            </div>
-
-            <div class="field field-full tratos-ss-field" data-ss="tratos-filtro-processo">
-              <label>Processo</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-processo">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-processo')"
-                         onfocus="tratosSSAbrir('tratos-filtro-processo')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-processo')"></i>
-                </div>
-                <div class="tratos-ss-lista"></div>
-              </div>
-              <select id="tratos-filtro-processo" onchange="filtrarTratos()" style="display:none;">
                 <option value="">— Todos —</option>
               </select>
             </div>
