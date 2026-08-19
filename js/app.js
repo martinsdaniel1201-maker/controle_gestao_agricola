@@ -3960,7 +3960,10 @@ iniciarSabedoria();
      SINCRONIZAÇÃO COM SUPABASE (public.tratos_pcp)
      — Tabela no schema "public" (evita o erro 406 do schema "ctt"
        não exposto na Data API — ver /sql/01_criar_tabela_tratos_pcp.sql)
-     — Lê o que já está carregado em window._tratosDados (planilha PCP)
+     — Busca a planilha PCP direto do Google Sheets (fonte da verdade
+       pra sincronizar) via _tratosCarregarCSVFonte() — não usa
+       window._tratosDados, que a partir de agora vem do Supabase
+       (é o que a TELA usa pra exibir, não pra sincronizar)
      — Monta 1 registro por linha, com um hash SHA-256 de TODO o
        conteúdo relevante da linha como chave de upsert idempotente.
        Isso é o que garante "não duplicar": resincronizar a mesma
@@ -4033,20 +4036,18 @@ iniciarSabedoria();
   }
 
   async function sincronizarTratosSupabase() {
-    if (!window._tratosDados || !window._tratosDados.length) {
-      if (typeof showToast === 'function') showToast('⚠️ Carregue os dados de Tratos primeiro (abra a tela e aguarde).', 'error', 3000);
-      return;
-    }
     if (typeof _sbClient === 'undefined') {
       if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000);
       return;
     }
     const btn = document.getElementById('btn-tratos-sync-supabase');
-    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando...'; }
+    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando planilha...'; }
 
     try {
-      const cols = window._tratosCols || {};
-      const dados = window._tratosDados;
+      // 0) Busca a planilha PCP fresquinha do Google Sheets (fonte da verdade
+      //    pra sincronizar — não usa window._tratosDados, que agora vem do
+      //    Supabase e não da planilha)
+      const { dados, cols } = await _tratosCarregarCSVFonte();
       const total = dados.length;
 
       // 1) Monta os registros (com hash) em blocos, sem travar a UI
@@ -4074,13 +4075,17 @@ iniciarSabedoria();
       } else {
         if (typeof showToast === 'function') showToast(`⚠️ Sincronizado com ${erros} lote(s) com erro — veja o console (F12).`, 'error', 5000);
       }
+
+      // 3) Recarrega a tela a partir do Supabase, já com os dados novos
+      await carregarDadosTratos();
     } catch (e) {
       console.error('[Tratos→Supabase] erro geral', e);
       if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar com o Supabase — veja o console (F12).', 'error', 5000);
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i> Sincronizar Supabase'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
     }
   }
+
 
   // ── Definição dos NÍVEIS de agrupamento por dimensão de relatório ───────
   //   Cada nível tem uma chave de agrupamento (key) e um texto de exibição
@@ -4828,67 +4833,149 @@ iniciarSabedoria();
     });
   });
 
-  // ── Carrega CSV ──────────────────────────────────────────────────────────
-  function carregarDadosTratos() {
+  // ── Carrega a planilha PCP direto do Google Sheets (uso interno) ──────────
+  // Usada SÓ pela sincronização (sincronizarTratosSupabase) — não alimenta
+  // mais a tela diretamente. A leitura que a tela usa é carregarDadosTratos(),
+  // que lê do Supabase (ver mais abaixo).
+  function _tratosCarregarCSVFonte() {
+    return new Promise((resolve, reject) => {
+      Papa.parse(URL_TRATOS, {
+        download     : true,
+        header       : true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          if (!results.data || results.data.length === 0) {
+            reject(new Error('Nenhum dado encontrado na aba PCP.'));
+            return;
+          }
+          const cols = detectarColunas(results.meta.fields || []);
+          resolve({ dados: results.data, cols });
+        },
+        error: function(err) { reject(err); }
+      });
+    });
+  }
+
+  // Mapeamento fixo das colunas da tabela public.tratos_pcp (Supabase).
+  // Definido por nós (ver /sql/01_criar_tabela_tratos_pcp.sql), então não
+  // precisa de detecção — os nomes já são exatamente esses.
+  const TRATOS_SUPABASE_COLS = {
+    colData: 'data_aplicacao', colOS: 'nr_os',
+    colCodProd: 'cod_produto', colDescProd: 'desc_produto',
+    colCodOp: 'cod_operacao', colDescOp: 'desc_operacao',
+    colCodFazenda: 'cod_fazenda', colFazenda: 'desc_fazenda',
+    colArea: 'area_aplicada', colDoseRec: 'dose_recomendada', colDoseAplic: 'dose_aplicada',
+    colCodEmpresa: 'cod_empresa', colAbvEmpresa: 'abv_empresa',
+    colLancamento: 'nro_lancamento', colSafra: 'safra',
+    colCodFuncionario: 'cod_funcionario', colFuncionario: 'nome_funcionario',
+    colCodProcesso: 'cod_processo', colDescProcesso: 'desc_processo',
+    colCodSubprocesso: 'cod_subprocesso', colDescSubprocesso: 'desc_subprocesso',
+    colCodGrupoOp: 'cod_grupo_op', colDescGrupoOp: 'desc_grupo_op',
+    colUnidade: 'unidade', colCodSetor: 'cod_setor', colDescSetor: 'desc_setor',
+    colCodBloco: 'cod_bloco', colDescBloco: 'desc_bloco', colCodTalhao: 'cod_talhao',
+    colMunicipio: 'municipio', colVariedade: 'variedade', colSituacaoTalhao: 'situacao_talhao',
+  };
+
+  // Converte number/string numérica (Postgres numeric, decimal com ponto)
+  // para o formato BR com vírgula, igual ao que a planilha sempre mostrou.
+  function _numParaBR(v) {
+    if (v === null || v === undefined || v === '') return '';
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return isNaN(n) ? '' : String(n).replace('.', ',');
+  }
+
+  // Busca TODAS as linhas de public.tratos_pcp, paginando de 1000 em 1000
+  // (limite padrão do Supabase por requisição).
+  async function _tratosBuscarSupabasePaginado() {
+    const PAGINA = 1000;
+    let de = 0, todas = [];
+    while (true) {
+      const { data, error } = await _sbClient
+        .from('tratos_pcp')
+        .select('*')
+        .order('id', { ascending: true })
+        .range(de, de + PAGINA - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      todas.push(...data);
+      if (data.length < PAGINA) break;
+      de += PAGINA;
+    }
+    return todas;
+  }
+
+  // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
+  async function carregarDadosTratos() {
     _tratosIniciado = true;
     const contador    = document.getElementById('tratos-contador');
     const corpoTabela = document.getElementById('corpo-tabela-tratos');
     if (contador)    contador.textContent = 'Carregando...';
     if (corpoTabela) corpoTabela.innerHTML =
       `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
-        <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados PCP...
+        <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados de Tratos...
       </td></tr>`;
 
-    Papa.parse(URL_TRATOS, {
-      download     : true,
-      header       : true,
-      skipEmptyLines: true,
-      complete: function(results) {
-        if (!results.data || results.data.length === 0) {
-          if (corpoTabela) corpoTabela.innerHTML =
-            `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
-              <i class="fas fa-info-circle" style="margin-right:6px;"></i>
-              Nenhum dado encontrado na aba PCP.
-            </td></tr>`;
-          if (contador) contador.textContent = '0 registros';
-          return;
-        }
+    if (typeof _sbClient === 'undefined') {
+      if (contador) contador.textContent = 'Erro ao carregar';
+      if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
+      return;
+    }
 
-        const cols = detectarColunas(results.meta.fields || []);
-        window._tratosCols      = cols;
-        window._tratosDados     = results.data;
-        window._tratosFiltrados = results.data;
-
-        // Popula os filtros de valor único (Produto / Grupo de Operação)
-        popularSelectCodDesc('tratos-filtro-produto',  results.data, cols.colCodProd,    cols.colDescProd, '— Todos —');
-        popularSelectCodDesc('tratos-filtro-grupoop',  results.data, cols.colCodGrupoOp, cols.colDescGrupoOp, '— Todos —');
-        _tratosSSSync('tratos-filtro-produto');
-        _tratosSSSync('tratos-filtro-grupoop');
-
-        // Popula os filtros de seleção múltipla (Fazenda / Operação Agrícola)
-        _tratosMSPopular('fazenda',  results.data, cols.colCodFazenda, cols.colFazenda);
-        _tratosMSPopular('operacao', results.data, cols.colCodOp,      cols.colDescOp);
-
-        // Filtros restantes em "Mais filtros" (Aplicador / Empresa / Safra)
-        popularSelectCodDesc('tratos-filtro-aplicador', results.data, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
-        popularSelectCodDesc('tratos-filtro-empresa',   results.data, cols.colCodEmpresa,     cols.colAbvEmpresa,      '— Todas —');
-        popularSelect       ('tratos-filtro-safra',     results.data, cols.colSafra,                                   '— Todas —');
-        _tratosSSSync('tratos-filtro-aplicador');
-
-        renderizarTratos(results.data);
-        if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
-      },
-      error: function(err) {
-        console.error('[Tratos] Erro CSV:', err);
+    try {
+      const brutos = await _tratosBuscarSupabasePaginado();
+      if (!brutos.length) {
         if (corpoTabela) corpoTabela.innerHTML =
-          `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
-            <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
-            Erro ao carregar dados. Verifique a conexão ou o gid da aba PCP.
+          `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
+            <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+            Nenhum dado sincronizado ainda. Use o ícone de nuvem para sincronizar.
           </td></tr>`;
-        if (contador) contador.textContent = 'Erro ao carregar';
+        if (contador) contador.textContent = '0 registros';
+        return;
       }
-    });
+
+      // Normaliza os 3 campos numéricos pro formato BR (vírgula), igual à
+      // planilha original — o resto das linhas já vem com os nomes certos.
+      const dados = brutos.map(r => ({
+        ...r,
+        area_aplicada   : _numParaBR(r.area_aplicada),
+        dose_recomendada: _numParaBR(r.dose_recomendada),
+        dose_aplicada   : _numParaBR(r.dose_aplicada),
+      }));
+
+      const cols = TRATOS_SUPABASE_COLS;
+      window._tratosCols      = cols;
+      window._tratosDados     = dados;
+      window._tratosFiltrados = dados;
+
+      // Popula os filtros de valor único (Produto / Grupo de Operação)
+      popularSelectCodDesc('tratos-filtro-produto',  dados, cols.colCodProd,    cols.colDescProd, '— Todos —');
+      popularSelectCodDesc('tratos-filtro-grupoop',  dados, cols.colCodGrupoOp, cols.colDescGrupoOp, '— Todos —');
+      _tratosSSSync('tratos-filtro-produto');
+      _tratosSSSync('tratos-filtro-grupoop');
+
+      // Popula os filtros de seleção múltipla (Fazenda / Operação Agrícola)
+      _tratosMSPopular('fazenda',  dados, cols.colCodFazenda, cols.colFazenda);
+      _tratosMSPopular('operacao', dados, cols.colCodOp,      cols.colDescOp);
+
+      // Filtros restantes em "Mais filtros" (Aplicador / Empresa / Safra)
+      popularSelectCodDesc('tratos-filtro-aplicador', dados, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
+      popularSelectCodDesc('tratos-filtro-empresa',   dados, cols.colCodEmpresa,     cols.colAbvEmpresa,      '— Todas —');
+      popularSelect       ('tratos-filtro-safra',     dados, cols.colSafra,                                   '— Todas —');
+      _tratosSSSync('tratos-filtro-aplicador');
+
+      renderizarTratos(dados);
+      if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
+    } catch (err) {
+      console.error('[Tratos] Erro Supabase:', err);
+      if (corpoTabela) corpoTabela.innerHTML =
+        `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
+          <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+          Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.
+        </td></tr>`;
+      if (contador) contador.textContent = 'Erro ao carregar';
+    }
   }
+
 
   // ── Exporta PDF da tabela filtrada ──────────────────────────────────────
   function exportarPDFTratos() {
