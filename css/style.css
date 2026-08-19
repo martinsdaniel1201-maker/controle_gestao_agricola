@@ -250,6 +250,32 @@
     }
     .tratos-card-collapsible.open .tratos-chevron-hint { opacity: 0; pointer-events: none; }
 
+    /* ── Ações discretas no cabeçalho do card de Filtros (Atualizar / Sync / Exportar) ── */
+    .tratos-header-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .tratos-header-icon-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      width: 30px; height: 30px; flex-shrink: 0;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface2); color: var(--text-3);
+      font-size: 12px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .tratos-header-icon-btn:hover { color: var(--green-700); border-color: var(--green-500); }
+    .tratos-header-icon-btn:disabled { opacity: 0.6; cursor: default; }
+    /* Durante a sincronização com Supabase o botão mostra texto de progresso — deixa crescer */
+    #btn-tratos-sync-supabase:disabled { width: auto; padding: 0 10px; }
+
+    /* ── Botão único "Filtrar" — só aplica os filtros quando clicado ── */
+    .tratos-btn-filtrar {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--green-700); color: white; border: none;
+      padding: 9px 18px; border-radius: var(--radius-sm);
+      font-weight: 800; font-size: 12px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .tratos-btn-filtrar:hover { opacity: 0.88; }
+    .tratos-btn-filtrar:active { transform: scale(0.98); }
+
     /* ── RESUMO EXECUTIVO — TRATOS CULTURAIS (mesmo padrão visual da Home) ── */
     #tratos-resumo-executivo {
       display: grid;
