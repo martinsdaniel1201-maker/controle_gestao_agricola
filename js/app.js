@@ -3957,7 +3957,9 @@ iniciarSabedoria();
   window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
 
   /* ══════════════════════════════════════════════════════════════
-     SINCRONIZAÇÃO COM SUPABASE (ctt.tratos_pcp)
+     SINCRONIZAÇÃO COM SUPABASE (public.tratos_pcp)
+     — Tabela no schema "public" (evita o erro 406 do schema "ctt"
+       não exposto na Data API — ver /sql/01_criar_tabela_tratos_pcp.sql)
      — Lê o que já está carregado em window._tratosDados (planilha PCP)
      — Monta 1 registro por linha, com um hash SHA-256 de TODO o
        conteúdo relevante da linha como chave de upsert idempotente.
@@ -4061,7 +4063,7 @@ iniciarSabedoria();
       let enviados = 0, erros = 0;
       for (let i = 0; i < registros.length; i += LOTE) {
         const lote = registros.slice(i, i + LOTE);
-        const { error } = await _sbClient.schema('ctt').from('tratos_pcp').upsert(lote, { onConflict: 'linha_hash' });
+        const { error } = await _sbClient.from('tratos_pcp').upsert(lote, { onConflict: 'linha_hash' });
         if (error) { erros++; console.error('[Tratos→Supabase] erro no lote', i, error); }
         enviados += lote.length;
         if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Enviando... ${enviados}/${registros.length}`;
@@ -4605,11 +4607,11 @@ iniciarSabedoria();
   }
 
   /* ══════════════════════════════════════════════════════════════
-     SEARCH-SELECT CUSTOMIZADO (Produto / Fazenda / Operação)
+     SEARCH-SELECT CUSTOMIZADO (Produto / Grupo de Operação / Aplicador)
      — O <select> real fica oculto e é a única fonte de verdade.
-     — O componente visual só lê as <option> dele e, ao escolher,
-       seta sel.value + dispara 'change' para reusar filtrarTratos()
-       sem duplicar nenhuma lógica de filtro já existente.
+     — Ao escolher, apenas seta sel.value (dispara 'change' por
+       compatibilidade, mas nada mais ouve esse evento) — o filtro só
+       é aplicado quando o usuário clica no botão "Filtrar".
   ══════════════════════════════════════════════════════════════ */
   function _tratosSSRefs(selectId) {
     const sel    = document.getElementById(selectId);
@@ -4782,14 +4784,14 @@ iniciarSabedoria();
     const sel = window._tratosMultiSel[campo];
     if (marcado) sel.add(val); else sel.delete(val);
     _tratosMSSyncDisplay(campo);
-    filtrarTratos();
+    // Só marca a seleção — o filtro só é aplicado quando o usuário clica em "Filtrar"
   }
 
   function tratosMSLimpar(campo) {
     window._tratosMultiSel[campo].clear();
     _tratosMSRenderLista(campo, '');
     _tratosMSSyncDisplay(campo);
-    filtrarTratos();
+    // Só marca a seleção — o filtro só é aplicado quando o usuário clica em "Filtrar"
   }
   window.tratosMSAbrir = tratosMSAbrir;
   window.tratosMSFiltrarTexto = tratosMSFiltrarTexto;
