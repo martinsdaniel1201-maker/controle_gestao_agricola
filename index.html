@@ -1632,7 +1632,12 @@
       <div class="card tratos-card-collapsible open">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
           <div class="card-title" style="margin:0;"><i class="fas fa-filter"></i> Filtros</div>
-          <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+          <div class="tratos-header-actions">
+            <button class="tratos-header-icon-btn" title="Atualizar dados" onclick="event.stopPropagation(); carregarDadosTratos()"><i class="fas fa-sync-alt"></i></button>
+            <button class="tratos-header-icon-btn" id="btn-tratos-sync-supabase" title="Sincronizar Supabase" onclick="event.stopPropagation(); sincronizarTratosSupabase()"><i class="fas fa-cloud-arrow-up"></i></button>
+            <button class="tratos-header-icon-btn" title="Exportar Excel" onclick="event.stopPropagation(); exportarTratosExcel()"><i class="fas fa-file-excel"></i></button>
+            <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+          </div>
         </div>
         <div class="tratos-card-body">
 
@@ -1650,7 +1655,7 @@
                 </div>
                 <div class="tratos-ss-lista"></div>
               </div>
-              <select id="tratos-filtro-produto" onchange="filtrarTratos()" style="display:none;">
+              <select id="tratos-filtro-produto" style="display:none;">
                 <option value="">— Todos —</option>
               </select>
             </div>
@@ -1694,14 +1699,14 @@
               <div class="tratos-ss" id="ss-tratos-filtro-grupoop">
                 <div class="tratos-ss-input-wrap">
                   <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="Ex.: TRATOS SOCA — Todos —" autocomplete="off"
+                  <input type="text" class="tratos-ss-input" placeholder="Ex.: TRATOS SOCA" autocomplete="off"
                          oninput="tratosSSFiltrar('tratos-filtro-grupoop')"
                          onfocus="tratosSSAbrir('tratos-filtro-grupoop')">
                   <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-grupoop')"></i>
                 </div>
                 <div class="tratos-ss-lista"></div>
               </div>
-              <select id="tratos-filtro-grupoop" onchange="filtrarTratos()" style="display:none;">
+              <select id="tratos-filtro-grupoop" style="display:none;">
                 <option value="">— Todos —</option>
               </select>
             </div>
@@ -1725,21 +1730,21 @@
                 </div>
                 <div class="tratos-ss-lista"></div>
               </div>
-              <select id="tratos-filtro-aplicador" onchange="filtrarTratos()" style="display:none;">
+              <select id="tratos-filtro-aplicador" style="display:none;">
                 <option value="">— Todos —</option>
               </select>
             </div>
 
             <div class="field">
               <label>Empresa</label>
-              <select id="tratos-filtro-empresa" onchange="filtrarTratos()">
+              <select id="tratos-filtro-empresa">
                 <option value="">— Todas —</option>
               </select>
             </div>
 
             <div class="field">
               <label>Safra</label>
-              <select id="tratos-filtro-safra" onchange="filtrarTratos()">
+              <select id="tratos-filtro-safra">
                 <option value="">— Todas —</option>
               </select>
             </div>
@@ -1750,28 +1755,20 @@
           <div class="tratos-filtros-datas">
             <div class="field">
               <label>Data De</label>
-              <input type="date" id="tratos-filtro-data-ini" onchange="filtrarTratos()">
+              <input type="date" id="tratos-filtro-data-ini">
             </div>
             <div class="field">
               <label>Data Até</label>
-              <input type="date" id="tratos-filtro-data-fim" onchange="filtrarTratos()">
+              <input type="date" id="tratos-filtro-data-fim">
             </div>
           </div>
 
-          <!-- Linha 4: contador + botões -->
+          <!-- Linha 4: contador + botão Filtrar -->
           <div class="tratos-filtros-actions">
             <div id="tratos-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">—</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn-clima" onclick="carregarDadosTratos()" style="padding:8px 14px; font-size:11px;">
-                <i class="fas fa-sync-alt"></i> Atualizar
-              </button>
-              <button id="btn-tratos-sync-supabase" onclick="sincronizarTratosSupabase()" style="background:#2b6cb0; color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                <i class="fas fa-cloud-arrow-up"></i> Sincronizar Supabase
-              </button>
-              <button onclick="exportarTratosExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                <i class="fas fa-file-excel"></i> Exportar
-              </button>
-            </div>
+            <button class="tratos-btn-filtrar" onclick="filtrarTratos()">
+              <i class="fas fa-filter"></i> Filtrar
+            </button>
           </div>
 
         </div>
