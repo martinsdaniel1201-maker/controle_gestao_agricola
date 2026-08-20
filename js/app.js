@@ -1777,19 +1777,187 @@ function calcularVariedade() {
 /* ══════════════════════════════════════════════
    LIBERAÇÕES (GATEC)
 ══════════════════════════════════════════════ */
+const URL_GATEC_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
+
+// ── Helpers próprios do módulo (mesmo padrão usado em Tratos) ──────────────
+function _gatecTxtOuNull(v) {
+  const s = (v ?? '').toString().trim();
+  return s === '' ? null : s;
+}
+function _gatecParseNumBR(v) {
+  if (v === null || v === undefined) return NaN;
+  const s = String(v).trim();
+  if (s === '') return NaN;
+  return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+}
+function _gatecNumOuNull(v) {
+  const n = _gatecParseNumBR(v);
+  return isNaN(n) ? null : n;
+}
+function _gatecNumParaBR(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return isNaN(n) ? '' : String(n).replace('.', ',');
+}
+async function _gatecSha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Monta 1 linha pronta pro Supabase (colunas limpas + hash de deduplicação)
+async function _gatecMontarRegistroSupabase(row) {
+  const reg = {
+    cod_liberacao   : _gatecTxtOuNull(row['LIBERAÇÃO']),
+    frente          : _gatecTxtOuNull(row['FRENTE']),
+    desc_fazenda    : _gatecTxtOuNull(row['DESC.FAZENDA']),
+    listagem_talhao : _gatecTxtOuNull(row['LISTAGEM TALHAO']),
+    prod_estimada   : _gatecNumOuNull(row['PROD. ESTIMADA']),
+    prod_real       : _gatecNumOuNull(row['PROD. REAL']),
+    dif_prod        : _gatecNumOuNull(row['DIF PROD.']),
+    tch             : _gatecNumOuNull(row['TCH']),
+    status_os       : _gatecTxtOuNull(row['STATUS OS']),
+  };
+  const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
+  reg.linha_hash = await _gatecSha256Hex(base);
+  return reg;
+}
+
+// Busca a planilha de Liberações direto do Google Sheets (uso interno,
+// só pra sincronização — não alimenta mais a tela diretamente)
+function _gatecCarregarCSVFonte() {
+  return new Promise((resolve, reject) => {
+    Papa.parse(URL_GATEC_CSV, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
+        resolve(results.data);
+      },
+      error: reject,
+    });
+  });
+}
+
+// Busca TODAS as linhas de public.liberacoes_gatec, paginando de 1000 em 1000
+async function _gatecBuscarSupabasePaginado() {
+  const PAGINA = 1000;
+  let de = 0, todas = [];
+  while (true) {
+    const { data, error } = await _sbClient
+      .from('liberacoes_gatec')
+      .select('*')
+      .order('id', { ascending: true })
+      .range(de, de + PAGINA - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todas.push(...data);
+    if (data.length < PAGINA) break;
+    de += PAGINA;
+  }
+  return todas;
+}
+
+// Envia a planilha atual do Google Sheets pro Supabase (upsert idempotente)
+async function sincronizarGatecSupabase() {
+  if (typeof _sbClient === 'undefined') {
+    if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000);
+    return;
+  }
+  const btn = document.getElementById('btn-gatec-sync-supabase');
+  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando planilha...'; }
+
+  try {
+    const dados = await _gatecCarregarCSVFonte();
+    const total = dados.length;
+
+    const registros = [];
+    for (let i = 0; i < total; i += 1000) {
+      const bloco = dados.slice(i, i + 1000);
+      const blocoPronto = await Promise.all(bloco.map(_gatecMontarRegistroSupabase));
+      registros.push(...blocoPronto);
+      if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Preparando... ${Math.min(i + 1000, total)}/${total}`;
+    }
+
+    const LOTE = 300;
+    let enviados = 0, erros = 0;
+    for (let i = 0; i < registros.length; i += LOTE) {
+      const lote = registros.slice(i, i + LOTE);
+      const { error } = await _sbClient.from('liberacoes_gatec').upsert(lote, { onConflict: 'linha_hash' });
+      if (error) { erros++; console.error('[Liberações→Supabase] erro no lote', i, error); }
+      enviados += lote.length;
+      if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Enviando... ${enviados}/${registros.length}`;
+    }
+
+    if (erros === 0) {
+      if (typeof showToast === 'function') showToast(`✅ Supabase sincronizado: ${registros.length} linhas.`, 'success', 4000);
+    } else {
+      if (typeof showToast === 'function') showToast(`⚠️ Sincronizado com ${erros} lote(s) com erro — veja o console (F12).`, 'error', 5000);
+    }
+
+    await carregarDadosGATEC();
+  } catch (e) {
+    console.error('[Liberações→Supabase] erro geral', e);
+    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar com o Supabase — veja o console (F12).', 'error', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
+  }
+}
+
 async function carregarDadosGATEC() {
-  const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
-  Papa.parse(URL_CSV, {
-    download: true, header: true, skipEmptyLines: true,
-    complete: function(results) {
-      window._gatecDados = results.data; // salva para exportação
+  const corpoPrevia = document.getElementById('corpo-tabela-gatec');
+  if (corpoPrevia) corpoPrevia.innerHTML =
+    `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
+      <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando Liberações...
+    </td></tr>`;
+
+  if (typeof _sbClient === 'undefined') {
+    if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
+    return;
+  }
+
+  let dados;
+  try {
+    const brutos = await _gatecBuscarSupabasePaginado();
+    // Remonta as linhas com as MESMAS chaves de sempre (cabeçalho original
+    // da planilha) — o resto do app inteiro já espera esse formato, então
+    // nada mais precisa mudar além de onde os dados são buscados.
+    dados = brutos.map(r => ({
+      'LIBERAÇÃO'      : r.cod_liberacao || '',
+      'FRENTE'         : r.frente || '',
+      'DESC.FAZENDA'   : r.desc_fazenda || '',
+      'LISTAGEM TALHAO': r.listagem_talhao || '',
+      'PROD. ESTIMADA' : _gatecNumParaBR(r.prod_estimada),
+      'PROD. REAL'     : _gatecNumParaBR(r.prod_real),
+      'DIF PROD.'      : _gatecNumParaBR(r.dif_prod),
+      'TCH'            : _gatecNumParaBR(r.tch),
+      'STATUS OS'      : r.status_os || '',
+    }));
+  } catch (err) {
+    console.error('[Liberações] Erro Supabase:', err);
+    if (corpoPrevia) corpoPrevia.innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
+        <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+        Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.
+      </td></tr>`;
+    return;
+  }
+
+  if (!dados.length) {
+    if (corpoPrevia) corpoPrevia.innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
+        <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+        Nenhum dado sincronizado ainda. Use o ícone de nuvem pra sincronizar.
+      </td></tr>`;
+    return;
+  }
+
+  window._gatecDados = dados; // salva para exportação
 	 const resumoFrentes = {};
 let totalProduzido = 0;
 
 // Lista de frentes permitidas (mantida do filtro anterior)
 const frentesPermitidas = ["401", "402", "403", "404", "451"];
 
-results.data.forEach(row => {
+dados.forEach(row => {
     const frente = (row["FRENTE"] || "Sem Frente").trim();
 
     // Filtro para somar apenas as frentes desejadas
@@ -1898,7 +2066,7 @@ if (resumoCards) {
     }
 }
       const corpo = document.getElementById('corpo-tabela-gatec');
-      corpo.innerHTML = results.data.map(row => {
+      corpo.innerHTML = dados.map(row => {
         const status = (row["STATUS OS"] || "").toUpperCase().trim();
         const isEncerrada = status.includes("ENCERRADA");
         const prodEst  = row["PROD. ESTIMADA"] || "";
@@ -1931,7 +2099,7 @@ if (resumoCards) {
       filtrarTabela();
 
       // Atualizar badge de abertas no menu home
-      const abertas = results.data.filter(row => {
+      const abertas = dados.filter(row => {
         const s = (row["STATUS OS"] || "").toUpperCase().trim();
         return !s.includes("ENCERRADA");
       }).length;
@@ -1958,51 +2126,127 @@ if (resumoCards) {
       registrarSync('ok', 'GATEC/Liberações');
       // MELHORIA 1+4+5: atualiza resumo executivo da home
       atualizarResumoExecutivo();
-    }
-  });
 }
 
 /* ══════════════════════════════════════════════
    CONFERÊNCIA OPERADORES X O.S
 ══════════════════════════════════════════════ */
+// Chaves fixas da tabela public.conf_os — a leitura vem de lá, não mais
+// do CSV público. O CSV só é usado pela sincronização manual (ícone nuvem).
+const URL_CONF = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=781227222&single=true&output=csv";
+
+function _confTxtOuNull(v) {
+  const s = (v ?? '').toString().trim();
+  return s === '' ? null : s;
+}
+async function _confSha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function _confMontarRegistroSupabase(row, cols) {
+  const reg = {
+    nr_os             : _confTxtOuNull(row[cols.colOS]),
+    data_encerramento : _confTxtOuNull(row[cols.colData]),
+    desc_fazenda      : _confTxtOuNull(row[cols.colFazenda]),
+    desc_operacao     : _confTxtOuNull(row[cols.colOperacao]),
+    observacao        : _confTxtOuNull(row[cols.colObs]),
+  };
+  const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
+  reg.linha_hash = await _confSha256Hex(base);
+  return reg;
+}
+function _confDetectarColunas(fields) {
+  function findCol(keywords) {
+    return fields.find(c => keywords.some(k => c.toUpperCase().includes(k))) || '';
+  }
+  return {
+    colOS       : findCol(['Nº', 'N°', 'NO', 'OS', 'O.S', 'NUMERO', 'NÚMERO']),
+    colData     : findCol(['DATA', 'ENCERR', 'FECHA']),
+    colFazenda  : findCol(['FAZENDA', 'FARM', 'PROPRI']),
+    colOperacao : findCol(['OPERA', 'AGRICOLA', 'AGRÍCOLA', 'ATIVIDADE', 'SERVIÇO', 'SERVICO']),
+    colObs      : findCol(['OBS', 'OBSERV']),
+  };
+}
+function _confCarregarCSVFonte() {
+  return new Promise((resolve, reject) => {
+    Papa.parse(URL_CONF, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
+        resolve({ dados: results.data, cols: _confDetectarColunas(results.meta.fields || []) });
+      },
+      error: reject,
+    });
+  });
+}
+async function _confBuscarSupabasePaginado() {
+  const PAGINA = 1000;
+  let de = 0, todas = [];
+  while (true) {
+    const { data, error } = await _sbClient.from('conf_os').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todas.push(...data);
+    if (data.length < PAGINA) break;
+    de += PAGINA;
+  }
+  return todas;
+}
+async function sincronizarConfOsSupabase() {
+  if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
+  const btn = document.getElementById('btn-conf-os-sync-supabase');
+  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const { dados, cols } = await _confCarregarCSVFonte();
+    const registros = await Promise.all(dados.map(row => _confMontarRegistroSupabase(row, cols)));
+    const LOTE = 300;
+    let erros = 0;
+    for (let i = 0; i < registros.length; i += LOTE) {
+      const lote = registros.slice(i, i + LOTE);
+      const { error } = await _sbClient.from('conf_os').upsert(lote, { onConflict: 'linha_hash' });
+      if (error) { erros++; console.error('[Conf O.S.→Supabase] erro no lote', i, error); }
+    }
+    if (typeof showToast === 'function') showToast(erros === 0 ? `✅ Supabase sincronizado: ${registros.length} linhas.` : `⚠️ ${erros} lote(s) com erro — veja o console.`, erros === 0 ? 'success' : 'error', 4000);
+    await carregarDadosConfOS();
+  } catch (e) {
+    console.error('[Conf O.S.→Supabase] erro geral', e);
+    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar — veja o console (F12).', 'error', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
+  }
+}
+window.sincronizarConfOsSupabase = sincronizarConfOsSupabase;
+
 async function carregarDadosConfOS() {
-  const URL_CONF = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=781227222&single=true&output=csv";
   const corpo = document.getElementById('corpo-tabela-conf-os');
   const contador = document.getElementById('conf-os-contador');
   if (!corpo) return;
   corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>`;
   if (contador) contador.textContent = 'Carregando...';
 
-  Papa.parse(URL_CONF, {
-    download: true, header: true, skipEmptyLines: true,
-    complete: function(results) {
-      if (!results.data || results.data.length === 0) {
-        corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>Nenhum dado encontrado.</td></tr>`;
-        if (contador) contador.textContent = '0 registros';
-        return;
-      }
-
-      // Descobrir nomes reais das colunas (ignora espaços extras)
-      const cols = results.meta.fields || [];
-      function findCol(keywords) {
-        return cols.find(c => keywords.some(k => c.toUpperCase().includes(k))) || '';
-      }
-      const colOS        = findCol(['Nº', 'N°', 'NO', 'OS', 'O.S', 'NUMERO', 'NÚMERO']);
-      const colData      = findCol(['DATA', 'ENCERR', 'FECHA']);
-      const colFazenda   = findCol(['FAZENDA', 'FARM', 'PROPRI']);
-      const colOperacao  = findCol(['OPERA', 'AGRICOLA', 'AGRÍCOLA', 'ATIVIDADE', 'SERVIÇO', 'SERVICO']);
-      const colObs       = findCol(['OBS', 'OBSERV']);
-
-      window._confOsDados = results.data;
-      window._confOsCols  = { colOS, colData, colFazenda, colOperacao, colObs };
-
-      renderTabelaConfOS(results.data);
-    },
-    error: function() {
-      corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;"><i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>Erro ao carregar dados. Verifique sua conexão.</td></tr>`;
-      if (contador) contador.textContent = 'Erro';
+  if (typeof _sbClient === 'undefined') {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Cliente Supabase não encontrado.</td></tr>`;
+    return;
+  }
+  try {
+    const brutos = await _confBuscarSupabasePaginado();
+    const dados = brutos.map(r => ({
+      NR_OS: r.nr_os || '', DATA_ENCERRAMENTO: r.data_encerramento || '',
+      DESC_FAZENDA: r.desc_fazenda || '', DESC_OPERACAO: r.desc_operacao || '', OBSERVACAO: r.observacao || '',
+    }));
+    window._confOsDados = dados;
+    window._confOsCols  = { colOS: 'NR_OS', colData: 'DATA_ENCERRAMENTO', colFazenda: 'DESC_FAZENDA', colOperacao: 'DESC_OPERACAO', colObs: 'OBSERVACAO' };
+    if (!dados.length) {
+      corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">Nenhum dado sincronizado ainda. Use o ícone de nuvem pra sincronizar.</td></tr>`;
+      if (contador) contador.textContent = '0 registros';
+      return;
     }
-  });
+    renderTabelaConfOS(dados);
+  } catch (err) {
+    console.error('[Conf O.S.] Erro Supabase:', err);
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Erro ao carregar dados do Supabase. Verifique se está logado.</td></tr>`;
+    if (contador) contador.textContent = 'Erro';
+  }
 }
 
 function renderTabelaConfOS(dados) {
@@ -5851,20 +6095,149 @@ iniciarSabedoria();
     ]);
   }
 
+  /* ── Sincronização com Supabase (empurra planilha → Supabase) ─────── */
+  function _plantioTxtOuNull(v) {
+    const s = (v ?? '').toString().trim();
+    return s === '' ? null : s;
+  }
+  function _plantioDataISO(d) {
+    if (!d || !(d instanceof Date) || isNaN(d)) return null;
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  async function _plantioSha256Hex(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function _plantioMontarRegistroDiario(r, safra) {
+    const reg = {
+      safra, data_plantio: _plantioDataISO(r.data), cod_fazenda: _plantioTxtOuNull(r.codFazenda),
+      desc_fazenda: _plantioTxtOuNull(r.fazenda), talhao: _plantioTxtOuNull(r.talhao),
+      area: isNaN(r.area) ? null : r.area, tipo_plantio: _plantioTxtOuNull(r.tipo), variedade: _plantioTxtOuNull(r.variedade),
+    };
+    reg.linha_hash = await _plantioSha256Hex(Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|'));
+    return reg;
+  }
+  async function _plantioMontarRegistroBase(r, safra) {
+    const reg = {
+      safra, cod_fazenda: _plantioTxtOuNull(r.codFazenda), desc_fazenda: _plantioTxtOuNull(r.fazenda),
+      talhao: _plantioTxtOuNull(r.talhao), variedade_atual: _plantioTxtOuNull(r.variedade),
+      ambiente: _plantioTxtOuNull(r.ambiente), area_total: isNaN(r.area) ? null : r.area,
+      estagio: _plantioTxtOuNull(r.estagio), ref_ciclo: _plantioTxtOuNull(r.refCiclo),
+      motivo_reforma: _plantioTxtOuNull(r.motivo), modelo_plantio: _plantioTxtOuNull(r.modelo),
+      frente: _plantioTxtOuNull(r.frente), data_plantio: _plantioDataISO(r.dataPlant),
+      mes_plantio: r.mes || null, tipo_plantio: _plantioTxtOuNull(r.tipo),
+    };
+    reg.linha_hash = await _plantioSha256Hex(Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|'));
+    return reg;
+  }
+  async function _plantioEnviarLotes(tabela, registros) {
+    const LOTE = 300;
+    for (let i = 0; i < registros.length; i += LOTE) {
+      const lote = registros.slice(i, i + LOTE);
+      const { error } = await _sbClient.from(tabela).upsert(lote, { onConflict: 'linha_hash' });
+      if (error) console.error(`[Plantio→Supabase] erro lote ${tabela} ${i}`, error);
+    }
+  }
+  async function sincronizarPlantioSupabase() {
+    if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
+    const btn = document.getElementById('btn-plantio-sync-supabase');
+    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    try {
+      for (const safra of ['26_27', '25_26']) {
+        const [rDiario, rBase] = await Promise.all([
+          _parseCsvSemHeader(URLS[safra].diario),
+          _parseCsvSemHeader(URLS[safra].base),
+        ]);
+        const diarioNorm = _normalizarDiario(rDiario);
+        const baseNorm   = _normalizarBase(rBase);
+        const regsDiario = await Promise.all(diarioNorm.map(r => _plantioMontarRegistroDiario(r, safra)));
+        const regsBase   = await Promise.all(baseNorm.map(r => _plantioMontarRegistroBase(r, safra)));
+        await _plantioEnviarLotes('plantio_diario', regsDiario);
+        await _plantioEnviarLotes('plantio_base', regsBase);
+      }
+      if (typeof showToast === 'function') showToast('✅ Plantio sincronizado com o Supabase!', 'success', 4000);
+      _cache[_safraAtual].loaded = false;
+      await _garantirSafraCarregada(_safraAtual);
+      if (_cache[_safraAtual].loaded) _renderizarTudo();
+    } catch (e) {
+      console.error('[Plantio→Supabase] erro geral', e);
+      if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar Plantio — veja o console (F12).', 'error', 5000);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
+    }
+  }
+  window.sincronizarPlantioSupabase = sincronizarPlantioSupabase;
+
+  /* ── Leitura da tela — vem do Supabase (paginado), não mais do CSV ── */
+  async function _plantioBuscarSupabase(tabela, safra) {
+    const PAGINA = 1000;
+    let de = 0, todas = [];
+    while (true) {
+      const { data, error } = await _sbClient.from(tabela).select('*').eq('safra', safra).order('id', { ascending: true }).range(de, de + PAGINA - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      todas.push(...data);
+      if (data.length < PAGINA) break;
+      de += PAGINA;
+    }
+    return todas;
+  }
+  function _plantioParseDataSupa(s) {
+    if (!s) return null;
+    const d = new Date(s + 'T00:00:00');
+    return isNaN(d) ? null : d;
+  }
+  async function _plantioCarregarDiarioSupabase(safra) {
+    const brutos = await _plantioBuscarSupabase('plantio_diario', safra);
+    return brutos.map(r => ({
+      data: _plantioParseDataSupa(r.data_plantio), codFazenda: r.cod_fazenda || '', fazenda: r.desc_fazenda || '',
+      talhao: r.talhao || '', area: parseFloat(r.area) || 0, tipo: r.tipo_plantio || 'Mecanizado', variedade: r.variedade || '',
+    })).filter(r => r.data && r.area > 0);
+  }
+  async function _plantioCarregarBaseSupabase(safra) {
+    const brutos = await _plantioBuscarSupabase('plantio_base', safra);
+    return brutos.map(r => ({
+      codFazenda: r.cod_fazenda || '', fazenda: r.desc_fazenda || '', talhao: r.talhao || '',
+      variedade: r.variedade_atual || '', ambiente: r.ambiente || '', area: parseFloat(r.area_total) || 0,
+      estagio: r.estagio || '', refCiclo: r.ref_ciclo || '', motivo: r.motivo_reforma || '', modelo: r.modelo_plantio || '',
+      frente: r.frente || '', dataPlant: _plantioParseDataSupa(r.data_plantio), mes: r.mes_plantio || 0, tipo: r.tipo_plantio || '',
+    })).filter(r => r.fazenda);
+  }
+  async function _plantioCarregarPcpSupabase() {
+    const PAGINA = 1000;
+    let de = 0, todas = [];
+    while (true) {
+      const { data, error } = await _sbClient
+        .from('tratos_pcp')
+        .select('data_aplicacao,cod_operacao,desc_fazenda,cod_talhao')
+        .in('cod_operacao', ['1013', '1014', '1045'])
+        .order('id', { ascending: true })
+        .range(de, de + PAGINA - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      todas.push(...data);
+      if (data.length < PAGINA) break;
+      de += PAGINA;
+    }
+    return todas.map(r => ({
+      data: _plantioParseDataSupa(r.data_aplicacao), codOp: r.cod_operacao || '', fazenda: r.desc_fazenda || '', talhao: r.cod_talhao || '',
+    })).filter(r => r.data);
+  }
+
   async function _garantirSafraCarregada(safra) {
     if (_cache[safra].loaded) return;
     try {
-      const [rDiario, rBase] = await Promise.all([
-        _parseCsvSemHeader(URLS[safra].diario),
-        _parseCsvSemHeader(URLS[safra].base),
+      const [diarioNorm, baseNorm] = await Promise.all([
+        _plantioCarregarDiarioSupabase(safra),
+        _plantioCarregarBaseSupabase(safra),
       ]);
-      // PCP só carrega uma vez junto com 26/27
+      // PCP só carrega uma vez junto com 26/27 (já vem do Supabase, tabela tratos_pcp)
       if (safra === '26_27' && !_cache['26_27'].pcp) {
-        const rPcp = await _parseCsvComHeader(URL_PCP);
-        _cache['26_27'].pcp = _normalizarPcp(rPcp);
+        _cache['26_27'].pcp = await _plantioCarregarPcpSupabase();
       }
-      _cache[safra].diario = _normalizarDiario(rDiario);
-      _cache[safra].base   = _normalizarBase(rBase);
+      _cache[safra].diario = diarioNorm;
+      _cache[safra].base   = baseNorm;
       _cache[safra].loaded = true;
       _atualizarSubTextoSafra(safra);
       if (typeof registrarSync === 'function') registrarSync('ok', 'Plantio ' + safra.replace('_','/'));
