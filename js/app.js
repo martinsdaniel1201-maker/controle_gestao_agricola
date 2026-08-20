@@ -312,17 +312,15 @@ function copiarResumoLiberacoes() {
 
   // Lê os filtros ativos (chips de frente + fazenda + status)
   const frentesSel = window._libFrentesSelecionadas || new Set();
-  const bFazenda   = (document.getElementById('filtroFazenda')?.value || '').toLowerCase().trim();
   const bStatus    = (document.getElementById('filtroStatus')?.value  || '');
 
   // Aplica os mesmos filtros da tabela
   const filtrados = window._gatecDados.filter(row => {
     const frente  = (row['FRENTE']       || '').trim();
-    const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
     const status  = (row['STATUS OS']    || '').toUpperCase();
     const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
     const statusOk  = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
-    return okFrente && fazenda.includes(bFazenda) && statusOk;
+    return okFrente && _libFazendaOk(row['DESC.FAZENDA']) && statusOk;
   });
 
   if (filtrados.length === 0) {
@@ -421,11 +419,11 @@ function _montarCardResumoExportacao() {
 
   // Mesma leitura de filtros usada em copiarResumoLiberacoes()
   const frentesSel = window._libFrentesSelecionadas || new Set();
-  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').trim();
+  const fazendaTxt = _libFazendaFiltroTxt();
   const bStatus  = document.getElementById('filtroStatus')?.value || '';
   const filtrosDesc = [
     frentesSel.size > 0 ? `Frente(s) ${[...frentesSel].join(', ')}` : null,
-    bFazenda ? `Fazenda: ${bFazenda.toUpperCase()}` : null,
+    fazendaTxt ? `Fazenda: ${fazendaTxt}` : null,
     bStatus  ? `Status: ${bStatus === 'ENCERRADA' ? 'Encerradas' : 'Abertas'}` : null,
   ].filter(Boolean);
   const filtroLabel = filtrosDesc.length ? filtrosDesc.join(' · ') : 'Todos os registros';
@@ -1820,6 +1818,14 @@ async function _gatecSha256Hex(str) {
 }
 
 // Monta 1 linha pronta pro Supabase (colunas limpas + hash de deduplicação)
+// IMPORTANTE: o hash usado como chave do upsert (onConflict: 'linha_hash')
+// SÓ pode levar em conta os campos que IDENTIFICAM a liberação (código +
+// frente + fazenda + talhão) — nunca os campos que mudam com o andamento
+// da colheita (prod_real, dif_prod, tch, status_os). Se esses entrassem no
+// hash, cada atualização de produção geraria uma linha NOVA em vez de
+// atualizar a existente, duplicando a liberação no banco e inflando
+// qualquer soma de produção (foi exatamente o que causou o total de
+// produção da Home vir muito acima do real).
 async function _gatecMontarRegistroSupabase(row) {
   const reg = {
     cod_liberacao   : _gatecTxtOuNull(row['LIBERAÇÃO']),
@@ -1832,7 +1838,14 @@ async function _gatecMontarRegistroSupabase(row) {
     tch             : _gatecNumOuNull(row['TCH']),
     status_os       : _gatecTxtOuNull(row['STATUS OS']),
   };
-  const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
+  // Chave de identidade da liberação — estável ao longo de toda a colheita
+  const identidade = {
+    cod_liberacao  : reg.cod_liberacao,
+    frente         : reg.frente,
+    desc_fazenda   : reg.desc_fazenda,
+    listagem_talhao: reg.listagem_talhao,
+  };
+  const base = Object.keys(identidade).sort().map(k => `${k}=${identidade[k] ?? ''}`).join('|');
   reg.linha_hash = await _gatecSha256Hex(base);
   return reg;
 }
@@ -2408,16 +2421,14 @@ function exportarExcelLiberacoes() {
     return;
   }
   const frentesSel = window._libFrentesSelecionadas || new Set();
-  const bFazenda   = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
   const bStatus    = (document.getElementById('filtroStatus')?.value  || '');
 
   const filtrados = window._gatecDados.filter(row => {
     const frente  = (row['FRENTE']       || '').trim();
-    const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
     const status  = (row['STATUS OS']    || '').toUpperCase();
     const okFrente = frentesSel.size === 0 || frentesSel.has(frente);
     const statusOk = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
-    return okFrente && fazenda.includes(bFazenda) && statusOk;
+    return okFrente && _libFazendaOk(row['DESC.FAZENDA']) && statusOk;
   });
 
   if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
@@ -2457,23 +2468,22 @@ function exportarPDFLiberacoes() {
     return;
   }
   const frentesSel = window._libFrentesSelecionadas || new Set();
-  const bFazenda   = (document.getElementById('filtroFazenda')?.value || '').toLowerCase();
+  const fazendaTxt = _libFazendaFiltroTxt();
   const bStatus    = (document.getElementById('filtroStatus')?.value  || '');
 
   const filtrados = window._gatecDados.filter(row => {
     const frente  = (row['FRENTE']       || '').trim();
-    const fazenda = (row['DESC.FAZENDA'] || '').toLowerCase();
     const status  = (row['STATUS OS']    || '').toUpperCase();
     const okFrente = frentesSel.size === 0 || frentesSel.has(frente);
     const statusOk = bStatus === '' || (bStatus === 'ENCERRADA' ? status.includes('ENCERRADA') : !status.includes('ENCERRADA'));
-    return okFrente && fazenda.includes(bFazenda) && statusOk;
+    return okFrente && _libFazendaOk(row['DESC.FAZENDA']) && statusOk;
   });
 
   if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
 
   const filtrosTxt = [
     frentesSel.size ? 'Frente: ' + [...frentesSel].join(', ') : null,
-    bFazenda ? 'Fazenda: "' + bFazenda + '"' : null,
+    fazendaTxt ? 'Fazenda: ' + fazendaTxt : null,
     bStatus  ? 'Status: ' + (bStatus === 'ENCERRADA' ? 'Encerradas' : 'Abertas') : null,
   ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
 
@@ -2671,17 +2681,19 @@ function _appSSRenderListaFromSource(ssId, termo) {
   _appSSRenderLista(ssId, termo, opts);
 }
 
-// Popular o select oculto de fazendas das liberações a partir dos dados carregados
+// Popula as opções do filtro multi-seleção de fazendas das liberações a partir dos dados carregados
 function popularFazendaLibSelect() {
-  const sel = document.getElementById('lib-fazenda-select');
-  if (!sel || !window._gatecDados) return;
-  const escHtml = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if (!window._gatecDados) return;
   const fazendas = [...new Set(window._gatecDados.map(r => (r['DESC.FAZENDA'] || '').trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true }));
-  sel.innerHTML = '<option value="">— Todas —</option>' + fazendas.map(f => `<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('');
-  // Associa o ss ao select
-  const wrap = document.getElementById('ss-lib-fazenda');
-  if (wrap) wrap.dataset.selectId = 'lib-fazenda-select';
+  window._tratosMultiSel    = window._tratosMultiSel    || {};
+  window._tratosMultiOpcoes = window._tratosMultiOpcoes || {};
+  if (!window._tratosMultiSel.libFazenda) window._tratosMultiSel.libFazenda = new Set();
+  window._tratosMultiOpcoes.libFazenda = fazendas.map(f => ({ value: f, label: f }));
+  // Remove da seleção fazendas que sumiram do dataset atual
+  const validos = new Set(fazendas);
+  [...window._tratosMultiSel.libFazenda].forEach(v => { if (!validos.has(v)) window._tratosMultiSel.libFazenda.delete(v); });
+  if (typeof window._tratosMSSyncDisplay === 'function') window._tratosMSSyncDisplay('libFazenda');
 }
 
 // Fecha dropdowns ao clicar fora
@@ -2699,17 +2711,33 @@ function toggleResumoMobile() {
   if (label) label.textContent = aberto ? 'Toque para recolher' : 'Toque para expandir';
 }
 
+/* Multi-seleção de Fazenda em Liberações — mesmo componente visual usado em
+   Tratos Culturais (window._tratosMultiSel.libFazenda) */
+function _libFazendaSelecionadas() {
+  return window._tratosMultiSel?.libFazenda || new Set();
+}
+function _libFazendaOk(fazendaTxt) {
+  const sel = _libFazendaSelecionadas();
+  if (!sel.size) return true;
+  const alvo = (fazendaTxt || '').trim().toLowerCase();
+  for (const f of sel) { if (alvo === (f || '').trim().toLowerCase()) return true; }
+  return false;
+}
+function _libFazendaFiltroTxt() {
+  const sel = _libFazendaSelecionadas();
+  return sel.size ? [...sel].join(', ') : '';
+}
+
 function filtrarTabela() {
   // Frentes selecionadas via chips (Set de strings; vazio = todas)
   const frentesSel = window._libFrentesSelecionadas || new Set();
-  const bFazenda = (document.getElementById('filtroFazenda')?.value || '').toLowerCase().trim();
   const bStatus  = document.getElementById('filtroStatus')?.value || '';
   document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
     const frente  = (linha.cells[1]?.innerText || '').trim();
-    const fazenda = (linha.cells[2]?.innerText || '').toLowerCase();
+    const fazenda = (linha.cells[2]?.innerText || '').trim();
     const status  = (linha.cells[8]?.innerText || '').toUpperCase().trim();
     const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
-    const okFazenda = !bFazenda || fazenda.includes(bFazenda);
+    const okFazenda = _libFazendaOk(fazenda);
     const okStatus  = !bStatus  || status.includes(bStatus);
     linha.style.display = (okFrente && okFazenda && okStatus) ? '' : 'none';
   });
@@ -4369,12 +4397,12 @@ iniciarSabedoria();
         label: r => (r[c.colCodTalhao] || 'Sem talhão').trim(),
       },
       grupoOp: {
-        key:   r => (r[c.colDescGrupoOp] || '').trim(),
-        label: r => (r[c.colDescGrupoOp] || 'Sem grupo').trim(),
+        key:   r => (r[c.colCodGrupoOp] || r[c.colDescGrupoOp] || '').trim(),
+        label: r => [r[c.colCodGrupoOp], r[c.colDescGrupoOp]].filter(Boolean).join(' - ') || 'Sem grupo',
       },
       subgrupo: {
-        key:   r => (r[c.colDescSubprocesso] || '').trim(),
-        label: r => (r[c.colDescSubprocesso] || 'Sem subgrupo').trim(),
+        key:   r => (r[c.colCodSubprocesso] || r[c.colDescSubprocesso] || '').trim(),
+        label: r => [r[c.colCodSubprocesso], r[c.colDescSubprocesso]].filter(Boolean).join(' - ') || 'Sem subprocesso',
       },
       operacao: {
         key:   r => (r[c.colDescOp] || r[c.colCodOp] || '').trim(),
@@ -4394,13 +4422,16 @@ iniciarSabedoria();
     operacao: 'Aplicação por Operação',
   };
   function _tratosNiveisRelatorio(tipo) {
-    const filtroProdutoAtivo = !!selectVal('tratos-filtro-produto');
+    // Só pula o nível "produto" quando exatamente 1 produto está selecionado no filtro
+    // (com vários selecionados, o agrupamento por produto ainda ajuda a distinguir)
+    const filtroProdutoUnico = (window._tratosMultiSel?.produto?.size || 0) === 1;
     switch (tipo) {
-      case 'fazenda':  return filtroProdutoAtivo ? ['fazenda'] : ['produto', 'fazenda'];
+      case 'fazenda':  return filtroProdutoUnico ? ['fazenda'] : ['produto', 'fazenda'];
       case 'setor':    return ['setor'];
       case 'talhao':   return ['fazenda', 'talhao'];
       case 'produto':  return ['produto'];
-      case 'operacao': return ['grupoOp', 'subgrupo', 'operacao'];
+      // Subprocesso sempre primeiro, depois Grupo de Operação, depois a Operação em si
+      case 'operacao': return ['subgrupo', 'grupoOp', 'operacao'];
       default:         return null;
     }
   }
@@ -4420,7 +4451,6 @@ iniciarSabedoria();
   // ── Texto-resumo dos filtros atualmente aplicados (reaproveitado no card e no PDF) ──
   function _tratosFiltrosAtivosTexto() {
     const pares = [
-      ['Produto', 'tratos-filtro-produto'], ['Grupo de Operação', 'tratos-filtro-grupoop'],
       ['Aplicador', 'tratos-filtro-aplicador'], ['Empresa', 'tratos-filtro-empresa'],
       ['Safra', 'tratos-filtro-safra'],
     ];
@@ -4428,11 +4458,17 @@ iniciarSabedoria();
       const v = selectVal(id);
       return v ? `${lbl}: ${v}` : null;
     }).filter(Boolean);
-    // Multi-select (Fazenda / Operação) — lista os valores marcados
-    const selFaz = window._tratosMultiSel?.fazenda || new Set();
-    const selOp  = window._tratosMultiSel?.operacao || new Set();
-    if (selFaz.size) ativos.unshift(`Fazenda: ${[...selFaz].join(', ')}`);
-    if (selOp.size)  ativos.push(`Operação: ${[...selOp].join(', ')}`);
+    // Multi-select (Produto / Fazenda / Operação / Subprocesso / Grupo de Operação) — lista os valores marcados
+    const selProd  = window._tratosMultiSel?.produto     || new Set();
+    const selFaz   = window._tratosMultiSel?.fazenda     || new Set();
+    const selOp    = window._tratosMultiSel?.operacao    || new Set();
+    const selSub   = window._tratosMultiSel?.subprocesso || new Set();
+    const selGrOp  = window._tratosMultiSel?.grupoOp     || new Set();
+    if (selProd.size) ativos.unshift(`Produto: ${[...selProd].join(', ')}`);
+    if (selFaz.size)  ativos.unshift(`Fazenda: ${[...selFaz].join(', ')}`);
+    if (selSub.size)  ativos.push(`Subprocesso: ${[...selSub].join(', ')}`);
+    if (selGrOp.size) ativos.push(`Grupo de Operação: ${[...selGrOp].join(', ')}`);
+    if (selOp.size)   ativos.push(`Operação: ${[...selOp].join(', ')}`);
     const bIni = document.getElementById('tratos-filtro-data-ini')?.value || '';
     const bFim = document.getElementById('tratos-filtro-data-fim')?.value || '';
     if (bIni || bFim) ativos.push('Período: ' + (bIni || '…') + ' a ' + (bFim || '…'));
@@ -4544,7 +4580,7 @@ iniciarSabedoria();
     const nivelDef = niveisDefs[niveisChaves[idx]];
     const grupos = new Map(); // key -> { label, rows }
     [...rows]
-      .sort((a, b) => nivelDef.key(a).localeCompare(nivelDef.key(b), 'pt-BR'))
+      .sort((a, b) => nivelDef.key(a).localeCompare(nivelDef.key(b), 'pt-BR', { numeric: true }))
       .forEach(row => {
         const key = nivelDef.key(row) || '—';
         if (!grupos.has(key)) grupos.set(key, { label: nivelDef.label(row), rows: [] });
@@ -4555,15 +4591,41 @@ iniciarSabedoria();
     grupos.forEach(({ label, rows: gRows }) => {
       const areaMap = _calcAreaOS(gRows, colOS, colArea, colCodTalhao);
       const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
+      const statsExtra = _tratosStatsDoseGrupo(gRows);
       html += `<div class="tratos-grupo-bar nivel-${idx}">
         <span class="tgb-label">${esc(label)}</span>
-        <span class="tgb-stats">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha · ${gRows.length} reg.</span>
+        <span class="tgb-stats">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha${statsExtra}</span>
       </div>
       <div class="tratos-grupo-corpo nivel-${idx}">
         ${_tratosRenderNivel(gRows, niveisDefs, niveisChaves, idx + 1, colOS, colArea, colCodTalhao)}
       </div>`;
     });
     return html;
+  }
+
+  // ── Estatística de dose exibida na barra de cada grupo do relatório.
+  //    Só faz sentido calcular a MÉDIA de dose quando o grupo tem UM produto
+  //    só (produtos diferentes têm doses/unidades diferentes, misturar não
+  //    ajuda). Sempre rotulado ("aplicada" / "recomendada") pra não ficar
+  //    ambíguo pra quem não conhece a planilha. Quando o grupo mistura mais
+  //    de um produto, não mostra nada extra além da área ────────────────────
+  function _tratosStatsDoseGrupo(gRows) {
+    const { colCodProd, colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
+    const produtos = new Set(gRows.map(r => [r[colCodProd], r[colDescProd]].filter(Boolean).join('§')));
+    if (produtos.size !== 1) return '';
+    let somaRec = 0, nRec = 0, somaApl = 0, nApl = 0;
+    gRows.forEach(r => {
+      const dr = parseNum(r[colDoseRec]);
+      const da = parseNum(r[colDoseAplic]);
+      if (!isNaN(dr)) { somaRec += dr; nRec++; }
+      if (!isNaN(da)) { somaApl += da; nApl++; }
+    });
+    if (!nRec && !nApl) return '';
+    const fmt = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    const partes = [];
+    if (nApl) partes.push(`dose média aplicada: <b>${fmt(somaApl / nApl)}</b>`);
+    if (nRec) partes.push(`dose média recomendada: <b>${fmt(somaRec / nRec)}</b>`);
+    return partes.length ? ` · ${partes.join(' × ')}` : '';
   }
 
   // Expande/colapsa o bloco de cards de O.S. dentro de um grupo do relatório
@@ -4599,10 +4661,11 @@ iniciarSabedoria();
     const areaGeral = Object.values(areaGeralMap).reduce((s, v) => s + v, 0);
     filtrosEl.textContent = `${dadosFiltrados.length} registro${dadosFiltrados.length !== 1 ? 's' : ''} no filtro`
       + (excedeu ? ` — processando os primeiros ${TRATOS_LIMITE_REGISTROS} (refine os filtros pra ver o restante)` : '')
-      + `   ·   Área total: ${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha   ·   ${_tratosFiltrosAtivosTexto()}`;
+      + `   ·   ${_tratosFiltrosAtivosTexto()}`;
 
     const niveisDefs = _tratosNiveisDisponiveis();
-    corpo.innerHTML = `<div class="tratos-hierarquia">${_tratosRenderNivel(base, niveisDefs, niveisChaves, 0, colOS, colArea, colCodTalhao)}</div>`;
+    const pillArea = `<div class="tratos-area-pill"><i class="fas fa-ruler-combined"></i> Área total aplicada: <b>${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b></div>`;
+    corpo.innerHTML = pillArea + `<div class="tratos-hierarquia">${_tratosRenderNivel(base, niveisDefs, niveisChaves, 0, colOS, colArea, colCodTalhao)}</div>`;
 
     window._tratosRelatorioAtual = { tipo, niveisChaves, dados: dadosFiltrados };
     card.style.display = 'block';
@@ -4621,7 +4684,7 @@ iniciarSabedoria();
 
     const ordenado = [...dados].sort((a, b) => {
       for (const nk of niveisChaves) {
-        const cmp = niveisDefs[nk].key(a).localeCompare(niveisDefs[nk].key(b), 'pt-BR');
+        const cmp = niveisDefs[nk].key(a).localeCompare(niveisDefs[nk].key(b), 'pt-BR', { numeric: true });
         if (cmp !== 0) return cmp;
       }
       return (a[colOS] || '').localeCompare(b[colOS] || '', 'pt-BR');
@@ -4640,7 +4703,7 @@ iniciarSabedoria();
       grupos.get(chave).push(row);
     });
 
-    const nomesNiveis = { produto: 'Produto', fazenda: 'Fazenda', setor: 'Setor', talhao: 'Talhão', grupoOp: 'Grupo', subgrupo: 'Subgrupo', operacao: 'Operação' };
+    const nomesNiveis = { produto: 'Produto', fazenda: 'Fazenda', setor: 'Setor', talhao: 'Talhão', grupoOp: 'Grupo de Operação', subgrupo: 'Subprocesso', operacao: 'Operação' };
     const head = [[...niveisChaves.map(nk => nomesNiveis[nk] || nk), 'Data', 'Nº O.S.', 'Área (ha)', 'Produtos aplicados — dose recomendada → dose aplicada']];
     const body = [...grupos.values()].map(osRows => {
       const first = osRows[0];
@@ -4662,9 +4725,12 @@ iniciarSabedoria();
       ];
     });
 
+    // Área total sem duplicar (ver _calcAreaOS) — em destaque no cabeçalho do PDF
+    const areaTotalMap = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
+    const areaTotalPDF = Object.values(areaTotalMap).reduce((s, v) => s + v, 0);
     const { pdf, y } = _novoPDFRelatorio(
       `Tratos Culturais — ${TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório'}`,
-      _tratosFiltrosAtivosTexto(),
+      `Área total aplicada: ${areaTotalPDF.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha   ·   ${_tratosFiltrosAtivosTexto()}`,
       'landscape'
     );
     pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body, bodyStyles: { ...(_PDF_TABLE_ESTILO.bodyStyles || {}), valign: 'top' } });
@@ -4985,8 +5051,8 @@ iniciarSabedoria();
      — window._tratosMultiOpcoes[campo] guarda a lista {value,label}
        disponível (repopulada a cada carga de dados)
   ══════════════════════════════════════════════════════════════ */
-  window._tratosMultiSel    = { fazenda: new Set(), operacao: new Set() };
-  window._tratosMultiOpcoes = { fazenda: [], operacao: [] };
+  window._tratosMultiSel    = { fazenda: new Set(), operacao: new Set(), produto: new Set(), grupoOp: new Set(), subprocesso: new Set(), libFazenda: new Set() };
+  window._tratosMultiOpcoes = { fazenda: [], operacao: [], produto: [], grupoOp: [], subprocesso: [], libFazenda: [] };
 
   function _tratosMSPopular(campo, dados, colCod, colDesc) {
     const colValor = colDesc || colCod;
@@ -5048,19 +5114,22 @@ iniciarSabedoria();
     const sel = window._tratosMultiSel[campo];
     if (marcado) sel.add(val); else sel.delete(val);
     _tratosMSSyncDisplay(campo);
-    // Só marca a seleção — o filtro só é aplicado quando o usuário clica em "Filtrar"
+    // Nos filtros de Tratos, a seleção só vale quando o usuário clica em "Filtrar".
+    // Já em Liberações não existe botão "Filtrar" — a tabela reage na hora.
+    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
   }
 
   function tratosMSLimpar(campo) {
     window._tratosMultiSel[campo].clear();
     _tratosMSRenderLista(campo, '');
     _tratosMSSyncDisplay(campo);
-    // Só marca a seleção — o filtro só é aplicado quando o usuário clica em "Filtrar"
+    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
   }
   window.tratosMSAbrir = tratosMSAbrir;
   window.tratosMSFiltrarTexto = tratosMSFiltrarTexto;
   window.tratosMSToggle = tratosMSToggle;
   window.tratosMSLimpar = tratosMSLimpar;
+  window._tratosMSSyncDisplay = _tratosMSSyncDisplay;
 
   function _tratosMSSyncDisplay(campo) {
     const disp = document.getElementById('ms-display-' + campo);
@@ -5206,15 +5275,13 @@ iniciarSabedoria();
       window._tratosDados     = dados;
       window._tratosFiltrados = dados;
 
-      // Popula os filtros de valor único (Produto / Grupo de Operação)
-      popularSelectCodDesc('tratos-filtro-produto',  dados, cols.colCodProd,    cols.colDescProd, '— Todos —');
-      popularSelectCodDesc('tratos-filtro-grupoop',  dados, cols.colCodGrupoOp, cols.colDescGrupoOp, '— Todos —');
-      _tratosSSSync('tratos-filtro-produto');
-      _tratosSSSync('tratos-filtro-grupoop');
-
-      // Popula os filtros de seleção múltipla (Fazenda / Operação Agrícola)
-      _tratosMSPopular('fazenda',  dados, cols.colCodFazenda, cols.colFazenda);
-      _tratosMSPopular('operacao', dados, cols.colCodOp,      cols.colDescOp);
+      // Popula os filtros de seleção múltipla (Produto / Fazenda / Operação Agrícola /
+      // Subprocesso / Grupo de Operação) — todos permitem marcar mais de um valor
+      _tratosMSPopular('produto',     dados, cols.colCodProd,       cols.colDescProd);
+      _tratosMSPopular('fazenda',     dados, cols.colCodFazenda,    cols.colFazenda);
+      _tratosMSPopular('operacao',    dados, cols.colCodOp,         cols.colDescOp);
+      _tratosMSPopular('subprocesso', dados, cols.colCodSubprocesso, cols.colDescSubprocesso);
+      _tratosMSPopular('grupoOp',     dados, cols.colCodGrupoOp,    cols.colDescGrupoOp);
 
       // Filtros restantes em "Mais filtros" (Aplicador / Empresa / Safra)
       popularSelectCodDesc('tratos-filtro-aplicador', dados, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
@@ -5293,20 +5360,24 @@ iniciarSabedoria();
   // ── Aplica filtros ───────────────────────────────────────────────────────
   function filtrarTratos() {
     if (!window._tratosDados) return;
-    const { colData, colDescProd, colFazenda, colCodFazenda, colDescOp,
+    const { colData, colDescProd, colCodProd, colFazenda, colCodFazenda, colDescOp,
             colFuncionario, colCodFuncionario, colDescGrupoOp, colCodGrupoOp,
+            colDescSubprocesso, colCodSubprocesso,
             colAbvEmpresa, colCodEmpresa, colSafra } = window._tratosCols || {};
-    // Mesma coluna usada pelo popularSelectCodDesc/_tratosMSPopular para montar os values
-    const colFazEfetiva    = colFazenda        || colCodFazenda;
+    // Mesma coluna usada pelo _tratosMSPopular para montar os values
+    const colProdEfetivo   = colDescProd        || colCodProd;
+    const colFazEfetiva    = colFazenda         || colCodFazenda;
     const colAplicEfetivo  = colFuncionario     || colCodFuncionario;
     const colEmpresaEfetiva= colAbvEmpresa      || colCodEmpresa;
     const colGrupoOpEfetivo= colDescGrupoOp     || colCodGrupoOp;
+    const colSubprocEfetivo= colDescSubprocesso || colCodSubprocesso;
 
     // selectVal lê o value real da option selecionada, evitando bugs em browsers mobile
-    const bProd      = selectVal('tratos-filtro-produto');
-    const bGrupoOp   = selectVal('tratos-filtro-grupoop');
-    const selFaz     = window._tratosMultiSel?.fazenda  || new Set();
-    const selOp      = window._tratosMultiSel?.operacao || new Set();
+    const selProd    = window._tratosMultiSel?.produto     || new Set();
+    const selGrupoOp = window._tratosMultiSel?.grupoOp     || new Set();
+    const selSubproc = window._tratosMultiSel?.subprocesso || new Set();
+    const selFaz     = window._tratosMultiSel?.fazenda     || new Set();
+    const selOp      = window._tratosMultiSel?.operacao    || new Set();
     const bAplicador = selectVal('tratos-filtro-aplicador');
     const bEmpresa   = selectVal('tratos-filtro-empresa');
     const bSafra     = selectVal('tratos-filtro-safra');
@@ -5316,8 +5387,9 @@ iniciarSabedoria();
     const dFim     = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
 
     const filtrados = window._tratosDados.filter(row => {
-      if (bProd      && (row[colDescProd]     || '').trim() !== bProd)      return false;
-      if (bGrupoOp   && (row[colGrupoOpEfetivo] || '').trim() !== bGrupoOp) return false;
+      if (selProd.size    && !selProd.has((row[colProdEfetivo]     || '').trim())) return false;
+      if (selGrupoOp.size && !selGrupoOp.has((row[colGrupoOpEfetivo] || '').trim())) return false;
+      if (selSubproc.size && !selSubproc.has((row[colSubprocEfetivo] || '').trim())) return false;
       if (selFaz.size && !selFaz.has((row[colFazEfetiva] || '').trim()))    return false;
       if (selOp.size  && !selOp.has((row[colDescOp]       || '').trim()))   return false;
       if (bAplicador && (row[colAplicEfetivo] || '').trim() !== bAplicador) return false;
