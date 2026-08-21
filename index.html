@@ -774,26 +774,22 @@
           </div>
         </div>
 
-        <!-- Linha 2: Fazenda + Status -->
+        <!-- Linha 2: Fazenda (multi-seleção — várias fazendas de uma vez) + Status -->
         <div class="lib-filtros-row">
           <div class="lib-filtros-field">
             <span class="lib-filtros-label">Fazenda</span>
-            <div class="app-ss" id="ss-lib-fazenda">
-              <div class="app-ss-wrap">
-                <i class="fas fa-search app-ss-icon"></i>
-                <input type="text" class="app-ss-input" id="filtroFazenda"
-                       placeholder="— Todas —" autocomplete="off"
-                       oninput="appSSFiltrar('lib-fazenda')"
-                       onfocus="appSSAbrir('lib-fazenda')">
-                <i class="fas fa-times app-ss-clear" style="display:none"
-                   onclick="appSSLimpar('lib-fazenda')"></i>
+            <div class="tratos-ms" id="ms-tratos-filtro-libFazenda">
+              <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('libFazenda')">
+                <i class="fas fa-search tratos-ms-icon"></i>
+                <span class="tratos-ms-display" id="ms-display-libFazenda">— Todas —</span>
+                <i class="fas fa-times tratos-ms-clear" id="ms-clear-libFazenda" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('libFazenda')"></i>
+                <i class="fas fa-chevron-down tratos-ms-chevron"></i>
               </div>
-              <div class="app-ss-lista"></div>
+              <div class="tratos-ms-lista">
+                <div class="tratos-ms-search"><input type="text" placeholder="Buscar fazenda..." oninput="tratosMSFiltrarTexto('libFazenda', this.value)" onclick="event.stopPropagation()"></div>
+                <div class="tratos-ms-opcoes" id="ms-opcoes-libFazenda"></div>
+              </div>
             </div>
-            <!-- select real oculto (fonte de dados para o componente) -->
-            <select id="lib-fazenda-select" style="display:none" onchange="filtrarTabela()">
-              <option value="">— Todas —</option>
-            </select>
           </div>
 
           <div class="lib-filtros-field lib-filtros-field-sm">
@@ -1645,23 +1641,22 @@
         </div>
         <div class="tratos-card-body">
 
-          <!-- Linha 1: Produto + Fazenda (search-select customizado, busca ao digitar) -->
+          <!-- Linha 1: Produto + Fazenda (multi-seleção — vários produtos/fazendas de uma vez) -->
           <div class="tratos-filtros-grid">
-            <div class="field tratos-ss-field" data-ss="tratos-filtro-produto">
+            <div class="field tratos-ms-field" data-ms="produto">
               <label>Produto</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-produto">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="— Todos —" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-produto')"
-                         onfocus="tratosSSAbrir('tratos-filtro-produto')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-produto')"></i>
+              <div class="tratos-ms" id="ms-tratos-filtro-produto">
+                <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('produto')">
+                  <i class="fas fa-search tratos-ms-icon"></i>
+                  <span class="tratos-ms-display" id="ms-display-produto">— Todos —</span>
+                  <i class="fas fa-times tratos-ms-clear" id="ms-clear-produto" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('produto')"></i>
+                  <i class="fas fa-chevron-down tratos-ms-chevron"></i>
                 </div>
-                <div class="tratos-ss-lista"></div>
+                <div class="tratos-ms-lista">
+                  <div class="tratos-ms-search"><input type="text" placeholder="Buscar produto..." oninput="tratosMSFiltrarTexto('produto', this.value)" onclick="event.stopPropagation()"></div>
+                  <div class="tratos-ms-opcoes" id="ms-opcoes-produto"></div>
+                </div>
               </div>
-              <select id="tratos-filtro-produto" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
             </div>
 
             <div class="field tratos-ms-field" data-ms="fazenda">
@@ -1697,22 +1692,37 @@
               </div>
             </div>
 
-            <!-- Linha 3: Grupo de Operação (full width em mobile) -->
-            <div class="field field-full tratos-ss-field" data-ss="tratos-filtro-grupoop">
-              <label>Grupo de Operação</label>
-              <div class="tratos-ss" id="ss-tratos-filtro-grupoop">
-                <div class="tratos-ss-input-wrap">
-                  <i class="fas fa-search tratos-ss-icon"></i>
-                  <input type="text" class="tratos-ss-input" placeholder="Ex.: TRATOS SOCA" autocomplete="off"
-                         oninput="tratosSSFiltrar('tratos-filtro-grupoop')"
-                         onfocus="tratosSSAbrir('tratos-filtro-grupoop')">
-                  <i class="fas fa-times tratos-ss-clear" style="display:none;" onclick="tratosSSLimpar('tratos-filtro-grupoop')"></i>
+            <!-- Linha 3: Subprocesso + Grupo de Operação (multi-seleção, com número junto na lista) -->
+            <div class="field tratos-ms-field" data-ms="subprocesso">
+              <label>Subprocesso</label>
+              <div class="tratos-ms" id="ms-tratos-filtro-subprocesso">
+                <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('subprocesso')">
+                  <i class="fas fa-search tratos-ms-icon"></i>
+                  <span class="tratos-ms-display" id="ms-display-subprocesso">— Todos —</span>
+                  <i class="fas fa-times tratos-ms-clear" id="ms-clear-subprocesso" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('subprocesso')"></i>
+                  <i class="fas fa-chevron-down tratos-ms-chevron"></i>
                 </div>
-                <div class="tratos-ss-lista"></div>
+                <div class="tratos-ms-lista">
+                  <div class="tratos-ms-search"><input type="text" placeholder="Buscar subprocesso..." oninput="tratosMSFiltrarTexto('subprocesso', this.value)" onclick="event.stopPropagation()"></div>
+                  <div class="tratos-ms-opcoes" id="ms-opcoes-subprocesso"></div>
+                </div>
               </div>
-              <select id="tratos-filtro-grupoop" style="display:none;">
-                <option value="">— Todos —</option>
-              </select>
+            </div>
+
+            <div class="field tratos-ms-field" data-ms="grupoOp">
+              <label>Grupo de Operação</label>
+              <div class="tratos-ms" id="ms-tratos-filtro-grupoOp">
+                <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('grupoOp')">
+                  <i class="fas fa-search tratos-ms-icon"></i>
+                  <span class="tratos-ms-display" id="ms-display-grupoOp">— Todos —</span>
+                  <i class="fas fa-times tratos-ms-clear" id="ms-clear-grupoOp" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('grupoOp')"></i>
+                  <i class="fas fa-chevron-down tratos-ms-chevron"></i>
+                </div>
+                <div class="tratos-ms-lista">
+                  <div class="tratos-ms-search"><input type="text" placeholder="Buscar grupo..." oninput="tratosMSFiltrarTexto('grupoOp', this.value)" onclick="event.stopPropagation()"></div>
+                  <div class="tratos-ms-opcoes" id="ms-opcoes-grupoOp"></div>
+                </div>
+              </div>
             </div>
           </div>
 
