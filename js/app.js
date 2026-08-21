@@ -1897,12 +1897,29 @@ async function sincronizarGatecSupabase() {
     const dados = await _gatecCarregarCSVFonte();
     const total = dados.length;
 
-    const registros = [];
+    const registrosBrutos = [];
     for (let i = 0; i < total; i += 1000) {
       const bloco = dados.slice(i, i + 1000);
       const blocoPronto = await Promise.all(bloco.map(_gatecMontarRegistroSupabase));
-      registros.push(...blocoPronto);
+      registrosBrutos.push(...blocoPronto);
       if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Preparando... ${Math.min(i + 1000, total)}/${total}`;
+    }
+
+    // A própria planilha de origem pode ter mais de uma linha pra MESMA liberação
+    // (mesma cod_liberacao + frente + fazenda + talhão) — ex.: a OS foi exportada
+    // duas vezes, ou tem uma linha "aberta" e outra "encerrada" da mesma OS no
+    // mesmo arquivo. O Postgres recusa um upsert que tente atualizar a mesma
+    // linha (mesmo linha_hash) duas vezes dentro do mesmo comando (erro 21000),
+    // e mandar linhas assim pro Supabase também duplicaria a produção depois.
+    // Então filtra aqui antes de enviar, mantendo a última ocorrência de cada
+    // liberação (normalmente a mais atualizada, já que a planilha é lida de cima
+    // pra baixo).
+    const porHash = new Map();
+    registrosBrutos.forEach(r => porHash.set(r.linha_hash, r));
+    const registros = [...porHash.values()];
+    const duplicatasNaPlanilha = registrosBrutos.length - registros.length;
+    if (duplicatasNaPlanilha > 0) {
+      console.warn(`[Liberações→Supabase] ${duplicatasNaPlanilha} linha(s) duplicada(s) na própria planilha (mesma liberação/frente/fazenda/talhão) — mantida só a mais recente de cada.`);
     }
 
     const LOTE = 300;
@@ -1922,9 +1939,9 @@ async function sincronizarGatecSupabase() {
     }
 
     if (erroConstraint) {
-      if (typeof showToast === 'function') showToast('❌ Falta um índice único em "linha_hash" no Supabase — sem ele o upsert duplica tudo a cada sync. Rode o SQL de correção (sql/limpar_duplicatas_liberacoes_gatec.sql).', 'error', 9000);
-    } else if (erros === 0) {
-      if (typeof showToast === 'function') showToast(`✅ Supabase sincronizado: ${registros.length} linhas.`, 'success', 4000);
+      if (typeof showToast === 'function') showToast('❌ Falta um índice único em "linha_hash" no Supabase — sem ele o upsert duplica tudo a cada sync. Rode o SQL de correção (sql/limpar_duplicatas_liberacoes_gatec.sql).', 'error', 9000);    } else if (erros === 0) {
+      const avisoDup = duplicatasNaPlanilha > 0 ? ` (${duplicatasNaPlanilha} linha(s) duplicada(s) na planilha foram ignoradas)` : '';
+      if (typeof showToast === 'function') showToast(`✅ Supabase sincronizado: ${registros.length} linhas.${avisoDup}`, 'success', 4500);
     } else {
       if (typeof showToast === 'function') showToast(`⚠️ Sincronizado com ${erros} lote(s) com erro — veja o console (F12).`, 'error', 5000);
     }
