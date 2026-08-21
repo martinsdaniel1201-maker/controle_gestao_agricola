@@ -1817,52 +1817,31 @@ async function _gatecSha256Hex(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Corrige valores de LISTAGEM TALHAO corrompidos pela planilha de origem.
-// O Google Sheets às vezes "auto-formata" o conteúdo digitado nessa coluna:
-//   • "1,2" (talhões 1 e 2) vira o NÚMERO 1.2 (vírgula tratada como separador decimal)
-//   • "5,6,2007" vira uma DATA completa — ex.: "Tue Jun 05 2007 00:00:00 GMT-0300 (Brasilia Standard Time)"
-// O mesmo talhão acaba tendo 2 representações de texto diferentes ao longo do
-// tempo, o que gera 2 linha_hash diferentes pra MESMA liberação (mesmo cod +
-// frente + fazenda + talhão) — duplicando a linha no Supabase e inflando a
-// soma de produção. Esta função reverte pro formato original antes de montar
-// o hash, garantindo que as duas variações colapsem numa única identidade.
-function _gatecNormalizarListagemTalhao(valor) {
-  const s = _gatecTxtOuNull(valor);
-  if (s === null) return s;
-
-  // Caso 1: virou uma data JS completa — reconstrói "dia,mes[,ano]"
-  const mData = s.match(/^\w{3}\s+(\w{3})\s+(\d{2})\s+(\d{4})\s+\d{2}:\d{2}:\d{2}\s+GMT/);
-  if (mData) {
-    const meses = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
-    const dia = parseInt(mData[2], 10);
-    const mes = meses[mData[1]];
-    const ano = mData[3];
-    if (mes) return `${dia},${mes},${ano}`;
-  }
-
-  // Caso 2: "1,2" virou o número "1.2" (vírgula → ponto decimal)
-  if (/^\d+\.\d+$/.test(s)) {
-    return s.replace('.', ',');
-  }
-
-  return s;
-}
-
 // Monta 1 linha pronta pro Supabase (colunas limpas + hash de deduplicação)
 // IMPORTANTE: o hash usado como chave do upsert (onConflict: 'linha_hash')
 // SÓ pode levar em conta os campos que IDENTIFICAM a liberação (código +
-// frente + fazenda + talhão) — nunca os campos que mudam com o andamento
-// da colheita (prod_real, dif_prod, tch, status_os). Se esses entrassem no
+// frente + fazenda) — nunca os campos que mudam com o andamento da
+// colheita (prod_real, dif_prod, tch, status_os). Se esses entrassem no
 // hash, cada atualização de produção geraria uma linha NOVA em vez de
 // atualizar a existente, duplicando a liberação no banco e inflando
 // qualquer soma de produção (foi exatamente o que causou o total de
 // produção da Home vir muito acima do real).
+//
+// listagem_talhao FICA DE FORA da identidade de propósito: a coluna
+// "LISTAGEM TALHAO" vem da planilha do GATEC com formatação inconsistente
+// — em algumas linhas o Google Sheets converte valores tipo "5,6" (talhões
+// 5 e 6) pra data ("Tue Jun 05 2007...") e em outras mantém como texto.
+// Isso fazia a MESMA liberação virar "duas identidades diferentes" e
+// duplicar na soma, mesmo já sem o bug da produção no hash. cod_liberacao
+// + frente + fazenda já é suficiente pra identificar a OS de forma
+// confiável, então o talhão só é guardado pra exibição, não usado como
+// chave.
 async function _gatecMontarRegistroSupabase(row) {
   const reg = {
     cod_liberacao   : _gatecTxtOuNull(row['LIBERAÇÃO']),
     frente          : _gatecTxtOuNull(row['FRENTE']),
     desc_fazenda    : _gatecTxtOuNull(row['DESC.FAZENDA']),
-    listagem_talhao : _gatecNormalizarListagemTalhao(row['LISTAGEM TALHAO']),
+    listagem_talhao : _gatecTxtOuNull(row['LISTAGEM TALHAO']),
     prod_estimada   : _gatecNumOuNull(row['PROD. ESTIMADA']),
     prod_real       : _gatecNumOuNull(row['PROD. REAL']),
     dif_prod        : _gatecNumOuNull(row['DIF PROD.']),
@@ -1874,7 +1853,6 @@ async function _gatecMontarRegistroSupabase(row) {
     cod_liberacao  : reg.cod_liberacao,
     frente         : reg.frente,
     desc_fazenda   : reg.desc_fazenda,
-    listagem_talhao: reg.listagem_talhao,
   };
   const base = Object.keys(identidade).sort().map(k => `${k}=${identidade[k] ?? ''}`).join('|');
   reg.linha_hash = await _gatecSha256Hex(base);
@@ -5803,7 +5781,7 @@ iniciarSabedoria();
       const bateNome = _norm(rNome) === fazendaNomeNorm;
       if (!bateCod && !bateNome) return false;
 
-      const rTalhoes = String(_gatecNormalizarListagemTalhao(row['LISTAGEM TALHAO']) || '');
+      const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
       const talhoesArr = rTalhoes.split(/[,;\s]+/)
         .map(t => t.trim().replace(/^0+/, '') || '0')
         .filter(Boolean);
