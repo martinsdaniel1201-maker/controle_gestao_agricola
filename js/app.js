@@ -1906,16 +1906,24 @@ async function sincronizarGatecSupabase() {
     }
 
     const LOTE = 300;
-    let enviados = 0, erros = 0;
+    let enviados = 0, erros = 0, erroConstraint = false;
     for (let i = 0; i < registros.length; i += LOTE) {
       const lote = registros.slice(i, i + LOTE);
       const { error } = await _sbClient.from('liberacoes_gatec').upsert(lote, { onConflict: 'linha_hash' });
-      if (error) { erros++; console.error('[Liberações→Supabase] erro no lote', i, error); }
+      if (error) {
+        erros++;
+        console.error('[Liberações→Supabase] erro no lote', i, error);
+        // 42P10 = "no unique or exclusion constraint matching the ON CONFLICT specification"
+        // Sem esse índice único em linha_hash, o upsert nunca deduplica — sempre insere linha nova.
+        if (error.code === '42P10' || /unique or exclusion constraint/i.test(error.message || '')) erroConstraint = true;
+      }
       enviados += lote.length;
       if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Enviando... ${enviados}/${registros.length}`;
     }
 
-    if (erros === 0) {
+    if (erroConstraint) {
+      if (typeof showToast === 'function') showToast('❌ Falta um índice único em "linha_hash" no Supabase — sem ele o upsert duplica tudo a cada sync. Rode o SQL de correção (sql/limpar_duplicatas_liberacoes_gatec.sql).', 'error', 9000);
+    } else if (erros === 0) {
       if (typeof showToast === 'function') showToast(`✅ Supabase sincronizado: ${registros.length} linhas.`, 'success', 4000);
     } else {
       if (typeof showToast === 'function') showToast(`⚠️ Sincronizado com ${erros} lote(s) com erro — veja o console (F12).`, 'error', 5000);
