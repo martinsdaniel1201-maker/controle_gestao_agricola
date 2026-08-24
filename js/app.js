@@ -6871,7 +6871,6 @@ iniciarSabedoria();
 
     const ciclos  = [...new Set(talhoes.map(r => r.refCiclo).filter(Boolean))];
     const motivos = [...new Set(talhoes.map(r => r.motivo).filter(Boolean))];
-    const multiCiclo = ciclos.length > 1;
 
     let html = '';
     if (ciclos.length || motivos.length) {
@@ -6898,7 +6897,7 @@ iniciarSabedoria();
       <div class="pla-mapa-grid">
         ${talhoes.map((t, i) => `
           <div class="pla-mapa-tile ${t.status}" onclick="plantioSelecionarTalhao(${i})">
-            ${multiCiclo && t.refCiclo ? `<div class="pla-mapa-tile-ciclo">${_abreviaCiclo(t.refCiclo)}</div>` : ''}
+            ${t.refCiclo ? `<div class="pla-mapa-tile-ciclo">${_abreviaCiclo(t.refCiclo)}</div>` : ''}
             <div class="pla-mapa-tile-id">${t.talhao}</div>
             <div class="pla-mapa-tile-sub">${t.status === 'pendente' ? 'pendente' : t.status === 'parcial' ? 'parcial' : (t.variedade || '—')}</div>
           </div>`).join('')}
@@ -7609,4 +7608,3 @@ function _onLogout() {
   document.addEventListener('touchend', onEnd, { passive: true });
   document.addEventListener('touchcancel', onEnd, { passive: true });
 })();
- 
