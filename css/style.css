@@ -1,4 +1,4 @@
-    @media print {
+     @media print {
       /* Mostra só a seção ativa, esconde navegação */
       .section          { display: none !important; }
       .section.active   { display: block !important; }
@@ -209,6 +209,11 @@
       margin-top: 4px;
     }
     @media (max-width: 480px) {
+      .tratos-filtros-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .tratos-ms-display, .tratos-ss-input { font-size: 11.5px; }
+      .tratos-ms-input-wrap, .tratos-ss-input-wrap { padding-left: 26px; padding-right: 26px; }
+    }
+    @media (max-width: 340px) {
       .tratos-filtros-grid { grid-template-columns: 1fr; }
     }
 
@@ -515,12 +520,13 @@
     ══════════════════════════════════════════════ */
     .tratos-hierarquia { display: flex; flex-direction: column; gap: 2px; }
     .tratos-grupo-bar {
-      display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+      display: flex; align-items: baseline; justify-content: space-between; gap: 4px 10px;
+      flex-wrap: wrap;
       padding: 9px 10px; border-radius: var(--radius-sm);
       font-size: 12px; font-weight: 800; color: var(--green-900);
     }
-    .tratos-grupo-bar .tgb-label { flex: 1; min-width: 0; overflow-wrap: break-word; }
-    .tratos-grupo-bar .tgb-stats { flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: var(--text-3); white-space: nowrap; }
+    .tratos-grupo-bar .tgb-label { flex: 1 1 auto; min-width: 120px; overflow-wrap: break-word; }
+    .tratos-grupo-bar .tgb-stats { flex: 1 1 auto; min-width: 120px; font-size: 10.5px; font-weight: 700; color: var(--text-3); white-space: normal; }
     .tratos-grupo-bar.nivel-0 { background: var(--green-100, var(--green-50)); margin-top: 6px; }
     .tratos-grupo-bar.nivel-1 { background: var(--green-50); margin-left: 10px; font-size: 11.5px; }
     .tratos-grupo-bar.nivel-2 { background: var(--surface2); margin-left: 20px; font-size: 11px; font-weight: 700; }
@@ -4134,3 +4140,4 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     font-size: 11.5px !important; padding-top: 5px !important;
   }
 }
+ 
