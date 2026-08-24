@@ -5246,24 +5246,40 @@ iniciarSabedoria();
     return isNaN(n) ? '' : String(n).replace('.', ',');
   }
 
-  // Busca TODAS as linhas de public.tratos_pcp, paginando de 1000 em 1000
-  // (limite padrão do Supabase por requisição).
+  // Busca TODAS as linhas de public.tratos_pcp, em páginas de 1000, disparadas
+  // EM PARALELO (Promise.all) em vez de sequencialmente. Antes eram ~32
+  // requisições uma atrás da outra (soma das latências); agora todas saem
+  // juntas e o tempo total fica perto do de 1 única requisição.
   async function _tratosBuscarSupabasePaginado() {
     const PAGINA = 1000;
-    let de = 0, todas = [];
-    while (true) {
-      const { data, error } = await _sbClient
-        .from('tratos_pcp')
-        .select('*')
-        .order('id', { ascending: true })
-        .range(de, de + PAGINA - 1);
+
+    // 1) Descobre o total de linhas (head request, sem trazer dados)
+    const { count, error: erroCount } = await _sbClient
+      .from('tratos_pcp')
+      .select('id', { count: 'exact', head: true });
+    if (erroCount) throw erroCount;
+    const total = count || 0;
+    if (!total) return [];
+
+    // 2) Dispara todas as páginas de uma vez
+    const totalPaginas = Math.ceil(total / PAGINA);
+    const pedidos = [];
+    for (let p = 0; p < totalPaginas; p++) {
+      const de = p * PAGINA;
+      pedidos.push(
+        _sbClient.from('tratos_pcp').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1)
+      );
+    }
+    const respostas = await Promise.all(pedidos);
+
+    // 3) Junta tudo, mantendo a ordem das páginas
+    const todas = [];
+    for (const { data, error } of respostas) {
       if (error) throw error;
-      if (!data || !data.length) break;
-      todas.push(...data);
-      if (data.length < PAGINA) break;
-      de += PAGINA;
+      if (data) todas.push(...data);
     }
     return todas;
+
   }
 
   // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
