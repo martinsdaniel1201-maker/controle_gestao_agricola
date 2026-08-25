@@ -4145,3 +4145,86 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     font-size: 11.5px !important; padding-top: 5px !important;
   }
 }
+/* ══════════════════════════════════════════════
+   TRIÂNGULOS DIF. PROD. — Desktop e Mobile
+   ▲ verde = acima do estimado
+   ▼ vermelho = abaixo do estimado
+══════════════════════════════════════════════ */
+.dif-icon {
+  display: inline-block;
+  font-size: 11px;
+  margin-right: 4px;
+  vertical-align: middle;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+/* Triângulo para cima (positivo) */
+.dif-icon.dif-up {
+  color: #1B5E20;
+  animation: difPulseUp 0.4s ease-out;
+}
+
+/* Triângulo para baixo (negativo) */
+.dif-icon.dif-down {
+  color: #C62828;
+  animation: difPulseDown 0.4s ease-out;
+}
+
+/* Animação sutil de entrada */
+@keyframes difPulseUp {
+  0%   { transform: translateY(4px); opacity: 0; }
+  60%  { transform: translateY(-1px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes difPulseDown {
+  0%   { transform: translateY(-4px); opacity: 0; }
+  60%  { transform: translateY(1px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* ── DESKTOP: alinha triângulo + número na mesma linha ── */
+@media (min-width: 769px) {
+  .cell-dif-prod {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    white-space: nowrap;
+  }
+  .cell-dif-prod .dif-icon {
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+}
+
+/* ── MOBILE: mantém o padrão do grid sem quebrar ── */
+@media (max-width: 768px) {
+  #tabela-liberacoes-gatec tbody td.cell-dif-prod {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    padding-right: 14px !important;
+  }
+  #tabela-liberacoes-gatec tbody td.cell-dif-prod::before {
+    /* Mantém o label "Dif. Prod.:" no mobile */
+    flex: 1;
+    text-align: left;
+    margin-right: 4px;
+  }
+  #tabela-liberacoes-gatec tbody td.cell-dif-prod .dif-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  #tabela-liberacoes-gatec tbody td.cell-dif-prod span:not(.dif-icon) {
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+}
+
+/* ── MODO COMPACTO: triângulos menores ─ */
+.compact-mode .dif-icon {
+  font-size: 9px !important;
+  margin-right: 2px;
+}
