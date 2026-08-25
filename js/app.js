@@ -1838,12 +1838,12 @@ async function _gatecSha256Hex(str) {
 // chave.
 async function _gatecMontarRegistroSupabase(row) {
   const reg = {
-    cod_liberacao   : _gatecTxtOuNull(row['LIBERAÇÃO']),
-    frente          : _gatecTxtOuNull(row['FRENTE']),
-    desc_fazenda    : _gatecTxtOuNull(row['DESC.FAZENDA']),
+    cod_liberacao   : _gatecTxtOuNull(row['ORDEM SERVIÇO']),
+    frente          : _gatecTxtOuNull(row['COD. FRENTE']),
+    desc_fazenda    : _gatecTxtOuNull(row['FAZENDA']),
     listagem_talhao : _gatecTxtOuNull(row['LISTAGEM TALHAO']),
-    prod_estimada   : _gatecNumOuNull(row['PROD. ESTIMADA']),
-    prod_real       : _gatecNumOuNull(row['PROD. REAL']),
+    prod_estimada   : _gatecNumOuNull(row['PRODUCAO_ESTIMADA_TON']),
+    prod_real       : _gatecNumOuNull(row['PRODUCAO_REALIZADA_TON']),
     dif_prod        : _gatecNumOuNull(row['DIF PROD.']),
     tch             : _gatecNumOuNull(row['TCH']),
     status_os       : _gatecTxtOuNull(row['STATUS OS']),
