@@ -4486,18 +4486,19 @@ iniciarSabedoria();
   function _tratosFiltrosAtivosTexto() {
     const pares = [
       ['Aplicador', 'tratos-filtro-aplicador'], ['Empresa', 'tratos-filtro-empresa'],
-      ['Safra', 'tratos-filtro-safra'],
     ];
     const ativos = pares.map(([lbl, id]) => {
       const v = selectVal(id);
       return v ? `${lbl}: ${v}` : null;
     }).filter(Boolean);
-    // Multi-select (Produto / Fazenda / Operação / Subprocesso / Grupo de Operação) — lista os valores marcados
+    // Multi-select (Safra / Produto / Fazenda / Operação / Subprocesso / Grupo de Operação) — lista os valores marcados
+    const selSafra = window._tratosMultiSel?.safra       || new Set();
     const selProd  = window._tratosMultiSel?.produto     || new Set();
     const selFaz   = window._tratosMultiSel?.fazenda     || new Set();
     const selOp    = window._tratosMultiSel?.operacao    || new Set();
     const selSub   = window._tratosMultiSel?.subprocesso || new Set();
     const selGrOp  = window._tratosMultiSel?.grupoOp     || new Set();
+    if (selSafra.size) ativos.unshift(`Safra: ${[...selSafra].join(', ')}`);
     if (selProd.size) ativos.unshift(`Produto: ${[...selProd].join(', ')}`);
     if (selFaz.size)  ativos.unshift(`Fazenda: ${[...selFaz].join(', ')}`);
     if (selSub.size)  ativos.push(`Subprocesso: ${[...selSub].join(', ')}`);
@@ -5085,8 +5086,8 @@ iniciarSabedoria();
      — window._tratosMultiOpcoes[campo] guarda a lista {value,label}
        disponível (repopulada a cada carga de dados)
   ══════════════════════════════════════════════════════════════ */
-  window._tratosMultiSel    = { fazenda: new Set(), operacao: new Set(), produto: new Set(), grupoOp: new Set(), subprocesso: new Set(), libFazenda: new Set() };
-  window._tratosMultiOpcoes = { fazenda: [], operacao: [], produto: [], grupoOp: [], subprocesso: [], libFazenda: [] };
+  window._tratosMultiSel    = { fazenda: new Set(), operacao: new Set(), produto: new Set(), grupoOp: new Set(), subprocesso: new Set(), libFazenda: new Set(), safra: new Set() };
+  window._tratosMultiOpcoes = { fazenda: [], operacao: [], produto: [], grupoOp: [], subprocesso: [], libFazenda: [], safra: [] };
 
   function _tratosMSPopular(campo, dados, colCod, colDesc) {
     const colValor = colDesc || colCod;
@@ -5333,10 +5334,12 @@ iniciarSabedoria();
       _tratosMSPopular('subprocesso', dados, cols.colCodSubprocesso, cols.colDescSubprocesso);
       _tratosMSPopular('grupoOp',     dados, cols.colCodGrupoOp,    cols.colDescGrupoOp);
 
-      // Filtros restantes em "Mais filtros" (Aplicador / Empresa / Safra)
+      // Filtro principal (Safra) — multi-seleção, permite escolher 1 ou 2 safras
+      _tratosMSPopular('safra', dados, null, cols.colSafra);
+
+      // Filtros restantes em "Mais filtros" (Aplicador / Empresa)
       popularSelectCodDesc('tratos-filtro-aplicador', dados, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
       popularSelectCodDesc('tratos-filtro-empresa',   dados, cols.colCodEmpresa,     cols.colAbvEmpresa,      '— Todas —');
-      popularSelect       ('tratos-filtro-safra',     dados, cols.colSafra,                                   '— Todas —');
       _tratosSSSync('tratos-filtro-aplicador');
 
       renderizarTratos(dados);
@@ -5428,9 +5431,9 @@ iniciarSabedoria();
     const selSubproc = window._tratosMultiSel?.subprocesso || new Set();
     const selFaz     = window._tratosMultiSel?.fazenda     || new Set();
     const selOp      = window._tratosMultiSel?.operacao    || new Set();
+    const selSafra   = window._tratosMultiSel?.safra       || new Set();
     const bAplicador = selectVal('tratos-filtro-aplicador');
     const bEmpresa   = selectVal('tratos-filtro-empresa');
-    const bSafra     = selectVal('tratos-filtro-safra');
     const bDataIni = (document.getElementById('tratos-filtro-data-ini')?.value || '').trim();
     const bDataFim = (document.getElementById('tratos-filtro-data-fim')?.value || '').trim();
     const dIni     = bDataIni ? new Date(bDataIni + 'T00:00:00') : null;
@@ -5442,9 +5445,9 @@ iniciarSabedoria();
       if (selSubproc.size && !selSubproc.has((row[colSubprocEfetivo] || '').trim())) return false;
       if (selFaz.size && !selFaz.has((row[colFazEfetiva] || '').trim()))    return false;
       if (selOp.size  && !selOp.has((row[colDescOp]       || '').trim()))   return false;
+      if (selSafra.size && !selSafra.has((row[colSafra]   || '').trim()))  return false;
       if (bAplicador && (row[colAplicEfetivo] || '').trim() !== bAplicador) return false;
       if (bEmpresa   && (row[colEmpresaEfetiva] || '').trim() !== bEmpresa) return false;
-      if (bSafra     && (row[colSafra]        || '').trim() !== bSafra)     return false;
       if (dIni || dFim) {
         const dRow = parseData(row[colData]);
         if (dRow) {
@@ -7624,3 +7627,4 @@ function _onLogout() {
   document.addEventListener('touchend', onEnd, { passive: true });
   document.addEventListener('touchcancel', onEnd, { passive: true });
 })();
+ 
