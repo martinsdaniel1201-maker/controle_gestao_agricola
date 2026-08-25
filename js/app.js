@@ -6114,8 +6114,8 @@ iniciarSabedoria();
 
   // Cache por safra para não rebuscar ao trocar
   const _cache = {
-    '26_27': { diario: null, base: null, pcp: null, loaded: false },
-    '25_26': { diario: null, base: null, pcp: null, loaded: false },
+    '26_27': { diario: null, base: null, loaded: false },
+    '25_26': { diario: null, base: null, loaded: false },
   };
 
   let _safraAtual  = null;
@@ -6125,7 +6125,6 @@ iniciarSabedoria();
   // Atalhos para safra atual
   const _d = () => _cache[_safraAtual]?.diario || [];
   const _b = () => _cache[_safraAtual]?.base   || [];
-  const _p = () => _cache['26_27']?.pcp        || []; // PCP único
 
   /* ── expõe ao escopo global ──────────────────────────────────────── */
   window.iniciarModuloPlantio    = iniciarModuloPlantio;
@@ -6344,27 +6343,6 @@ iniciarSabedoria();
       frente: r.frente || '', dataPlant: _plantioParseDataSupa(r.data_plantio), mes: r.mes_plantio || 0, tipo: r.tipo_plantio || '',
     })).filter(r => r.fazenda);
   }
-  async function _plantioCarregarPcpSupabase() {
-    const PAGINA = 1000;
-    let de = 0, todas = [];
-    while (true) {
-      const { data, error } = await _sbClient
-        .from('tratos_pcp')
-        .select('data_aplicacao,cod_operacao,desc_fazenda,cod_talhao')
-        .in('cod_operacao', ['1013', '1014', '1045'])
-        .order('id', { ascending: true })
-        .range(de, de + PAGINA - 1);
-      if (error) throw error;
-      if (!data || !data.length) break;
-      todas.push(...data);
-      if (data.length < PAGINA) break;
-      de += PAGINA;
-    }
-    return todas.map(r => ({
-      data: _plantioParseDataSupa(r.data_aplicacao), codOp: r.cod_operacao || '', fazenda: r.desc_fazenda || '', talhao: r.cod_talhao || '',
-    })).filter(r => r.data);
-  }
-
   async function _garantirSafraCarregada(safra) {
     if (_cache[safra].loaded) return;
     try {
@@ -6372,10 +6350,6 @@ iniciarSabedoria();
         _plantioCarregarDiarioSupabase(safra),
         _plantioCarregarBaseSupabase(safra),
       ]);
-      // PCP só carrega uma vez junto com 26/27 (já vem do Supabase, tabela tratos_pcp)
-      if (safra === '26_27' && !_cache['26_27'].pcp) {
-        _cache['26_27'].pcp = await _plantioCarregarPcpSupabase();
-      }
       _cache[safra].diario = diarioNorm;
       _cache[safra].base   = baseNorm;
       _cache[safra].loaded = true;
