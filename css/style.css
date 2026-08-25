@@ -1,4 +1,4 @@
-     @media print {
+    @media print {
       /* Mostra só a seção ativa, esconde navegação */
       .section          { display: none !important; }
       .section.active   { display: block !important; }
@@ -194,6 +194,16 @@
       margin-bottom: 10px;
     }
     .tratos-filtros-grid .field-full { grid-column: 1 / -1; }
+    .tratos-ms-field-destaque {
+      background: var(--green-50); border: 1.5px solid var(--green-200, var(--green-100));
+      border-radius: var(--radius-sm); padding: 10px 10px 12px;
+    }
+    .tratos-ms-field-destaque > label { display: flex; align-items: center; gap: 6px; color: var(--green-800, var(--green-700)); }
+    .tratos-ms-field-destaque .tratos-ms-input-wrap { background: var(--surface); }
+    .tratos-filtro-principal-tag {
+      margin-left: auto; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
+      color: var(--green-700); background: var(--green-100, var(--green-50)); border-radius: 50px; padding: 2px 7px;
+    }
     .tratos-filtros-datas {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -209,11 +219,6 @@
       margin-top: 4px;
     }
     @media (max-width: 480px) {
-      .tratos-filtros-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-      .tratos-ms-display, .tratos-ss-input { font-size: 11.5px; }
-      .tratos-ms-input-wrap, .tratos-ss-input-wrap { padding-left: 26px; padding-right: 26px; }
-    }
-    @media (max-width: 340px) {
       .tratos-filtros-grid { grid-template-columns: 1fr; }
     }
 
@@ -4140,4 +4145,3 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     font-size: 11.5px !important; padding-top: 5px !important;
   }
 }
- 
