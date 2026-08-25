@@ -4,7 +4,7 @@
    Versão: incrementar CACHE_NAME sempre que publicar nova versão do app
 ══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'agro-v10.0';
+const CACHE_NAME = 'agro-v10.1';
 
 /* Assets do próprio repositório — sempre em cache */
 const ASSETS_LOCAIS = [
