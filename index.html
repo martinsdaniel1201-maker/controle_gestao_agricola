@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Controle Técnico Agrícola v9.7</title>
+  <title>Controle Técnico Agrícola v9.2</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- html2canvas exposto globalmente (html2pdf bundle não expõe) -->
@@ -1641,6 +1641,25 @@
         </div>
         <div class="tratos-card-body">
 
+          <!-- Linha 0: SAFRA — filtro principal, em destaque, permite 1 ou 2 selecionadas -->
+          <div class="tratos-filtros-grid">
+            <div class="field field-full tratos-ms-field tratos-ms-field-destaque" data-ms="safra">
+              <label><i class="fas fa-star"></i> Safra <span class="tratos-filtro-principal-tag">Filtro principal</span></label>
+              <div class="tratos-ms" id="ms-tratos-filtro-safra">
+                <div class="tratos-ms-input-wrap" onclick="tratosMSAbrir('safra')">
+                  <i class="fas fa-search tratos-ms-icon"></i>
+                  <span class="tratos-ms-display" id="ms-display-safra">— Todas —</span>
+                  <i class="fas fa-times tratos-ms-clear" id="ms-clear-safra" style="display:none;" onclick="event.stopPropagation(); tratosMSLimpar('safra')"></i>
+                  <i class="fas fa-chevron-down tratos-ms-chevron"></i>
+                </div>
+                <div class="tratos-ms-lista">
+                  <div class="tratos-ms-search"><input type="text" placeholder="Buscar safra..." oninput="tratosMSFiltrarTexto('safra', this.value)" onclick="event.stopPropagation()"></div>
+                  <div class="tratos-ms-opcoes" id="ms-opcoes-safra"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Linha 1: Produto + Fazenda (multi-seleção — vários produtos/fazendas de uma vez) -->
           <div class="tratos-filtros-grid">
             <div class="field tratos-ms-field" data-ms="produto">
@@ -1752,13 +1771,6 @@
             <div class="field">
               <label>Empresa</label>
               <select id="tratos-filtro-empresa">
-                <option value="">— Todas —</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label>Safra</label>
-              <select id="tratos-filtro-safra">
                 <option value="">— Todas —</option>
               </select>
             </div>
