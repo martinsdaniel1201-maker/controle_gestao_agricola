@@ -2141,9 +2141,14 @@ if (resumoCards) {
         const difProd  = row["DIF PROD."]      || "";
         const tch      = row["TCH"]            || "";
         
-        // Colorir DIF PROD.: positivo = verde, negativo = vermelho
-        const difNum = parseFloat(String(difProd).replace(",", "."));
-        const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
+        // Colorir DIF PROD. com triângulos: ▲ verde (positivo) / ▼ vermelho (negativo)
+const difNum = parseFloat(String(difProd).replace(",", "."));
+const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
+const difIcon = isNaN(difNum) 
+  ? "" 
+  : (difNum >= 0 
+      ? '<span class="dif-icon dif-up" aria-label="positivo">▲</span>' 
+      : '<span class="dif-icon dif-down" aria-label="negativo">▼</span>');
         return `<tr class="linha-tabela">
           <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
           <td data-label="Frente:">${row["FRENTE"] || ""}</td>
@@ -2151,7 +2156,7 @@ if (resumoCards) {
           <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
           <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
           <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
-           <td data-label="Dif. Prod.:" style="text-align:right; font-weight:600; color:${difColor};">${difProd}</td>
+           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};">${difIcon}${difProd}</td>
           <td data-label="TCH:" style="text-align:right;">${tch}</td>
           <td data-label="Status:" style="text-align:center;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
