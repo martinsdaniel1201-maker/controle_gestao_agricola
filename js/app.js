@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════
    CLIENTE SUPABASE (precisa ser inicializado ANTES de
    qualquer função que o utilize — ver INIT no fim do arquivo,
-   que chama carregarDadosGATEC() de forma síncrona no carregamento)
+   que chama carregarDadosGATEC() de forma síncrona no carregamento) 
 ══════════════════════════════════════════════ */
 const _SB_URL  = 'https://umlwcilvhpoxhnqaalqn.supabase.co';
 const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtbHdjaWx2aHBveGhucWFhbHFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODExNjUsImV4cCI6MjA5NjU1NzE2NX0.HMw-vhMYDf6zfUrHiNNDZ1xBMNt3J0FGo2mW1IHeT2Q';
