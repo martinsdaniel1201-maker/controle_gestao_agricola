@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════
    CLIENTE SUPABASE (precisa ser inicializado ANTES de
    qualquer função que o utilize — ver INIT no fim do arquivo,
-   que chama carregarDadosGATEC() de forma síncrona no carregamento) 
+   que chama carregarDadosGATEC() de forma síncrona no carregamento)
 ══════════════════════════════════════════════ */
 const _SB_URL  = 'https://umlwcilvhpoxhnqaalqn.supabase.co';
 const _SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtbHdjaWx2aHBveGhucWFhbHFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODExNjUsImV4cCI6MjA5NjU1NzE2NX0.HMw-vhMYDf6zfUrHiNNDZ1xBMNt3J0FGo2mW1IHeT2Q';
@@ -1905,6 +1905,9 @@ async function sincronizarGatecSupabase() {
   try {
     const dados = await _gatecCarregarCSVFonte();
     const total = dados.length;
+    // DEBUG TEMPORÁRIO — remover depois de confirmar o mapeamento de colunas
+    console.log('[DEBUG GATEC] chaves da 1ª linha lida:', Object.keys(dados[0]));
+    console.log('[DEBUG GATEC] 1ª linha crua:', dados[0]);
 
     const registrosBrutos = [];
     for (let i = 0; i < total; i += 1000) {
@@ -1913,6 +1916,8 @@ async function sincronizarGatecSupabase() {
       registrosBrutos.push(...blocoPronto);
       if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Preparando... ${Math.min(i + 1000, total)}/${total}`;
     }
+    // DEBUG TEMPORÁRIO
+    console.log('[DEBUG GATEC] 1º registro montado p/ Supabase:', registrosBrutos[0]);
 
     // A própria planilha de origem pode ter mais de uma linha pra MESMA liberação
     // (mesma cod_liberacao + frente + fazenda + talhão) — ex.: a OS foi exportada
