@@ -57,7 +57,8 @@ function showTab(e, id) {
     'tratos_novo_recurso': { nome: 'TRATOS CULTURAIS', icon: 'fa-tools' },
     'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
     'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' },
-    'plantio_aba': { nome: 'PLANTIO',      icon: 'fa-seedling' }
+    'plantio_aba': { nome: 'PLANTIO',      icon: 'fa-seedling' },
+    'planejamento_safra': { nome: 'PLANEJAMENTO DE SAFRA', icon: 'fa-route' }
   };
   const cfg = abaConfig[id] || { nome: '', icon: 'fa-circle' };
   const nomeEl = document.getElementById('voltar-aba-nome');
@@ -74,6 +75,9 @@ function showTab(e, id) {
   }
   if (id === 'conf_os_aba' && !window._confOsDados) {
     carregarDadosConfOS();
+  }
+  if (id === 'planejamento_safra' && typeof window.plsAoAbrirSecao === 'function') {
+    window.plsAoAbrirSecao();
   }
 
 
@@ -5601,12 +5605,10 @@ iniciarSabedoria();
   let _plsLoaded  = false;
   let _plsLoading = false;
 
-  window.abrirPlanejamentoSafra  = abrirPlanejamentoSafra;
-  window.fecharPlanejamentoSafra = fecharPlanejamentoSafra;
+  window.plsAoAbrirSecao = plsAoAbrirSecao;
   window.carregarPlanejamentoSafra = carregarPlanejamentoSafra;
   window.filtrarPlanejamentoTimeline = filtrarPlanejamentoTimeline;
   window.popularTalhoesBusca = popularTalhoesBusca;
-  window.buscarTalhaoPlanejamento = buscarTalhaoPlanejamento;
 
   /* ── helpers locais (independentes do módulo Plantio) ────────────── */
   function _norm(s) {
@@ -5633,17 +5635,10 @@ iniciarSabedoria();
     return null;
   }
 
-  /* ── navegação ───────────────────────────────────────────────────── */
-  function abrirPlanejamentoSafra() {
-    document.getElementById('planejamento-safra-overlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+  /* ── navegação (agora é uma aba normal, chamada pelo showTab) ─────── */
+  function plsAoAbrirSecao() {
     if (!_plsLoaded && !_plsLoading) carregarPlanejamentoSafra();
     else if (_plsLoaded) _plsRenderizarTudo();
-  }
-
-  function fecharPlanejamentoSafra() {
-    document.getElementById('planejamento-safra-overlay').classList.remove('open');
-    document.body.style.overflow = '';
   }
 
   /* ── carregamento ────────────────────────────────────────────────── */
@@ -5871,10 +5866,14 @@ iniciarSabedoria();
   /* ── renderização principal ──────────────────────────────────────── */
   function _plsRenderizarTudo() {
     _plsRenderizarKpis();
+    _plsRenderizarAlertas();
     _plsPopularBuscaFazenda();
     filtrarPlanejamentoTimeline();
   }
 
+  // Cards resumo por frente — só o que ajuda a logística (TCH e tiro médios).
+  // Sem contagem de talhões e sem colhido/falta aqui: isso já aparece
+  // com muito mais contexto na Consulta de Fazenda e no Roteiro de Colheita.
   function _plsRenderizarKpis() {
     const cont = document.getElementById('pls-kpi-grid');
     if (!cont) return;
@@ -5891,25 +5890,74 @@ iniciarSabedoria();
         if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTc += tc; }
       });
       const tiroMedioFrente = sumTc > 0 ? sumTcTiro / sumTc : NaN;
-      let jaColhidos = 0, jaLiberados = 0;
-      dados.forEach(r => {
-        const st = _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda);
-        if (st === 'encerrada') jaColhidos++;
-        else if (st === 'aberta') jaLiberados++;
-      });
-      const pct = dados.length > 0 ? (jaColhidos / dados.length * 100) : 0;
       html += `
         <div class="pls-kpi-card">
           <div class="pls-kpi-frente">FRENTE ${frente}</div>
-          <div class="pls-kpi-linha"><span>Talhões</span><b>${dados.length}</b></div>
           <div class="pls-kpi-linha"><span>TCH médio est.</span><b>${!isNaN(tchMedio) ? tchMedio.toFixed(0) : '—'}</b></div>
           <div class="pls-kpi-linha"><span>Tiro médio</span><b>${!isNaN(tiroMedioFrente) ? tiroMedioFrente.toFixed(0)+' m' : '—'}</b></div>
-          <div class="pls-kpi-progress-bg"><div class="pls-kpi-progress-fill" style="width:${pct.toFixed(1)}%"></div></div>
-          <div class="pls-kpi-pct">${jaColhidos} colhidos · ${jaLiberados} em aberto · ${pct.toFixed(1)}%</div>
         </div>`;
     });
     cont.innerHTML = html;
   }
+
+  /* ── detecção de fazendas "quase concluídas" (possíveis talhões
+     esquecidos na liberação) ─────────────────────────────────────── */
+  function _plsDetectarAlertas() {
+    const alertas = [];
+    ['401','402','403','404'].forEach(frente => {
+      const dados = _plsDados[frente] || [];
+      const porFaz = {};
+      dados.forEach(r => {
+        const key = r.codFazenda ? `${r.codFazenda} · ${r.fazenda}` : r.fazenda;
+        if (!porFaz[key]) porFaz[key] = [];
+        porFaz[key].push(r);
+      });
+      Object.entries(porFaz).forEach(([nomeFaz, talhoes]) => {
+        const comStatus = talhoes.map(r => ({ ...r, status: _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda) }));
+        const total = comStatus.length;
+        const colhidos = comStatus.filter(r => r.status === 'encerrada').length;
+        const faltantes = comStatus.filter(r => r.status !== 'encerrada')
+          .sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
+        if (total >= 3 && faltantes.length > 0 && faltantes.length <= 3 && (colhidos/total) >= 0.75) {
+          alertas.push({ frente, nomeFaz, total, colhidos, faltantes });
+        }
+      });
+    });
+    alertas.sort((a,b) => a.faltantes.length - b.faltantes.length || (b.colhidos/b.total) - (a.colhidos/a.total));
+    return alertas;
+  }
+
+  function _plsRenderizarAlertas() {
+    const card  = document.getElementById('pls-alertas-card');
+    const lista = document.getElementById('pls-alertas-lista');
+    if (!card || !lista) return;
+    const alertas = _plsDetectarAlertas();
+    if (!alertas.length) { card.style.display = 'none'; lista.innerHTML = ''; return; }
+    card.style.display = 'block';
+    lista.innerHTML = alertas.map(a => {
+      const talhoesTxt = a.faltantes.map(r => r.talhao + (r.status === 'aberta' ? ' (liberado)' : '')).join(', ');
+      const nomeEsc = a.nomeFaz.replace(/'/g, "\\'");
+      return `
+        <div class="pls-alerta-item" onclick="plsIrParaFazenda('${nomeEsc}')">
+          <div class="pls-alerta-topo">
+            <span class="pls-alerta-faz">${a.nomeFaz}</span>
+            <span class="pls-alerta-frente">Frente ${a.frente}</span>
+          </div>
+          <div class="pls-alerta-info">${a.colhidos} de ${a.total} talhões colhidos — faltam <b>${a.faltantes.length}</b>: talhão ${talhoesTxt}</div>
+        </div>`;
+    }).join('');
+  }
+
+  window.plsIrParaFazenda = function(nomeFaz) {
+    const sel = document.getElementById('pls-busca-fazenda');
+    if (sel) sel.value = nomeFaz;
+    popularTalhoesBusca();
+    const card = document.getElementById('pls-card-consulta');
+    if (card) {
+      card.classList.add('open');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
 
   function filtrarPlanejamentoTimeline() {
     const frente       = document.getElementById('pls-filtro-frente')?.value || '401';
@@ -5937,15 +5985,65 @@ iniciarSabedoria();
       if (r.seq < porFaz[key].minSeq) porFaz[key].minSeq = r.seq;
     });
     const statusLabel = { aberta: 'Liberado', encerrada: 'Colhido', pendente: 'Não liberado' };
-    const fazSorted = Object.entries(porFaz).sort((a,b) => a[1].minSeq - b[1].minSeq);
+
+    // Classifica cada fazenda pra organizar a lista do jeito mais útil:
+    // 1) atenção (quase concluída, poucos talhões faltando)
+    // 2) em andamento (mistura de colhido/liberado/pendente)
+    // 3) pendente (nada liberado ainda)
+    // 4) concluída (100% colhida) — vai pro fim, sem destaque
+    const grupos = Object.entries(porFaz).map(([fazNome, info]) => {
+      const talhoes = info.talhoes;
+      const total = talhoes.length;
+      const colhidos = talhoes.filter(r => r.status === 'encerrada').length;
+      const faltantes = total - colhidos;
+      let classe;
+      if (colhidos === total) classe = 'concluida';
+      else if (faltantes > 0 && faltantes <= 3 && total >= 3 && (colhidos/total) >= 0.75) classe = 'atencao';
+      else if (colhidos > 0 || talhoes.some(r => r.status === 'aberta')) classe = 'andamento';
+      else classe = 'pendente';
+      return { fazNome, talhoes, minSeq: info.minSeq, classe, total, colhidos };
+    });
+    const ordemClasse = { atencao: 0, andamento: 1, pendente: 2, concluida: 3 };
+    grupos.sort((a,b) => (ordemClasse[a.classe] - ordemClasse[b.classe]) || (a.minSeq - b.minSeq));
+
     let html = '';
-    fazSorted.forEach(([fazNome, { talhoes }], idxFaz) => {
+    grupos.forEach(({ fazNome, talhoes, classe, total, colhidos }, idxFaz) => {
       const idBody = `pls-faz-body-${idxFaz}`;
-      const colhidos  = talhoes.filter(r => r.status === 'encerrada').length;
+
+      // Fazenda concluída: card discreto, sem chips de detalhe
+      if (classe === 'concluida') {
+        html += `
+          <div class="pla-pipeline-fazenda pls-faz-concluida" style="margin-bottom:8px;">
+            <div class="pla-pipeline-header" onclick="plsToggleFazenda('${idBody}', this)">
+              <span class="pla-pipeline-fazenda-nome">
+                <i class="fas fa-check-circle" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${fazNome}
+                <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${total} ${total===1?'talhão':'talhões'})</span>
+              </span>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span class="pls-tl-status-badge encerrada" style="opacity:0.75;">Concluída</span>
+                <i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:4px;"></i>
+              </div>
+            </div>
+            <div class="pla-pipeline-talhoes" id="${idBody}" style="padding:8px;">
+              ${talhoes.map(r => `
+                <div class="pls-timeline-item status-${r.status}" style="margin-bottom:4px;">
+                  <div class="pls-tl-row1">
+                    <span class="pls-tl-seq">#${r.seq}</span>
+                    <span class="pls-tl-faz">Talhão ${r.talhao}</span>
+                    <span class="pls-tl-data">${_fmtData(r.data)}</span>
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+        return;
+      }
+
+      const restantes = total - colhidos;
       const liberados = talhoes.filter(r => r.status === 'aberta').length;
       const pendentes = talhoes.filter(r => r.status === 'pendente').length;
       const chipsHtml =
-        (colhidos  > 0 ? `<span class="pls-tl-status-badge encerrada">${colhidos} colhido${colhidos>1?'s':''}</span>` : '') +
+        (classe === 'atencao' ? `<span class="pls-tl-status-badge atencao"><i class="fas fa-triangle-exclamation"></i> Só ${restantes} restante${restantes>1?'s':''}</span>` : '') +
+        (colhidos  > 0 ? `<span class="pls-tl-status-badge encerrada" style="margin-left:4px">${colhidos} colhido${colhidos>1?'s':''}</span>` : '') +
         (liberados > 0 ? `<span class="pls-tl-status-badge aberta" style="margin-left:4px">${liberados} liberado${liberados>1?'s':''}</span>` : '') +
         (pendentes > 0 ? `<span class="pls-tl-status-badge pendente" style="margin-left:4px">${pendentes} pendente${pendentes>1?'s':''}</span>` : '');
       let talhoesHtml = '';
@@ -5967,11 +6065,11 @@ iniciarSabedoria();
           </div>`;
       });
       html += `
-        <div class="pla-pipeline-fazenda" style="margin-bottom:8px;">
+        <div class="pla-pipeline-fazenda ${classe === 'atencao' ? 'pls-faz-atencao' : ''}" style="margin-bottom:8px;">
           <div class="pla-pipeline-header" onclick="plsToggleFazenda('${idBody}', this)">
             <span class="pla-pipeline-fazenda-nome">
               <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${fazNome}
-              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${talhoes.length} ${talhoes.length===1?'talhão':'talhões'})</span>
+              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${total} ${total===1?'talhão':'talhões'})</span>
             </span>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${chipsHtml}<i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:4px;"></i></div>
           </div>
@@ -5987,17 +6085,6 @@ iniciarSabedoria();
     el.classList.toggle('open');
     const ch = headerEl?.querySelector('.fa-chevron-down');
     if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
-  };
-
-  window.plsModoTalhao = function(modo) {
-    document.getElementById('pls-modo-unico')?.classList.toggle('active', modo === 'unico');
-    document.getElementById('pls-modo-intervalo')?.classList.toggle('active', modo === 'intervalo');
-    const elU = document.getElementById('pls-busca-modo-unico');
-    const elI = document.getElementById('pls-busca-modo-intervalo');
-    if (elU) elU.style.display = modo === 'unico' ? 'block' : 'none';
-    if (elI) elI.style.display = modo === 'intervalo' ? 'block' : 'none';
-    const r = document.getElementById('pls-busca-resultado');
-    if (r) r.innerHTML = '';
   };
 
   function _plsPopularBuscaFazenda() {
@@ -6019,21 +6106,73 @@ iniciarSabedoria();
       lista.map(f => `<option value="${f}">${f}</option>`).join('');
   }
 
+  // Consulta de fazenda: assim que a fazenda é escolhida, já mostra
+  // TODOS os talhões dela (quantos são, quantos faltam, quais faltam) —
+  // sem precisar adivinhar um intervalo numérico.
   function popularTalhoesBusca() {
     const fazendaSel = document.getElementById('pls-busca-fazenda')?.value || '';
-    const selTalhao  = document.getElementById('pls-busca-talhao');
     const resultDiv  = document.getElementById('pls-busca-resultado');
-    if (selTalhao) selTalhao.innerHTML = '<option value="">— Selecione o talhão —</option>';
-    if (resultDiv) resultDiv.innerHTML = '';
-    if (!fazendaSel) return;
+    if (!resultDiv) return;
+    if (!fazendaSel) { resultDiv.innerHTML = ''; return; }
     const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
-    const talhoes = new Set();
+
+    let encontrados = [];
     ['401','402','403','404'].forEach(f => {
-      _plsDados[f].forEach(r => { if (_norm(r.fazenda) === _norm(nomeSemCod)) talhoes.add(r.talhao); });
+      _plsDados[f].forEach(r => {
+        if (_norm(r.fazenda) === _norm(nomeSemCod)) encontrados.push({ ...r, frenteEncontrada: f });
+      });
     });
-    const lista = [...talhoes].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0));
-    if (selTalhao) selTalhao.innerHTML += lista.map(t => `<option value="${t}">Talhão ${t}</option>`).join('');
+    if (!encontrados.length) {
+      resultDiv.innerHTML = '<div class="pla-empty"><i class="fas fa-search"></i>Nenhum talhão encontrado para esta fazenda.</div>';
+      return;
+    }
+    encontrados = encontrados
+      .map(r => ({ ...r, status: _plsStatusTalhao(r.frenteEncontrada, r.fazenda, r.talhao, r.codFazenda) }))
+      .sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
+
+    const total      = encontrados.length;
+    const colhidos   = encontrados.filter(r => r.status === 'encerrada').length;
+    const liberados  = encontrados.filter(r => r.status === 'aberta').length;
+    const pendentes  = encontrados.filter(r => r.status === 'pendente').length;
+    const faltantes  = encontrados.filter(r => r.status !== 'encerrada');
+    const quaseConcluida = total >= 3 && faltantes.length > 0 && faltantes.length <= 3 && (colhidos/total) >= 0.75;
+
+    const chipsHtml = encontrados.map(r => {
+      const destaque = quaseConcluida && r.status !== 'encerrada' ? ' pls-chip-atencao' : '';
+      return `<button type="button" class="pls-talhao-chip status-${r.status}${destaque}" onclick="plsMostrarTalhao(this,'${fazendaSel.replace(/'/g,"\\'")}','${r.talhao}','${r.frenteEncontrada}')">${r.talhao}</button>`;
+    }).join('');
+
+    resultDiv.innerHTML = `
+      <div class="pls-busca-resultado">
+        <div class="pls-faz-resumo-topo">
+          <span class="pls-faz-resumo-titulo">${fazendaSel}</span>
+          <span class="pls-faz-resumo-total">${total} talhõe${total===1?'':'s'}</span>
+        </div>
+        <div class="pls-faz-resumo-chips">
+          ${colhidos  ? `<span class="pls-tl-status-badge encerrada">${colhidos} colhido${colhidos>1?'s':''}</span>` : ''}
+          ${liberados ? `<span class="pls-tl-status-badge aberta">${liberados} liberado${liberados>1?'s':''}</span>` : ''}
+          ${pendentes ? `<span class="pls-tl-status-badge pendente">${pendentes} pendente${pendentes>1?'s':''}</span>` : ''}
+        </div>
+        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} talhão${faltantes.length>1?'ões':''} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
+        <div class="pls-talhao-grid">${chipsHtml}</div>
+        <div id="pls-talhao-detalhe"></div>
+      </div>`;
   }
+
+  window.plsMostrarTalhao = function(btnEl, fazendaSel, talhao, frente) {
+    document.querySelectorAll('.pls-talhao-chip').forEach(b => b.classList.remove('selected'));
+    if (btnEl) btnEl.classList.add('selected');
+    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
+    const r = (_plsDados[frente] || []).find(x => x.talhao === talhao && _norm(x.fazenda) === _norm(nomeSemCod));
+    const det = document.getElementById('pls-talhao-detalhe');
+    if (!det || !r) return;
+    det.innerHTML = _plsCardTalhao(r, frente, nomeSemCod);
+  };
+
+  window.plsToggleCard = function(headerEl) {
+    const card = headerEl.closest('.pls-card-collapsible');
+    if (card) card.classList.toggle('open');
+  };
 
   function _plsCardTalhao(r, frenteEncontrada, nomeSemCod) {
     const status = _plsStatusTalhao(frenteEncontrada, r.fazenda, r.talhao, r.codFazenda);
@@ -6064,43 +6203,6 @@ iniciarSabedoria();
         </div>
       </div>`;
   }
-
-  function buscarTalhaoPlanejamento() {
-    const fazendaSel = document.getElementById('pls-busca-fazenda')?.value || '';
-    const talhaoSel  = document.getElementById('pls-busca-talhao')?.value || '';
-    const resultDiv  = document.getElementById('pls-busca-resultado');
-    if (!resultDiv || !fazendaSel || !talhaoSel) { if (resultDiv) resultDiv.innerHTML = ''; return; }
-    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
-    let encontrado = null, frenteEncontrada = null;
-    for (const f of ['401','402','403','404']) {
-      const m = _plsDados[f].find(r => _norm(r.fazenda) === _norm(nomeSemCod) && r.talhao === talhaoSel);
-      if (m) { encontrado = m; frenteEncontrada = f; break; }
-    }
-    if (!encontrado) { resultDiv.innerHTML = '<div class="pla-empty"><i class="fas fa-search"></i>Talhão não encontrado.</div>'; return; }
-    resultDiv.innerHTML = _plsCardTalhao(encontrado, frenteEncontrada, nomeSemCod);
-  }
-
-  window.buscarIntervaloPlanejamento = function() {
-    const fazendaSel = document.getElementById('pls-busca-fazenda')?.value || '';
-    const de  = parseInt(document.getElementById('pls-intervalo-de')?.value);
-    const ate = parseInt(document.getElementById('pls-intervalo-ate')?.value);
-    const resultDiv = document.getElementById('pls-busca-resultado');
-    if (!resultDiv) return;
-    if (!fazendaSel || isNaN(de) || isNaN(ate) || de > ate) { resultDiv.innerHTML = ''; return; }
-    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
-    const encontrados = [];
-    for (const f of ['401','402','403','404']) {
-      _plsDados[f]
-        .filter(r => _norm(r.fazenda) === _norm(nomeSemCod))
-        .filter(r => { const n = parseInt(r.talhao); return n >= de && n <= ate; })
-        .forEach(r => encontrados.push({ ...r, frenteEncontrada: f }));
-    }
-    encontrados.sort((a,b) => (parseInt(a.talhao)||0)-(parseInt(b.talhao)||0));
-    if (!encontrados.length) { resultDiv.innerHTML = '<div class="pla-empty"><i class="fas fa-search"></i>Nenhum talhão no intervalo.</div>'; return; }
-    resultDiv.innerHTML = `<div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 6px;">${encontrados.length} talhão${encontrados.length>1?'ões':'ão'} encontrado${encontrados.length>1?'s':''}</div>` +
-      encontrados.map(r => _plsCardTalhao(r, r.frenteEncontrada, nomeSemCod)).join('');
-  };
-
 
 })(); /* fim IIFE PLANEJAMENTO DE SAFRA */
 
@@ -7621,3 +7723,4 @@ function _onLogout() {
   document.addEventListener('touchend', onEnd, { passive: true });
   document.addEventListener('touchcancel', onEnd, { passive: true });
 })();
+ 
