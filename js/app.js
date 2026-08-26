@@ -5943,7 +5943,7 @@ iniciarSabedoria();
             <span class="pls-alerta-faz">${a.nomeFaz}</span>
             <span class="pls-alerta-frente">Frente ${a.frente}</span>
           </div>
-          <div class="pls-alerta-info">${a.colhidos} de ${a.total} talhões colhidos — faltam <b>${a.faltantes.length}</b>: talhão ${talhoesTxt}</div>
+          <div class="pls-alerta-info">${a.colhidos} de ${a.total} talhões colhidos — faltam <b>${a.faltantes.length}</b>: ${a.faltantes.length > 1 ? 'talhões' : 'talhão'} ${talhoesTxt}</div>
         </div>`;
     }).join('');
   }
