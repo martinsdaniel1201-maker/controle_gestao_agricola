@@ -900,34 +900,26 @@
 
     /* ══════════════════════════════════════════════
        PLANEJAMENTO DE SAFRA — CSS
+       (agora é uma aba normal, sem overlay fixo próprio)
     ══════════════════════════════════════════════ */
-    #planejamento-safra-overlay {
-      display: none; position: fixed; inset: 0; z-index: 99990;
-      background: var(--bg); overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    #planejamento-safra-overlay.open { display: flex; flex-direction: column; }
-    .pls-header {
-      flex-shrink: 0; position: sticky; top: 0; z-index: 10;
-      background: var(--grad);
-      padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
-      gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.12);
-    }
-    .pls-header-title {
-      font-size: 14px; font-weight: 800; color: #fff;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .pls-btn-voltar {
-      background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 50px; color: #fff;
-      padding: 7px 14px; font-size: 11px; font-weight: 700;
-      cursor: pointer; display: flex; align-items: center; gap: 6px;
-      transition: background 0.15s;
-    }
-    .pls-btn-voltar:hover { background: rgba(255,255,255,0.28); }
-    .pls-body { flex: 1; padding: 14px 16px 40px; max-width: 900px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 
-    /* KPI cards por frente */
+    /* Cards colapsáveis próprios do Planejamento — sem limite de altura,
+       pra nunca cortar conteúdo quando uma fazenda tem muitos talhões */
+    .pls-card-collapsible .pls-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; padding-bottom: 0; user-select: none;
+    }
+    .pls-card-collapsible .pls-card-body { display: none; padding-top: 0; }
+    .pls-card-collapsible.open .pls-card-body { display: block; padding-top: 14px; }
+    .pls-chevron {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 10px; color: var(--text-3); font-weight: 600;
+      transition: transform 0.25s ease;
+    }
+    .pls-card-collapsible.open .pls-chevron i { transform: rotate(180deg); }
+    .pls-chevron-hint { font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    /* KPI cards por frente — só TCH e tiro médios */
     .pls-kpi-grid {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
       margin-bottom: 14px;
@@ -943,9 +935,34 @@
     .pls-kpi-frente { font-size: 10px; font-weight: 800; color: #E65100; margin-bottom: 4px; }
     .pls-kpi-linha { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); padding: 1px 0; }
     .pls-kpi-linha b { color: var(--text); font-weight: 800; }
-    .pls-kpi-progress-bg { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 6px; }
-    .pls-kpi-progress-fill { height: 100%; background: linear-gradient(90deg,#E65100,#FF8F00); border-radius: 99px; }
-    .pls-kpi-pct { font-size: 9px; font-weight: 700; color: #E65100; margin-top: 2px; }
+
+    /* Alertas — possíveis talhões esquecidos */
+    .pls-alerta-item {
+      background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid #C62828;
+      border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .pls-alerta-item:hover { background: var(--surface); }
+    .pls-alerta-item:last-child { margin-bottom: 0; }
+    .pls-alerta-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .pls-alerta-faz { font-size: 12px; font-weight: 800; color: var(--text); }
+    .pls-alerta-frente {
+      font-size: 9px; font-weight: 700; color: #E65100; background: #FFF3E0;
+      padding: 2px 8px; border-radius: 50px; flex-shrink: 0;
+    }
+    body.dark-mode .pls-alerta-frente { background: #2b1a05; color: #FFB74D; }
+    .pls-alerta-info { font-size: 11px; color: var(--text-2); margin-top: 4px; }
+    .pls-alerta-inline {
+      margin-top: 10px; padding: 8px 10px; border-radius: var(--radius-sm);
+      background: #FDECEA; border: 1px solid #F5C6C2; color: #C62828;
+      font-size: 11px; font-weight: 600; line-height: 1.5;
+      display: flex; gap: 6px; align-items: flex-start;
+    }
+    body.dark-mode .pls-alerta-inline { background: #2A1210; border-color: #5c2521; color: #FF8A80; }
+
+    /* Destaque de fazenda "quase concluída" / discrição de "concluída" no roteiro */
+    .pla-pipeline-fazenda.pls-faz-atencao { border: 1.5px solid #C62828; }
+    .pla-pipeline-fazenda.pls-faz-concluida { opacity: 0.7; }
 
     /* Filtros */
     .pls-filtros-row {
@@ -984,14 +1001,40 @@
     .pls-tl-status-badge.aberta    { background: #E3F2FD; color: #1565C0; }
     .pls-tl-status-badge.encerrada { background: #E8F5E9; color: #1B5E20; }
     .pls-tl-status-badge.pendente  { background: var(--surface2); color: var(--text-3); }
+    .pls-tl-status-badge.atencao   { background: #FDECEA; color: #C62828; }
     body.dark-mode .pls-tl-status-badge.aberta    { background: #0A1828; color: #64B5F6; }
     body.dark-mode .pls-tl-status-badge.encerrada { background: #162015; color: #81C784; }
+    body.dark-mode .pls-tl-status-badge.atencao   { background: #2A1210; color: #FF8A80; }
 
-    /* Busca de talhão */
+    /* Consulta de fazenda — resumo + grade de talhões clicável */
     .pls-busca-resultado {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius-md); padding: 12px; margin-top: 10px;
     }
+    .pls-faz-resumo-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .pls-faz-resumo-titulo { font-size: 13px; font-weight: 800; color: var(--text); }
+    .pls-faz-resumo-total {
+      font-size: 10px; font-weight: 700; color: var(--text-3); background: var(--surface2);
+      border: 1px solid var(--border); padding: 3px 9px; border-radius: 50px; white-space: nowrap;
+    }
+    .pls-faz-resumo-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .pls-talhao-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+    .pls-talhao-chip {
+      min-width: 38px; padding: 6px 8px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-size: 11px; font-weight: 800; color: var(--text-2); cursor: pointer;
+      transition: transform 0.12s ease;
+    }
+    .pls-talhao-chip:hover { transform: translateY(-1px); }
+    .pls-talhao-chip.selected { box-shadow: 0 0 0 2px var(--text) inset; }
+    .pls-talhao-chip.status-encerrada { background: #E8F5E9; border-color: #C8E6C9; color: #1B5E20; }
+    .pls-talhao-chip.status-aberta    { background: #E3F2FD; border-color: #BBDEFB; color: #1565C0; }
+    .pls-talhao-chip.status-pendente  { background: var(--surface2); border-color: var(--border); color: var(--text-3); }
+    .pls-talhao-chip.pls-chip-atencao { box-shadow: 0 0 0 2px #C62828 inset; }
+    body.dark-mode .pls-talhao-chip.status-encerrada { background: #162015; border-color: #1B5E20; color: #81C784; }
+    body.dark-mode .pls-talhao-chip.status-aberta    { background: #0A1828; border-color: #0D47A1; color: #64B5F6; }
+
+    /* Detalhe do talhão selecionado */
     .pls-busca-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;
     }
