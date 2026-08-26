@@ -1812,6 +1812,13 @@ function _gatecNumParaBR(v) {
   const n = typeof v === 'number' ? v : parseFloat(v);
   return isNaN(n) ? '' : String(n).replace('.', ',');
 }
+// Arredonda um valor (formato BR "1.234,56") para inteiro, sem vírgula,
+// já formatado com separador de milhar BR (ex: "1.235").
+function _gatecArredondaBR(v) {
+  const n = _gatecParseNumBR(v);
+  if (isNaN(n)) return String(v ?? '');
+  return Math.round(n).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+}
 async function _gatecSha256Hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -2136,13 +2143,16 @@ if (resumoCards) {
       corpo.innerHTML = dados.map(row => {
         const status = (row["STATUS OS"] || "").toUpperCase().trim();
         const isEncerrada = status.includes("ENCERRADA");
-        const prodEst  = row["PROD. ESTIMADA"] || "";
-        const prodReal = row["PROD. REAL"]     || "";
-        const difProd  = row["DIF PROD."]      || "";
+        const prodEstRaw  = row["PROD. ESTIMADA"] || "";
+        const prodRealRaw = row["PROD. REAL"]     || "";
+        const difProdRaw  = row["DIF PROD."]      || "";
         const tch      = row["TCH"]            || "";
+        const prodEst  = _gatecArredondaBR(prodEstRaw);
+        const prodReal = _gatecArredondaBR(prodRealRaw);
+        const difProd  = _gatecArredondaBR(difProdRaw);
         
         // Colorir DIF PROD. com triângulos: ▲ verde (positivo) / ▼ vermelho (negativo)
-const difNum = parseFloat(String(difProd).replace(",", "."));
+const difNum = parseFloat(String(difProdRaw).replace(/\./g, "").replace(",", "."));
 const difColor = isNaN(difNum) ? "inherit" : (difNum >= 0 ? "#1B5E20" : "#C62828");
 const difIcon = isNaN(difNum) 
   ? "" 
@@ -7611,4 +7621,3 @@ function _onLogout() {
   document.addEventListener('touchend', onEnd, { passive: true });
   document.addEventListener('touchcancel', onEnd, { passive: true });
 })();
- 
