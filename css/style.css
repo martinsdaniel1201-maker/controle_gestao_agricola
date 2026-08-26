@@ -109,6 +109,8 @@
     /* ── SECTIONS ── */
     .section { display: none; animation: fadeSlide 0.25s ease-out; }
     .section.active { display: block; }
+    /* Seção Tratos precisa de position relative para o overlay de carregamento */
+    #tratos_aba { position: relative; }
     @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
     /* ── SUB-TABS — visual card style ── */
