@@ -5271,7 +5271,7 @@ iniciarSabedoria();
   // EM PARALELO (Promise.all) em vez de sequencialmente. Antes eram ~32
   // requisições uma atrás da outra (soma das latências); agora todas saem
   // juntas e o tempo total fica perto do de 1 única requisição.
-  async function _tratosBuscarSupabasePaginado(onProgress) {
+  async function _tratosBuscarSupabasePaginado() {
     const PAGINA = 1000;
 
     // 1) Descobre o total de linhas (head request, sem trazer dados)
@@ -5291,14 +5291,7 @@ iniciarSabedoria();
         _sbClient.from('tratos_pcp').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1)
       );
     }
-    
-    // Atualiza progresso antes de começar
-    if (onProgress) onProgress(0, totalPaginas, 'Iniciando download...');
-    
     const respostas = await Promise.all(pedidos);
-    
-    // Atualiza progresso após completar
-    if (onProgress) onProgress(totalPaginas, totalPaginas, 'Processando dados...');
 
     // 3) Junta tudo, mantendo a ordem das páginas
     const todas = [];
@@ -5313,49 +5306,23 @@ iniciarSabedoria();
   // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
   async function carregarDadosTratos() {
     _tratosIniciado = true;
-    
-    // Elementos de UI
-    const overlay       = document.getElementById('tratos-loading-overlay');
-    const loadingTitle  = document.getElementById('tratos-loading-title');
-    const loadingStatus = document.getElementById('tratos-loading-status');
-    const loadingBar    = document.getElementById('tratos-loading-bar');
-    const contador      = document.getElementById('tratos-contador');
-    const corpoTabela   = document.getElementById('corpo-tabela-tratos');
-    
-    // Mostra overlay de carregamento
-    if (overlay) {
-      overlay.style.display = 'flex';
-      if (loadingTitle) loadingTitle.textContent = 'Carregando Tratos Culturais...';
-      if (loadingStatus) loadingStatus.textContent = 'Conectando ao banco de dados...';
-      if (loadingBar) loadingBar.style.width = '0%';
-    }
-    
-    if (contador) contador.textContent = 'Carregando...';
+    const contador    = document.getElementById('tratos-contador');
+    const corpoTabela = document.getElementById('corpo-tabela-tratos');
+    if (contador)    contador.textContent = 'Carregando...';
     if (corpoTabela) corpoTabela.innerHTML =
       `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
         <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados de Tratos...
       </td></tr>`;
 
     if (typeof _sbClient === 'undefined') {
-      if (overlay) overlay.style.display = 'none';
       if (contador) contador.textContent = 'Erro ao carregar';
       if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
       return;
     }
 
-    // Função de progresso para atualizar a UI durante o download
-    function atualizarProgresso(atual, total, mensagem) {
-      if (!overlay || !loadingStatus || !loadingBar) return;
-      const porcentagem = total > 0 ? Math.round((atual / total) * 100) : 0;
-      if (loadingStatus) loadingStatus.textContent = mensagem;
-      if (loadingBar) loadingBar.style.width = porcentagem + '%';
-    }
-
     try {
-      const brutos = await _tratosBuscarSupabasePaginado(atualizarProgresso);
-      
+      const brutos = await _tratosBuscarSupabasePaginado();
       if (!brutos.length) {
-        if (overlay) overlay.style.display = 'none';
         if (corpoTabela) corpoTabela.innerHTML =
           `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
             <i class="fas fa-info-circle" style="margin-right:6px;"></i>
@@ -5379,10 +5346,6 @@ iniciarSabedoria();
       window._tratosDados     = dados;
       window._tratosFiltrados = dados;
 
-      // Atualiza status antes de processar filtros
-      if (loadingStatus) loadingStatus.textContent = `Preparando filtros (${dados.length} registros)...`;
-      if (loadingBar) loadingBar.style.width = '90%';
-
       // Popula os filtros de seleção múltipla (Produto / Fazenda / Operação Agrícola /
       // Subprocesso / Grupo de Operação) — todos permitem marcar mais de um valor
       _tratosMSPopular('produto',     dados, cols.colCodProd,       cols.colDescProd);
@@ -5400,23 +5363,15 @@ iniciarSabedoria();
       _tratosSSSync('tratos-filtro-aplicador');
 
       renderizarTratos(dados);
-      
-      // Esconde overlay e mostra toast de sucesso
-      if (overlay) {
-        loadingBar.style.width = '100%';
-        setTimeout(() => { overlay.style.display = 'none'; }, 300);
-      }
       if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
     } catch (err) {
       console.error('[Tratos] Erro Supabase:', err);
-      if (overlay) overlay.style.display = 'none';
       if (corpoTabela) corpoTabela.innerHTML =
         `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
           <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
           Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.
         </td></tr>`;
       if (contador) contador.textContent = 'Erro ao carregar';
-      if (typeof showToast === 'function') showToast('❌ Erro ao carregar dados.', 'error', 3500);
     }
   }
 
