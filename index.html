@@ -697,12 +697,11 @@
           </div>
           <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
-        <button class="hub-card is-soon" onclick="abrirPlanejamentoSafra()">
+        <button class="hub-card" onclick="showTab(event,'planejamento_safra')">
           <div class="hub-card-icon"><i class="fas fa-route"></i></div>
           <div class="hub-card-text">
             <span class="hub-card-label">Planejamento de Safra</span>
             <span class="hub-card-sub">SF 2026 · 4 frentes</span>
-            <span class="hub-card-badge">Em construção</span>
           </div>
           <i class="fas fa-chevron-right hub-card-chevron"></i>
         </button>
@@ -1350,111 +1349,82 @@
 
   </section>
 
-  <!-- ══ OVERLAY: PLANEJAMENTO DE SAFRA ══ -->
-  <div id="planejamento-safra-overlay">
-    <div class="pls-header">
-      <button class="pls-btn-voltar" onclick="fecharPlanejamentoSafra()">
-        <i class="fas fa-chevron-left"></i> Voltar
-      </button>
-      <span class="pls-header-title"><i class="fas fa-route"></i> Planejamento de Safra</span>
-      <button class="pls-btn-voltar" onclick="carregarPlanejamentoSafra()" aria-label="Atualizar dados do planejamento">
-        <i class="fas fa-sync-alt"></i>
+  <!-- ══ ABA PLANEJAMENTO DE SAFRA ══ -->
+  <section id="planejamento_safra" class="section">
+
+    <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:12px;">
+      <button class="btn-secondary" onclick="carregarPlanejamentoSafra()" id="btn-atualizar-pls">
+        <i class="fas fa-sync-alt"></i> Atualizar dados
       </button>
     </div>
 
-    <div class="pls-body">
-
-      <!-- KPIs por frente -->
-      <div class="pls-kpi-grid" id="pls-kpi-grid">
-        <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
-      </div>
-
-      <!-- BLOCO 1: Consultar Talhão (primeiro) -->
-      <div class="card plantio-card-collapsible open">
-        <div class="plantio-card-header" onclick="togglePlantioCard(this)">
-          <div class="card-title" style="margin:0"><i class="fas fa-search-location"></i> Consultar Talhão</div>
-          <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="plantio-card-body">
-          <div class="field" style="margin-bottom:10px">
-            <label>Fazenda</label>
-            <div class="app-select-wrap">
-              <select id="pls-busca-fazenda" class="app-select" onchange="popularTalhoesBusca()">
-                <option value="">— Selecione a fazenda —</option>
-              </select>
-              <i class="fas fa-chevron-down app-select-chevron"></i>
-            </div>
-          </div>
-          <!-- Modo de busca: talhão único OU intervalo -->
-          <div style="display:flex; gap:8px; margin-bottom:10px;">
-            <button id="pls-modo-unico" onclick="plsModoTalhao('unico')" class="pla-mes-chip active" style="flex:1">Talhão único</button>
-            <button id="pls-modo-intervalo" onclick="plsModoTalhao('intervalo')" class="pla-mes-chip" style="flex:1">Intervalo</button>
-          </div>
-          <!-- Talhão único -->
-          <div id="pls-busca-modo-unico">
-            <div class="field" style="margin-bottom:0">
-              <label>Talhão</label>
-              <div class="app-select-wrap">
-                <select id="pls-busca-talhao" class="app-select" onchange="buscarTalhaoPlanejamento()">
-                  <option value="">— Selecione o talhão —</option>
-                </select>
-                <i class="fas fa-chevron-down app-select-chevron"></i>
-              </div>
-            </div>
-          </div>
-          <!-- Intervalo de talhões -->
-          <div id="pls-busca-modo-intervalo" style="display:none">
-            <div class="pla-filtros-row">
-              <div class="field">
-                <label>Do talhão</label>
-                <input type="number" id="pls-intervalo-de" min="1" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px;" placeholder="Ex: 1" oninput="buscarIntervaloPlanejamento()">
-              </div>
-              <div class="field">
-                <label>Até o talhão</label>
-                <input type="number" id="pls-intervalo-ate" min="1" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:13px;" placeholder="Ex: 10" oninput="buscarIntervaloPlanejamento()">
-              </div>
-            </div>
-          </div>
-          <div id="pls-busca-resultado"></div>
-        </div>
-      </div>
-
-      <!-- BLOCO 2: Roteiro de Colheita (segundo) -->
-      <div class="card plantio-card-collapsible" style="margin-top:10px;">
-        <div class="plantio-card-header" onclick="togglePlantioCard(this)">
-          <div class="card-title" style="margin:0"><i class="fas fa-stream"></i> Roteiro de Colheita</div>
-          <div class="plantio-chevron"><span class="plantio-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
-        </div>
-        <div class="plantio-card-body">
-          <div class="pls-filtros-row">
-            <div class="app-select-wrap">
-              <select id="pls-filtro-frente" class="app-select" onchange="filtrarPlanejamentoTimeline()">
-                <option value="401">Frente 401</option>
-                <option value="402">Frente 402</option>
-                <option value="403">Frente 403</option>
-                <option value="404">Frente 404</option>
-              </select>
-              <i class="fas fa-chevron-down app-select-chevron"></i>
-            </div>
-            <div class="app-select-wrap">
-              <select id="pls-filtro-status" class="app-select" onchange="filtrarPlanejamentoTimeline()">
-                <option value="">Todos os status</option>
-                <option value="aberta">Já liberados</option>
-                <option value="encerrada">Já colhidos</option>
-                <option value="pendente">Ainda não liberados</option>
-              </select>
-              <i class="fas fa-chevron-down app-select-chevron"></i>
-            </div>
-          </div>
-          <div id="pls-timeline-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">—</div>
-          <div id="pls-timeline-container">
-            <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
-          </div>
-        </div>
-      </div>
-
+    <!-- Resumo por frente (só o essencial pra logística) -->
+    <div class="pls-kpi-grid" id="pls-kpi-grid">
+      <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
     </div>
-  </div>
+
+    <!-- Alertas: possíveis talhões esquecidos na liberação -->
+    <div class="card" id="pls-alertas-card" style="display:none; border-top:3px solid #C62828; margin-bottom:14px;">
+      <div class="card-title"><i class="fas fa-triangle-exclamation" style="color:#C62828;"></i> Atenção — Possíveis Talhões Esquecidos</div>
+      <div style="font-size:11px; color:var(--text-3); margin:-4px 0 10px;">Fazendas quase totalmente colhidas, com poucos talhões ainda sem liberação. Vale conferir se não ficaram esquecidos.</div>
+      <div id="pls-alertas-lista"></div>
+    </div>
+
+    <!-- BLOCO 1: Consultar Fazenda -->
+    <div class="card pls-card-collapsible open" id="pls-card-consulta">
+      <div class="pls-card-header" onclick="plsToggleCard(this)">
+        <div class="card-title" style="margin:0"><i class="fas fa-search-location"></i> Consultar Fazenda</div>
+        <div class="pls-chevron"><span class="pls-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+      </div>
+      <div class="pls-card-body">
+        <div class="field" style="margin-bottom:12px">
+          <label>Fazenda</label>
+          <div class="app-select-wrap">
+            <select id="pls-busca-fazenda" class="app-select" onchange="popularTalhoesBusca()">
+              <option value="">— Selecione a fazenda —</option>
+            </select>
+            <i class="fas fa-chevron-down app-select-chevron"></i>
+          </div>
+        </div>
+        <div id="pls-busca-resultado"></div>
+      </div>
+    </div>
+
+    <!-- BLOCO 2: Roteiro de Colheita -->
+    <div class="card pls-card-collapsible" id="pls-card-roteiro" style="margin-top:10px;">
+      <div class="pls-card-header" onclick="plsToggleCard(this)">
+        <div class="card-title" style="margin:0"><i class="fas fa-stream"></i> Roteiro de Colheita</div>
+        <div class="pls-chevron"><span class="pls-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
+      </div>
+      <div class="pls-card-body">
+        <div class="pls-filtros-row">
+          <div class="app-select-wrap">
+            <select id="pls-filtro-frente" class="app-select" onchange="filtrarPlanejamentoTimeline()">
+              <option value="401">Frente 401</option>
+              <option value="402">Frente 402</option>
+              <option value="403">Frente 403</option>
+              <option value="404">Frente 404</option>
+            </select>
+            <i class="fas fa-chevron-down app-select-chevron"></i>
+          </div>
+          <div class="app-select-wrap">
+            <select id="pls-filtro-status" class="app-select" onchange="filtrarPlanejamentoTimeline()">
+              <option value="">Todos os status</option>
+              <option value="aberta">Já liberados</option>
+              <option value="encerrada">Já colhidos</option>
+              <option value="pendente">Ainda não liberados</option>
+            </select>
+            <i class="fas fa-chevron-down app-select-chevron"></i>
+          </div>
+        </div>
+        <div id="pls-timeline-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">—</div>
+        <div id="pls-timeline-container">
+          <div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>
+        </div>
+      </div>
+    </div>
+
+  </section>
 
   <!-- ══ ABA CONFERÊNCIA OPERADORES X O.S ══ -->
  <!-- ══ ABA CONFERÊNCIAS — MENU DE ESCOLHA ══ -->
