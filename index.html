@@ -1628,18 +1628,8 @@
   <!-- ══ ABA TRATOS CULTURAIS (própria, separada de Conferências) ══ -->
   <section id="tratos_aba" class="section">
 
-      <!-- OVERLAY DE CARREGAMENTO -->
-      <div id="tratos-loading-overlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(255,255,255,0.95); z-index:1000; justify-content:center; align-items:center; flex-direction:column; text-align:center;">
-        <i class="fas fa-circle-notch fa-spin" style="font-size:48px; color:#E65100; margin-bottom:16px;"></i>
-        <div id="tratos-loading-title" style="font-size:16px; font-weight:700; color:#333; margin-bottom:8px;">Carregando Tratos Culturais...</div>
-        <div id="tratos-loading-status" style="font-size:12px; color:#666; max-width:400px; padding:0 20px;">Buscando dados no banco</div>
-        <div style="margin-top:16px; width:200px; height:4px; background:#eee; border-radius:2px; overflow:hidden;">
-          <div id="tratos-loading-bar" style="width:0%; height:100%; background:linear-gradient(90deg,#E65100,#FF6B35); transition:width 0.3s ease;"></div>
-        </div>
-      </div>
-
       <!-- CARD: Filtros — primeiro passo, logo após o resumo, sempre aberto -->
-      <div class="card tratos-card-collapsible open" style="position:relative;">
+      <div class="card tratos-card-collapsible open">
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
           <div class="card-title" style="margin:0;"><i class="fas fa-filter"></i> Filtros</div>
           <div class="tratos-header-actions">
