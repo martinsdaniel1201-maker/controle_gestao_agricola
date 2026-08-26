@@ -6153,7 +6153,7 @@ iniciarSabedoria();
           ${liberados ? `<span class="pls-tl-status-badge aberta">${liberados} liberado${liberados>1?'s':''}</span>` : ''}
           ${pendentes ? `<span class="pls-tl-status-badge pendente">${pendentes} pendente${pendentes>1?'s':''}</span>` : ''}
         </div>
-        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} talhão${faltantes.length>1?'ões':''} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
+        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} ${faltantes.length>1?'talhões':'talhão'} — confira se não foram esquecidos na liberação.</div>` : ''}
         <div class="pls-talhao-grid">${chipsHtml}</div>
         <div id="pls-talhao-detalhe"></div>
       </div>`;
