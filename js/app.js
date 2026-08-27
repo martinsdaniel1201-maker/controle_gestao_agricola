@@ -4422,7 +4422,8 @@ iniciarSabedoria();
       }
 
       // 3) Recarrega a tela a partir do Supabase, já com os dados novos
-      await carregarDadosTratos();
+      //    (forcar=true: acabou de sincronizar, então ignora qualquer cache antigo)
+      await carregarDadosTratos(true);
     } catch (e) {
       console.error('[Tratos→Supabase] erro geral', e);
       if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar com o Supabase — veja o console (F12).', 'error', 5000);
@@ -5272,67 +5273,116 @@ iniciarSabedoria();
   }
 
   // Busca TODAS as linhas de public.tratos_pcp, em páginas de 1000, disparadas
-  // EM PARALELO (Promise.all) em vez de sequencialmente. Antes eram ~32
-  // requisições uma atrás da outra (soma das latências); agora todas saem
-  // juntas e o tempo total fica perto do de 1 única requisição.
+  // EM PARALELO (Promise.all) em vez de sequencialmente. Além disso:
+  // - a contagem total vem JUNTO com a 1ª página (economiza uma requisição
+  //   só de "head/count" que antes era feita à parte);
+  // - só pedimos as colunas que o app realmente usa (em vez de "select *"),
+  //   o que reduz bastante o tamanho da resposta e o tempo de carregamento.
   async function _tratosBuscarSupabasePaginado() {
     const PAGINA = 1000;
+    const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
 
-    // 1) Descobre o total de linhas (head request, sem trazer dados)
-    const { count, error: erroCount } = await _sbClient
+    // 1) Primeira página já vem com o total exato (count:'exact')
+    const { data: primeira, count, error: erro1 } = await _sbClient
       .from('tratos_pcp')
-      .select('id', { count: 'exact', head: true });
-    if (erroCount) throw erroCount;
+      .select(SELECT_COLS, { count: 'exact' })
+      .order('id', { ascending: true })
+      .range(0, PAGINA - 1);
+    if (erro1) throw erro1;
     const total = count || 0;
     if (!total) return [];
 
-    // 2) Dispara todas as páginas de uma vez
+    const todas = [...(primeira || [])];
     const totalPaginas = Math.ceil(total / PAGINA);
-    const pedidos = [];
-    for (let p = 0; p < totalPaginas; p++) {
-      const de = p * PAGINA;
-      pedidos.push(
-        _sbClient.from('tratos_pcp').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1)
-      );
-    }
-    const respostas = await Promise.all(pedidos);
 
-    // 3) Junta tudo, mantendo a ordem das páginas
-    const todas = [];
-    for (const { data, error } of respostas) {
-      if (error) throw error;
-      if (data) todas.push(...data);
+    // 2) Demais páginas, todas disparadas de uma vez
+    if (totalPaginas > 1) {
+      const pedidos = [];
+      for (let p = 1; p < totalPaginas; p++) {
+        const de = p * PAGINA;
+        pedidos.push(
+          _sbClient.from('tratos_pcp').select(SELECT_COLS).order('id', { ascending: true }).range(de, de + PAGINA - 1)
+        );
+      }
+      const respostas = await Promise.all(pedidos);
+      for (const { data, error } of respostas) {
+        if (error) throw error;
+        if (data) todas.push(...data);
+      }
     }
     return todas;
+  }
 
+  // ── Cache em sessionStorage — evita refazer a busca pesada toda vez que o
+  // usuário só troca de aba e volta. Válido por 5 minutos; o botão "Atualizar"
+  // (ícone de sync) sempre ignora o cache e busca na hora.
+  const TRATOS_CACHE_KEY = 'tratos_cache_v1';
+  const TRATOS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  function _tratosLerCache() {
+    try {
+      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || !obj.ts || (Date.now() - obj.ts) > TRATOS_CACHE_TTL_MS || !Array.isArray(obj.dados)) return null;
+      return obj.dados;
+    } catch (e) { return null; }
+  }
+
+  function _tratosGravarCache(dados) {
+    try {
+      sessionStorage.setItem(TRATOS_CACHE_KEY, JSON.stringify({ ts: Date.now(), dados }));
+    } catch (e) { /* sessionStorage indisponível/cheio — segue sem cache, não é crítico */ }
+  }
+
+  // Mostra/esconde o card de carregamento animado, escondendo o resto do
+  // conteúdo da aba enquanto os dados não chegam — pra ficar bem visível
+  // que está carregando (em vez do textinho pequeno de antes).
+  function _tratosMostrarLoading(mostrar) {
+    const loadingCard = document.getElementById('tratos-loading-card');
+    const filtrosCard = document.getElementById('tratos-filtros-card');
+    const relatorioCard = document.getElementById('tratos-relatorio-card');
+    if (loadingCard) loadingCard.style.display = mostrar ? 'block' : 'none';
+    if (filtrosCard) filtrosCard.style.display = mostrar ? 'none' : '';
+    if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
+  }
+
+  // Garante que a animação de carregamento fique visível por pelo menos
+  // alguns instantes, mesmo quando os dados vêm rapidinho do cache —
+  // assim o usuário sempre percebe que algo está acontecendo.
+  function _tratosEsperarMin(promessa, msMin) {
+    const espera = new Promise(resolve => setTimeout(resolve, msMin));
+    return Promise.all([promessa, espera]).then(([resultado]) => resultado);
   }
 
   // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
-  async function carregarDadosTratos() {
+  // Passe forcar=true (botão "Atualizar") pra ignorar o cache e buscar na hora.
+  async function carregarDadosTratos(forcar) {
     _tratosIniciado = true;
-    const contador    = document.getElementById('tratos-contador');
-    const corpoTabela = document.getElementById('corpo-tabela-tratos');
-    if (contador)    contador.textContent = 'Carregando...';
-    if (corpoTabela) corpoTabela.innerHTML =
-      `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
-        <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados de Tratos...
-      </td></tr>`;
+    const contador = document.getElementById('tratos-contador');
+    if (contador) contador.textContent = 'Carregando...';
+    _tratosMostrarLoading(true);
 
     if (typeof _sbClient === 'undefined') {
+      _tratosMostrarLoading(false);
       if (contador) contador.textContent = 'Erro ao carregar';
       if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
       return;
     }
 
     try {
-      const brutos = await _tratosBuscarSupabasePaginado();
+      const cache = !forcar ? _tratosLerCache() : null;
+      const brutos = await _tratosEsperarMin(
+        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(),
+        550
+      );
+      if (!cache) _tratosGravarCache(brutos);
+
+      _tratosMostrarLoading(false);
+
       if (!brutos.length) {
-        if (corpoTabela) corpoTabela.innerHTML =
-          `<tr><td colspan="10" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
-            <i class="fas fa-info-circle" style="margin-right:6px;"></i>
-            Nenhum dado sincronizado ainda. Use o ícone de nuvem para sincronizar.
-          </td></tr>`;
         if (contador) contador.textContent = '0 registros';
+        if (typeof showToast === 'function') showToast('ℹ️ Nenhum dado sincronizado ainda. Use o ícone de nuvem para sincronizar.', 'info', 3000);
         return;
       }
 
@@ -5370,12 +5420,9 @@ iniciarSabedoria();
       if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
     } catch (err) {
       console.error('[Tratos] Erro Supabase:', err);
-      if (corpoTabela) corpoTabela.innerHTML =
-        `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
-          <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
-          Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.
-        </td></tr>`;
+      _tratosMostrarLoading(false);
       if (contador) contador.textContent = 'Erro ao carregar';
+      if (typeof showToast === 'function') showToast('⚠️ Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.', 'error', 3500);
     }
   }
 
@@ -5943,7 +5990,7 @@ iniciarSabedoria();
             <span class="pls-alerta-faz">${a.nomeFaz}</span>
             <span class="pls-alerta-frente">Frente ${a.frente}</span>
           </div>
-          <div class="pls-alerta-info">${a.colhidos} de ${a.total} talhões colhidos — faltam <b>${a.faltantes.length}</b>: ${a.faltantes.length > 1 ? 'talhões' : 'talhão'} ${talhoesTxt}</div>
+          <div class="pls-alerta-info">${a.colhidos} de ${a.total} talhões colhidos — faltam <b>${a.faltantes.length}</b>: talhão ${talhoesTxt}</div>
         </div>`;
     }).join('');
   }
@@ -6153,7 +6200,7 @@ iniciarSabedoria();
           ${liberados ? `<span class="pls-tl-status-badge aberta">${liberados} liberado${liberados>1?'s':''}</span>` : ''}
           ${pendentes ? `<span class="pls-tl-status-badge pendente">${pendentes} pendente${pendentes>1?'s':''}</span>` : ''}
         </div>
-        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} ${faltantes.length>1?'talhões':'talhão'} — confira se não foram esquecidos na liberação.</div>` : ''}
+        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} talhão${faltantes.length>1?'ões':''} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
         <div class="pls-talhao-grid">${chipsHtml}</div>
         <div id="pls-talhao-detalhe"></div>
       </div>`;
