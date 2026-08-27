@@ -4380,53 +4380,29 @@ iniciarSabedoria();
     return reg;
   }
 
+  // ⚠️ MUDANÇA DE ARQUITETURA: quem alimenta public.AutoPCP_app agora é o
+  // script Python (sync_excel_supabase.py), rodando fora do navegador, lendo
+  // o Excel/SQL Oracle direto (325 mil linhas — inviável montar hash de cada
+  // linha e fazer upsert pelo navegador, era isso que o código antigo fazia
+  // lendo do Google Sheets). Esse botão deixou de "sincronizar a fonte" e
+  // virou só "recarregar do Supabase agora", ignorando o cache de 5 min.
+  // As funções antigas de leitura do CSV/hash (_tratosCarregarCSVFonte,
+  // _montarRegistroTratosSupabase) ficaram no arquivo sem uso, caso um dia
+  // precisem de novo — não fazem mal ficarem paradas.
   async function sincronizarTratosSupabase() {
     if (typeof _sbClient === 'undefined') {
       if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000);
       return;
     }
     const btn = document.getElementById('btn-tratos-sync-supabase');
-    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Buscando planilha...'; }
-
+    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recarregando...'; }
     try {
-      // 0) Busca a planilha PCP fresquinha do Google Sheets (fonte da verdade
-      //    pra sincronizar — não usa window._tratosDados, que agora vem do
-      //    Supabase e não da planilha)
-      const { dados, cols } = await _tratosCarregarCSVFonte();
-      const total = dados.length;
-
-      // 1) Monta os registros (com hash) em blocos, sem travar a UI
-      const registros = [];
-      for (let i = 0; i < total; i += 1000) {
-        const bloco = dados.slice(i, i + 1000);
-        const blocoPronto = await Promise.all(bloco.map(row => _montarRegistroTratosSupabase(row, cols)));
-        registros.push(...blocoPronto);
-        if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Preparando... ${Math.min(i + 1000, total)}/${total}`;
-      }
-
-      // 2) Envia em lotes via upsert (chave = linha_hash → idempotente, nunca duplica)
-      const LOTE = 300;
-      let enviados = 0, erros = 0;
-      for (let i = 0; i < registros.length; i += LOTE) {
-        const lote = registros.slice(i, i + LOTE);
-        const { error } = await _sbClient.from('tratos_pcp').upsert(lote, { onConflict: 'linha_hash' });
-        if (error) { erros++; console.error('[Tratos→Supabase] erro no lote', i, error); }
-        enviados += lote.length;
-        if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Enviando... ${enviados}/${registros.length}`;
-      }
-
-      if (erros === 0) {
-        if (typeof showToast === 'function') showToast(`✅ Supabase sincronizado: ${registros.length} linhas.`, 'success', 4000);
-      } else {
-        if (typeof showToast === 'function') showToast(`⚠️ Sincronizado com ${erros} lote(s) com erro — veja o console (F12).`, 'error', 5000);
-      }
-
-      // 3) Recarrega a tela a partir do Supabase, já com os dados novos
-      //    (forcar=true: acabou de sincronizar, então ignora qualquer cache antigo)
+      // forcar=true: ignora qualquer cache antigo e busca de novo no Supabase
       await carregarDadosTratos(true);
+      if (typeof showToast === 'function') showToast('✅ Dados recarregados do Supabase.', 'success', 3000);
     } catch (e) {
-      console.error('[Tratos→Supabase] erro geral', e);
-      if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar com o Supabase — veja o console (F12).', 'error', 5000);
+      console.error('[Tratos→Supabase] erro ao recarregar', e);
+      if (typeof showToast === 'function') showToast('❌ Erro ao recarregar do Supabase — veja o console (F12).', 'error', 5000);
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
     }
@@ -5245,23 +5221,39 @@ iniciarSabedoria();
   }
 
   // Mapeamento fixo das colunas da tabela public.tratos_pcp (Supabase).
-  // Definido por nós (ver /sql/01_criar_tabela_tratos_pcp.sql), então não
-  // precisa de detecção — os nomes já são exatamente esses.
+  // ⚠️ Fonte mudou: antes era alimentada pelo botão de sync dentro do app,
+  // lendo a planilha do Google Sheets. Agora quem alimenta é o script Python
+  // (sync_excel_supabase.py / função sincronizar_pcp()), lendo a aba
+  // "AutoPCP_app" do Excel (que é só o nome da ABA — a tabela no Supabase
+  // continua se chamando tratos_pcp). O app só LÊ essa tabela.
+  // Nomes de coluna aqui precisam bater exatamente com o COLUMN_MAP_PCP do
+  // script Python.
+  const TRATOS_SUPABASE_TABLE = 'tratos_pcp';
   const TRATOS_SUPABASE_COLS = {
     colData: 'data_aplicacao', colOS: 'nr_os',
     colCodProd: 'cod_produto', colDescProd: 'desc_produto',
     colCodOp: 'cod_operacao', colDescOp: 'desc_operacao',
     colCodFazenda: 'cod_fazenda', colFazenda: 'desc_fazenda',
     colArea: 'area_aplicada', colDoseRec: 'dose_recomendada', colDoseAplic: 'dose_aplicada',
-    colCodEmpresa: 'cod_empresa', colAbvEmpresa: 'abv_empresa',
-    colLancamento: 'nro_lancamento', colSafra: 'safra',
-    colCodFuncionario: 'cod_funcionario', colFuncionario: 'nome_funcionario',
-    colCodProcesso: 'cod_processo', colDescProcesso: 'desc_processo',
-    colCodSubprocesso: 'cod_subprocesso', colDescSubprocesso: 'desc_subprocesso',
+    colCodEmpresa: 'cod_empresa',
+    colSafra: 'safra',
+    colCodFuncionario: 'cod_funcionario',
     colCodGrupoOp: 'cod_grupo_op', colDescGrupoOp: 'desc_grupo_op',
-    colUnidade: 'unidade', colCodSetor: 'cod_setor', colDescSetor: 'desc_setor',
-    colCodBloco: 'cod_bloco', colDescBloco: 'desc_bloco', colCodTalhao: 'cod_talhao',
-    colMunicipio: 'municipio', colVariedade: 'variedade', colSituacaoTalhao: 'situacao_talhao',
+    colCodSetor: 'cod_setor', colCodBloco: 'cod_bloco', colCodTalhao: 'cod_talhao',
+    colSituacaoTalhao: 'situacao_talhao',
+    // Novos campos vindos do SQL Oracle (ainda não usados em nenhum relatório,
+    // mas já ficam disponíveis pra quando precisar)
+    colDtPlantio: 'dt_plantio', colDtCorteAtual: 'dt_corte_atual',
+    colDtPrimCorte: 'dt_prim_corte', colDtUltCorte: 'dt_ult_corte',
+    colMesAplic: 'mes_aplic', colMesAnoAplic: 'mes_ano_aplic',
+    // ── Ainda não disponíveis no SQL atual (ver observações da última vez) —
+    // deixe comentado até confirmarmos as tabelas de origem:
+    // colAbvEmpresa: 'abv_empresa', colLancamento: 'nro_lancamento',
+    // colFuncionario: 'nome_funcionario', colCodProcesso: 'cod_processo',
+    // colDescProcesso: 'desc_processo', colCodSubprocesso: 'cod_subprocesso',
+    // colDescSubprocesso: 'desc_subprocesso', colUnidade: 'unidade',
+    // colDescSetor: 'desc_setor', colDescBloco: 'desc_bloco',
+    // colMunicipio: 'municipio', colVariedade: 'variedade',
   };
 
   // Converte number/string numérica (Postgres numeric, decimal com ponto)
@@ -5272,20 +5264,30 @@ iniciarSabedoria();
     return isNaN(n) ? '' : String(n).replace('.', ',');
   }
 
-  // Busca TODAS as linhas de public.tratos_pcp, em páginas de 1000, disparadas
-  // EM PARALELO (Promise.all) em vez de sequencialmente. Além disso:
-  // - a contagem total vem JUNTO com a 1ª página (economiza uma requisição
-  //   só de "head/count" que antes era feita à parte);
-  // - só pedimos as colunas que o app realmente usa (em vez de "select *"),
-  //   o que reduz bastante o tamanho da resposta e o tempo de carregamento.
-  async function _tratosBuscarSupabasePaginado() {
+  // Busca linhas de public.AutoPCP_app, em páginas de 1000.
+  // ⚠️ IMPORTANTE (325 mil linhas na tabela): disparar TODAS as páginas em
+  // paralelo (como era antes) significa ~325 requisições simultâneas e um
+  // array gigante inteiro na memória do navegador a cada carregamento — é
+  // isso que pesa no app. Duas mudanças pra segurar isso:
+  //   1) Por padrão só busca a SAFRA informada (filtro no próprio Supabase,
+  //      não no navegador) — histórico completo só quando pedido
+  //      explicitamente (todasSafras=true), já que agora o SQL traz vários
+  //      anos.
+  //   2) As páginas são buscadas em lotes de CONCORRENCIA por vez (em vez de
+  //      todas de uma vez), pra não estourar conexões/rate limit.
+  async function _tratosBuscarSupabasePaginado(safra, todasSafras) {
     const PAGINA = 1000;
+    const CONCORRENCIA = 6; // páginas simultâneas por vez
     const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
 
+    function baseQuery() {
+      let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS, { count: 'exact' });
+      if (!todasSafras && safra) q = q.eq(TRATOS_SUPABASE_COLS.colSafra, safra);
+      return q;
+    }
+
     // 1) Primeira página já vem com o total exato (count:'exact')
-    const { data: primeira, count, error: erro1 } = await _sbClient
-      .from('tratos_pcp')
-      .select(SELECT_COLS, { count: 'exact' })
+    const { data: primeira, count, error: erro1 } = await baseQuery()
       .order('id', { ascending: true })
       .range(0, PAGINA - 1);
     if (erro1) throw erro1;
@@ -5295,14 +5297,15 @@ iniciarSabedoria();
     const todas = [...(primeira || [])];
     const totalPaginas = Math.ceil(total / PAGINA);
 
-    // 2) Demais páginas, todas disparadas de uma vez
-    if (totalPaginas > 1) {
+    // 2) Demais páginas, em lotes de CONCORRENCIA por vez (não tudo de uma vez)
+    for (let inicio = 1; inicio < totalPaginas; inicio += CONCORRENCIA) {
+      const fim = Math.min(inicio + CONCORRENCIA, totalPaginas);
       const pedidos = [];
-      for (let p = 1; p < totalPaginas; p++) {
+      for (let p = inicio; p < fim; p++) {
         const de = p * PAGINA;
-        pedidos.push(
-          _sbClient.from('tratos_pcp').select(SELECT_COLS).order('id', { ascending: true }).range(de, de + PAGINA - 1)
-        );
+        let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
+        if (!todasSafras && safra) q = q.eq(TRATOS_SUPABASE_COLS.colSafra, safra);
+        pedidos.push(q.order('id', { ascending: true }).range(de, de + PAGINA - 1));
       }
       const respostas = await Promise.all(pedidos);
       for (const { data, error } of respostas) {
@@ -5316,12 +5319,15 @@ iniciarSabedoria();
   // ── Cache em sessionStorage — evita refazer a busca pesada toda vez que o
   // usuário só troca de aba e volta. Válido por 5 minutos; o botão "Atualizar"
   // (ícone de sync) sempre ignora o cache e busca na hora.
-  const TRATOS_CACHE_KEY = 'tratos_cache_v1';
   const TRATOS_CACHE_TTL_MS = 5 * 60 * 1000;
 
-  function _tratosLerCache() {
+  function _tratosCacheKey(todasSafras) {
+    return todasSafras ? 'tratos_cache_v2_todas' : 'tratos_cache_v2_atual';
+  }
+
+  function _tratosLerCache(todasSafras) {
     try {
-      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY);
+      const raw = sessionStorage.getItem(_tratosCacheKey(todasSafras));
       if (!raw) return null;
       const obj = JSON.parse(raw);
       if (!obj || !obj.ts || (Date.now() - obj.ts) > TRATOS_CACHE_TTL_MS || !Array.isArray(obj.dados)) return null;
@@ -5329,9 +5335,13 @@ iniciarSabedoria();
     } catch (e) { return null; }
   }
 
-  function _tratosGravarCache(dados) {
+  function _tratosGravarCache(dados, todasSafras) {
     try {
-      sessionStorage.setItem(TRATOS_CACHE_KEY, JSON.stringify({ ts: Date.now(), dados }));
+      // Com "todas as safras" o array pode passar de 300 mil linhas — pode
+      // facilmente estourar a cota do sessionStorage (uns 5-10 MB). Nesse
+      // caso o catch abaixo só desiste do cache silenciosamente; a tela
+      // funciona normalmente, só não fica em cache pra próxima troca de aba.
+      sessionStorage.setItem(_tratosCacheKey(todasSafras), JSON.stringify({ ts: Date.now(), dados }));
     } catch (e) { /* sessionStorage indisponível/cheio — segue sem cache, não é crítico */ }
   }
 
@@ -5371,12 +5381,20 @@ iniciarSabedoria();
     }
 
     try {
-      const cache = !forcar ? _tratosLerCache() : null;
+      // Por padrão só busca a safra atual — com 325 mil linhas na tabela,
+      // buscar tudo sempre pesaria demais. Se existir um checkbox
+      // id="filtro-todas-safras" marcado no HTML, aí sim busca o histórico
+      // completo (mais lento, mas o usuário pediu explicitamente).
+      const chkTodasSafras = document.getElementById('filtro-todas-safras');
+      const todasSafras = !!(chkTodasSafras && chkTodasSafras.checked);
+      const safraAtual = String(new Date().getFullYear());
+
+      const cache = !forcar ? _tratosLerCache(todasSafras) : null;
       const brutos = await _tratosEsperarMin(
-        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(),
+        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safraAtual, todasSafras),
         550
       );
-      if (!cache) _tratosGravarCache(brutos);
+      if (!cache) _tratosGravarCache(brutos, todasSafras);
 
       _tratosMostrarLoading(false);
 
