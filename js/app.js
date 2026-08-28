@@ -5264,18 +5264,14 @@ iniciarSabedoria();
     return isNaN(n) ? '' : String(n).replace('.', ',');
   }
 
-  // Busca linhas de public.tratos_pcp, em páginas de 1000.
-  // ⚠️ IMPORTANTE (325 mil linhas na tabela): disparar TODAS as páginas em
-  // paralelo (como era antes) significa ~325 requisições simultâneas e um
-  // array gigante inteiro na memória do navegador a cada carregamento — é
-  // isso que pesa no app. Duas mudanças pra segurar isso:
-  //   1) Por padrão só busca as SAFRAS informadas (filtro no próprio
-  //      Supabase, não no navegador) — histórico completo só quando pedido
-  //      explicitamente (todasSafras=true), já que agora o SQL Oracle traz
-  //      vários anos. O filtro de Safra que já existe na tela (multi-seleção)
-  //      continua funcionando normalmente DENTRO das safras carregadas.
-  //   2) As páginas são buscadas em lotes de CONCORRENCIA por vez (em vez de
-  //      todas de uma vez), pra não estourar conexões/rate limit.
+  // Busca TODAS as linhas de public.tratos_pcp (todas as safras), em páginas
+  // de 1000. ⚠️ IMPORTANTE (325 mil linhas na tabela): disparar TODAS as
+  // páginas em paralelo (como era antes) significa ~325 requisições
+  // simultâneas de uma vez — é isso que pesa. A otimização aqui é buscar em
+  // lotes de CONCORRENCIA páginas por vez (em vez de todas de uma só vez),
+  // sem cortar nenhum dado — o app continua mostrando qualquer safra que
+  // exista na tabela. `safras`/`todasSafras` ficam como parâmetros opcionais
+  // (não usados hoje) caso algum dia se queira filtrar direto no Supabase.
   async function _tratosBuscarSupabasePaginado(safras, todasSafras) {
     const PAGINA = 1000;
     const CONCORRENCIA = 6; // páginas simultâneas por vez
@@ -5323,13 +5319,11 @@ iniciarSabedoria();
   // (ícone de sync) sempre ignora o cache e busca na hora.
   const TRATOS_CACHE_TTL_MS = 5 * 60 * 1000;
 
-  function _tratosCacheKey(todasSafras) {
-    return todasSafras ? 'tratos_cache_v2_todas' : 'tratos_cache_v2_atual';
-  }
+  const TRATOS_CACHE_KEY = 'tratos_cache_v2';
 
-  function _tratosLerCache(todasSafras) {
+  function _tratosLerCache() {
     try {
-      const raw = sessionStorage.getItem(_tratosCacheKey(todasSafras));
+      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY);
       if (!raw) return null;
       const obj = JSON.parse(raw);
       if (!obj || !obj.ts || (Date.now() - obj.ts) > TRATOS_CACHE_TTL_MS || !Array.isArray(obj.dados)) return null;
@@ -5337,13 +5331,13 @@ iniciarSabedoria();
     } catch (e) { return null; }
   }
 
-  function _tratosGravarCache(dados, todasSafras) {
+  function _tratosGravarCache(dados) {
     try {
-      // Com "todas as safras" o array pode passar de 300 mil linhas — pode
-      // facilmente estourar a cota do sessionStorage (uns 5-10 MB). Nesse
-      // caso o catch abaixo só desiste do cache silenciosamente; a tela
-      // funciona normalmente, só não fica em cache pra próxima troca de aba.
-      sessionStorage.setItem(_tratosCacheKey(todasSafras), JSON.stringify({ ts: Date.now(), dados }));
+      // Com centenas de milhares de linhas isso pode facilmente estourar a
+      // cota do sessionStorage (uns 5-10 MB). Nesse caso o catch abaixo só
+      // desiste do cache silenciosamente; a tela funciona normalmente, só
+      // não fica em cache pra próxima troca de aba (recarrega do zero).
+      sessionStorage.setItem(TRATOS_CACHE_KEY, JSON.stringify({ ts: Date.now(), dados }));
     } catch (e) { /* sessionStorage indisponível/cheio — segue sem cache, não é crítico */ }
   }
 
@@ -5383,23 +5377,16 @@ iniciarSabedoria();
     }
 
     try {
-      // Por padrão busca a safra atual + a anterior — com 325 mil linhas na
-      // tabela, buscar tudo sempre pesaria demais, mas só a atual deixaria o
-      // filtro de Safra da tela sem opção nenhuma pra escolher (mesmo padrão
-      // que o Planejamento de Safra já usa: 2 safras mais recentes). Se
-      // existir um checkbox id="filtro-todas-safras" marcado no HTML, aí sim
-      // busca o histórico completo (mais lento, mas pedido explicitamente).
-      const chkTodasSafras = document.getElementById('filtro-todas-safras');
-      const todasSafras = !!(chkTodasSafras && chkTodasSafras.checked);
-      const anoAtual = new Date().getFullYear();
-      const safrasPadrao = [String(anoAtual), String(anoAtual - 1)];
-
-      const cache = !forcar ? _tratosLerCache(todasSafras) : null;
+      // Carrega TODAS as safras que existirem na tabela — o usuário precisa
+      // ver qualquer ano com dado, não só o mais recente. As otimizações de
+      // performance ficam só na forma de buscar (em lotes de 6 páginas por
+      // vez, e só as colunas que o app usa), não em cortar dado nenhum.
+      const cache = !forcar ? _tratosLerCache() : null;
       const brutos = await _tratosEsperarMin(
-        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safrasPadrao, todasSafras),
+        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(),
         550
       );
-      if (!cache) _tratosGravarCache(brutos, todasSafras);
+      if (!cache) _tratosGravarCache(brutos);
 
       _tratosMostrarLoading(false);
 
