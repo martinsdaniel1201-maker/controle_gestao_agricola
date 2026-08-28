@@ -389,7 +389,7 @@ ${linhasFrente}
 ${'─'.repeat(32)}
 📦 *Total Produzido (frentes monitoradas):* ${totalFmt}
 ${'─'.repeat(32)}
-_Gerado pelo CTT Controle Agrícola_`;
+_Gerado pelo App - Controle Agrícola_`;
 
   navigator.clipboard.writeText(texto)
     .then(() => showToast('✅ Resumo de Liberações copiado! Cole no WhatsApp.'))
