@@ -4380,7 +4380,7 @@ iniciarSabedoria();
     return reg;
   }
 
-  // ⚠️ MUDANÇA DE ARQUITETURA: quem alimenta public.AutoPCP_app agora é o
+  // ⚠️ MUDANÇA DE ARQUITETURA: quem alimenta public.tratos_pcp agora é o
   // script Python (sync_excel_supabase.py), rodando fora do navegador, lendo
   // o Excel/SQL Oracle direto (325 mil linhas — inviável montar hash de cada
   // linha e fazer upsert pelo navegador, era isso que o código antigo fazia
@@ -5264,25 +5264,27 @@ iniciarSabedoria();
     return isNaN(n) ? '' : String(n).replace('.', ',');
   }
 
-  // Busca linhas de public.AutoPCP_app, em páginas de 1000.
+  // Busca linhas de public.tratos_pcp, em páginas de 1000.
   // ⚠️ IMPORTANTE (325 mil linhas na tabela): disparar TODAS as páginas em
   // paralelo (como era antes) significa ~325 requisições simultâneas e um
   // array gigante inteiro na memória do navegador a cada carregamento — é
   // isso que pesa no app. Duas mudanças pra segurar isso:
-  //   1) Por padrão só busca a SAFRA informada (filtro no próprio Supabase,
-  //      não no navegador) — histórico completo só quando pedido
-  //      explicitamente (todasSafras=true), já que agora o SQL traz vários
-  //      anos.
+  //   1) Por padrão só busca as SAFRAS informadas (filtro no próprio
+  //      Supabase, não no navegador) — histórico completo só quando pedido
+  //      explicitamente (todasSafras=true), já que agora o SQL Oracle traz
+  //      vários anos. O filtro de Safra que já existe na tela (multi-seleção)
+  //      continua funcionando normalmente DENTRO das safras carregadas.
   //   2) As páginas são buscadas em lotes de CONCORRENCIA por vez (em vez de
   //      todas de uma vez), pra não estourar conexões/rate limit.
-  async function _tratosBuscarSupabasePaginado(safra, todasSafras) {
+  async function _tratosBuscarSupabasePaginado(safras, todasSafras) {
     const PAGINA = 1000;
     const CONCORRENCIA = 6; // páginas simultâneas por vez
     const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
+    const temFiltro = !todasSafras && Array.isArray(safras) && safras.length > 0;
 
     function baseQuery() {
       let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS, { count: 'exact' });
-      if (!todasSafras && safra) q = q.eq(TRATOS_SUPABASE_COLS.colSafra, safra);
+      if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
       return q;
     }
 
@@ -5304,7 +5306,7 @@ iniciarSabedoria();
       for (let p = inicio; p < fim; p++) {
         const de = p * PAGINA;
         let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
-        if (!todasSafras && safra) q = q.eq(TRATOS_SUPABASE_COLS.colSafra, safra);
+        if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
         pedidos.push(q.order('id', { ascending: true }).range(de, de + PAGINA - 1));
       }
       const respostas = await Promise.all(pedidos);
@@ -5381,17 +5383,20 @@ iniciarSabedoria();
     }
 
     try {
-      // Por padrão só busca a safra atual — com 325 mil linhas na tabela,
-      // buscar tudo sempre pesaria demais. Se existir um checkbox
-      // id="filtro-todas-safras" marcado no HTML, aí sim busca o histórico
-      // completo (mais lento, mas o usuário pediu explicitamente).
+      // Por padrão busca a safra atual + a anterior — com 325 mil linhas na
+      // tabela, buscar tudo sempre pesaria demais, mas só a atual deixaria o
+      // filtro de Safra da tela sem opção nenhuma pra escolher (mesmo padrão
+      // que o Planejamento de Safra já usa: 2 safras mais recentes). Se
+      // existir um checkbox id="filtro-todas-safras" marcado no HTML, aí sim
+      // busca o histórico completo (mais lento, mas pedido explicitamente).
       const chkTodasSafras = document.getElementById('filtro-todas-safras');
       const todasSafras = !!(chkTodasSafras && chkTodasSafras.checked);
-      const safraAtual = String(new Date().getFullYear());
+      const anoAtual = new Date().getFullYear();
+      const safrasPadrao = [String(anoAtual), String(anoAtual - 1)];
 
       const cache = !forcar ? _tratosLerCache(todasSafras) : null;
       const brutos = await _tratosEsperarMin(
-        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safraAtual, todasSafras),
+        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safrasPadrao, todasSafras),
         550
       );
       if (!cache) _tratosGravarCache(brutos, todasSafras);
