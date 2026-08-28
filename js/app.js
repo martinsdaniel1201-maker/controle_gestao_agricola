@@ -5272,6 +5272,21 @@ iniciarSabedoria();
   // sem cortar nenhum dado — o app continua mostrando qualquer safra que
   // exista na tabela. `safras`/`todasSafras` ficam como parâmetros opcionais
   // (não usados hoje) caso algum dia se queira filtrar direto no Supabase.
+  // Tenta de novo (com um pequeno intervalo) antes de desistir de uma
+  // página — com conexão de campo instável e ~55 rodadas de busca agora
+  // (325 mil linhas), uma falha passageira numa única página não deveria
+  // derrubar o carregamento inteiro.
+  async function _tratosComRetry(query, tentativas = 2) {
+    let ultimoErro = null;
+    for (let i = 0; i <= tentativas; i++) {
+      const resp = await query;
+      if (!resp.error) return resp;
+      ultimoErro = resp.error;
+      if (i < tentativas) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+    return { data: null, error: ultimoErro };
+  }
+
   async function _tratosBuscarSupabasePaginado(safras, todasSafras) {
     const PAGINA = 1000;
     const CONCORRENCIA = 6; // páginas simultâneas por vez
@@ -5285,9 +5300,9 @@ iniciarSabedoria();
     }
 
     // 1) Primeira página já vem com o total exato (count:'exact')
-    const { data: primeira, count, error: erro1 } = await baseQuery()
-      .order('id', { ascending: true })
-      .range(0, PAGINA - 1);
+    const { data: primeira, count, error: erro1 } = await _tratosComRetry(
+      baseQuery().order('id', { ascending: true }).range(0, PAGINA - 1)
+    );
     if (erro1) throw erro1;
     const total = count || 0;
     if (!total) return [];
@@ -5303,7 +5318,7 @@ iniciarSabedoria();
         const de = p * PAGINA;
         let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
         if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
-        pedidos.push(q.order('id', { ascending: true }).range(de, de + PAGINA - 1));
+        pedidos.push(_tratosComRetry(q.order('id', { ascending: true }).range(de, de + PAGINA - 1)));
       }
       const respostas = await Promise.all(pedidos);
       for (const { data, error } of respostas) {
@@ -5321,9 +5336,9 @@ iniciarSabedoria();
 
   const TRATOS_CACHE_KEY = 'tratos_cache_v2';
 
-  function _tratosLerCache() {
+  function _tratosLerCache(chave) {
     try {
-      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY);
+      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY + ':' + chave);
       if (!raw) return null;
       const obj = JSON.parse(raw);
       if (!obj || !obj.ts || (Date.now() - obj.ts) > TRATOS_CACHE_TTL_MS || !Array.isArray(obj.dados)) return null;
@@ -5331,19 +5346,23 @@ iniciarSabedoria();
     } catch (e) { return null; }
   }
 
-  function _tratosGravarCache(dados) {
+  function _tratosGravarCache(dados, chave) {
     try {
-      // Com centenas de milhares de linhas isso pode facilmente estourar a
-      // cota do sessionStorage (uns 5-10 MB). Nesse caso o catch abaixo só
-      // desiste do cache silenciosamente; a tela funciona normalmente, só
-      // não fica em cache pra próxima troca de aba (recarrega do zero).
-      sessionStorage.setItem(TRATOS_CACHE_KEY, JSON.stringify({ ts: Date.now(), dados }));
+      // Com muitas safras marcadas de uma vez isso pode estourar a cota do
+      // sessionStorage (uns 5-10 MB). Nesse caso o catch abaixo só desiste
+      // do cache silenciosamente; a tela funciona normalmente, só não fica
+      // em cache pra próxima troca de aba (recarrega do zero).
+      sessionStorage.setItem(TRATOS_CACHE_KEY + ':' + chave, JSON.stringify({ ts: Date.now(), dados }));
     } catch (e) { /* sessionStorage indisponível/cheio — segue sem cache, não é crítico */ }
   }
 
   // Mostra/esconde o card de carregamento animado, escondendo o resto do
   // conteúdo da aba enquanto os dados não chegam — pra ficar bem visível
   // que está carregando (em vez do textinho pequeno de antes).
+  // `null` = ainda não escolheu nenhuma safra (1ª vez); array = safras
+  // escolhidas; 'todas' = optou por carregar o histórico completo mesmo assim.
+  let _tratosSafrasAtivas = null;
+
   function _tratosMostrarLoading(mostrar) {
     const loadingCard = document.getElementById('tratos-loading-card');
     const filtrosCard = document.getElementById('tratos-filtros-card');
@@ -5351,6 +5370,8 @@ iniciarSabedoria();
     if (loadingCard) loadingCard.style.display = mostrar ? 'block' : 'none';
     if (filtrosCard) filtrosCard.style.display = mostrar ? 'none' : '';
     if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
+    const btnTrocar = document.getElementById('tratos-btn-trocar-safra');
+    if (btnTrocar) btnTrocar.style.display = mostrar ? 'none' : '';
   }
 
   // Garante que a animação de carregamento fique visível por pelo menos
@@ -5361,8 +5382,113 @@ iniciarSabedoria();
     return Promise.all([promessa, espera]).then(([resultado]) => resultado);
   }
 
+  // ── Seletor de safra — carrega só o que o usuário escolher ────────────────
+  // Em vez de sempre buscar as 325 mil linhas da tabela toda, mostra
+  // primeiro uma lista (bem barata: só o DISTINCT de safra, via RPC) e deixa
+  // o usuário escolher quais safras quer ver antes de buscar os dados de
+  // verdade.
+  function _tratosCriarPickerDom() {
+    const loadingCard = document.getElementById('tratos-loading-card');
+    if (!loadingCard || !loadingCard.parentNode) return null;
+    let picker = document.getElementById('tratos-safra-picker');
+    if (picker) return picker;
+    // Reaproveita a classe "card" (mesma dos outros cards da aba) — sem
+    // estilo inline nosso, herda a aparência real do app.
+    picker = document.createElement('div');
+    picker.className = 'card';
+    picker.id = 'tratos-safra-picker';
+    loadingCard.parentNode.insertBefore(picker, loadingCard);
+
+    const btnTrocar = document.createElement('button');
+    btnTrocar.id = 'tratos-btn-trocar-safra';
+    btnTrocar.type = 'button';
+    btnTrocar.className = 'btn-secondary';
+    btnTrocar.style.cssText = 'display:none;margin-bottom:10px;';
+    btnTrocar.innerHTML = '<i class="fas fa-calendar-alt"></i> Trocar safra(s)';
+    btnTrocar.onclick = () => _tratosMostrarSeletorSafra();
+    loadingCard.parentNode.insertBefore(btnTrocar, loadingCard);
+
+    return picker;
+  }
+
+  async function _tratosMostrarSeletorSafra() {
+    _tratosMostrarLoading(false);
+    const filtrosCard = document.getElementById('tratos-filtros-card');
+    const relatorioCard = document.getElementById('tratos-relatorio-card');
+    if (filtrosCard) filtrosCard.style.display = 'none';
+    if (relatorioCard) relatorioCard.style.display = 'none';
+    const btnTrocar = document.getElementById('tratos-btn-trocar-safra');
+    if (btnTrocar) btnTrocar.style.display = 'none';
+
+    const picker = _tratosCriarPickerDom();
+    if (!picker) return; // não achou onde encaixar — evita quebrar a tela
+
+    picker.style.display = 'block';
+    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Buscando safras disponíveis...</div>';
+
+    let safras = [];
+    try {
+      const { data, error } = await _sbClient.rpc('listar_safras_tratos');
+      if (error) throw error;
+      safras = (data || []).map(r => r.safra).filter(Boolean);
+    } catch (e) {
+      console.error('[Tratos] Erro ao listar safras', e);
+      // Sem a function no banco (ex.: SQL ainda não rodado) — cai pra
+      // "carregar tudo" direto, avisando, em vez de travar a tela.
+      picker.style.display = 'none';
+      if (typeof showToast === 'function') showToast('⚠️ Não consegui listar as safras — carregando tudo.', 'error', 4000);
+      _tratosEscolherSafras('todas');
+      return;
+    }
+
+    if (!safras.length) {
+      picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-tractor"></i> Nenhuma safra encontrada na tabela ainda.</div>';
+      return;
+    }
+
+    const anoAtual = String(new Date().getFullYear());
+    picker.innerHTML = `
+      <div class="card-title" style="margin:0 0 12px;"><i class="fas fa-calendar-alt"></i> Quais safras você quer ver?</div>
+      <div id="tratos-safra-picker-opcoes" class="tratos-ms-opcoes"
+           style="border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:14px; max-height:none;"></div>
+      <button type="button" id="tratos-safra-picker-ok" class="btn-main">
+        <i class="fas fa-check"></i> Carregar dados
+      </button>`;
+
+    const cont = picker.querySelector('#tratos-safra-picker-opcoes');
+    safras.forEach(s => {
+      // Mesma classe (tratos-ms-opt) já usada nos checkboxes do filtro de
+      // Safra existente na tela de resultados — visual idêntico ao que o
+      // usuário já conhece.
+      const lbl = document.createElement('label');
+      lbl.className = 'tratos-ms-opt';
+      // Pré-marca só a safra atual, por conveniência — o usuário pode marcar mais.
+      const marcado = s === anoAtual;
+      lbl.innerHTML = `<input type="checkbox" value="${s}" ${marcado ? 'checked' : ''}><span>${s}</span>`;
+      cont.appendChild(lbl);
+    });
+
+    picker.querySelector('#tratos-safra-picker-ok').onclick = () => {
+      const marcadas = [...cont.querySelectorAll('input[type=checkbox]:checked')].map(i => i.value);
+      if (!marcadas.length) {
+        if (typeof showToast === 'function') showToast('⚠️ Escolha pelo menos uma safra.', 'error', 3000);
+        return;
+      }
+      _tratosEscolherSafras(marcadas);
+    };
+  }
+
+  function _tratosEscolherSafras(safrasOuTodas) {
+    _tratosSafrasAtivas = safrasOuTodas;
+    const picker = document.getElementById('tratos-safra-picker');
+    if (picker) picker.style.display = 'none';
+    carregarDadosTratos(true); // forcar=true: acabou de escolher, não usa cache de outra seleção
+  }
+  window._tratosMostrarSeletorSafra = _tratosMostrarSeletorSafra;
+
   // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
-  // Passe forcar=true (botão "Atualizar") pra ignorar o cache e buscar na hora.
+  // Passe forcar=true (botão "Atualizar"/troca de safra) pra ignorar o cache.
+  // Usa _tratosSafrasAtivas (definido pelo seletor de safra) pra saber o que buscar.
   async function carregarDadosTratos(forcar) {
     _tratosIniciado = true;
     const contador = document.getElementById('tratos-contador');
@@ -5376,17 +5502,27 @@ iniciarSabedoria();
       return;
     }
 
+    // Ainda não escolheu safra nenhuma (1ª vez abrindo a tela) — mostra o
+    // seletor em vez de sair buscando tudo.
+    if (_tratosSafrasAtivas === null) {
+      _tratosMostrarSeletorSafra();
+      return;
+    }
+
+    const todasSafras = _tratosSafrasAtivas === 'todas';
+    const safrasFiltro = todasSafras ? [] : _tratosSafrasAtivas;
+
     try {
-      // Carrega TODAS as safras que existirem na tabela — o usuário precisa
-      // ver qualquer ano com dado, não só o mais recente. As otimizações de
-      // performance ficam só na forma de buscar (em lotes de 6 páginas por
-      // vez, e só as colunas que o app usa), não em cortar dado nenhum.
-      const cache = !forcar ? _tratosLerCache() : null;
+      // Só busca as safras escolhidas no seletor — não a tabela toda. Isso é
+      // o que realmente resolve o peso: menos páginas, menos linhas na
+      // memória do navegador, carregamento bem mais rápido.
+      const chaveCache = todasSafras ? 'todas' : [...safrasFiltro].sort().join(',');
+      const cache = !forcar ? _tratosLerCache(chaveCache) : null;
       const brutos = await _tratosEsperarMin(
-        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(),
+        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safrasFiltro, todasSafras),
         550
       );
-      if (!cache) _tratosGravarCache(brutos);
+      if (!cache) _tratosGravarCache(brutos, chaveCache);
 
       _tratosMostrarLoading(false);
 
@@ -5432,7 +5568,18 @@ iniciarSabedoria();
       console.error('[Tratos] Erro Supabase:', err);
       _tratosMostrarLoading(false);
       if (contador) contador.textContent = 'Erro ao carregar';
-      if (typeof showToast === 'function') showToast('⚠️ Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.', 'error', 3500);
+      // Só fala de "login" quando o erro realmente indica sessão/token —
+      // qualquer outro erro (rede, timeout etc.) tem uma causa bem diferente
+      // e dizer "verifique se está logado" só confundiria quem tá com
+      // conexão ruim no campo.
+      const msgErro = String(err?.message || '').toLowerCase();
+      const codErro = String(err?.code || '');
+      const pareceAuth = msgErro.includes('jwt') || msgErro.includes('token') || msgErro.includes('auth')
+        || codErro === 'PGRST301' || codErro === '401' || err?.status === 401;
+      const msg = pareceAuth
+        ? '⚠️ Sessão expirada — saia e entre de novo pra atualizar o login.'
+        : '⚠️ Erro de conexão ao carregar dados do Supabase. Verifique sua internet e tente de novo.';
+      if (typeof showToast === 'function') showToast(msg, 'error', 4500);
     }
   }
 
