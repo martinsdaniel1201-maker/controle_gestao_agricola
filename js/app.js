@@ -389,7 +389,7 @@ ${linhasFrente}
 ${'─'.repeat(32)}
 📦 *Total Produzido (frentes monitoradas):* ${totalFmt}
 ${'─'.repeat(32)}
-_Gerado pelo App - Controle Agrícola_`;
+_Gerado pelo CTT Controle Agrícola_`;
 
   navigator.clipboard.writeText(texto)
     .then(() => showToast('✅ Resumo de Liberações copiado! Cole no WhatsApp.'))
@@ -5792,16 +5792,14 @@ iniciarSabedoria();
 (function() {
   'use strict';
 
-  const PLS_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQnWeCRljGl3qJ5B_NZ3Pz2jTrzdhRKhA-8me0HH40TstK-acRv3w4QKTvYKPEKqkWf0OnOSiijeuNv/pub';
-
-  const PLS_URLS = {
-    '401': PLS_BASE + '?gid=413102496&single=true&output=csv',
-    '402': PLS_BASE + '?gid=1906371632&single=true&output=csv',
-    '403': PLS_BASE + '?gid=1980138572&single=true&output=csv',
-    '404': PLS_BASE + '?gid=1281974991&single=true&output=csv',
-  };
-  const PLS_URL_TIRO  = PLS_BASE + '?gid=1448262477&single=true&output=csv';
-  const PLS_URL_DIST  = PLS_BASE + '?gid=352483918&single=true&output=csv';
+  // ⚠️ Migrado do Google Sheets pro Supabase — o Python
+  // (sync_excel_supabase.py, função sincronizar_pls(), 1x/dia) lê as abas
+  // F401-F404 + Tiro Médio + Distâncias do Excel e alimenta as tabelas
+  // pls_frente / pls_tiro / pls_dist. O app não depende mais do Google
+  // Sheets pra essa tela.
+  const PLS_TABLE_FRENTE = 'pls_frente';
+  const PLS_TABLE_TIRO   = 'pls_tiro';
+  const PLS_TABLE_DIST   = 'pls_dist';
 
   let _plsDados   = { '401': [], '402': [], '403': [], '404': [] };
   let _plsTiro    = [];
@@ -5845,15 +5843,29 @@ iniciarSabedoria();
     else if (_plsLoaded) _plsRenderizarTudo();
   }
 
-  /* ── carregamento ────────────────────────────────────────────────── */
-  function _plsParseCsv(url) {
-    return new Promise((resolve, reject) => {
-      Papa.parse(url, {
-        download: true, header: false, skipEmptyLines: true,
-        complete: r => resolve(r.data),
-        error:    e => reject(e),
-      });
-    });
+  /* ── carregamento (Supabase) ──────────────────────────────────────── */
+  // Converte uma linha de pls_frente (snake_case) pro mesmo formato
+  // camelCase que o resto do módulo já espera (mesmas chaves de antes).
+  function _plsRowFrente(row) {
+    return {
+      frente: String(row.frente || '').trim(),
+      seq: Number(row.seq) || 0,
+      codFazenda: row.cod_fazenda || '',
+      fazenda: row.fazenda || '',
+      talhao: String(row.talhao || '').trim(),
+      bloco: row.bloco || '',
+      variedade: row.variedade || '',
+      data: _parseData(row.data_colheita),
+      tch: row.tch != null ? Number(row.tch) : NaN,
+      moagem: row.moagem != null ? Number(row.moagem) : NaN,
+      tc: row.tc != null ? Number(row.tc) : NaN,
+      raio: row.raio != null ? Number(row.raio) : NaN,
+      tiroMedio: row.tiro_medio != null ? Number(row.tiro_medio) : NaN,
+      vel: row.vel != null ? Number(row.vel) : NaN,
+      tonH: row.ton_h != null ? Number(row.ton_h) : NaN,
+      hrProd: row.hr_prod != null ? Number(row.hr_prod) : NaN,
+      colheitabilidade: row.colheitabilidade != null ? Number(row.colheitabilidade) : NaN,
+    };
   }
 
   async function carregarPlanejamentoSafra() {
@@ -5864,21 +5876,34 @@ iniciarSabedoria();
     if (tlEl)  tlEl.innerHTML  = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>';
 
     try {
-      const [r401, r402, r403, r404, rTiro, rDist] = await Promise.all([
-        _plsParseCsv(PLS_URLS['401']),
-        _plsParseCsv(PLS_URLS['402']),
-        _plsParseCsv(PLS_URLS['403']),
-        _plsParseCsv(PLS_URLS['404']),
-        _plsParseCsv(PLS_URL_TIRO),
-        _plsParseCsv(PLS_URL_DIST),
-      ]);
+      if (typeof _sbClient === 'undefined') throw new Error('Cliente Supabase não encontrado.');
 
-      _plsDados['401'] = _plsNormalizarFrente(r401);
-      _plsDados['402'] = _plsNormalizarFrente(r402);
-      _plsDados['403'] = _plsNormalizarFrente(r403);
-      _plsDados['404'] = _plsNormalizarFrente(r404);
-      _plsTiro = _plsNormalizarTiro(rTiro);
-      _plsDist = _plsNormalizarDist(rDist);
+      const [rFrente, rTiro, rDist] = await Promise.all([
+        _sbClient.from(PLS_TABLE_FRENTE).select('*'),
+        _sbClient.from(PLS_TABLE_TIRO).select('*'),
+        _sbClient.from(PLS_TABLE_DIST).select('*'),
+      ]);
+      if (rFrente.error) throw rFrente.error;
+      if (rTiro.error) throw rTiro.error;
+      if (rDist.error) throw rDist.error;
+
+      _plsDados = { '401': [], '402': [], '403': [], '404': [] };
+      (rFrente.data || []).forEach(row => {
+        const f = String(row.frente || '').trim();
+        if (_plsDados[f]) _plsDados[f].push(_plsRowFrente(row));
+      });
+
+      _plsTiro = (rTiro.data || []).map(row => ({
+        codFazenda: row.cod_fazenda || '',
+        fazenda: row.fazenda || '',
+        tiroMedio: row.tiro_medio != null ? Number(row.tiro_medio) : NaN,
+        tiroMedioPond: row.tiro_medio_pond != null ? Number(row.tiro_medio_pond) : NaN,
+      }));
+      _plsDist = (rDist.data || []).map(row => ({
+        codFazenda: row.cod_fazenda || '',
+        fazenda: row.fazenda || '',
+        distancia: row.distancia != null ? Number(row.distancia) : NaN,
+      }));
 
       _plsLoaded  = true;
       _plsLoading = false;
@@ -5891,7 +5916,8 @@ iniciarSabedoria();
     }
   }
 
-  /* ── normalização ────────────────────────────────────────────────── */
+  /* ── normalização (mantidas — não usadas mais no carregamento do
+     Supabase, mas deixadas aqui caso algo ainda dependa delas) ───────── */
   function _plsNormalizarFrente(rows) {
     if (!rows || !rows.length) return [];
 
