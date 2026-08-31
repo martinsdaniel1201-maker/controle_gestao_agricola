@@ -6630,30 +6630,25 @@ iniciarSabedoria();
       if (error) console.error(`[Plantio→Supabase] erro lote ${tabela} ${i}`, error);
     }
   }
+  // ⚠️ MUDANÇA DE ARQUITETURA: quem alimenta plantio_diario/plantio_base
+  // agora é o script Python (sync_excel_supabase.py, função
+  // sincronizar_plantio(), 1x/dia), lendo o Excel direto — não mais o
+  // Google Sheets. Esse botão deixou de buscar do Google Sheets e reenviar
+  // (isso sobrescreveria os dados bons do Python com os do Sheets antigo,
+  // que não é mais atualizado) e virou só "recarregar do Supabase agora".
   async function sincronizarPlantioSupabase() {
     if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
     const btn = document.getElementById('btn-plantio-sync-supabase');
     if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
     try {
-      for (const safra of ['26_27', '25_26']) {
-        const [rDiario, rBase] = await Promise.all([
-          _parseCsvSemHeader(URLS[safra].diario),
-          _parseCsvSemHeader(URLS[safra].base),
-        ]);
-        const diarioNorm = _normalizarDiario(rDiario);
-        const baseNorm   = _normalizarBase(rBase);
-        const regsDiario = await Promise.all(diarioNorm.map(r => _plantioMontarRegistroDiario(r, safra)));
-        const regsBase   = await Promise.all(baseNorm.map(r => _plantioMontarRegistroBase(r, safra)));
-        await _plantioEnviarLotes('plantio_diario', regsDiario);
-        await _plantioEnviarLotes('plantio_base', regsBase);
-      }
-      if (typeof showToast === 'function') showToast('✅ Plantio sincronizado com o Supabase!', 'success', 4000);
-      _cache[_safraAtual].loaded = false;
+      _cache['26_27'].loaded = false;
+      _cache['25_26'].loaded = false;
       await _garantirSafraCarregada(_safraAtual);
       if (_cache[_safraAtual].loaded) _renderizarTudo();
+      if (typeof showToast === 'function') showToast('✅ Dados recarregados do Supabase!', 'success', 3000);
     } catch (e) {
-      console.error('[Plantio→Supabase] erro geral', e);
-      if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar Plantio — veja o console (F12).', 'error', 5000);
+      console.error('[Plantio] erro ao recarregar', e);
+      if (typeof showToast === 'function') showToast('❌ Erro ao recarregar do Supabase — veja o console (F12).', 'error', 5000);
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
     }
