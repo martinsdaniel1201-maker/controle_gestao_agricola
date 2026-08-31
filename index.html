@@ -815,10 +815,6 @@
           <i id="gatec-sync-dot" class="fas fa-circle" style="font-size:9px; color:var(--green-500); margin-right:6px;"></i>
           <span id="gatec-sync-label">—</span>
         </span>
-        <button class="btn-secondary" onclick="atualizarGATEC()" id="btn-atualizar-gatec">
-          <i class="fas fa-sync-alt"></i> Atualizar dados
-        </button>
-        <button class="tratos-header-icon-btn" id="btn-gatec-sync-supabase" title="Sincronizar planilha → Supabase" onclick="sincronizarGatecSupabase()"><i class="fas fa-cloud-arrow-up"></i></button>
       </div>
       
       <!-- Legenda das siglas da tabela — não altera nenhuma célula/coluna, só explica -->
@@ -1612,8 +1608,6 @@
         <div class="tratos-card-header" onclick="toggleTratosCard(this)">
           <div class="card-title" style="margin:0;"><i class="fas fa-filter"></i> Filtros</div>
           <div class="tratos-header-actions">
-            <button class="tratos-header-icon-btn" title="Atualizar (recarregar do Supabase)" onclick="event.stopPropagation(); carregarDadosTratos(true)"><i class="fas fa-sync-alt"></i></button>
-            <button class="tratos-header-icon-btn" id="btn-tratos-sync-supabase" title="Sincronizar planilha → Supabase" onclick="event.stopPropagation(); sincronizarTratosSupabase()"><i class="fas fa-cloud-arrow-up"></i></button>
             <button class="tratos-header-icon-btn" title="Exportar Excel" onclick="event.stopPropagation(); exportarTratosExcel()"><i class="fas fa-file-excel"></i></button>
             <div class="tratos-chevron"><span class="tratos-chevron-hint">ver</span><i class="fas fa-chevron-down"></i></div>
           </div>
@@ -1926,10 +1920,6 @@
             <i class="fas fa-exchange-alt" style="font-size:9px"></i> trocar safra
           </button>
         </div>
-        <button onclick="carregarDadosPlantio()" style="background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 12px; font-size:11px; font-weight:700; color:var(--text-2); cursor:pointer; display:flex; align-items:center; gap:6px;">
-          <i class="fas fa-sync-alt"></i> Atualizar
-        </button>
-        <button class="tratos-header-icon-btn" id="btn-plantio-sync-supabase" title="Sincronizar planilha → Supabase" onclick="sincronizarPlantioSupabase()"><i class="fas fa-cloud-arrow-up"></i></button>
       </div>
 
       <!-- KPI CARDS (3 cards) -->
