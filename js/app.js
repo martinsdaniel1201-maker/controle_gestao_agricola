@@ -963,6 +963,36 @@ function forcarAtualizacao() {
 // Registro de histórico de sincronização (máx 5)
 window._syncHistorico = [];
 
+// Busca a hora REAL da última sincronização feita pelo Python (tabela
+// sync_status no Supabase) — em vez de usar a hora que o navegador buscou
+// os dados, que é o que a home mostrava antes.
+async function atualizarSyncLabelReal() {
+  const label = document.getElementById('home-sync-label');
+  const dot   = document.getElementById('home-sync-dot');
+  if (!label && !dot) return;
+  try {
+    if (typeof _sbClient === 'undefined') return;
+    const { data, error } = await _sbClient.from('sync_status').select('*');
+    if (error || !data || !data.length) return;
+
+    let maisRecente = data[0];
+    for (const row of data) {
+      if (new Date(row.ultimo_sync) > new Date(maisRecente.ultimo_sync)) maisRecente = row;
+    }
+    const dt = new Date(maisRecente.ultimo_sync);
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    const houveErro = data.some(r => r.status === 'erro');
+
+    if (label) label.textContent = `Sync às ${hh}:${mm}`;
+    if (dot)   dot.style.background = houveErro ? 'var(--red)' : 'var(--green-500)';
+  } catch (e) {
+    console.error('[SyncStatusReal]', e);
+  }
+}
+window.atualizarSyncLabelReal = atualizarSyncLabelReal;
+window.addEventListener('load', () => { atualizarSyncLabelReal(); });
+
 function registrarSync(status, fonte) {
   const agora = new Date();
   const hh = String(agora.getHours()).padStart(2,'0');
@@ -971,11 +1001,9 @@ function registrarSync(status, fonte) {
   window._syncHistorico.unshift(entrada);
   if (window._syncHistorico.length > 5) window._syncHistorico.pop();
 
-  // MELHORIA 2: atualiza label da home
-  const label = document.getElementById('home-sync-label');
-  const dot   = document.getElementById('home-sync-dot');
-  if (label) label.textContent = `Sync às ${hh}:${mm}`;
-  if (dot)   dot.style.background = status === 'ok' ? 'var(--green-500)' : 'var(--red)';
+  // Label/dot da home agora vêm da hora REAL de sincronização do Python
+  // (sync_status no Supabase), não da hora que o navegador buscou os dados.
+  atualizarSyncLabelReal();
 
   // MELHORIA 6: atualiza lista do histórico
   renderSyncHistorico();
