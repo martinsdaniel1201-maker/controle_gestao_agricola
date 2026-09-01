@@ -1,4 +1,4 @@
-    @media print {
+@media print {
       /* Mostra só a seção ativa, esconde navegação */
       .section          { display: none !important; }
       .section.active   { display: block !important; }
@@ -2758,6 +2758,7 @@
        pela barra de rolagem aparecendo/sumindo entre uma aba e outra. */
     #btn-voltar-menu {
       display: none;
+      position: -webkit-sticky;
       position: sticky;
       top: 0;
       z-index: 9990;
@@ -2773,6 +2774,13 @@
       box-sizing: border-box;
       margin-bottom: 18px;
       transition: background 0.18s;
+      /* Mesma correção do bug de scroll do Safari/iOS aplicada na .bottom-nav
+         — força uma camada de composição própria (GPU). */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: transform;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
     }
 
     /* Lado esquerdo: botão voltar — oculto (redundante com o "Início" da barra
@@ -3969,6 +3977,15 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
   justify-content: space-around;
   align-items: flex-end;
   gap: 2px;
+  /* Corrige o bug do Safari/iOS onde elementos position:fixed "atrasam" ou
+     tremem durante o gesto de rolar a tela, só se recolocando no lugar
+     quando a rolagem para — forçar uma camada de composição própria (GPU)
+     resolve. */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 body.tab-open .bottom-nav { display: flex; }
 /* A barra inferior substitui o botão flutuante "voltar" — evita redundância */
