@@ -391,10 +391,6 @@
       background: linear-gradient(90deg, #E65100, #FF8F00);
       border-radius: 99px 99px 0 0; transform: scaleX(0); transition: transform 0.2s ease;
     }
-    .plantio-safra-btn:hover::before { transform: scaleX(1); }
-    .plantio-safra-btn:hover {
-      border-color: #FFECB3; box-shadow: 0 6px 18px rgba(230,81,0,0.12);
-    }
     .plantio-safra-btn.disabled {
       opacity: 0.5; cursor: not-allowed; pointer-events: none;
     }
@@ -479,7 +475,6 @@
       cursor: pointer; box-shadow: var(--shadow-sm);
       transition: transform 0.2s var(--ease-premium), box-shadow 0.2s var(--ease-premium), border-color 0.2s ease;
     }
-    .hub-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--green-500); }
     .hub-card:active { transform: translateY(0) scale(0.99); }
     .hub-card-icon {
       flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
@@ -493,12 +488,10 @@
       flex: 0 0 auto; color: var(--text-3); font-size: 12px;
       transition: transform 0.2s var(--ease-premium), color 0.2s ease;
     }
-    .hub-card:hover .hub-card-chevron { transform: translateX(3px); color: var(--green-700); }
     .hub-card.is-soon {
       border-left-color: transparent; border-style: dashed; box-shadow: none; opacity: 0.78;
     }
     .hub-card.is-soon .hub-card-icon { background: var(--surface2); color: var(--text-3); }
-    .hub-card.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
     .hub-card-badge {
       display: inline-block; margin-top: 6px; padding: 2px 8px;
       font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
@@ -526,7 +519,7 @@
       background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-md);
       box-shadow: var(--shadow-xs); transition: transform 0.2s var(--ease-premium), box-shadow 0.2s var(--ease-premium), border-color 0.2s ease;
     }
-    .report-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--green-500); }
+
     .report-btn:active { transform: translateY(0) scale(0.98); }
     .report-btn-icon {
       width: 36px; height: 36px; border-radius: 10px; background: var(--green-50); color: var(--green-700);
@@ -534,7 +527,6 @@
     }
     .report-btn-label { font-size: 10px; font-weight: 800; color: var(--text); line-height: 1.25; }
     .report-btn.is-soon { border-style: dashed; box-shadow: none; }
-    .report-btn.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
     .report-btn.is-soon .report-btn-icon { background: var(--surface2); color: var(--text-3); }
     .report-btn.is-soon .report-btn-label { color: var(--text-3); }
     .report-btn-badge {
@@ -1060,7 +1052,6 @@
       font-size: 11px; font-weight: 800; color: var(--text-2); cursor: pointer;
       transition: transform 0.12s ease;
     }
-    .pls-talhao-chip:hover { transform: translateY(-1px); }
     .pls-talhao-chip.selected { box-shadow: 0 0 0 2px var(--text) inset; }
     .pls-talhao-chip.status-encerrada { background: #E8F5E9; border-color: #C8E6C9; color: #1B5E20; }
     .pls-talhao-chip.status-aberta    { background: #E3F2FD; border-color: #BBDEFB; color: #1565C0; }
@@ -1163,7 +1154,8 @@
       width: 100%; box-sizing: border-box;
       padding: 9px 30px 9px 30px !important;
       border: 1px solid var(--border); border-radius: var(--radius-sm);
-      font-size: 12px; font-weight: 600; color: var(--text);
+      /* BUGFIX iOS: <16px trava o Safari em zoom ao focar (ver .field input) */
+      font-size: 16px; font-weight: 600; color: var(--text);
       background: var(--surface);
       transition: border-color 0.15s;
     }
@@ -1328,7 +1320,8 @@
       width: 100%; box-sizing: border-box;
       padding: 9px 30px 9px 30px !important;
       border: 1px solid var(--border); border-radius: var(--radius-sm);
-      font-size: 12px; font-weight: 600; color: var(--text);
+      /* BUGFIX iOS: <16px trava o Safari em zoom ao focar (ver .field input) */
+      font-size: 16px; font-weight: 600; color: var(--text);
       background: var(--surface); transition: border-color 0.15s;
     }
     .app-ss-input:focus { outline: none; border-color: var(--green-500); }
@@ -1438,7 +1431,12 @@
       border-radius: var(--radius-sm);
       border: 1.5px solid var(--border);
       background: var(--surface2); color: var(--text);
-      font-weight: 600; font-size: 13px; outline: none;
+      /* BUGFIX iOS: fonte abaixo de 16px nesse input, com o viewport
+         travado em maximum-scale=1/user-scalable=no lá no <head>, fazia
+         o Safari dar zoom automático ao focar o campo e o usuário ficar
+         preso na tela ampliada (sem poder dar pinch pra voltar). 16px
+         evita o gatilho de zoom do Safari. */
+      font-weight: 600; font-size: 16px; outline: none;
       transition: border-color 0.18s;
     }
     .field input:focus, .field select:focus { border-color: var(--green-500); }
@@ -1787,7 +1785,8 @@
     .filter-bar input, .filter-bar select {
       padding: 9px 12px; border-radius: var(--radius-sm);
       border: 1.5px solid var(--border); background: var(--surface2);
-      color: var(--text); font-size: 12px; font-weight: 600; outline: none;
+      /* BUGFIX iOS: mesmo problema de zoom travado do .field input. */
+      color: var(--text); font-size: 16px; font-weight: 600; outline: none;
     }
     .filter-bar input { flex: 1; }
     .filter-bar input:focus, .filter-bar select:focus { border-color: var(--green-500); }
@@ -1806,7 +1805,8 @@
     }
     .frente-card-header input {
       border: none; font-weight: 800; color: var(--green-900);
-      outline: none; font-size: 14px; background: transparent; flex: 1;
+      /* BUGFIX iOS: <16px trava o Safari em zoom ao focar (ver .field input) */
+      outline: none; font-size: 16px; background: transparent; flex: 1;
     }
     .frente-card-header input:focus {
       border-bottom: 2px solid var(--green-500);
@@ -2222,7 +2222,8 @@
     .modal-input {
       width: 100%; padding: 11px 14px;
       border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 600; outline: none; margin-bottom: 14px;
+      /* BUGFIX iOS: <16px trava o Safari em zoom ao focar (ver .field input) */
+      font-size: 16px; font-weight: 600; outline: none; margin-bottom: 14px;
       transition: border-color 0.18s;
     }
     .modal-input:focus { border-color: var(--green-500); }
@@ -3414,7 +3415,9 @@ body.dark-mode .resumo-cards .medal-text {
     border-radius: var(--radius-sm);
     background: var(--surface2);
     color: var(--text);
-    font-size: 14px;
+    /* BUGFIX iOS: mesmo motivo do .field input acima — <16px trava o
+       Safari em zoom ao focar o campo de login. */
+    font-size: 16px;
     font-weight: 600;
     outline: none;
     transition: border-color 0.18s;
@@ -4293,27 +4296,26 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   }
 }
 
-/* ── MOBILE: mantém o padrão do grid sem quebrar ── */
+/* ── MOBILE: alinhado ao mesmo padrão de coluna das células
+   irmãs (Est./Real./TCH) ──
+   BUGFIX: esta regra antes redeclarava display/align-items/
+   justify-content pra essa célula, com especificidade igual à regra
+   do bloco "CARD DE LIBERAÇÃO NO CELULAR" (linha ~4213) que já
+   organiza as 4 métricas (Est., Real., Dif. Prod., TCH) no mesmo
+   layout em coluna (rótulo em cima, valor embaixo, tudo centralizado).
+   Como as duas tinham a mesma especificidade, a que vinha depois no
+   arquivo (esta) vencia e tirava só a célula "Dif. Prod." do padrão,
+   deixando ela desalinhada em relação às outras 3 no card mobile —
+   esse era o bug visual reportado na tabela de Liberações. Agora só
+   ajustamos o tamanho do ícone/espaçamento, sem mexer em
+   display/alinhamento — o ícone e o número já ficam lado a lado
+   naturalmente (fluem juntos como conteúdo inline dentro da coluna),
+   e a célula acompanha o mesmo centralizado das irmãs. */
 @media (max-width: 768px) {
-  #tabela-liberacoes-gatec tbody td.cell-dif-prod {
-    display: flex !important;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 4px;
-    padding-right: 14px !important;
-  }
-  #tabela-liberacoes-gatec tbody td.cell-dif-prod::before {
-    /* Mantém o label "Dif. Prod.:" no mobile */
-    flex: 1;
-    text-align: left;
-    margin-right: 4px;
-  }
   #tabela-liberacoes-gatec tbody td.cell-dif-prod .dif-icon {
     font-size: 13px;
-    flex-shrink: 0;
   }
   #tabela-liberacoes-gatec tbody td.cell-dif-prod span:not(.dif-icon) {
-    flex-shrink: 0;
     font-weight: 700;
   }
 }
@@ -4322,4 +4324,28 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
 .compact-mode .dif-icon {
   font-size: 9px !important;
   margin-right: 2px;
+}
+
+/* ── BUGFIX MOBILE: "hover grudado" em telas de toque ──
+   Os efeitos abaixo (elevar o card, sombra, deslocar seta) faziam
+   sentido no desktop com mouse, mas em iOS/Android um toque ativa o
+   :hover e ele FICA aplicado até o usuário tocar em outro lugar da
+   tela — o card parecia "travado" levantado/destacado depois de um
+   simples toque. Reagrupados aqui dentro de
+   @media (hover: hover) and (pointer: fine), que só é satisfeito por
+   dispositivos com mouse de verdade — em touchscreen a regra nem é
+   aplicada, então o toque não deixa nada "grudado". Os estados de
+   toque (:active) de cada componente continuam funcionando normalmente
+   fora deste bloco. */
+@media (hover: hover) and (pointer: fine) {
+  .plantio-safra-btn:hover::before { transform: scaleX(1); }
+  .plantio-safra-btn:hover {
+    border-color: #FFECB3; box-shadow: 0 6px 18px rgba(230,81,0,0.12);
+  }
+  .hub-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--green-500); }
+  .hub-card:hover .hub-card-chevron { transform: translateX(3px); color: var(--green-700); }
+  .hub-card.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
+  .report-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--green-500); }
+  .report-btn.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
+  .pls-talhao-chip:hover { transform: translateY(-1px); }
 }
