@@ -5,6 +5,12 @@
   <link rel="apple-touch-icon" href="icone_agro.png">
   <link rel="icon" type="image/png" href="icone_agro.png"> <meta name="theme-color" content="#1B5E20">
   <meta charset="UTF-8">
+  <!-- BUGFIX iOS: sem essas duas tags, ao adicionar à Tela de Início no
+       iPhone o app abre dentro do Safari (com barra de endereço) em vez
+       de tela cheia como um app instalado de verdade. -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Controle Técnico Agrícola</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
