@@ -2818,10 +2818,18 @@ function filtrarTabela() {
   // Frentes selecionadas via chips (Set de strings; vazio = todas)
   const frentesSel = window._libFrentesSelecionadas || new Set();
   const bStatus  = document.getElementById('filtroStatus')?.value || '';
+  // BUGFIX: usava .innerText, que o navegador zera (retorna "") pra
+  // qualquer célula que esteja com display:none no momento da leitura.
+  // Como esta própria função aplica display:none nas linhas que não
+  // batem no filtro, na próxima vez que o filtro mudasse (ex.: trocar
+  // de "Abertas" pra "Encerradas"), as linhas que tinham ficado
+  // escondidas eram lidas com texto vazio e nunca mais voltavam a
+  // aparecer, mesmo quando deveriam — parecia que o filtro "grudava".
+  // .textContent não depende de estar visível, então resolve.
   document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
-    const frente  = (linha.cells[1]?.innerText || '').trim();
-    const fazenda = (linha.cells[2]?.innerText || '').trim();
-    const status  = (linha.cells[8]?.innerText || '').toUpperCase().trim();
+    const frente  = (linha.cells[1]?.textContent || '').trim();
+    const fazenda = (linha.cells[2]?.textContent || '').trim();
+    const status  = (linha.cells[8]?.textContent || '').toUpperCase().trim();
     const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
     const okFazenda = _libFazendaOk(fazenda);
     const okStatus  = !bStatus  || status.includes(bStatus);
@@ -7914,7 +7922,21 @@ function _onLogout() {
   let startX = 0, startY = 0, tracking = false, activeSection = null;
   const hint = () => document.getElementById('swipe-back-hint');
 
+  // BUGFIX: esse gesto de arrastar da borda esquerda pode competir com o
+  // gesto NATIVO de "voltar" do próprio sistema — o swipe-back do Safari
+  // quando o app roda numa aba normal (não instalado), e a navegação por
+  // gestos do Android (borda esquerda/direita) quando o celular usa esse
+  // modo. Nos dois casos o SO pode "roubar" o toque antes do nosso JS, ou
+  // disparar os dois ao mesmo tempo. Como o app já tem tela de instalação
+  // PWA, deixamos o gesto customizado ativo só quando já está rodando
+  // instalado (standalone) — onde não existe gesto nativo de voltar pra
+  // competir; numa aba normal do navegador, deixamos o gesto nativo agir
+  // sozinho.
+  const _rodandoStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+
   function onStart(e) {
+    if (!_rodandoStandalone) return;
     if (!document.body.classList.contains('tab-open')) return;
     // Ignora se o toque começou dentro de um modal/overlay aberto
     if (document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open')) return;
@@ -7977,3 +7999,73 @@ function _onLogout() {
   document.addEventListener('touchcancel', onEnd, { passive: true });
 })();
  
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BUGFIX ANDROID: botão/gesto físico de "voltar" saía direto do app (ou
+   fechava a aba) em vez de fechar um modal aberto ou voltar pro menu Home
+   de dentro de uma seção. Causa: o app não empilhava nenhum estado de
+   histórico (history.pushState/popstate) — pro navegador, cada "voltar"
+   contava como sair da página atual, já que não havia nenhum passo interno
+   registrado. Isso NÃO muda nenhuma função existente por dentro; só observa
+   as mesmas aberturas de aba/modal que já existiam e empilha/desempilha um
+   degrau de histórico em cima.
+══════════════════════════════════════════════════════════════════════════ */
+(function () {
+  function _cttPushState(marker) {
+    try { history.pushState({ ctt: true, marker: marker }, '', location.href); }
+    catch (err) { /* ambiente sem suporte a History API — ignora silenciosamente */ }
+  }
+
+  // Cada troca de aba/seção conta como um passo de navegação.
+  const _showTabOriginal = window.showTab;
+  if (typeof _showTabOriginal === 'function') {
+    window.showTab = function (e, id) {
+      _showTabOriginal(e, id);
+      _cttPushState('tab:' + id);
+    };
+  }
+
+  // Ao voltar pro menu Home (pelo botão em tela, pelo bn-home, ou pelo
+  // próprio popstate abaixo), consome o degrau de histórico correspondente
+  // pra não deixar "lixo" acumulado que exigiria apertar voltar de novo à
+  // toa mais tarde.
+  const _voltarParaHomeOriginal = window.voltarParaHome;
+  if (typeof _voltarParaHomeOriginal === 'function') {
+    window.voltarParaHome = function () {
+      _voltarParaHomeOriginal();
+      if (history.state && history.state.ctt) {
+        try { history.back(); } catch (err) { /* ignora */ }
+      }
+    };
+  }
+
+  // Qualquer modal/overlay que já existia no app (.modal-overlay,
+  // #mais-sheet-overlay) empilha um degrau quando ganha a classe "open" —
+  // sem precisar alterar cada função de abrir modal uma por uma.
+  document.querySelectorAll('.modal-overlay, .mais-sheet-overlay').forEach(function (overlay) {
+    let estavaAberto = overlay.classList.contains('open');
+    new MutationObserver(function () {
+      const abertoAgora = overlay.classList.contains('open');
+      if (abertoAgora && !estavaAberto) {
+        _cttPushState('overlay:' + (overlay.id || overlay.className));
+      }
+      estavaAberto = abertoAgora;
+    }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
+  });
+
+  window.addEventListener('popstate', function () {
+    // 1) Tem modal/overlay aberto? Fecha ele primeiro (em vez de sair do app).
+    const overlayAberto = document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open');
+    if (overlayAberto) {
+      overlayAberto.classList.remove('open');
+      return;
+    }
+    // 2) Está dentro de uma seção? Volta pro menu Home em vez de sair do app.
+    if (document.body.classList.contains('tab-open')) {
+      _voltarParaHomeOriginal ? _voltarParaHomeOriginal() : voltarParaHome();
+      return;
+    }
+    // 3) Já está na Home sem nada aberto: deixa o navegador seguir o
+    //    comportamento padrão (ex.: sair do app), que é o esperado aqui.
+  });
+})();
