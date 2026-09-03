@@ -5330,37 +5330,37 @@ iniciarSabedoria();
     const temFiltro = !todasSafras && Array.isArray(safras) && safras.length > 0;
 
     function baseQuery() {
-      let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS, { count: 'exact' });
+      let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
       if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
       return q;
     }
 
-    // 1) Primeira página já vem com o total exato (count:'exact')
-    const { data: primeira, count, error: erro1 } = await _tratosComRetry(
-      baseQuery().order('id', { ascending: true }).range(0, PAGINA - 1)
-    );
-    if (erro1) throw erro1;
-    const total = count || 0;
-    if (!total) return [];
+    // PERFORMANCE: antes a 1ª busca pedia { count: 'exact' } pra saber de
+    // antemão quantas páginas existiam. Só que count:'exact' faz o Postgres
+    // contar TODAS as linhas que batem com o filtro antes de devolver
+    // qualquer dado — numa tabela com centenas de milhares de linhas, essa
+    // contagem sozinha costuma ser mais lenta que a busca dos dados em si.
+    // Agora buscamos direto, em lotes de CONCORRENCIA páginas por vez, e
+    // paramos assim que alguma vier com menos linhas que PAGINA (sinal de
+    // que chegamos ao fim) — sem precisar saber o total antes de começar.
+    const todas = [];
+    let pagina = 0;
+    let acabou = false;
 
-    const todas = [...(primeira || [])];
-    const totalPaginas = Math.ceil(total / PAGINA);
-
-    // 2) Demais páginas, em lotes de CONCORRENCIA por vez (não tudo de uma vez)
-    for (let inicio = 1; inicio < totalPaginas; inicio += CONCORRENCIA) {
-      const fim = Math.min(inicio + CONCORRENCIA, totalPaginas);
+    while (!acabou) {
       const pedidos = [];
-      for (let p = inicio; p < fim; p++) {
-        const de = p * PAGINA;
-        let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
-        if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
-        pedidos.push(_tratosComRetry(q.order('id', { ascending: true }).range(de, de + PAGINA - 1)));
+      for (let i = 0; i < CONCORRENCIA; i++) {
+        const de = (pagina + i) * PAGINA;
+        pedidos.push(_tratosComRetry(baseQuery().order('id', { ascending: true }).range(de, de + PAGINA - 1)));
       }
       const respostas = await Promise.all(pedidos);
       for (const { data, error } of respostas) {
         if (error) throw error;
-        if (data) todas.push(...data);
+        if (!data || data.length === 0) { acabou = true; break; }
+        todas.push(...data);
+        if (data.length < PAGINA) acabou = true;
       }
+      pagina += CONCORRENCIA;
     }
     return todas;
   }
