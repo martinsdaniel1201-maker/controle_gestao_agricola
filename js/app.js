@@ -6055,9 +6055,21 @@ iniciarSabedoria();
   // e devolve também o código extraído, se houver
   function _plsExtrairFazenda(desc) {
     const s = String(desc || '').trim();
-    const m = s.match(/^(\d+)\s*-\s*(.+)$/);
-    if (m) return { cod: m[1], nome: m[2].trim() };
-    return { cod: '', nome: s };
+    // BUGFIX: antes exigia um hífen "-" bem formado ("45 - NOME") pra
+    // separar código e nome. Isso falhava silenciosamente sempre que a
+    // planilha de Liberações tinha esse campo digitado com travessão
+    // (–/—), sem espaço, com dois pontos, ou qualquer variação — nesses
+    // casos o código voltava vazio E o "nome" ficava com o código ainda
+    // grudado na frente (ex. "45 - SAO SEBASTIAO" inteiro), o que quebrava
+    // também a comparação por nome. É exatamente esse tipo de
+    // inconsistência de digitação que faz "funcionar com algumas fazendas
+    // e não com outras". Agora extraímos só o número no início (qualquer
+    // separador depois dele) e tudo mais vira o nome.
+    const m = s.match(/^(\d+)/);
+    if (!m) return { cod: '', nome: s };
+    const cod = m[1];
+    const nome = s.slice(cod.length).replace(/^[\s\-–—:.]+/, '').trim();
+    return { cod, nome: nome || s };
   }
 
   function _plsStatusTalhao(frente, fazenda, talhao, codFazenda) {
@@ -6076,10 +6088,17 @@ iniciarSabedoria();
       const { cod: rCod, nome: rNome } = _plsExtrairFazenda(rFazendaRaw);
       const rCodNorm = rCod.replace(/^0+/, '');
 
-      // Compara por código (mais confiável) OU por nome normalizado
+      // Compara por código (mais confiável), por nome normalizado, e por
+      // último — só se as duas anteriores falharem — por "contém": nomes
+      // digitados com uma palavra a mais/a menos ("FAZENDA X" vs "X") ou
+      // abreviação continuam batendo em vez de virar "ainda não colhida"
+      // por uma diferença mínima de digitação entre as duas planilhas.
+      const rNomeNorm = _norm(rNome);
       const bateCod  = codNorm && rCodNorm && codNorm === rCodNorm;
-      const bateNome = _norm(rNome) === fazendaNomeNorm;
-      if (!bateCod && !bateNome) return false;
+      const bateNome = rNomeNorm === fazendaNomeNorm;
+      const bateContem = !bateCod && !bateNome && fazendaNomeNorm.length >= 6 && rNomeNorm.length >= 6
+        && (fazendaNomeNorm.includes(rNomeNorm) || rNomeNorm.includes(fazendaNomeNorm));
+      if (!bateCod && !bateNome && !bateContem) return false;
 
       const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
       const talhoesArr = rTalhoes.split(/[,;\s]+/)
@@ -6127,6 +6146,27 @@ iniciarSabedoria();
     const fazPls = [...new Set((_plsDados['401']||[]).map(r => r.fazenda).filter(Boolean))].sort();
     console.log('Fazendas em Liberações (amostra):', fazLib.slice(0,10));
     console.log('Fazendas em Planejamento 401 (amostra):', fazPls.slice(0,10));
+
+    // NOVO: lista, pra cada frente, as fazendas do planejamento que não
+    // encontraram NENHUM talhão correspondente em Liberações — essas são
+    // as candidatas a diferença de digitação (nome/código) entre as duas
+    // planilhas. Ajuda a achar rápido qual fazenda está com problema.
+    console.group('[PLS DEBUG] Fazendas do planejamento SEM nenhum talhão encontrado em Liberações');
+    ['401','402','403','404'].forEach(frente => {
+      const porFaz = {};
+      (_plsDados[frente] || []).forEach(r => {
+        const key = `${r.codFazenda || '—'} · ${r.fazenda}`;
+        if (!porFaz[key]) porFaz[key] = [];
+        porFaz[key].push(r);
+      });
+      Object.entries(porFaz).forEach(([nomeFaz, talhoes]) => {
+        const nenhumEncontrado = talhoes.every(r => _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda) === 'pendente');
+        if (nenhumEncontrado) {
+          console.log(`Frente ${frente} | ${nomeFaz} (${talhoes.length} talhão(ões)) — 0 encontrados em Liberações`);
+        }
+      });
+    });
+    console.groupEnd();
   };
 
   /* ── renderização principal ──────────────────────────────────────── */
@@ -6156,10 +6196,33 @@ iniciarSabedoria();
         if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTc += tc; }
       });
       const tiroMedioFrente = sumTc > 0 ? sumTcTiro / sumTc : NaN;
+
+      // NOVO: TCH médio REAL, calculado em cima da própria aba "Ver
+      // Liberações" (_gatecDados) — só conta liberação já ENCERRADA dessa
+      // frente (é o TCH definitivo; enquanto está "aberta" ainda pode
+      // mudar) e com TCH válido (>0). É o que você pediu: comparar o TCH
+      // estimado no planejamento com o que realmente está saindo na
+      // colheita.
+      const rowsLib = (window._gatecDados || []).filter(r =>
+        String(r['FRENTE'] || '').trim() === frente &&
+        String(r['STATUS OS'] || '').toUpperCase().includes('ENCERRADA')
+      );
+      const tchRealVals = rowsLib
+        .map(r => parseFloat(String(r['TCH'] || '').replace(',', '.')))
+        .filter(v => !isNaN(v) && v > 0);
+      const tchReal = tchRealVals.length
+        ? tchRealVals.reduce((s,v) => s+v,0) / tchRealVals.length
+        : NaN;
+      const difTch = (!isNaN(tchReal) && !isNaN(tchMedio) && tchMedio > 0)
+        ? ((tchReal - tchMedio) / tchMedio) * 100
+        : NaN;
+
       html += `
         <div class="pls-kpi-card">
           <div class="pls-kpi-frente">FRENTE ${frente}</div>
           <div class="pls-kpi-linha"><span>TCH médio est.</span><b>${!isNaN(tchMedio) ? tchMedio.toFixed(0) : '—'}</b></div>
+          <div class="pls-kpi-linha"><span>TCH médio real (Liberações)</span><b>${!isNaN(tchReal) ? tchReal.toFixed(0) + ` <span style="font-weight:600;font-size:10px;color:var(--text-3);">(${tchRealVals.length} enc.)</span>` : '—'}</b></div>
+          ${!isNaN(difTch) ? `<div class="pls-kpi-linha"><span>Dif. real × est.</span><b style="color:${difTch < 0 ? 'var(--red-600, #c0392b)' : 'var(--green-700)'}">${difTch > 0 ? '+' : ''}${difTch.toFixed(1)}%</b></div>` : ''}
           <div class="pls-kpi-linha"><span>Tiro médio</span><b>${!isNaN(tiroMedioFrente) ? tiroMedioFrente.toFixed(0)+' m' : '—'}</b></div>
         </div>`;
     });
