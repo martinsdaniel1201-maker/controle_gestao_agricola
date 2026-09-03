@@ -1171,15 +1171,21 @@ async function buscarDiasSemChuva() {
    MELHORIA 4 — ATALHO CHIP → ABA PRODUÇÃO
 ══════════════════════════════════════════════ */
 function irParaFrente(frente) {
-  // Navega para Liberações e ativa o chip da frente correspondente
-  const btn = document.querySelector('[onclick*="liberacoes"]');
-  if (btn) btn.click();
+  // Navega para a aba Liberações usando showTab (forma correta no app)
+  const btnLiberacoes = document.querySelector('#main-nav.home-mode .tab-btn[onclick*="liberacoes_menu"]');
+  if (btnLiberacoes) {
+    showTab({ currentTarget: btnLiberacoes }, 'liberacoes_menu');
+  } else {
+    // Fallback: tenta pelo seletor genérico
+    const btn = document.querySelector('[onclick*="liberacoes"]');
+    if (btn) btn.click();
+  }
+  // Após abrir a aba, aguarda a tabela carregar e ativa o chip da frente
   setTimeout(() => {
     const chip = document.querySelector(`.lib-frente-chip[data-frente="${frente}"]`);
     if (chip) libToggleFrente(chip);
-  }, 200);
+  }, 600);
 }
-
 /* ══════════════════════════════════════════════
    MELHORIA 5 — SELETOR GLOBAL DE FRENTE
 ══════════════════════════════════════════════ */
