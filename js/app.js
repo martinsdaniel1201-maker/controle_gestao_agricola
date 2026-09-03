@@ -1168,23 +1168,23 @@ async function buscarDiasSemChuva() {
 }
 
 /* ══════════════════════════════════════════════
-   MELHORIA 4 — ATALHO CHIP → ABA PRODUÇÃO
+   MELHORIA 4 — ATALHO CHIP → ABA LIBERAÇÕES (TABELA) - Correção dos fitrinhos da home rapidos
 ══════════════════════════════════════════════ */
 function irParaFrente(frente) {
-  // Navega para a aba Liberações usando showTab (forma correta no app)
-  const btnLiberacoes = document.querySelector('#main-nav.home-mode .tab-btn[onclick*="liberacoes_menu"]');
-  if (btnLiberacoes) {
-    showTab({ currentTarget: btnLiberacoes }, 'liberacoes_menu');
-  } else {
-    // Fallback: tenta pelo seletor genérico
-    const btn = document.querySelector('[onclick*="liberacoes"]');
-    if (btn) btn.click();
-  }
-  // Após abrir a aba, aguarda a tabela carregar e ativa o chip da frente
+  // Abre DIRETO a aba "Ver Liberações" (filtros + tabela),
+  // pulando o hub que mostra só o resumo das frentes.
+  showTab(null, 'liberacoes');
+
+  // Aguarda a seção renderizar e ativa o chip da frente correspondente
   setTimeout(() => {
     const chip = document.querySelector(`.lib-frente-chip[data-frente="${frente}"]`);
-    if (chip) libToggleFrente(chip);
-  }, 600);
+    if (chip && !chip.classList.contains('active')) {
+      libToggleFrente(chip);
+    }
+    // Rola até o card de filtros pra ficar visível o chip ativo
+    const filtros = document.querySelector('#liberacoes .lib-filtros-card');
+    if (filtros) filtros.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 350);
 }
 /* ══════════════════════════════════════════════
    MELHORIA 5 — SELETOR GLOBAL DE FRENTE
