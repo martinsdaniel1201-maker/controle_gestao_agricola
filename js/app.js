@@ -5904,6 +5904,28 @@ iniciarSabedoria();
     };
   }
 
+  // Busca paginada genérica — Supabase/PostgREST limita a 1000 linhas por
+  // chamada por padrão, mesmo sem pedir. BUGFIX: antes as 3 tabelas do PLS
+  // eram lidas com um .select('*') simples, sem paginação — enquanto a
+  // tabela pls_frente tinha poucas centenas de linhas (só 401/402
+  // funcionando) nunca deu problema, mas agora com as 4 frentes
+  // sincronizando direito (2195 linhas ao todo) a busca sem paginação
+  // cortava o resto silenciosamente — é o que fazia o Roteiro de Colheita
+  // mostrar "0 talhões" pra frente 404 (as últimas a entrar, cortadas).
+  async function _plsBuscarPaginado(tabela) {
+    const PAGINA = 1000;
+    let de = 0, todas = [];
+    while (true) {
+      const { data, error } = await _sbClient.from(tabela).select('*').range(de, de + PAGINA - 1);
+      if (error) throw error;
+      if (!data || !data.length) break;
+      todas.push(...data);
+      if (data.length < PAGINA) break;
+      de += PAGINA;
+    }
+    return todas;
+  }
+
   async function carregarPlanejamentoSafra() {
     _plsLoading = true;
     const kpiEl = document.getElementById('pls-kpi-grid');
@@ -5914,14 +5936,14 @@ iniciarSabedoria();
     try {
       if (typeof _sbClient === 'undefined') throw new Error('Cliente Supabase não encontrado.');
 
-      const [rFrente, rTiro, rDist] = await Promise.all([
-        _sbClient.from(PLS_TABLE_FRENTE).select('*'),
-        _sbClient.from(PLS_TABLE_TIRO).select('*'),
-        _sbClient.from(PLS_TABLE_DIST).select('*'),
+      const [dadosFrente, dadosTiro, dadosDist] = await Promise.all([
+        _plsBuscarPaginado(PLS_TABLE_FRENTE),
+        _plsBuscarPaginado(PLS_TABLE_TIRO),
+        _plsBuscarPaginado(PLS_TABLE_DIST),
       ]);
-      if (rFrente.error) throw rFrente.error;
-      if (rTiro.error) throw rTiro.error;
-      if (rDist.error) throw rDist.error;
+      const rFrente = { data: dadosFrente };
+      const rTiro   = { data: dadosTiro };
+      const rDist   = { data: dadosDist };
 
       _plsDados = { '401': [], '402': [], '403': [], '404': [] };
       (rFrente.data || []).forEach(row => {
@@ -6301,7 +6323,7 @@ iniciarSabedoria();
     }));
     const filtrado = statusFiltro ? comStatus.filter(r => r.status === statusFiltro) : comStatus;
     if (contador) contador.textContent =
-      `${filtrado.length} talhão${filtrado.length !== 1 ? 'ões' : ''} · Frente ${frente}`;
+      `${filtrado.length} ${filtrado.length !== 1 ? 'talhões' : 'talhão'} · Frente ${frente}`;
     if (!filtrado.length) {
       cont.innerHTML = '<div class="pla-empty"><i class="fas fa-route"></i>Nenhum talhão encontrado para este filtro.</div>';
       return;
@@ -6482,7 +6504,7 @@ iniciarSabedoria();
           ${liberados ? `<span class="pls-tl-status-badge aberta">${liberados} liberado${liberados>1?'s':''}</span>` : ''}
           ${pendentes ? `<span class="pls-tl-status-badge pendente">${pendentes} pendente${pendentes>1?'s':''}</span>` : ''}
         </div>
-        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} talhão${faltantes.length>1?'ões':''} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
+        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} ${faltantes.length>1?'talhões':'talhão'} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
         <div class="pls-talhao-grid">${chipsHtml}</div>
         <div id="pls-talhao-detalhe"></div>
       </div>`;
@@ -6807,14 +6829,36 @@ iniciarSabedoria();
   }
 
   async function carregarDadosPlantio() {
-    ['pla-resumo-container'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
-    });
-    // Força recarregar safra atual
+    // BUGFIX: antes limpava a tela pra "Carregando..." IMEDIATAMENTE, antes
+    // mesmo de saber se a busca nova ia dar certo. Numa rede instável (bem
+    // comum no campo), se essa busca falhasse (erro de rede, token
+    // expirado etc.), a tela ficava travada vazia — dado bom que estava na
+    // tela segundos antes "sumia" sem nenhum aviso de erro, mesmo com o
+    // banco intacto. Agora só apaga a tela se for a primeira vez (nada pra
+    // perder); se já tinha dado carregado antes, só mexe na tela depois
+    // que a busca nova terminar — se der certo, mostra o novo; se falhar,
+    // mantém o que já estava e avisa com um toast, em vez de apagar.
+    const primeiraVez = !(_cache[_safraAtual].diario?.length) && !(_cache[_safraAtual].base?.length);
+    if (primeiraVez) {
+      ['pla-resumo-container'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+      });
+    }
     _cache[_safraAtual].loaded = false;
-    await _garantirSafraCarregada(_safraAtual);
-    if (_cache[_safraAtual].loaded) _renderizarTudo();
+    try {
+      await _garantirSafraCarregada(_safraAtual);
+    } catch (e) { /* _garantirSafraCarregada já loga o erro */ }
+    if (_cache[_safraAtual].loaded) {
+      _renderizarTudo();
+    } else if (typeof showToast === 'function') {
+      showToast(
+        primeiraVez
+          ? '❌ Não consegui carregar o Plantio agora — verifique a conexão e tente de novo.'
+          : '❌ Não consegui atualizar o Plantio agora (erro de rede/conexão) — mantendo os últimos dados carregados.',
+        'error', 5000
+      );
+    }
   }
 
   function _atualizarSubTextoSafra(safra) {
