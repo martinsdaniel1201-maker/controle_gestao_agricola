@@ -14,6 +14,66 @@ const _sbClient = supabase.createClient(_SB_URL, _SB_KEY, {
 });
 
 /* ══════════════════════════════════════════════
+   LOADING PADRÃO
+   Componente único de carregamento (ícone + skeleton animado) usado em
+   todas as telas do app — Liberações, Conferências, Clima, Planejamento
+   de Safra, Plantio e Tratos Culturais. Antes cada tela tinha seu próprio
+   spinnerzinho de texto isolado (ou nem tinha animação nenhuma); agora
+   todo mundo chama a mesma função e usa a mesma cara.
+   CSS injetado via JS (não depende de mexer no style.css/index.html).
+══════════════════════════════════════════════ */
+(function _cttInjetarEstiloLoading() {
+  if (document.getElementById('ctt-loading-style')) return;
+  const style = document.createElement('style');
+  style.id = 'ctt-loading-style';
+  style.textContent = `
+    .ctt-loader{display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:12px;padding:36px 16px;text-align:center;}
+    .ctt-loader-icone{width:46px;height:46px;border-radius:50%;flex:0 0 auto;
+      background:var(--green-50,#eafbf1);color:var(--green-700,#1b7a43);
+      display:flex;align-items:center;justify-content:center;font-size:18px;
+      animation:ctt-pulso 1.4s ease-in-out infinite;}
+    .ctt-loader-icone i{animation:ctt-girar 1s linear infinite;}
+    .ctt-loader-texto{font-size:12px;font-weight:800;color:var(--text-2,#555);letter-spacing:.2px;}
+    .ctt-loader-skeleton{width:100%;max-width:260px;display:flex;flex-direction:column;gap:8px;}
+    .ctt-loader-barra{height:9px;border-radius:99px;background:var(--surface2,#eee);
+      background-image:linear-gradient(90deg,var(--surface2,#eee) 25%,var(--green-100,#dff5e6) 37%,var(--surface2,#eee) 63%);
+      background-size:400% 100%;animation:ctt-brilho 1.4s ease-in-out infinite;}
+    .ctt-loader-inline{display:inline-flex;align-items:center;gap:6px;color:var(--text-3,#8a8a8a);font-size:12px;}
+    .ctt-loader-inline i{animation:ctt-girar 1s linear infinite;}
+    @keyframes ctt-girar{to{transform:rotate(360deg);}}
+    @keyframes ctt-pulso{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+    @keyframes ctt-brilho{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+  `;
+  document.head.appendChild(style);
+})();
+
+// Bloco de carregamento completo (ícone pulsando + barras animadas tipo
+// skeleton) — usar quando o loading ocupa um espaço próprio na tela
+// (substitui uma tabela, um card, uma seção inteira).
+function cttLoadingHTML(mensagem, opts) {
+  opts = opts || {};
+  const icone  = opts.icone || 'fa-spinner';
+  const larguras = [86, 64, 74];
+  const skeleton = larguras.map((w, i) =>
+    `<div class="ctt-loader-barra" style="width:${w}%;animation-delay:${(i * 0.12).toFixed(2)}s;"></div>`
+  ).join('');
+  return `<div class="ctt-loader">
+      <div class="ctt-loader-icone"><i class="fas ${icone}"></i></div>
+      <div class="ctt-loader-texto">${mensagem || 'Carregando...'}</div>
+      <div class="ctt-loader-skeleton">${skeleton}</div>
+    </div>`;
+}
+window.cttLoadingHTML = cttLoadingHTML;
+
+// Versão compacta (1 linha, ícone girando + texto) — usar quando o
+// espaço é pequeno (ex.: dentro de uma célula de tabela, um badge).
+function cttLoadingInlineHTML(mensagem) {
+  return `<span class="ctt-loader-inline"><i class="fas fa-spinner fa-spin"></i>${mensagem || 'Carregando...'}</span>`;
+}
+window.cttLoadingInlineHTML = cttLoadingInlineHTML;
+
+/* ══════════════════════════════════════════════
    ESTADO GLOBAL
 ══════════════════════════════════════════════ */
 let frentes = [
@@ -2017,9 +2077,7 @@ async function sincronizarGatecSupabase() {
 async function carregarDadosGATEC() {
   const corpoPrevia = document.getElementById('corpo-tabela-gatec');
   if (corpoPrevia) corpoPrevia.innerHTML =
-    `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
-      <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando Liberações...
-    </td></tr>`;
+    `<tr><td colspan="9">${cttLoadingHTML('Carregando Liberações...', { icone: 'fa-table' })}</td></tr>`;
 
   if (typeof _sbClient === 'undefined') {
     if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
@@ -2341,7 +2399,7 @@ async function carregarDadosConfOS() {
   const corpo = document.getElementById('corpo-tabela-conf-os');
   const contador = document.getElementById('conf-os-contador');
   if (!corpo) return;
-  corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;"><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...</td></tr>`;
+  corpo.innerHTML = `<tr><td colspan="5">${cttLoadingHTML('Carregando Conferências...', { icone: 'fa-clipboard-check' })}</td></tr>`;
   if (contador) contador.textContent = 'Carregando...';
 
   if (typeof _sbClient === 'undefined') {
@@ -2892,8 +2950,8 @@ async function buscarClima() {
   climaAtual = cidade;
 
   // Mostrar loading em todos os painéis
-  document.getElementById('forecast5-container').innerHTML = '<div class="clima-loading"><i class="fas fa-spinner fa-spin"></i>Carregando previsão para ' + escapeHtml(cidade.nome) + '...</div>';
-  document.getElementById('forecast30-container').innerHTML = '<div class="clima-loading"><i class="fas fa-spinner fa-spin"></i>Carregando tendência...</div>';
+  document.getElementById('forecast5-container').innerHTML = cttLoadingHTML('Carregando previsão para ' + escapeHtml(cidade.nome) + '...', { icone: 'fa-cloud-sun' });
+  document.getElementById('forecast30-container').innerHTML = cttLoadingHTML('Carregando tendência...', { icone: 'fa-cloud-sun' });
 
   try {
     // API Open-Meteo: previsão 7 dias + temperatura atual (current_weather)
@@ -3029,7 +3087,7 @@ async function buscarHistorico() {
 
   const cidade = climaAtual;
   const resultEl = document.getElementById('historico-result');
-  resultEl.innerHTML = '<div class="clima-loading" style="margin-top:14px"><i class="fas fa-spinner fa-spin"></i>Consultando histórico...</div>';
+  resultEl.innerHTML = cttLoadingHTML('Consultando histórico...', { icone: 'fa-cloud-sun' });
 
   try {
     const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${cidade.lat}&longitude=${cidade.lon}&start_date=${dataIni}&end_date=${dataFim}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=America/Sao_Paulo`;
@@ -3139,7 +3197,7 @@ async function buscarComparativoCidades() {
   if (dFim >= hoje) { alert('A Data Final deve ser uma data passada.'); return; }
 
   const resultEl = document.getElementById('comparativo-cidades-result');
-  resultEl.innerHTML = '<div class="clima-loading" style="margin-top:14px"><i class="fas fa-spinner fa-spin"></i>Consultando dados das 4 cidades...</div>';
+  resultEl.innerHTML = cttLoadingHTML('Consultando dados das 4 cidades...', { icone: 'fa-cloud-sun' });
 
   const fmtDate = d2 => `${d2.getDate().toString().padStart(2,'0')}/${(d2.getMonth()+1).toString().padStart(2,'0')}/${d2.getFullYear()}`;
   const dIniObj = new Date(dataIni + 'T12:00:00');
@@ -4128,6 +4186,22 @@ setTimeout(() => {
   }
 }, 1500);
 
+// Pré-carrega Planejamento de Safra (leve — ~2 mil linhas) em background,
+// pra abrir a aba já pronta em vez de esperar o Supabase na hora do clique.
+setTimeout(() => {
+  if (typeof carregarPlanejamentoSafra === 'function') carregarPlanejamentoSafra();
+}, 2000);
+
+// Pré-carrega Tratos Culturais (PCP) só da SAFRA ATUAL em background —
+// a tabela tem ~325 mil linhas no histórico completo, então carregar tudo
+// no boot deixaria o app lento pra todo mundo; carregando só o ano atual
+// já cobre o uso do dia a dia e a aba abre instantânea. Se o usuário quiser
+// o histórico completo, o botão "Trocar safra(s)" dentro da aba continua
+// disponível normalmente.
+setTimeout(() => {
+  if (typeof window._tratosPrecarregarSafraAtual === 'function') window._tratosPrecarregarSafraAtual();
+}, 2500);
+
 // Dark mode
 restaurarDarkMode();
 
@@ -4342,6 +4416,17 @@ iniciarSabedoria();
   window.gerarRelatorioTratos    = gerarRelatorioTratos;
   window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
   window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
+
+  // Pré-carrega em segundo plano só a safra ATUAL (não a tabela toda —
+  // são ~325 mil linhas históricas, carregar tudo no boot deixaria o app
+  // lento pra todo mundo só pra economizar 1 clique no picker). Se o
+  // usuário já tiver escolhido outra coisa antes desse preload rodar
+  // (pouco provável, mas por segurança), não sobrescreve a escolha dele.
+  window._tratosPrecarregarSafraAtual = function() {
+    if (_tratosSafrasAtivas !== null) return;
+    _tratosSafrasAtivas = [String(new Date().getFullYear())];
+    carregarDadosTratos(false, true); // forcar=false (usa cache se houver), silencioso=true
+  };
 
   /* ══════════════════════════════════════════════════════════════
      SINCRONIZAÇÃO COM SUPABASE (public.tratos_pcp)
@@ -5409,6 +5494,11 @@ iniciarSabedoria();
     const loadingCard = document.getElementById('tratos-loading-card');
     const filtrosCard = document.getElementById('tratos-filtros-card');
     const relatorioCard = document.getElementById('tratos-relatorio-card');
+    // Padroniza o conteúdo do card (o card em si já existe fixo no
+    // index.html) com o mesmo componente animado usado no resto do app.
+    if (mostrar && loadingCard && typeof cttLoadingHTML === 'function') {
+      loadingCard.innerHTML = cttLoadingHTML('Carregando Tratos Culturais...', { icone: 'fa-spray-can' });
+    }
     if (loadingCard) loadingCard.style.display = mostrar ? 'block' : 'none';
     if (filtrosCard) filtrosCard.style.display = mostrar ? 'none' : '';
     if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
@@ -5531,7 +5621,7 @@ iniciarSabedoria();
   // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
   // Passe forcar=true (botão "Atualizar"/troca de safra) pra ignorar o cache.
   // Usa _tratosSafrasAtivas (definido pelo seletor de safra) pra saber o que buscar.
-  async function carregarDadosTratos(forcar) {
+  async function carregarDadosTratos(forcar, silencioso) {
     _tratosIniciado = true;
     const contador = document.getElementById('tratos-contador');
     if (contador) contador.textContent = 'Carregando...';
@@ -5605,11 +5695,16 @@ iniciarSabedoria();
       _tratosSSSync('tratos-filtro-aplicador');
 
       renderizarTratos(dados);
-      if (typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
+      if (!silencioso && typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
     } catch (err) {
       console.error('[Tratos] Erro Supabase:', err);
       _tratosMostrarLoading(false);
       if (contador) contador.textContent = 'Erro ao carregar';
+      // Preload em segundo plano que falhou (ex.: sem internet no boot)
+      // não deve travar a tela achando que "já carregou" — libera pra
+      // tentar de novo (picker normal) quando o usuário realmente abrir
+      // a aba, em vez de ficar preso num erro que ele nem viu.
+      if (silencioso) { _tratosIniciado = false; _tratosSafrasAtivas = null; return; }
       // Só fala de "login" quando o erro realmente indica sessão/token —
       // qualquer outro erro (rede, timeout etc.) tem uma causa bem diferente
       // e dizer "verifique se está logado" só confundiria quem tá com
@@ -5936,8 +6031,8 @@ iniciarSabedoria();
     _plsLoading = true;
     const kpiEl = document.getElementById('pls-kpi-grid');
     const tlEl  = document.getElementById('pls-timeline-container');
-    if (kpiEl) kpiEl.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>';
-    if (tlEl)  tlEl.innerHTML  = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i>Carregando...</div>';
+    if (kpiEl) kpiEl.innerHTML = cttLoadingHTML('Carregando Planejamento de Safra...', { icone: 'fa-route' });
+    if (tlEl)  tlEl.innerHTML  = cttLoadingHTML('Carregando roteiro de colheita...', { icone: 'fa-route' });
 
     try {
       if (typeof _sbClient === 'undefined') throw new Error('Cliente Supabase não encontrado.');
@@ -6100,15 +6195,19 @@ iniciarSabedoria();
     return { cod, nome: nome || s };
   }
 
-  function _plsStatusTalhao(frente, fazenda, talhao, codFazenda) {
+  // Acha a linha de Liberações (GATEC) que corresponde a este talhão —
+  // é a mesma lógica de match que _plsStatusTalhao usava embutida, só que
+  // agora devolve a linha inteira (não só o status), pra poder mostrar
+  // o número da OS, produção e TCH no card de detalhe do talhão.
+  function _plsBuscarLinhaLiberacao(frente, fazenda, talhao, codFazenda) {
     const rows = window._gatecDados;
-    if (!rows || !rows.length) return 'pendente';
+    if (!rows || !rows.length) return null;
 
     const talhaoNorm   = String(talhao).trim().replace(/^0+/, '') || '0';
     const codNorm       = String(codFazenda || '').trim().replace(/^0+/, '');
     const fazendaNomeNorm = _norm(fazenda);
 
-    const match = rows.find(row => {
+    return rows.find(row => {
       const rFrente  = String(row['FRENTE'] || '').trim();
       if (rFrente !== String(frente).trim()) return false;
 
@@ -6133,8 +6232,11 @@ iniciarSabedoria();
         .map(t => t.trim().replace(/^0+/, '') || '0')
         .filter(Boolean);
       return talhoesArr.includes(talhaoNorm);
-    });
+    }) || null;
+  }
 
+  function _plsStatusTalhao(frente, fazenda, talhao, codFazenda) {
+    const match = _plsBuscarLinhaLiberacao(frente, fazenda, talhao, codFazenda);
     if (!match) return 'pendente';
     const status = String(match['STATUS OS'] || '').toUpperCase();
     if (status.includes('ENCERRADA')) return 'encerrada';
@@ -6556,6 +6658,22 @@ iniciarSabedoria();
     const statusLabel = { aberta: 'Liberado (OS aberta)', encerrada: 'Já colhido', pendente: 'Ainda não liberado' };
     const distInfo = _plsDist.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
     const tiroInfo = _plsTiro.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
+    const lib = _plsBuscarLinhaLiberacao(frenteEncontrada, r.fazenda, r.talhao, r.codFazenda);
+
+    // Bloco de Liberação só aparece quando o talhão já tem uma OS aberta ou
+    // encerrada no GATEC (talhão "pendente" nunca teve liberação lançada
+    // ainda, então não tem OS/produção pra mostrar).
+    const libHtml = lib ? `
+          <div class="pls-busca-col">
+            <div class="pls-busca-col-title">Liberação (GATEC)</div>
+            <div class="pls-busca-linha"><span>OS</span><b>${lib['LIBERAÇÃO']||'—'}</b></div>
+            <div class="pls-busca-linha"><span>Status OS</span><b>${lib['STATUS OS']||'—'}</b></div>
+            <div class="pls-busca-linha"><span>Prod. estimada</span><b>${lib['PROD. ESTIMADA']||'—'} t</b></div>
+            <div class="pls-busca-linha"><span>Prod. real</span><b>${lib['PROD. REAL']||'—'} t</b></div>
+            <div class="pls-busca-linha"><span>Dif. prod.</span><b>${lib['DIF PROD.']||'—'}</b></div>
+            <div class="pls-busca-linha"><span>TCH (Liberações)</span><b>${lib['TCH']||'—'}</b></div>
+          </div>` : '';
+
     return `<div class="pls-busca-resultado" style="margin-top:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <span style="font-size:12px;font-weight:800;color:var(--text);">Frente ${frenteEncontrada} · Tal. ${r.talhao}</span>
@@ -6577,6 +6695,7 @@ iniciarSabedoria();
             <div class="pls-busca-linha"><span>Dist. usina</span><b>${distInfo&&!isNaN(distInfo.distancia)?distInfo.distancia+' km':'—'}</b></div>
             <div class="pls-busca-linha"><span>Raio</span><b>${!isNaN(r.raio)?r.raio.toFixed(1):'—'}</b></div>
           </div>
+          ${libHtml}
         </div>
       </div>`;
   }
@@ -6868,7 +6987,7 @@ iniciarSabedoria();
     if (primeiraVez) {
       ['pla-resumo-container'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = '<div class="pla-empty"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+        if (el) el.innerHTML = cttLoadingHTML('Carregando Plantio...', { icone: 'fa-seedling' });
       });
     }
     _cache[_safraAtual].loaded = false;
