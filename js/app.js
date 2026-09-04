@@ -6429,7 +6429,29 @@ iniciarSabedoria();
       ...r,
       status: _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda),
     }));
-    const filtrado = statusFiltro ? comStatus.filter(r => r.status === statusFiltro) : comStatus;
+
+    // Mesma causa do bug já corrigido no "Consultar Fazenda": a planilha
+    // F4xx traz 1 linha por bloco/parcela, então o mesmo talhão pode
+    // aparecer várias vezes dentro da mesma fazenda — no Roteiro isso
+    // aparecia como o talhão repetido na lista de sequência. Agrupa por
+    // (fazenda + talhão) e mantém a sequência/data mais cedo do grupo (é
+    // quando aquele talhão entra de fato no roteiro); quando há mais de
+    // um bloco agrupado, sinaliza com "× N blocos" no item.
+    const porFazTalhao = new Map();
+    comStatus.forEach(r => {
+      const key = `${r.fazenda}||${r.talhao}`;
+      if (!porFazTalhao.has(key)) porFazTalhao.set(key, []);
+      porFazTalhao.get(key).push(r);
+    });
+    const agrupado = [...porFazTalhao.values()].map(linhas => {
+      linhas.sort((a,b) => a.seq - b.seq);
+      const todasEncerradas = linhas.every(l => l.status === 'encerrada');
+      const algumaAberta    = linhas.some(l => l.status === 'aberta');
+      const status = todasEncerradas ? 'encerrada' : (algumaAberta ? 'aberta' : 'pendente');
+      return { ...linhas[0], status, _blocos: linhas.length };
+    }).sort((a,b) => a.seq - b.seq);
+
+    const filtrado = statusFiltro ? agrupado.filter(r => r.status === statusFiltro) : agrupado;
     if (contador) contador.textContent =
       `${filtrado.length} ${filtrado.length !== 1 ? 'talhões' : 'talhão'} · Frente ${frente}`;
     if (!filtrado.length) {
@@ -6488,7 +6510,7 @@ iniciarSabedoria();
                 <div class="pls-timeline-item status-${r.status}" style="margin-bottom:4px;">
                   <div class="pls-tl-row1">
                     <span class="pls-tl-seq">#${r.seq}</span>
-                    <span class="pls-tl-faz">Talhão ${r.talhao}</span>
+                    <span class="pls-tl-faz">Talhão ${r.talhao}${r._blocos > 1 ? ` <small style="font-weight:600;color:var(--text-3);">× ${r._blocos} blocos</small>` : ''}</span>
                     <span class="pls-tl-data">${_fmtData(r.data)}</span>
                   </div>
                 </div>`).join('')}
@@ -6511,7 +6533,7 @@ iniciarSabedoria();
           <div class="pls-timeline-item status-${r.status}" style="margin-bottom:4px;">
             <div class="pls-tl-row1">
               <span class="pls-tl-seq">#${r.seq}</span>
-              <span class="pls-tl-faz">Talhão ${r.talhao}</span>
+              <span class="pls-tl-faz">Talhão ${r.talhao}${r._blocos > 1 ? ` <small style="font-weight:600;color:var(--text-3);">× ${r._blocos} blocos</small>` : ''}</span>
               <span class="pls-tl-data">${_fmtData(r.data)}</span>
             </div>
             <div class="pls-tl-row2">
