@@ -6484,7 +6484,26 @@ iniciarSabedoria();
       return;
     }
     encontrados = encontrados
-      .map(r => ({ ...r, status: _plsStatusTalhao(r.frenteEncontrada, r.fazenda, r.talhao, r.codFazenda) }))
+      .map(r => ({ ...r, status: _plsStatusTalhao(r.frenteEncontrada, r.fazenda, r.talhao, r.codFazenda) }));
+
+    // A planilha F4xx traz 1 linha por bloco/parcela — o mesmo número de
+    // talhão pode aparecer várias vezes (é o que fazia o grid de chips
+    // repetir "1, 1, 1, 1..."). Agrupa por talhão antes de montar os chips:
+    // um talhão só conta como "encerrada" se TODOS os seus blocos já
+    // encerraram; se algum bloco ainda está aberto/pendente, o talhão
+    // continua aparecendo como não concluído (evita esconder pendência).
+    const porTalhao = new Map();
+    encontrados.forEach(r => {
+      if (!porTalhao.has(r.talhao)) porTalhao.set(r.talhao, []);
+      porTalhao.get(r.talhao).push(r);
+    });
+    encontrados = [...porTalhao.entries()]
+      .map(([talhao, linhas]) => {
+        const todasEncerradas = linhas.every(l => l.status === 'encerrada');
+        const algumaAberta    = linhas.some(l => l.status === 'aberta');
+        const status = todasEncerradas ? 'encerrada' : (algumaAberta ? 'aberta' : 'pendente');
+        return { ...linhas[0], status, _blocos: linhas.length };
+      })
       .sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
 
     const total      = encontrados.length;
@@ -6496,7 +6515,8 @@ iniciarSabedoria();
 
     const chipsHtml = encontrados.map(r => {
       const destaque = quaseConcluida && r.status !== 'encerrada' ? ' pls-chip-atencao' : '';
-      return `<button type="button" class="pls-talhao-chip status-${r.status}${destaque}" onclick="plsMostrarTalhao(this,'${fazendaSel.replace(/'/g,"\\'")}','${r.talhao}','${r.frenteEncontrada}')">${r.talhao}</button>`;
+      const tituloBlocos = r._blocos > 1 ? ` title="${r._blocos} blocos/parcelas"` : '';
+      return `<button type="button" class="pls-talhao-chip status-${r.status}${destaque}"${tituloBlocos} onclick="plsMostrarTalhao(this,'${fazendaSel.replace(/'/g,"\\'")}','${r.talhao}','${r.frenteEncontrada}')">${r.talhao}</button>`;
     }).join('');
 
     resultDiv.innerHTML = `
