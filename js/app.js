@@ -6013,34 +6013,57 @@ iniciarSabedoria();
   // sincronizando direito (2195 linhas ao todo) a busca sem paginação
   // cortava o resto silenciosamente — é o que fazia o Roteiro de Colheita
   // mostrar "0 talhões" pra frente 404 (as últimas a entrar, cortadas).
-  async function _plsBuscarPaginado(tabela) {
+  // OTIMIZADO: antes buscava 1 página de cada vez, esperando cada resposta
+  // voltar pra só então pedir a próxima (pls_frente tem ~2195 linhas = 3
+  // idas e vindas em série). Agora pede a 1ª página pra descobrir se tem
+  // mais, e daí em diante busca as páginas seguintes 2 de cada vez, em
+  // paralelo — corta o tempo de espera quase pela metade sem mudar nada
+  // no resultado final. Também usa `select(colunas)` só com o que a tela
+  // realmente usa, em vez de `select('*')` — menos dado trafegado.
+  async function _plsBuscarPaginado(tabela, colunas) {
     const PAGINA = 1000;
-    let de = 0, todas = [];
+    const cols = colunas || '*';
+    const primeira = await _sbClient.from(tabela).select(cols).range(0, PAGINA - 1);
+    if (primeira.error) throw primeira.error;
+    let todas = primeira.data || [];
+    if (todas.length < PAGINA) return todas; // só 1 página — já é tudo
+
+    let de = PAGINA;
     while (true) {
-      const { data, error } = await _sbClient.from(tabela).select('*').range(de, de + PAGINA - 1);
-      if (error) throw error;
-      if (!data || !data.length) break;
-      todas.push(...data);
-      if (data.length < PAGINA) break;
-      de += PAGINA;
+      const [rA, rB] = await Promise.all([
+        _sbClient.from(tabela).select(cols).range(de, de + PAGINA - 1),
+        _sbClient.from(tabela).select(cols).range(de + PAGINA, de + 2 * PAGINA - 1),
+      ]);
+      if (rA.error) throw rA.error;
+      if (rB.error) throw rB.error;
+      const pA = rA.data || [], pB = rB.data || [];
+      todas.push(...pA);
+      if (pA.length < PAGINA) break;
+      todas.push(...pB);
+      if (pB.length < PAGINA) break;
+      de += 2 * PAGINA;
     }
     return todas;
   }
+
+  const PLS_COLS_FRENTE = 'frente,seq,cod_fazenda,fazenda,talhao,bloco,variedade,data_colheita,tch,moagem,tc,raio,tiro_medio,vel,ton_h,hr_prod,colheitabilidade';
+  const PLS_COLS_TIRO   = 'cod_fazenda,fazenda,tiro_medio,tiro_medio_pond';
+  const PLS_COLS_DIST   = 'cod_fazenda,fazenda,distancia';
 
   async function carregarPlanejamentoSafra() {
     _plsLoading = true;
     const kpiEl = document.getElementById('pls-kpi-grid');
     const tlEl  = document.getElementById('pls-timeline-container');
-    if (kpiEl) kpiEl.innerHTML = cttLoadingHTML('Carregando Planejamento de Safra...', { icone: 'fa-route' });
+    if (kpiEl) kpiEl.innerHTML = `<div style="grid-column:1/-1;">${cttLoadingHTML('Carregando Planejamento de Safra...', { icone: 'fa-route' })}</div>`;
     if (tlEl)  tlEl.innerHTML  = cttLoadingHTML('Carregando roteiro de colheita...', { icone: 'fa-route' });
 
     try {
       if (typeof _sbClient === 'undefined') throw new Error('Cliente Supabase não encontrado.');
 
       const [dadosFrente, dadosTiro, dadosDist] = await Promise.all([
-        _plsBuscarPaginado(PLS_TABLE_FRENTE),
-        _plsBuscarPaginado(PLS_TABLE_TIRO),
-        _plsBuscarPaginado(PLS_TABLE_DIST),
+        _plsBuscarPaginado(PLS_TABLE_FRENTE, PLS_COLS_FRENTE),
+        _plsBuscarPaginado(PLS_TABLE_TIRO, PLS_COLS_TIRO),
+        _plsBuscarPaginado(PLS_TABLE_DIST, PLS_COLS_DIST),
       ]);
       const rFrente = { data: dadosFrente };
       const rTiro   = { data: dadosTiro };
@@ -6317,32 +6340,50 @@ iniciarSabedoria();
     ['401','402','403','404'].forEach(frente => {
       const dados = _plsDados[frente];
       if (!dados.length) return;
-      const tchVals = dados.map(r => r.tch).filter(v => !isNaN(v) && v > 0);
-      const tchMedio = tchVals.length ? tchVals.reduce((s,v) => s+v,0) / tchVals.length : NaN;
-      let sumTcTiro = 0, sumTc = 0;
+
+      // TCH médio est. — CORRIGIDO: antes era média simples do campo TCH de
+      // cada talhão (um talhão de 5 ha pesava igual a um de 500 ha, o que
+      // NUNCA bate com o "TCH médio" que a planilha mostra, porque lá é
+      // sempre produção total ÷ área total). Agora pondera pela tonelagem
+      // (TC) de cada talhão, igual o Tiro médio logo abaixo já fazia —
+      // matematicamente isso equivale a (Σ produção) ÷ (Σ área), que é a
+      // definição correta de TCH médio de um grupo de talhões.
+      let sumTc = 0, sumAreaEst = 0;
+      dados.forEach(r => {
+        const tc = isNaN(r.tc) ? 0 : r.tc;
+        if (tc > 0 && !isNaN(r.tch) && r.tch > 0) { sumTc += tc; sumAreaEst += tc / r.tch; }
+      });
+      const tchMedio = sumAreaEst > 0 ? sumTc / sumAreaEst : NaN;
+
+      let sumTcTiro = 0, sumTc2 = 0;
       dados.forEach(r => {
         const tc = isNaN(r.tc) ? 0 : r.tc;
         const tm = isNaN(r.tiroMedio) ? 0 : r.tiroMedio;
-        if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTc += tc; }
+        if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTc2 += tc; }
       });
-      const tiroMedioFrente = sumTc > 0 ? sumTcTiro / sumTc : NaN;
+      const tiroMedioFrente = sumTc2 > 0 ? sumTcTiro / sumTc2 : NaN;
 
-      // NOVO: TCH médio REAL, calculado em cima da própria aba "Ver
-      // Liberações" (_gatecDados) — só conta liberação já ENCERRADA dessa
-      // frente (é o TCH definitivo; enquanto está "aberta" ainda pode
-      // mudar) e com TCH válido (>0). É o que você pediu: comparar o TCH
-      // estimado no planejamento com o que realmente está saindo na
-      // colheita.
+      // TCH médio REAL, calculado em cima da própria aba "Ver Liberações"
+      // (_gatecDados) — só conta liberação já ENCERRADA dessa frente (é o
+      // TCH definitivo; enquanto está "aberta" ainda pode mudar).
+      // CORRIGIDO pelo mesmo motivo do TCH est. acima: antes era média
+      // simples do TCH de cada OS. Agora pondera pela Prod. Real (t) de
+      // cada OS — de novo, equivale a (Σ produção real) ÷ (Σ área real).
       const rowsLib = (window._gatecDados || []).filter(r =>
         String(r['FRENTE'] || '').trim() === frente &&
         String(r['STATUS OS'] || '').toUpperCase().includes('ENCERRADA')
       );
-      const tchRealVals = rowsLib
-        .map(r => parseFloat(String(r['TCH'] || '').replace(',', '.')))
-        .filter(v => !isNaN(v) && v > 0);
-      const tchReal = tchRealVals.length
-        ? tchRealVals.reduce((s,v) => s+v,0) / tchRealVals.length
-        : NaN;
+      let sumProdReal = 0, sumAreaReal = 0, qtdEncerradasValidas = 0;
+      rowsLib.forEach(r => {
+        const tch = parseFloat(String(r['TCH'] || '').replace(',', '.'));
+        const prodReal = parseFloat(String(r['PROD. REAL'] || '').replace(',', '.'));
+        if (!isNaN(tch) && tch > 0 && !isNaN(prodReal) && prodReal > 0) {
+          sumProdReal += prodReal;
+          sumAreaReal += prodReal / tch;
+          qtdEncerradasValidas++;
+        }
+      });
+      const tchReal = sumAreaReal > 0 ? sumProdReal / sumAreaReal : NaN;
       const difTch = (!isNaN(tchReal) && !isNaN(tchMedio) && tchMedio > 0)
         ? ((tchReal - tchMedio) / tchMedio) * 100
         : NaN;
@@ -6351,7 +6392,7 @@ iniciarSabedoria();
         <div class="pls-kpi-card">
           <div class="pls-kpi-frente">FRENTE ${frente}</div>
           <div class="pls-kpi-linha"><span>TCH médio est.</span><b>${!isNaN(tchMedio) ? tchMedio.toFixed(0) : '—'}</b></div>
-          <div class="pls-kpi-linha"><span>TCH médio real (Liberações)</span><b>${!isNaN(tchReal) ? tchReal.toFixed(0) + ` <span style="font-weight:600;font-size:10px;color:var(--text-3);">(${tchRealVals.length} enc.)</span>` : '—'}</b></div>
+          <div class="pls-kpi-linha"><span>TCH médio real (Liberações)</span><b>${!isNaN(tchReal) ? tchReal.toFixed(0) + ` <span style="font-weight:600;font-size:10px;color:var(--text-3);">(${qtdEncerradasValidas} enc.)</span>` : '—'}</b></div>
           ${!isNaN(difTch) ? `<div class="pls-kpi-linha"><span>Dif. real × est.</span><b style="color:${difTch < 0 ? 'var(--red-600, #c0392b)' : 'var(--green-700)'}">${difTch > 0 ? '+' : ''}${difTch.toFixed(1)}%</b></div>` : ''}
           <div class="pls-kpi-linha"><span>Tiro médio</span><b>${!isNaN(tiroMedioFrente) ? tiroMedioFrente.toFixed(0)+' m' : '—'}</b></div>
         </div>`;
@@ -6473,7 +6514,10 @@ iniciarSabedoria();
     // 3) pendente (nada liberado ainda)
     // 4) concluída (100% colhida) — vai pro fim, sem destaque
     const grupos = Object.entries(porFaz).map(([fazNome, info]) => {
-      const talhoes = info.talhoes;
+      // Dentro de cada fazenda, o Roteiro mostra os talhões em ordem
+      // crescente do número do talhão (antes ficava na ordem de sequência
+      // de colheita, que não segue nenhuma ordem numérica visível).
+      const talhoes = info.talhoes.slice().sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
       const total = talhoes.length;
       const colhidos = talhoes.filter(r => r.status === 'encerrada').length;
       const faltantes = total - colhidos;
@@ -6679,7 +6723,6 @@ iniciarSabedoria();
     const status = _plsStatusTalhao(frenteEncontrada, r.fazenda, r.talhao, r.codFazenda);
     const statusLabel = { aberta: 'Liberado (OS aberta)', encerrada: 'Já colhido', pendente: 'Ainda não liberado' };
     const distInfo = _plsDist.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
-    const tiroInfo = _plsTiro.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
     const lib = _plsBuscarLinhaLiberacao(frenteEncontrada, r.fazenda, r.talhao, r.codFazenda);
 
     // Bloco de Liberação só aparece quando o talhão já tem uma OS aberta ou
@@ -6713,7 +6756,6 @@ iniciarSabedoria();
           <div class="pls-busca-col">
             <div class="pls-busca-col-title">Logística</div>
             <div class="pls-busca-linha"><span>Tiro médio</span><b>${!isNaN(r.tiroMedio)?r.tiroMedio.toFixed(0)+' m':'—'}</b></div>
-            <div class="pls-busca-linha"><span>Tiro pond. faz.</span><b>${tiroInfo&&!isNaN(tiroInfo.tiroMedioPond)?tiroInfo.tiroMedioPond.toFixed(0)+' m':'—'}</b></div>
             <div class="pls-busca-linha"><span>Dist. usina</span><b>${distInfo&&!isNaN(distInfo.distancia)?distInfo.distancia+' km':'—'}</b></div>
             <div class="pls-busca-linha"><span>Raio</span><b>${!isNaN(r.raio)?r.raio.toFixed(1):'—'}</b></div>
           </div>
