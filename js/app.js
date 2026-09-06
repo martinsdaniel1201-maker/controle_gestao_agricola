@@ -5367,9 +5367,20 @@ iniciarSabedoria();
     const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
     const temFiltro = !todasSafras && Array.isArray(safras) && safras.length > 0;
 
+    // Pré-filtros escolhidos ANTES de carregar (Fazenda/Produto/Operação/
+    // Grupo de Operação) — cada um vira um .in() na query, então o
+    // Supabase já devolve só o que interessa, em vez do app baixar a
+    // safra inteira pra filtrar depois na tela.
+    const pre = window._tratosPreFiltros || {};
+    const PRE_COL = { fazenda: TRATOS_SUPABASE_COLS.colCodFazenda, produto: TRATOS_SUPABASE_COLS.colCodProd, operacao: TRATOS_SUPABASE_COLS.colCodOp, grupoOp: TRATOS_SUPABASE_COLS.colCodGrupoOp };
+
     function baseQuery() {
       let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
       if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
+      Object.keys(PRE_COL).forEach(campo => {
+        const sel = pre[campo];
+        if (sel && sel.size > 0) q = q.in(PRE_COL[campo], [...sel]);
+      });
       return q;
     }
 
@@ -5451,6 +5462,8 @@ iniciarSabedoria();
     if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
     const btnTrocar = document.getElementById('tratos-btn-trocar-safra');
     if (btnTrocar) btnTrocar.style.display = mostrar ? 'none' : '';
+    const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
+    if (btnTrocarFiltro) btnTrocarFiltro.style.display = mostrar ? 'none' : '';
   }
 
   // Garante que a animação de carregamento fique visível por pelo menos
@@ -5482,10 +5495,19 @@ iniciarSabedoria();
     btnTrocar.id = 'tratos-btn-trocar-safra';
     btnTrocar.type = 'button';
     btnTrocar.className = 'btn-secondary';
-    btnTrocar.style.cssText = 'display:none;margin-bottom:10px;';
+    btnTrocar.style.cssText = 'display:none;margin-bottom:10px;margin-right:8px;';
     btnTrocar.innerHTML = '<i class="fas fa-calendar-alt"></i> Trocar safra(s)';
     btnTrocar.onclick = () => _tratosMostrarSeletorSafra();
     loadingCard.parentNode.insertBefore(btnTrocar, loadingCard);
+
+    const btnTrocarFiltro = document.createElement('button');
+    btnTrocarFiltro.id = 'tratos-btn-trocar-prefiltro';
+    btnTrocarFiltro.type = 'button';
+    btnTrocarFiltro.className = 'btn-secondary';
+    btnTrocarFiltro.style.cssText = 'display:none;margin-bottom:10px;';
+    btnTrocarFiltro.innerHTML = '<i class="fas fa-filter"></i> Trocar filtros';
+    btnTrocarFiltro.onclick = () => _tratosMostrarSeletorFiltros();
+    loadingCard.parentNode.insertBefore(btnTrocarFiltro, loadingCard);
 
     return picker;
   }
@@ -5498,6 +5520,8 @@ iniciarSabedoria();
     if (relatorioCard) relatorioCard.style.display = 'none';
     const btnTrocar = document.getElementById('tratos-btn-trocar-safra');
     if (btnTrocar) btnTrocar.style.display = 'none';
+    const btnTrocarFiltroSafra = document.getElementById('tratos-btn-trocar-prefiltro');
+    if (btnTrocarFiltroSafra) btnTrocarFiltroSafra.style.display = 'none';
 
     const picker = _tratosCriarPickerDom();
     if (!picker) return; // não achou onde encaixar — evita quebrar a tela
@@ -5561,9 +5585,160 @@ iniciarSabedoria();
     _tratosSafrasAtivas = safrasOuTodas;
     const picker = document.getElementById('tratos-safra-picker');
     if (picker) picker.style.display = 'none';
-    carregarDadosTratos(true); // forcar=true: acabou de escolher, não usa cache de outra seleção
+    // Antes de sair buscando os dados, mostra 1 passo a mais: deixa o
+    // usuário escolher Fazenda/Produto/Operação/Grupo de Operação (todos
+    // opcionais) — só busca no Supabase o que realmente interessa, em vez
+    // de trazer a safra inteira pra filtrar depois na tela.
+    _tratosMostrarSeletorFiltros();
   }
   window._tratosMostrarSeletorSafra = _tratosMostrarSeletorSafra;
+
+  // ── Pré-filtro (Fazenda/Produto/Operação/Grupo de Operação) ANTES de
+  // carregar os dados — reduz o quanto precisa vir do Supabase quando o
+  // usuário já sabe o que quer ver (ex.: só 1 fazenda).
+  window._tratosPreFiltros = window._tratosPreFiltros || { fazenda: new Set(), produto: new Set(), operacao: new Set(), grupoOp: new Set() };
+  window._tratosPreFiltroOpcoes = window._tratosPreFiltroOpcoes || { fazenda: [], produto: [], operacao: [], grupoOp: [] };
+
+  const PLS_PREFILTRO_LABEL = { fazenda: 'Fazenda', produto: 'Produto', operacao: 'Operação Agrícola', grupoOp: 'Grupo de Operação' };
+
+  async function _tratosMostrarSeletorFiltros() {
+    const picker = _tratosCriarPickerDom();
+    if (!picker) { carregarDadosTratos(true); return; } // sem onde encaixar — não trava o fluxo
+    const btnTrocarSafra = document.getElementById('tratos-btn-trocar-safra');
+    if (btnTrocarSafra) btnTrocarSafra.style.display = 'none';
+
+    picker.style.display = 'block';
+    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Buscando opções de filtro...</div>';
+
+    const todasSafras = _tratosSafrasAtivas === 'todas';
+    const safrasRpc = todasSafras ? null : _tratosSafrasAtivas;
+
+    let opcoes = { fazenda: [], produto: [], operacao: [], grupoOp: [] };
+    try {
+      const { data, error } = await _sbClient.rpc('listar_opcoes_tratos', { p_safras: safrasRpc });
+      if (error) throw error;
+      const CAMPO_MAP = { fazenda: 'fazenda', produto: 'produto', operacao: 'operacao', grupo_op: 'grupoOp' };
+      (data || []).forEach(r => {
+        const campo = CAMPO_MAP[r.campo];
+        if (!campo || (!r.cod && !r.descricao)) return;
+        opcoes[campo].push({
+          value: String(r.cod ?? r.descricao),
+          label: [r.cod, r.descricao].filter(Boolean).join(' · ') || String(r.cod ?? r.descricao),
+        });
+      });
+      Object.keys(opcoes).forEach(campo => opcoes[campo].sort((a,b) => a.label.localeCompare(b.label, 'pt-BR')));
+    } catch (e) {
+      console.error('[Tratos] Erro ao listar opções de filtro (RPC listar_opcoes_tratos)', e);
+      // Sem a function no banco ainda (SQL não rodado) — não trava a tela:
+      // pula direto pra carregar tudo, como já era o comportamento antigo.
+      picker.style.display = 'none';
+      if (typeof showToast === 'function') showToast('ℹ️ Pré-filtro indisponível ainda — carregando tudo direto.', 'info', 3500);
+      carregarDadosTratos(true);
+      return;
+    }
+    window._tratosPreFiltroOpcoes = opcoes;
+
+    const campos = ['fazenda', 'produto', 'operacao', 'grupoOp'];
+    picker.innerHTML = `
+      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> Quer restringir antes de carregar?</div>
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:12px;">Deixe em branco o que não quiser filtrar — só marcar Fazenda, por exemplo, já traz bem menos dado do servidor.</div>
+      ${campos.map(campo => `
+        <div style="margin-bottom:12px;">
+          <label style="font-size:11px;font-weight:800;color:var(--text-2);display:block;margin-bottom:4px;">${PLS_PREFILTRO_LABEL[campo]}</label>
+          <div class="tratos-ms" id="ms-tratos-filtro-pre${campo}">
+            <div class="tratos-ms-input-wrap" onclick="_tratosPreMSAbrir('${campo}')">
+              <i class="fas fa-search tratos-ms-icon"></i>
+              <span class="tratos-ms-display" id="ms-display-pre${campo}">— Todas —</span>
+              <i class="fas fa-times tratos-ms-clear" id="ms-clear-pre${campo}" style="display:none;" onclick="event.stopPropagation(); _tratosPreMSLimpar('${campo}')"></i>
+              <i class="fas fa-chevron-down tratos-ms-chevron"></i>
+            </div>
+            <div class="tratos-ms-lista">
+              <div class="tratos-ms-search"><input type="text" placeholder="Buscar..." oninput="_tratosPreMSFiltrarTexto('${campo}', this.value)" onclick="event.stopPropagation()"></div>
+              <div class="tratos-ms-opcoes" id="ms-opcoes-pre${campo}"></div>
+            </div>
+          </div>
+        </div>`).join('')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="tratos-prefiltro-ok" class="btn-main"><i class="fas fa-check"></i> Buscar dados</button>
+        <button type="button" id="tratos-prefiltro-voltar" class="btn-secondary"><i class="fas fa-arrow-left"></i> Trocar safra(s)</button>
+      </div>`;
+
+    campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
+
+    picker.querySelector('#tratos-prefiltro-ok').onclick = () => {
+      picker.style.display = 'none';
+      carregarDadosTratos(true);
+    };
+    picker.querySelector('#tratos-prefiltro-voltar').onclick = () => _tratosMostrarSeletorSafra();
+  }
+  window._tratosMostrarSeletorFiltros = _tratosMostrarSeletorFiltros;
+
+  function _tratosPreMSRenderLista(campo, termo) {
+    const cont = document.getElementById('ms-opcoes-pre' + campo);
+    if (!cont) return;
+    const termoNorm = (termo || '').trim().toLowerCase();
+    const opcoes = window._tratosPreFiltroOpcoes[campo] || [];
+    const filtradas = !termoNorm ? opcoes : opcoes.filter(o => o.label.toLowerCase().includes(termoNorm));
+    if (!filtradas.length) {
+      cont.innerHTML = `<div class="tratos-ms-opt ss-empty">Nenhum resultado</div>`;
+      return;
+    }
+    const sel = window._tratosPreFiltros[campo];
+    cont.innerHTML = filtradas.map(o => `
+      <label class="tratos-ms-opt">
+        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="_tratosPreMSToggle('${campo}', this.value, this.checked)">
+        <span>${escapeHtml(o.label)}</span>
+      </label>`).join('');
+  }
+
+  function _tratosPreMSAbrir(campo) {
+    const wrap = document.getElementById('ms-tratos-filtro-pre' + campo);
+    if (!wrap) return;
+    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
+    const abrindo = !wrap.classList.contains('open');
+    wrap.classList.toggle('open', abrindo);
+    if (abrindo) _tratosPreMSRenderLista(campo, '');
+  }
+
+  function _tratosPreMSFiltrarTexto(campo, termo) { _tratosPreMSRenderLista(campo, termo); }
+
+  function _tratosPreMSToggle(campo, val, marcado) {
+    if (marcado) window._tratosPreFiltros[campo].add(val); else window._tratosPreFiltros[campo].delete(val);
+    _tratosPreMSSyncDisplay(campo);
+  }
+
+  function _tratosPreMSLimpar(campo) {
+    window._tratosPreFiltros[campo].clear();
+    _tratosPreMSRenderLista(campo, '');
+    _tratosPreMSSyncDisplay(campo);
+  }
+  window._tratosPreMSAbrir = _tratosPreMSAbrir;
+  window._tratosPreMSFiltrarTexto = _tratosPreMSFiltrarTexto;
+  window._tratosPreMSToggle = _tratosPreMSToggle;
+  window._tratosPreMSLimpar = _tratosPreMSLimpar;
+
+  function _tratosPreMSSyncDisplay(campo) {
+    const disp = document.getElementById('ms-display-pre' + campo);
+    const clearBtn = document.getElementById('ms-clear-pre' + campo);
+    if (!disp) return;
+    const sel = window._tratosPreFiltros[campo];
+    const opcoes = window._tratosPreFiltroOpcoes[campo] || [];
+    if (sel.size === 0) {
+      disp.textContent = '— Todas —';
+      disp.classList.remove('tem-valor');
+      if (clearBtn) clearBtn.style.display = 'none';
+    } else if (sel.size === 1) {
+      const [v] = sel;
+      const opt = opcoes.find(o => o.value === v);
+      disp.textContent = opt ? opt.label : v;
+      disp.classList.add('tem-valor');
+      if (clearBtn) clearBtn.style.display = 'block';
+    } else {
+      disp.textContent = `${sel.size} selecionados`;
+      disp.classList.add('tem-valor');
+      if (clearBtn) clearBtn.style.display = 'block';
+    }
+  }
 
   // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
   // Passe forcar=true (botão "Atualizar"/troca de safra) pra ignorar o cache.
@@ -5595,7 +5770,15 @@ iniciarSabedoria();
       // Só busca as safras escolhidas no seletor — não a tabela toda. Isso é
       // o que realmente resolve o peso: menos páginas, menos linhas na
       // memória do navegador, carregamento bem mais rápido.
-      const chaveCache = todasSafras ? 'todas' : [...safrasFiltro].sort().join(',');
+      // A chave do cache precisa refletir também os pré-filtros escolhidos
+      // (Fazenda/Produto/Operação/Grupo de Operação) — senão trocar de
+      // filtro e voltar poderia reaproveitar por engano o cache de uma
+      // combinação diferente.
+      const pre = window._tratosPreFiltros || {};
+      const prefixoPre = ['fazenda','produto','operacao','grupoOp']
+        .map(c => (pre[c] && pre[c].size) ? `${c}:${[...pre[c]].sort().join('|')}` : '')
+        .filter(Boolean).join(';');
+      const chaveCache = (todasSafras ? 'todas' : [...safrasFiltro].sort().join(',')) + (prefixoPre ? '__' + prefixoPre : '');
       const cache = !forcar ? _tratosLerCache(chaveCache) : null;
       const brutos = await _tratosEsperarMin(
         cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safrasFiltro, todasSafras),
