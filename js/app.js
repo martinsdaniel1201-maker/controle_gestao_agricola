@@ -671,28 +671,6 @@ async function compartilharResumoFrentesImagem() {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   ⭐ MELHORIA UX — indicador de sincronização com cor por tempo decorrido
-   Verde: < 30 min · Laranja: 30–60 min · Vermelho: > 60 min sem atualizar.
-   Ajuda o usuário a perceber de relance se os dados podem estar desatualizados.
-══════════════════════════════════════════════════════════════════════════ */
-function _atualizarCorSyncStatus() {
-  const dot = document.getElementById('gatec-sync-dot');
-  const label = document.getElementById('gatec-sync-label');
-  if (!dot || !window._gatecUltimaSyncTs) return;
-
-  const minutos = (Date.now() - window._gatecUltimaSyncTs) / 60000;
-  if (minutos < 30) {
-    dot.style.color = 'var(--green-500)';
-  } else if (minutos < 60) {
-    dot.style.color = 'var(--amber)';
-  } else {
-    dot.style.color = 'var(--red)';
-    if (label) label.title = 'Dados podem estar desatualizados — toque em "Atualizar dados"';
-  }
-}
-setInterval(_atualizarCorSyncStatus, 60000);
-
 async function sincronizarApp() {
   showToast('🔄 Verificando atualização…', 'info', 3000);
   
@@ -1250,24 +1228,6 @@ function irParaFrente(frente) {
    MELHORIA 5 — SELETOR GLOBAL DE FRENTE
 ══════════════════════════════════════════════ */
 
-
-/* ══════════════════════════════════════════════
-   MELHORIA 7 — MODO COMPACTO DE TABELA
-══════════════════════════════════════════════ */
-window._modoCompacto = false;
-function toggleModoCompacto() {
-  window._modoCompacto = !window._modoCompacto;
-  const wrapper = document.getElementById('gatec-table-wrapper');
-  const btn = document.getElementById('btn-compact-toggle');
-  if (wrapper) wrapper.classList.toggle('compact-mode', window._modoCompacto);
-  if (btn) {
-    btn.classList.toggle('active', window._modoCompacto);
-    btn.innerHTML = window._modoCompacto
-      ? '<i class="fas fa-expand-alt"></i> Normal'
-      : '<i class="fas fa-compress-alt"></i> Compacto';
-  }
-  showToast(window._modoCompacto ? '📋 Modo compacto ativado' : '📋 Modo normal ativado', 'info', 1500);
-}
 
 /* ══════════════════════════════════════════════
    MELHORIA 8 — RESUMO SEMANAL PARA WHATSAPP
@@ -2287,19 +2247,6 @@ const difIcon = isNaN(difNum)
         badge.style.display = abertas > 0 ? 'inline-flex' : 'none';
       }
 
-      // Atualizar indicador de última sincronização
-      const syncStatus = document.getElementById('gatec-sync-status');
-      const syncLabel  = document.getElementById('gatec-sync-label');
-      if (syncStatus && syncLabel) {
-        const agora = new Date();
-        const hh = String(agora.getHours()).padStart(2,'0');
-        const mm = String(agora.getMinutes()).padStart(2,'0');
-        syncLabel.textContent = `Sync ${hh}:${mm}`;
-        syncStatus.style.display = 'inline-flex';
-        syncStatus.style.alignItems = 'center';
-        window._gatecUltimaSyncTs = Date.now();
-        _atualizarCorSyncStatus();
-      }
       // MELHORIA 2+6: registra sincronização no histórico
       registrarSync('ok', 'GATEC/Liberações');
       // MELHORIA 1+4+5: atualiza resumo executivo da home
@@ -6328,6 +6275,7 @@ iniciarSabedoria();
     _plsRenderizarAlertas();
     _plsPopularBuscaFazenda();
     filtrarPlanejamentoTimeline();
+    popularTalhoesBusca(); // reaplica a busca com qualquer fazenda já marcada
   }
 
   // Cards resumo por frente — só o que ajuda a logística (TCH e tiro médios).
@@ -6449,8 +6397,10 @@ iniciarSabedoria();
   }
 
   window.plsIrParaFazenda = function(nomeFaz) {
-    const sel = document.getElementById('pls-busca-fazenda');
-    if (sel) sel.value = nomeFaz;
+    // "Ir para fazenda" troca a seleção pra só essa fazenda (não soma às
+    // que já estavam marcadas) — é um atalho de "focar nela agora".
+    window._plsMultiSel = new Set([nomeFaz]);
+    _plsMSSyncDisplay();
     popularTalhoesBusca();
     const card = document.getElementById('pls-card-consulta');
     if (card) {
@@ -6612,9 +6562,14 @@ iniciarSabedoria();
     if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
   };
 
+  // Estado do multi-select de fazendas do "Consultar Fazenda" — mesmo
+  // padrão visual/interativo do multi-select de Tratos (classes tratos-ms/
+  // tratos-ms-opt reaproveitadas), mas com estado próprio pra não mexer
+  // em nada do filtro de Tratos.
+  window._plsMultiSel    = window._plsMultiSel    || new Set();
+  window._plsMultiOpcoes = window._plsMultiOpcoes || [];
+
   function _plsPopularBuscaFazenda() {
-    const sel = document.getElementById('pls-busca-fazenda');
-    if (!sel) return;
     const todasFazendas = new Set();
     ['401','402','403','404'].forEach(f => {
       _plsDados[f].forEach(r => {
@@ -6627,19 +6582,101 @@ iniciarSabedoria();
       if (!isNaN(na) && !isNaN(nb)) return na - nb;
       return a.localeCompare(b,'pt-BR');
     });
-    sel.innerHTML = '<option value="">— Selecione a fazenda —</option>' +
-      lista.map(f => `<option value="${f}">${f}</option>`).join('');
+    window._plsMultiOpcoes = lista.map(v => ({ value: v, label: v }));
+    // Remove da seleção fazendas que sumiram do dataset atual
+    const validas = new Set(lista);
+    [...window._plsMultiSel].forEach(v => { if (!validas.has(v)) window._plsMultiSel.delete(v); });
+    _plsMSSyncDisplay();
   }
 
-  // Consulta de fazenda: assim que a fazenda é escolhida, já mostra
-  // TODOS os talhões dela (quantos são, quantos faltam, quais faltam) —
-  // sem precisar adivinhar um intervalo numérico.
+  function _plsMSRenderLista(termo) {
+    const cont = document.getElementById('ms-opcoes-plsFazenda');
+    if (!cont) return;
+    const termoNorm = (termo || '').trim().toLowerCase();
+    const opcoes = window._plsMultiOpcoes || [];
+    const filtradas = !termoNorm ? opcoes : opcoes.filter(o => o.label.toLowerCase().includes(termoNorm));
+    if (!filtradas.length) {
+      cont.innerHTML = `<div class="tratos-ms-opt ss-empty">Nenhum resultado</div>`;
+      return;
+    }
+    const sel = window._plsMultiSel;
+    cont.innerHTML = filtradas.map(o => `
+      <label class="tratos-ms-opt">
+        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="plsMSToggle(this.value, this.checked)">
+        <span>${escapeHtml(o.label)}</span>
+      </label>`).join('');
+  }
+
+  function plsMSAbrir() {
+    const wrap = document.getElementById('ms-tratos-filtro-plsFazenda');
+    if (!wrap) return;
+    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
+    document.querySelectorAll('.tratos-ss.open').forEach(el => el.classList.remove('open'));
+    const abrindo = !wrap.classList.contains('open');
+    wrap.classList.toggle('open', abrindo);
+    if (abrindo) _plsMSRenderLista('');
+  }
+
+  function plsMSFiltrarTexto(termo) { _plsMSRenderLista(termo); }
+
+  function plsMSToggle(val, marcado) {
+    if (marcado) window._plsMultiSel.add(val); else window._plsMultiSel.delete(val);
+    _plsMSSyncDisplay();
+    popularTalhoesBusca();
+  }
+
+  function plsMSLimpar() {
+    window._plsMultiSel.clear();
+    _plsMSRenderLista('');
+    _plsMSSyncDisplay();
+    popularTalhoesBusca();
+  }
+  window.plsMSAbrir = plsMSAbrir;
+  window.plsMSFiltrarTexto = plsMSFiltrarTexto;
+  window.plsMSToggle = plsMSToggle;
+  window.plsMSLimpar = plsMSLimpar;
+
+  function _plsMSSyncDisplay() {
+    const disp = document.getElementById('ms-display-plsFazenda');
+    const clearBtn = document.getElementById('ms-clear-plsFazenda');
+    if (!disp) return;
+    const sel = window._plsMultiSel;
+    if (sel.size === 0) {
+      disp.textContent = '— Selecione a(s) fazenda(s) —';
+      disp.classList.remove('tem-valor');
+      if (clearBtn) clearBtn.style.display = 'none';
+    } else if (sel.size === 1) {
+      disp.textContent = [...sel][0];
+      disp.classList.add('tem-valor');
+      if (clearBtn) clearBtn.style.display = 'block';
+    } else {
+      disp.textContent = `${sel.size} fazendas selecionadas`;
+      disp.classList.add('tem-valor');
+      if (clearBtn) clearBtn.style.display = 'block';
+    }
+  }
+
+  // Consulta de fazenda: assim que a(s) fazenda(s) são marcadas, já mostra
+  // TODOS os talhões delas (quantos são, quantos faltam, quais faltam) —
+  // sem precisar adivinhar um intervalo numérico. Com mais de uma fazenda
+  // marcada, mostra um bloco por fazenda, sempre na mesma ordem do filtro
+  // (numérica pelo código, senão alfabética) — não na ordem em que foram
+  // clicadas.
   function popularTalhoesBusca() {
-    const fazendaSel = document.getElementById('pls-busca-fazenda')?.value || '';
-    const resultDiv  = document.getElementById('pls-busca-resultado');
+    const resultDiv = document.getElementById('pls-busca-resultado');
     if (!resultDiv) return;
-    if (!fazendaSel) { resultDiv.innerHTML = ''; return; }
+    const ordemLista = (window._plsMultiOpcoes || []).map(o => o.value);
+    const selecionadas = [...(window._plsMultiSel || [])]
+      .sort((a,b) => ordemLista.indexOf(a) - ordemLista.indexOf(b));
+    if (!selecionadas.length) { resultDiv.innerHTML = ''; return; }
+    resultDiv.innerHTML = selecionadas
+      .map((fazendaSel, idx) => _plsRenderBlocoFazenda(fazendaSel, idx))
+      .join('');
+  }
+
+  function _plsRenderBlocoFazenda(fazendaSel, idx) {
     const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
+    const margemTopo = idx > 0 ? 'margin-top:12px;' : '';
 
     let encontrados = [];
     ['401','402','403','404'].forEach(f => {
@@ -6648,8 +6685,9 @@ iniciarSabedoria();
       });
     });
     if (!encontrados.length) {
-      resultDiv.innerHTML = '<div class="pla-empty"><i class="fas fa-search"></i>Nenhum talhão encontrado para esta fazenda.</div>';
-      return;
+      return `<div class="pls-busca-resultado" style="${margemTopo}">
+        <div class="pla-empty"><i class="fas fa-search"></i>Nenhum talhão encontrado para ${escapeHtml(fazendaSel)}.</div>
+      </div>`;
     }
     encontrados = encontrados
       .map(r => ({ ...r, status: _plsStatusTalhao(r.frenteEncontrada, r.fazenda, r.talhao, r.codFazenda) }));
@@ -6680,17 +6718,18 @@ iniciarSabedoria();
     const pendentes  = encontrados.filter(r => r.status === 'pendente').length;
     const faltantes  = encontrados.filter(r => r.status !== 'encerrada');
     const quaseConcluida = total >= 3 && faltantes.length > 0 && faltantes.length <= 3 && (colhidos/total) >= 0.75;
+    const detalheId = `pls-talhao-detalhe-${idx}`;
 
     const chipsHtml = encontrados.map(r => {
       const destaque = quaseConcluida && r.status !== 'encerrada' ? ' pls-chip-atencao' : '';
       const tituloBlocos = r._blocos > 1 ? ` title="${r._blocos} blocos/parcelas"` : '';
-      return `<button type="button" class="pls-talhao-chip status-${r.status}${destaque}"${tituloBlocos} onclick="plsMostrarTalhao(this,'${fazendaSel.replace(/'/g,"\\'")}','${r.talhao}','${r.frenteEncontrada}')">${r.talhao}</button>`;
+      return `<button type="button" class="pls-talhao-chip status-${r.status}${destaque}"${tituloBlocos} onclick="plsMostrarTalhao(this,'${fazendaSel.replace(/'/g,"\\'")}','${r.talhao}','${r.frenteEncontrada}','${detalheId}')">${r.talhao}</button>`;
     }).join('');
 
-    resultDiv.innerHTML = `
-      <div class="pls-busca-resultado">
+    return `
+      <div class="pls-busca-resultado" style="${margemTopo}">
         <div class="pls-faz-resumo-topo">
-          <span class="pls-faz-resumo-titulo">${fazendaSel}</span>
+          <span class="pls-faz-resumo-titulo">${escapeHtml(fazendaSel)}</span>
           <span class="pls-faz-resumo-total">${total} talhõe${total===1?'':'s'}</span>
         </div>
         <div class="pls-faz-resumo-chips">
@@ -6700,16 +6739,16 @@ iniciarSabedoria();
         </div>
         ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} ${faltantes.length>1?'talhões':'talhão'} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
         <div class="pls-talhao-grid">${chipsHtml}</div>
-        <div id="pls-talhao-detalhe"></div>
+        <div id="${detalheId}"></div>
       </div>`;
   }
 
-  window.plsMostrarTalhao = function(btnEl, fazendaSel, talhao, frente) {
+  window.plsMostrarTalhao = function(btnEl, fazendaSel, talhao, frente, detalheId) {
     document.querySelectorAll('.pls-talhao-chip').forEach(b => b.classList.remove('selected'));
     if (btnEl) btnEl.classList.add('selected');
     const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
     const r = (_plsDados[frente] || []).find(x => x.talhao === talhao && _norm(x.fazenda) === _norm(nomeSemCod));
-    const det = document.getElementById('pls-talhao-detalhe');
+    const det = document.getElementById(detalheId || 'pls-talhao-detalhe');
     if (!det || !r) return;
     det.innerHTML = _plsCardTalhao(r, frente, nomeSemCod);
   };
