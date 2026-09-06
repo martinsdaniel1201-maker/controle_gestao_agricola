@@ -807,15 +807,6 @@
         <!-- input oculto de compatibilidade (filtrarTabela o lê) -->
         <input type="hidden" id="filtroFrente" value="">
       </div>
-      <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px; margin-top:10px;">
-        <button id="btn-compact-toggle" onclick="toggleModoCompacto()" title="Modo compacto de tabela">
-          <i class="fas fa-compress-alt"></i> Compacto
-        </button>
-        <span id="gatec-sync-status" style="font-size:11px; color:var(--text-3); font-weight:700; display:none; align-items:center; background:var(--surface2); border:1px solid var(--border); padding:5px 10px; border-radius:20px;">
-          <i id="gatec-sync-dot" class="fas fa-circle" style="font-size:9px; color:var(--green-500); margin-right:6px;"></i>
-          <span id="gatec-sync-label">—</span>
-        </span>
-      </div>
       
       <!-- Legenda das siglas da tabela — não altera nenhuma célula/coluna, só explica -->
       <div class="tabela-legenda-siglas">
@@ -1375,11 +1366,17 @@
       <div class="pls-card-body">
         <div class="field" style="margin-bottom:12px">
           <label>Fazenda</label>
-          <div class="app-select-wrap">
-            <select id="pls-busca-fazenda" class="app-select" onchange="popularTalhoesBusca()">
-              <option value="">— Selecione a fazenda —</option>
-            </select>
-            <i class="fas fa-chevron-down app-select-chevron"></i>
+          <div class="tratos-ms" id="ms-tratos-filtro-plsFazenda">
+            <div class="tratos-ms-input-wrap" onclick="plsMSAbrir()">
+              <i class="fas fa-search tratos-ms-icon"></i>
+              <span class="tratos-ms-display" id="ms-display-plsFazenda">— Selecione a(s) fazenda(s) —</span>
+              <i class="fas fa-times tratos-ms-clear" id="ms-clear-plsFazenda" style="display:none;" onclick="event.stopPropagation(); plsMSLimpar()"></i>
+              <i class="fas fa-chevron-down tratos-ms-chevron"></i>
+            </div>
+            <div class="tratos-ms-lista">
+              <div class="tratos-ms-search"><input type="text" placeholder="Buscar fazenda..." oninput="plsMSFiltrarTexto(this.value)" onclick="event.stopPropagation()"></div>
+              <div class="tratos-ms-opcoes" id="ms-opcoes-plsFazenda"></div>
+            </div>
           </div>
         </div>
         <div id="pls-busca-resultado"></div>
