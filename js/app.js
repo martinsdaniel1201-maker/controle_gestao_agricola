@@ -5361,9 +5361,8 @@ iniciarSabedoria();
     return { data: null, error: ultimoErro };
   }
 
-  async function _tratosBuscarSupabasePaginado(safras, todasSafras) {
+  async function _tratosBuscarSupabasePaginado(safras, todasSafras, onProgresso) {
     const PAGINA = 1000;
-    const CONCORRENCIA = 6; // páginas simultâneas por vez
     const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
     const temFiltro = !todasSafras && Array.isArray(safras) && safras.length > 0;
 
@@ -5384,34 +5383,39 @@ iniciarSabedoria();
       return q;
     }
 
-    // PERFORMANCE: antes a 1ª busca pedia { count: 'exact' } pra saber de
-    // antemão quantas páginas existiam. Só que count:'exact' faz o Postgres
-    // contar TODAS as linhas que batem com o filtro antes de devolver
-    // qualquer dado — numa tabela com centenas de milhares de linhas, essa
-    // contagem sozinha costuma ser mais lenta que a busca dos dados em si.
-    // Agora buscamos direto, em lotes de CONCORRENCIA páginas por vez, e
-    // paramos assim que alguma vier com menos linhas que PAGINA (sinal de
-    // que chegamos ao fim) — sem precisar saber o total antes de começar.
+    // OTIMIZADO: pagina por CURSOR (id > último id já lido) em vez de
+    // OFFSET/range. Com OFFSET, cada página precisa que o Postgres processe
+    // todas as linhas das páginas anteriores pra "pular" até o ponto certo —
+    // numa tabela de ~325 mil linhas, a página 300 já está pagando o custo
+    // de 300 mil linhas puladas, e isso ACUMULA a cada página seguinte. É a
+    // causa mais provável tanto da demora quanto dos erros/timeout nas
+    // páginas mais fundas. Cursor por id usa o índice direto: toda página
+    // custa praticamente o mesmo, não importa a profundidade — muito mais
+    // rápido E muito mais confiável (sem penalidade que cresce com o tempo).
     const todas = [];
-    let pagina = 0;
+    let cursor = -1; // menor que qualquer id real (bigserial começa em 1)
     let acabou = false;
+    let erroFinal = null;
 
     while (!acabou) {
-      const pedidos = [];
-      for (let i = 0; i < CONCORRENCIA; i++) {
-        const de = (pagina + i) * PAGINA;
-        pedidos.push(_tratosComRetry(baseQuery().order('id', { ascending: true }).range(de, de + PAGINA - 1)));
+      const resp = await _tratosComRetry(
+        baseQuery().order('id', { ascending: true }).gt('id', cursor).limit(PAGINA)
+      );
+      if (resp.error) {
+        // Não descarta o que já foi carregado até aqui — devolve parcial
+        // em vez de jogar fora tudo por causa de 1 página que falhou (ex.:
+        // internet cair no meio do carregamento no campo).
+        erroFinal = resp.error;
+        break;
       }
-      const respostas = await Promise.all(pedidos);
-      for (const { data, error } of respostas) {
-        if (error) throw error;
-        if (!data || data.length === 0) { acabou = true; break; }
-        todas.push(...data);
-        if (data.length < PAGINA) acabou = true;
-      }
-      pagina += CONCORRENCIA;
+      const data = resp.data || [];
+      if (!data.length) break;
+      todas.push(...data);
+      cursor = data[data.length - 1].id;
+      if (typeof onProgresso === 'function') onProgresso(todas.length);
+      if (data.length < PAGINA) acabou = true;
     }
-    return todas;
+    return { dados: todas, erro: erroFinal };
   }
 
   // ── Cache em sessionStorage — evita refazer a busca pesada toda vez que o
@@ -5780,11 +5784,28 @@ iniciarSabedoria();
         .filter(Boolean).join(';');
       const chaveCache = (todasSafras ? 'todas' : [...safrasFiltro].sort().join(',')) + (prefixoPre ? '__' + prefixoPre : '');
       const cache = !forcar ? _tratosLerCache(chaveCache) : null;
-      const brutos = await _tratosEsperarMin(
-        cache ? Promise.resolve(cache) : _tratosBuscarSupabasePaginado(safrasFiltro, todasSafras),
-        550
-      );
-      if (!cache) _tratosGravarCache(brutos, chaveCache);
+      const resultado = cache
+        ? { dados: cache, erro: null }
+        : await _tratosEsperarMin(
+            _tratosBuscarSupabasePaginado(safrasFiltro, todasSafras, (n) => {
+              // Contador ao vivo — mostra que tá andando em vez de parecer
+              // travado enquanto as páginas vão chegando.
+              const loadingCard = document.getElementById('tratos-loading-card');
+              const texto = loadingCard ? loadingCard.querySelector('.ctt-loader-texto') : null;
+              if (texto) texto.textContent = `Carregando Tratos Culturais... (${n.toLocaleString('pt-BR')} registros)`;
+            }),
+            550
+          );
+      const brutos = resultado.dados;
+      // Se deu erro no meio do carregamento mas já tinha juntado alguma
+      // coisa, mostra o que já tem em vez de descartar tudo — só avisa
+      // que ficou incompleto, pra poder tentar de novo depois.
+      if (resultado.erro && brutos.length > 0 && !silencioso && typeof showToast === 'function') {
+        showToast(`⚠️ Carregamento incompleto (${brutos.length.toLocaleString('pt-BR')} registros carregados) — a conexão caiu no meio. Toque em "Atualizar" pra tentar completar.`, 'error', 5500);
+      } else if (resultado.erro && brutos.length === 0) {
+        throw resultado.erro;
+      }
+      if (!cache && brutos.length > 0 && !resultado.erro) _tratosGravarCache(brutos, chaveCache);
 
       _tratosMostrarLoading(false);
 
@@ -5825,7 +5846,7 @@ iniciarSabedoria();
       _tratosSSSync('tratos-filtro-aplicador');
 
       renderizarTratos(dados);
-      if (!silencioso && typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
+      if (!silencioso && !resultado.erro && typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
     } catch (err) {
       console.error('[Tratos] Erro Supabase:', err);
       _tratosMostrarLoading(false);
