@@ -4139,15 +4139,12 @@ setTimeout(() => {
   if (typeof carregarPlanejamentoSafra === 'function') carregarPlanejamentoSafra();
 }, 2000);
 
-// Pré-carrega Tratos Culturais (PCP) só da SAFRA ATUAL em background —
-// a tabela tem ~325 mil linhas no histórico completo, então carregar tudo
-// no boot deixaria o app lento pra todo mundo; carregando só o ano atual
-// já cobre o uso do dia a dia e a aba abre instantânea. Se o usuário quiser
-// o histórico completo, o botão "Trocar safra(s)" dentro da aba continua
-// disponível normalmente.
-setTimeout(() => {
-  if (typeof window._tratosPrecarregarSafraAtual === 'function') window._tratosPrecarregarSafraAtual();
-}, 2500);
+// Pré-carregar Tratos Culturais em background foi REMOVIDO — mesmo só a
+// safra atual já é gente demais (dezenas/centenas de milhares de linhas),
+// e o carregamento ficava "preso" bem na hora que o usuário abria a aba,
+// travando a tela de loading sem deixar nem usar o atalho rápido. Agora
+// a aba de Tratos abre direto no resumo rápido por Fazenda (via RPC,
+// calculado no servidor) assim que é aberta — ver _tratosAutoAbrirRapido.
 
 // Dark mode
 restaurarDarkMode();
@@ -4363,16 +4360,38 @@ iniciarSabedoria();
   window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
   window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
 
-  // Pré-carrega em segundo plano só a safra ATUAL (não a tabela toda —
-  // são ~325 mil linhas históricas, carregar tudo no boot deixaria o app
-  // lento pra todo mundo só pra economizar 1 clique no picker). Se o
-  // usuário já tiver escolhido outra coisa antes desse preload rodar
-  // (pouco provável, mas por segurança), não sobrescreve a escolha dele.
-  window._tratosPrecarregarSafraAtual = function() {
-    if (_tratosSafrasAtivas !== null) return;
-    _tratosSafrasAtivas = [String(new Date().getFullYear())];
-    carregarDadosTratos(false, true); // forcar=false (usa cache se houver), silencioso=true
-  };
+  // Ao abrir a aba de Tratos, já cai direto no resumo rápido por Fazenda
+  // (via RPC, calculado no servidor) — sem precisar escolher safra/filtro
+  // manualmente e SEM baixar nenhuma linha crua. Usa a safra atual como
+  // padrão (ou a mais recente disponível, se o ano corrente ainda não tem
+  // registro). O usuário pode trocar safra/filtro e clicar de novo depois.
+  async function _tratosAutoAbrirRapido() {
+    if (_tratosIniciado) return; // já foi aberto nesta sessão — não repete
+    _tratosIniciado = true;
+
+    const picker = _tratosCriarPickerDom();
+    if (picker) {
+      picker.style.display = 'block';
+      picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Preparando Tratos Culturais...</div>';
+    }
+
+    let safras = [];
+    try {
+      const { data, error } = await _sbClient.rpc('listar_safras_tratos');
+      if (error) throw error;
+      safras = (data || []).map(r => r.safra).filter(Boolean);
+    } catch (e) {
+      console.error('[Tratos] Erro ao listar safras (abertura automática)', e);
+    }
+
+    const anoAtual = String(new Date().getFullYear());
+    const safraEscolhida = safras.includes(anoAtual) ? anoAtual : (safras[0] || null);
+    _tratosSafrasAtivas = safraEscolhida ? [safraEscolhida] : 'todas';
+
+    await _tratosMostrarSeletorFiltros(); // já deixa os filtros prontos, visíveis, ajustáveis
+    _tratosResumoFazendaRapido(); // dispara na hora — sem esperar clique nenhum
+  }
+  window._tratosAutoAbrirRapido = _tratosAutoAbrirRapido;
 
   /* ══════════════════════════════════════════════════════════════
      SINCRONIZAÇÃO COM SUPABASE (public.tratos_pcp)
@@ -4890,12 +4909,9 @@ iniciarSabedoria();
     return areaOS;
   }
 
-  // ── Lazy init ────────────────────────────────────────────────────────────
+  // ── Lazy init — abre já no resumo rápido (sem baixar linha nenhuma) ────────
   function iniciarModuloTratos() {
-    if (!_tratosIniciado) {
-      _tratosIniciado = true;
-      carregarDadosTratos();
-    }
+    _tratosAutoAbrirRapido();
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
