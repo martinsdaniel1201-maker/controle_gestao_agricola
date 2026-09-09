@@ -4353,7 +4353,6 @@ iniciarSabedoria();
 
   window._tratosDados     = null;
   window._tratosFiltrados = null;
-  window._tratosCols      = null;
   let   _tratosIniciado   = false;
 
   window.iniciarModuloTratos     = iniciarModuloTratos;
@@ -5338,6 +5337,11 @@ iniciarSabedoria();
     // colMunicipio: 'municipio', colVariedade: 'variedade',
   };
 
+  // É estático (não depende de dado carregado) — já deixa disponível desde
+  // já, pra o resumo rápido por Fazenda (via RPC) conseguir montar o card
+  // de O.S. no drill-down sem precisar de um carregamento completo antes.
+  window._tratosCols = TRATOS_SUPABASE_COLS;
+
   // Converte number/string numérica (Postgres numeric, decimal com ponto)
   // para o formato BR com vírgula, igual ao que a planilha sempre mostrou.
   function _numParaBR(v) {
@@ -5425,6 +5429,176 @@ iniciarSabedoria();
     }
     return { dados: todas, erro: erroFinal };
   }
+
+  // ── Busca linhas de UM grupo específico (ex.: 1 fazenda + 1 produto),
+  // usada só no drill-down "Ver O.S." do resumo rápido — sempre um
+  // resultado pequeno (dezenas/centenas de linhas), então 1 página de até
+  // 5000 já é mais que suficiente, sem precisar da paginação completa.
+  async function _tratosBuscarLinhasEspecificas(extraFiltros) {
+    const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
+    let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
+    const todasSafras = _tratosSafrasAtivas === 'todas';
+    if (!todasSafras && Array.isArray(_tratosSafrasAtivas) && _tratosSafrasAtivas.length) {
+      q = q.in(TRATOS_SUPABASE_COLS.colSafra, _tratosSafrasAtivas);
+    }
+    const pre = window._tratosPreFiltros || {};
+    const PRE_COL = { fazenda: TRATOS_SUPABASE_COLS.colCodFazenda, produto: TRATOS_SUPABASE_COLS.colCodProd, operacao: TRATOS_SUPABASE_COLS.colCodOp, grupoOp: TRATOS_SUPABASE_COLS.colCodGrupoOp };
+    Object.keys(PRE_COL).forEach(campo => {
+      const sel = pre[campo];
+      if (sel && sel.size > 0) q = q.in(PRE_COL[campo], [...sel]);
+    });
+    Object.entries(extraFiltros || {}).forEach(([col, val]) => { if (val) q = q.eq(col, val); });
+    const resp = await _tratosComRetry(q.order('id', { ascending: true }).limit(5000));
+    if (resp.error) throw resp.error;
+    return resp.data || [];
+  }
+
+  // ── RESUMO RÁPIDO POR FAZENDA (via RPC relatorio_tratos_fazenda) ──────────
+  // Em vez de baixar as centenas de milhares de linhas pra só então somar
+  // no navegador, pede pro Postgres já somar (mesma regra de dedup de área
+  // por O.S.+Talhão do _calcAreaOS) e devolve só o resultado agregado —
+  // funciona mesmo sem nunca ter carregado a base inteira. O.S. individuais
+  // só são buscadas quando o usuário abre "Ver O.S." de um grupo específico.
+  async function _tratosResumoFazendaRapido() {
+    const btn = document.getElementById('tratos-resumo-rapido-btn');
+    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando...'; }
+
+    const todasSafras = _tratosSafrasAtivas === 'todas';
+    const safrasRpc = todasSafras ? null : _tratosSafrasAtivas;
+    const pre = window._tratosPreFiltros || {};
+    const arr = campo => (pre[campo] && pre[campo].size) ? [...pre[campo]] : null;
+
+    try {
+      const { data, error } = await _sbClient.rpc('relatorio_tratos_fazenda', {
+        p_safras: safrasRpc,
+        p_produto: arr('produto'),
+        p_operacao: arr('operacao'),
+        p_grupo_op: arr('grupoOp'),
+        p_fazenda: arr('fazenda'),
+      });
+      if (error) throw error;
+      _tratosRenderResumoFazendaRapido(data || []);
+    } catch (e) {
+      console.error('[Tratos] Erro no resumo rápido por fazenda (RPC relatorio_tratos_fazenda)', e);
+      if (typeof showToast === 'function') {
+        showToast('⚠️ Resumo rápido ainda não disponível — rode o SQL relatorio_tratos_fazenda.sql no Supabase (ou use "Buscar dados" pra carregar do jeito normal).', 'error', 6000);
+      }
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-bolt"></i> Ver resumo por Fazenda agora'; }
+    }
+  }
+  window._tratosResumoFazendaRapido = _tratosResumoFazendaRapido;
+
+  function _tratosRenderResumoFazendaRapido(rows) {
+    const card = document.getElementById('card-tratos-relatorio-resultado');
+    const titulo = document.getElementById('tr-resultado-titulo');
+    const filtrosEl = document.getElementById('tr-resultado-filtros');
+    const corpo = document.getElementById('tr-resultado-corpo');
+    if (!card || !corpo) return;
+
+    titulo.innerHTML = 'Aplicação por Fazenda <span style="font-weight:700;color:var(--green-700);font-size:11px;">⚡ rápido</span>';
+    const areaGeral = rows.reduce((s, r) => s + (Number(r.area_total) || 0), 0);
+    const qtdOsGeral = rows.reduce((s, r) => s + (Number(r.qtd_os) || 0), 0);
+    filtrosEl.textContent = `${rows.length} grupo${rows.length !== 1 ? 's' : ''} · ${qtdOsGeral.toLocaleString('pt-BR')} O.S. no total — calculado direto no servidor, sem baixar as linhas`;
+
+    if (!rows.length) {
+      corpo.innerHTML = '<div class="pla-empty"><i class="fas fa-inbox"></i>Nenhum dado encontrado pros filtros escolhidos.</div>';
+      card.style.display = 'block';
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
+    // Mesma regra do relatório normal: só cria o nível "Produto" quando tem
+    // mais de 1 produto distinto no resultado.
+    const produtosDistintos = new Set(rows.map(r => r.cod_produto || r.desc_produto || '')).size;
+    const agruparPorProduto = produtosDistintos > 1;
+
+    function grupoFazendaHtml(fazRows, nivel) {
+      return fazRows.map(r => {
+        const label = [r.cod_fazenda, r.desc_fazenda].filter(Boolean).join(' · ') || 'Sem fazenda';
+        const uid = 'osdet-' + Math.random().toString(36).slice(2, 10);
+        return `<div class="tratos-grupo-bar nivel-${nivel}">
+            <span class="tgb-label">${esc(label)}</span>
+            <span class="tgb-stats">${Number(r.area_total).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</span>
+          </div>
+          <div class="tratos-grupo-corpo nivel-${nivel}">
+            <div class="tratos-os-detalhe-toggle" onclick="_tratosCarregarDrillDown('${uid}', this, '${esc(String(r.cod_produto||''))}', '${esc(String(r.cod_fazenda||''))}')" data-total="${r.qtd_os}">
+              <i class="fas fa-chevron-right toggle-chevron"></i>
+              <span>Ver ${r.qtd_os} O.S.</span>
+            </div>
+            <div class="tratos-os-detalhe-corpo" id="${uid}" style="display:none;"></div>
+          </div>`;
+      }).join('');
+    }
+
+    let html;
+    if (agruparPorProduto) {
+      const porProduto = new Map();
+      rows.forEach(r => {
+        const key = r.cod_produto || r.desc_produto || '';
+        if (!porProduto.has(key)) porProduto.set(key, { label: [r.cod_produto, r.desc_produto].filter(Boolean).join(' · ') || 'Produto não identificado', rows: [] });
+        porProduto.get(key).rows.push(r);
+      });
+      html = [...porProduto.values()].map(({ label, rows: gRows }) => {
+        const area = gRows.reduce((s, r) => s + (Number(r.area_total) || 0), 0);
+        return `<div class="tratos-grupo-bar nivel-0">
+            <span class="tgb-label">${esc(label)}</span>
+            <span class="tgb-stats">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</span>
+          </div>
+          <div class="tratos-grupo-corpo nivel-0">${grupoFazendaHtml(gRows, 1)}</div>`;
+      }).join('');
+    } else {
+      html = grupoFazendaHtml(rows, 0);
+    }
+
+    const pillArea = `<div class="tratos-area-pill"><i class="fas fa-ruler-combined"></i> Área total aplicada: <b>${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b></div>`;
+    corpo.innerHTML = pillArea + `<div class="tratos-hierarquia">${html}</div>`;
+
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  window._tratosRenderResumoFazendaRapido = _tratosRenderResumoFazendaRapido;
+
+  // Busca as O.S. de 1 grupo (fazenda + produto) só quando o usuário pede
+  // ("Ver O.S.") — reaproveita o mesmo card de O.S./dedup de produto já
+  // usado no relatório completo (_tratosRenderNivel), só que buscando na
+  // hora em vez de filtrar de uma base já carregada.
+  async function _tratosCarregarDrillDown(uid, btnEl, codProduto, codFazenda) {
+    const corpo = document.getElementById(uid);
+    if (!corpo) return;
+    const abrindo = corpo.style.display === 'none';
+    btnEl.classList.toggle('open', abrindo);
+    const label = btnEl.querySelector('span');
+    if (!abrindo) {
+      corpo.style.display = 'none';
+      if (label) label.textContent = `Ver ${btnEl.dataset.total} O.S.`;
+      return;
+    }
+    corpo.style.display = 'block';
+    if (label) label.textContent = 'Ocultar O.S.';
+    if (corpo.dataset.carregado) return; // já buscou antes nesta sessão, não repete
+
+    corpo.innerHTML = `<div style="padding:10px;">${typeof cttLoadingInlineHTML === 'function' ? cttLoadingInlineHTML('Buscando O.S. dessa fazenda...') : 'Buscando...'}</div>`;
+    try {
+      const extraFiltros = {};
+      if (codFazenda) extraFiltros[TRATOS_SUPABASE_COLS.colCodFazenda] = codFazenda;
+      if (codProduto) extraFiltros[TRATOS_SUPABASE_COLS.colCodProd] = codProduto;
+      const brutos = await _tratosBuscarLinhasEspecificas(extraFiltros);
+      const dados = brutos.map(r => ({
+        ...r,
+        area_aplicada   : _numParaBR(r.area_aplicada),
+        dose_recomendada: _numParaBR(r.dose_recomendada),
+        dose_aplicada   : _numParaBR(r.dose_aplicada),
+      }));
+      const { colOS, colArea, colCodTalhao } = window._tratosCols || {};
+      corpo.innerHTML = _tratosRenderNivel(dados, {}, [], 0, colOS, colArea, colCodTalhao);
+      corpo.dataset.carregado = '1';
+    } catch (e) {
+      console.error('[Tratos] Erro ao buscar detalhe da O.S. (drill-down)', e);
+      corpo.innerHTML = '<div class="pla-empty" style="padding:14px;"><i class="fas fa-triangle-exclamation"></i>Erro ao buscar as O.S. — toque em "Ocultar O.S." e tente de novo.</div>';
+    }
+  }
+  window._tratosCarregarDrillDown = _tratosCarregarDrillDown;
 
   // ── Cache em sessionStorage — evita refazer a busca pesada toda vez que o
   // usuário só troca de aba e volta. Válido por 5 minutos; o botão "Atualizar"
@@ -5672,8 +5846,10 @@ iniciarSabedoria();
         </div>`).join('')}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" id="tratos-prefiltro-ok" class="btn-main"><i class="fas fa-check"></i> Buscar dados</button>
+        <button type="button" id="tratos-resumo-rapido-btn" class="btn-main" style="background:var(--green-700);"><i class="fas fa-bolt"></i> Ver resumo por Fazenda agora</button>
         <button type="button" id="tratos-prefiltro-voltar" class="btn-secondary"><i class="fas fa-arrow-left"></i> Trocar safra(s)</button>
-      </div>`;
+      </div>
+      <div style="font-size:10.5px;color:var(--text-3);margin-top:8px;">⚡ = calcula a área direto no servidor, sem baixar as linhas (mais rápido, mas só mostra o resumo por fazenda; pra ver O.S. individuais toque em "Ver O.S." dentro do resultado). "Buscar dados" traz tudo e libera todos os tipos de relatório.</div>`;
 
     campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
 
@@ -5681,6 +5857,7 @@ iniciarSabedoria();
       picker.style.display = 'none';
       carregarDadosTratos(true);
     };
+    picker.querySelector('#tratos-resumo-rapido-btn').onclick = () => _tratosResumoFazendaRapido();
     picker.querySelector('#tratos-prefiltro-voltar').onclick = () => _tratosMostrarSeletorSafra();
   }
   window._tratosMostrarSeletorFiltros = _tratosMostrarSeletorFiltros;
@@ -5833,7 +6010,6 @@ iniciarSabedoria();
       }));
 
       const cols = TRATOS_SUPABASE_COLS;
-      window._tratosCols      = cols;
       window._tratosDados     = dados;
       window._tratosFiltrados = dados;
 
