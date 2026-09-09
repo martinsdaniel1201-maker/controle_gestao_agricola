@@ -4539,8 +4539,13 @@ iniciarSabedoria();
       case 'setor':    return ['setor'];
       case 'talhao':   return ['fazenda', 'talhao'];
       case 'produto':  return ['produto'];
-      // Subprocesso sempre primeiro, depois Grupo de Operação, depois a Operação em si
-      case 'operacao': return ['subgrupo', 'grupoOp', 'operacao'];
+      // Subprocesso ainda não vem do Supabase (cod_subprocesso/desc_subprocesso
+      // seguem comentados em TRATOS_SUPABASE_COLS — não tem esse dado
+      // disponível no SQL atual). Enquanto isso, pula direto pra Grupo de
+      // Operação → Operação; incluir o nível "subgrupo" sem o dado por trás
+      // só juntava TUDO num único grupo fake "Sem subprocesso" com o total
+      // geral disfarçado de subtotal.
+      case 'operacao': return ['grupoOp', 'operacao'];
       default:         return null;
     }
   }
@@ -4585,19 +4590,20 @@ iniciarSabedoria();
     return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
   }
 
-  // ── Linha de UM produto aplicado, dentro do card da O.S. — dose SEMPRE
-  //    rotulada ("Recomendada" / "Aplicada"), pra quem não conhece a planilha
-  //    conseguir entender sem precisar adivinhar qual número é qual ────────
+  // ── Linha de UM produto aplicado, dentro do card da O.S. — comparação de
+  //    dose em formato compacto (pill "Rec" → pill "Real" + selo de %),
+  //    em vez da frase longa "Recomendada: X   Aplicada: Y" de antes ────────
   function _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem) {
     const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
     const dr = parseNum(row[colDoseRec]);
     const da = parseNum(row[colDoseAplic]);
+    let alerta = false;
     let difHtml = '';
     if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
       const pct = ((da - dr) / dr) * 100;
       const difStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-      const cor = Math.abs(pct) > ALERTA_DOSE_PCT ? 'var(--red)' : 'var(--green-700)';
-      difHtml = ` <b style="color:${cor}">(${difStr})</b>`;
+      alerta = Math.abs(pct) > ALERTA_DOSE_PCT;
+      difHtml = `<span class="tpl-dose-dif ${alerta ? 'tpl-dose-dif-alerta' : 'tpl-dose-dif-ok'}">${difStr}</span>`;
     }
     const produto = [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
     const talhaoHtml = (mostrarTalhao && colCodTalhao)
@@ -4609,9 +4615,11 @@ iniciarSabedoria();
         <span class="tpl-produto">${esc(produto)}</span>
         ${talhaoHtml}${contagemHtml}
       </div>
-      <div class="tpl-dose">
-        <span class="tpl-dose-item">Recomendada: <b>${esc(row[colDoseRec] || '—')}</b></span>
-        <span class="tpl-dose-item">Aplicada: <b>${esc(row[colDoseAplic] || '—')}</b>${difHtml}</span>
+      <div class="tpl-dose-cmp">
+        <span class="tpl-dose-pill" title="Dose recomendada">Rec <b>${esc(row[colDoseRec] || '—')}</b></span>
+        <i class="fas fa-arrow-right-long tpl-dose-seta"></i>
+        <span class="tpl-dose-pill tpl-dose-pill-real${alerta ? ' tpl-dose-alerta' : ''}" title="Dose realmente aplicada">Real <b>${esc(row[colDoseAplic] || '—')}</b></span>
+        ${difHtml}
       </div>
     </div>`;
   }
