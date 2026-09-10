@@ -4360,38 +4360,15 @@ iniciarSabedoria();
   window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
   window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
 
-  // Ao abrir a aba de Tratos, já cai direto na tela de filtros (Safra +
-  // Fazenda/Produto/Operação/Grupo/Datas) — sem baixar nenhuma linha ainda.
-  // O usuário define o que quer ver e só busca os dados quando clicar em
-  // "Filtrar" — nada de relatório pronto/automático disparando sozinho.
-  async function _tratosAutoAbrirRapido() {
+  // Ao abrir a aba de Tratos, já cai direto na tela de filtros (Período +
+  // Fazenda/Produto/Operação/Grupo) — sem baixar nenhuma linha ainda e sem
+  // nenhuma consulta prévia de safra (isso agora é derivado da data). O
+  // usuário define o que quer ver e só busca os dados quando clicar em
+  // "Filtrar".
+  function _tratosAutoAbrirRapido() {
     if (_tratosIniciado) return; // já foi aberto nesta sessão — não repete
     _tratosIniciado = true;
-
-    const picker = _tratosCriarPickerDom();
-    if (picker) {
-      picker.style.display = 'block';
-      picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Preparando Tratos Culturais...</div>';
-    }
-
-    let safras = [];
-    try {
-      const { data, error } = await _sbClient.rpc('listar_safras_tratos');
-      if (error) throw error;
-      safras = (data || []).map(r => r.safra).filter(Boolean);
-    } catch (e) {
-      console.error('[Tratos] Erro ao listar safras (abertura automática)', e);
-    }
-
-    const anoAtual = String(new Date().getFullYear());
-    // Sempre parte da safra atual por padrão (nunca 'todas' — mesmo se a
-    // lista de safras vier vazia por erro de rede, o ano atual ainda é uma
-    // aposta segura e não sobrecarrega o banco à toa). O usuário troca pelo
-    // botão "Trocar safra(s)" se quiser outra coisa.
-    const safraEscolhida = safras.includes(anoAtual) ? anoAtual : (safras[0] || anoAtual);
-    _tratosSafrasAtivas = [safraEscolhida];
-
-    await _tratosMostrarSeletorFiltros(); // deixa os filtros prontos — espera o usuário clicar em "Filtrar"
+    _tratosMostrarTelaFiltros();
   }
   window._tratosAutoAbrirRapido = _tratosAutoAbrirRapido;
 
@@ -4571,7 +4548,7 @@ iniciarSabedoria();
   }
 
   // ── Gera o relatório hierárquico respeitando os filtros já aplicados ────
-  function gerarRelatorioTratos(tipo) {
+  function gerarRelatorioTratos(tipo, btnEl) {
     if (!window._tratosDados || !window._tratosDados.length) {
       if (typeof showToast === 'function') showToast('⚠️ Aguarde os dados carregarem e tente novamente.', 'error', 2500);
       return;
@@ -4579,6 +4556,10 @@ iniciarSabedoria();
     const niveis = _tratosNiveisRelatorio(tipo);
     if (!niveis) return;
     const dados = window._tratosFiltrados && window._tratosFiltrados.length ? window._tratosFiltrados : window._tratosDados;
+    // Marca visualmente qual relatório está sendo mostrado agora.
+    document.querySelectorAll('.report-btn').forEach(b => b.classList.remove('active'));
+    const btn = btnEl || document.querySelector(`.report-btn[data-tipo="${tipo}"]`);
+    if (btn) btn.classList.add('active');
     _mostrarResultadoHierarquico(tipo, niveis, dados);
   }
 
@@ -4618,31 +4599,29 @@ iniciarSabedoria();
     const dr = parseNum(row[colDoseRec]);
     const da = parseNum(row[colDoseAplic]);
     let alerta = false;
-    let difHtml = '';
+    let difStr = '';
     if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
       const pct = ((da - dr) / dr) * 100;
-      const difStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
       alerta = Math.abs(pct) > ALERTA_DOSE_PCT;
-      difHtml = `<span class="tpl-dose-dif ${alerta ? 'tpl-dose-dif-alerta' : 'tpl-dose-dif-ok'}">${difStr}</span>`;
+      // Só mostra a diferença quando ela é grande o bastante pra importar —
+      // menos números na linha quando tá tudo dentro do esperado.
+      if (alerta) difStr = ` <span class="tpl-dose-dif-inline">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>`;
     }
     const produto = [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
     const talhaoHtml = (mostrarTalhao && colCodTalhao)
-      ? `<span class="tpl-talhao">Talhão ${esc((row[colCodTalhao] || '—').trim() || '—')}</span>` : '';
+      ? `<span class="tpl-talhao">T${esc((row[colCodTalhao] || '—').trim() || '—')}</span>` : '';
     const contagemHtml = (contagem && contagem > 1)
-      ? `<span class="tpl-talhao">× ${contagem} talhões</span>` : '';
+      ? `<span class="tpl-talhao">× ${contagem}</span>` : '';
+    // 1 linha só: nome do produto (corta com "..." se for longo) + dose
+    // aplicada em destaque, dose recomendada pequena do lado — em vez de
+    // duas pílulas + seta + selo que antes ocupavam a linha toda.
     return `<div class="tratos-produto-linha">
-      <div class="tpl-topo">
-        <span class="tpl-produto">${esc(produto)}</span>
-        ${talhaoHtml}${contagemHtml}
-      </div>
-      <div class="tpl-dose-cmp">
-        <span class="tpl-dose-pill" title="Dose recomendada">Rec <b>${esc(row[colDoseRec] || '—')}</b></span>
-        <i class="fas fa-arrow-right-long tpl-dose-seta"></i>
-        <span class="tpl-dose-pill tpl-dose-pill-real${alerta ? ' tpl-dose-alerta' : ''}" title="Dose realmente aplicada">Real <b>${esc(row[colDoseAplic] || '—')}</b></span>
-        ${difHtml}
-      </div>
+      <span class="tpl-produto" title="${esc(produto)}">${esc(produto)}</span>
+      ${talhaoHtml}${contagemHtml}
+      <span class="tpl-dose-compacta${alerta ? ' alerta' : ''}" title="Aplicada / Recomendada">${esc(row[colDoseAplic] || '—')} <small>/ ${esc(row[colDoseRec] || '—')}</small>${difStr}</span>
     </div>`;
   }
+
 
   // ── Colapsa linhas de produto repetidas dentro da MESMA O.S. — a planilha
   //    PCP traz uma linha por talhão, então um produto com a mesma dose
@@ -5498,8 +5477,6 @@ iniciarSabedoria();
     if (loadingCard) loadingCard.style.display = mostrar ? 'block' : 'none';
     if (filtrosCard) filtrosCard.style.display = mostrar ? 'none' : '';
     if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
-    const btnTrocar = document.getElementById('tratos-btn-trocar-safra');
-    if (btnTrocar) btnTrocar.style.display = mostrar ? 'none' : '';
     const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
     if (btnTrocarFiltro) btnTrocarFiltro.style.display = mostrar ? 'none' : '';
   }
@@ -5529,109 +5506,31 @@ iniciarSabedoria();
     picker.id = 'tratos-safra-picker';
     loadingCard.parentNode.insertBefore(picker, loadingCard);
 
-    const btnTrocar = document.createElement('button');
-    btnTrocar.id = 'tratos-btn-trocar-safra';
-    btnTrocar.type = 'button';
-    btnTrocar.className = 'btn-secondary';
-    btnTrocar.style.cssText = 'display:none;margin-bottom:10px;margin-right:8px;';
-    btnTrocar.innerHTML = '<i class="fas fa-calendar-alt"></i> Trocar safra(s)';
-    btnTrocar.onclick = () => _tratosMostrarSeletorSafra();
-    loadingCard.parentNode.insertBefore(btnTrocar, loadingCard);
-
     const btnTrocarFiltro = document.createElement('button');
     btnTrocarFiltro.id = 'tratos-btn-trocar-prefiltro';
     btnTrocarFiltro.type = 'button';
     btnTrocarFiltro.className = 'btn-secondary';
     btnTrocarFiltro.style.cssText = 'display:none;margin-bottom:10px;';
     btnTrocarFiltro.innerHTML = '<i class="fas fa-filter"></i> Trocar filtros';
-    btnTrocarFiltro.onclick = () => _tratosMostrarSeletorFiltros();
+    btnTrocarFiltro.onclick = () => _tratosMostrarTelaFiltros();
     loadingCard.parentNode.insertBefore(btnTrocarFiltro, loadingCard);
 
     return picker;
   }
 
-  async function _tratosMostrarSeletorSafra() {
-    _tratosMostrarLoading(false);
-    const filtrosCard = document.getElementById('tratos-filtros-card');
-    const relatorioCard = document.getElementById('tratos-relatorio-card');
-    if (filtrosCard) filtrosCard.style.display = 'none';
-    if (relatorioCard) relatorioCard.style.display = 'none';
-    const btnTrocar = document.getElementById('tratos-btn-trocar-safra');
-    if (btnTrocar) btnTrocar.style.display = 'none';
-    const btnTrocarFiltroSafra = document.getElementById('tratos-btn-trocar-prefiltro');
-    if (btnTrocarFiltroSafra) btnTrocarFiltroSafra.style.display = 'none';
-
-    const picker = _tratosCriarPickerDom();
-    if (!picker) return; // não achou onde encaixar — evita quebrar a tela
-
-    picker.style.display = 'block';
-    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Buscando safras disponíveis...</div>';
-
-    let safras = [];
-    try {
-      const { data, error } = await _sbClient.rpc('listar_safras_tratos');
-      if (error) throw error;
-      safras = (data || []).map(r => r.safra).filter(Boolean);
-    } catch (e) {
-      console.error('[Tratos] Erro ao listar safras', e);
-      // NUNCA cai pra "carregar tudo" só porque essa consulta falhou —
-      // usa a safra atual como padrão seguro (é o que a maioria quer, e
-      // não sobrecarrega o banco à toa) e deixa o usuário trocar depois
-      // pelo botão "Trocar safra(s)".
-      picker.style.display = 'none';
-      if (typeof showToast === 'function') showToast('⚠️ Não consegui listar as safras — usando a safra atual. Toque em "Trocar safra(s)" pra escolher outra.', 'error', 5000);
-      _tratosEscolherSafras([String(new Date().getFullYear())]);
-      return;
-    }
-
-    if (!safras.length) {
-      picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-tractor"></i> Nenhuma safra encontrada na tabela ainda.</div>';
-      return;
-    }
-
-    const anoAtual = String(new Date().getFullYear());
-    picker.innerHTML = `
-      <div class="card-title" style="margin:0 0 12px;"><i class="fas fa-calendar-alt"></i> Quais safras você quer ver?</div>
-      <div id="tratos-safra-picker-opcoes" class="tratos-ms-opcoes"
-           style="border:1px solid var(--border); border-radius:var(--radius-sm); margin-bottom:14px; max-height:none;"></div>
-      <button type="button" id="tratos-safra-picker-ok" class="btn-main">
-        <i class="fas fa-check"></i> Carregar dados
-      </button>`;
-
-    const cont = picker.querySelector('#tratos-safra-picker-opcoes');
-    safras.forEach(s => {
-      // Mesma classe (tratos-ms-opt) já usada nos checkboxes do filtro de
-      // Safra existente na tela de resultados — visual idêntico ao que o
-      // usuário já conhece.
-      const lbl = document.createElement('label');
-      lbl.className = 'tratos-ms-opt';
-      // Pré-marca só a safra atual, por conveniência — o usuário pode marcar mais.
-      const marcado = s === anoAtual;
-      lbl.innerHTML = `<input type="checkbox" value="${s}" ${marcado ? 'checked' : ''}><span>${s}</span>`;
-      cont.appendChild(lbl);
-    });
-
-    picker.querySelector('#tratos-safra-picker-ok').onclick = () => {
-      const marcadas = [...cont.querySelectorAll('input[type=checkbox]:checked')].map(i => i.value);
-      if (!marcadas.length) {
-        if (typeof showToast === 'function') showToast('⚠️ Escolha pelo menos uma safra.', 'error', 3000);
-        return;
-      }
-      _tratosEscolherSafras(marcadas);
-    };
+  // Converte o período escolhido em quais safras (anos) buscar — o usuário
+  // não escolhe mais a safra numa lista separada, é derivado direto da data.
+  // Ex.: 15/12/2025 até 10/03/2026 → ['2025','2026'].
+  function _tratosAnosEntreDatas(dataIniStr, dataFimStr) {
+    if (!dataIniStr && !dataFimStr) return null; // nenhum período definido
+    const anoAtual = new Date().getFullYear();
+    const anoIni = dataIniStr ? parseInt(dataIniStr.slice(0, 4), 10) : anoAtual;
+    const anoFim = dataFimStr ? parseInt(dataFimStr.slice(0, 4), 10) : anoAtual;
+    const de = Math.min(anoIni, anoFim), ate = Math.max(anoIni, anoFim);
+    const anos = [];
+    for (let a = de; a <= ate; a++) anos.push(String(a));
+    return anos;
   }
-
-  function _tratosEscolherSafras(safrasOuTodas) {
-    _tratosSafrasAtivas = safrasOuTodas;
-    const picker = document.getElementById('tratos-safra-picker');
-    if (picker) picker.style.display = 'none';
-    // Antes de sair buscando os dados, mostra 1 passo a mais: deixa o
-    // usuário escolher Fazenda/Produto/Operação/Grupo de Operação (todos
-    // opcionais) — só busca no Supabase o que realmente interessa, em vez
-    // de trazer a safra inteira pra filtrar depois na tela.
-    _tratosMostrarSeletorFiltros();
-  }
-  window._tratosMostrarSeletorSafra = _tratosMostrarSeletorSafra;
 
   // ── Pré-filtro (Fazenda/Produto/Operação/Grupo de Operação) ANTES de
   // carregar os dados — reduz o quanto precisa vir do Supabase quando o
@@ -5641,22 +5540,32 @@ iniciarSabedoria();
 
   const PLS_PREFILTRO_LABEL = { fazenda: 'Fazenda', produto: 'Produto', operacao: 'Operação Agrícola', grupoOp: 'Grupo de Operação' };
 
-  async function _tratosMostrarSeletorFiltros() {
+  // ── TELA ÚNICA DE FILTROS — Período (Data) é o filtro PRINCIPAL, em
+  // destaque no topo; os outros (Fazenda/Produto/Operação/Grupo) vêm
+  // depois, opcionais. Só busca dado nenhum quando o usuário clica em
+  // "Filtrar" — nada acontece sozinho antes disso.
+  async function _tratosMostrarTelaFiltros() {
+    _tratosMostrarLoading(false);
+    const filtrosCard = document.getElementById('tratos-filtros-card');
+    const relatorioCard = document.getElementById('tratos-relatorio-card');
+    if (filtrosCard) filtrosCard.style.display = 'none';
+    if (relatorioCard) relatorioCard.style.display = 'none';
+    const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
+    if (btnTrocarFiltro) btnTrocarFiltro.style.display = 'none';
+
     const picker = _tratosCriarPickerDom();
     if (!picker) { carregarDadosTratos(true); return; } // sem onde encaixar — não trava o fluxo
-    const btnTrocarSafra = document.getElementById('tratos-btn-trocar-safra');
-    if (btnTrocarSafra) btnTrocarSafra.style.display = 'none';
 
     picker.style.display = 'block';
-    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Buscando opções de filtro...</div>';
+    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Preparando filtros...</div>';
 
-    const todasSafras = _tratosSafrasAtivas === 'todas';
-    const safrasRpc = todasSafras ? null : _tratosSafrasAtivas;
-
+    // Opções de Fazenda/Produto/Operação/Grupo — busca pro universo todo
+    // (sem travar numa safra específica ainda); só popula a lista de
+    // escolhas, quem restringe de verdade é o clique em "Filtrar".
     let opcoes = { fazenda: [], produto: [], operacao: [], grupoOp: [] };
     let opcoesDisponiveis = true;
     try {
-      const { data, error } = await _sbClient.rpc('listar_opcoes_tratos', { p_safras: safrasRpc });
+      const { data, error } = await _sbClient.rpc('listar_opcoes_tratos', { p_safras: null });
       if (error) throw error;
       const CAMPO_MAP = { fazenda: 'fazenda', produto: 'produto', operacao: 'operacao', grupo_op: 'grupoOp' };
       (data || []).forEach(r => {
@@ -5671,17 +5580,15 @@ iniciarSabedoria();
     } catch (e) {
       console.error('[Tratos] Erro ao listar opções de filtro (RPC listar_opcoes_tratos)', e);
       // NUNCA cai sozinho pra carregar tudo — sem essa function (SQL ainda
-      // não rodado no Supabase), só os 4 filtros de refino ficam
-      // indisponíveis; "Buscar dados" e o resumo rápido continuam ali,
-      // funcionando normalmente, só sem o refino fino por enquanto.
+      // não rodado, ou deu erro), só os 4 filtros de refino ficam
+      // indisponíveis; filtrar por período continua funcionando normal.
       opcoesDisponiveis = false;
     }
     window._tratosPreFiltroOpcoes = opcoes;
 
     const campos = ['fazenda', 'produto', 'operacao', 'grupoOp'];
-    const blocoFiltros = opcoesDisponiveis
-      ? `<div style="font-size:11px;color:var(--text-3);margin-bottom:12px;">Deixe em branco o que não quiser filtrar — só marcar Fazenda, por exemplo, já traz bem menos dado do servidor.</div>
-      ${campos.map(campo => `
+    const blocoFiltrosFinos = opcoesDisponiveis
+      ? campos.map(campo => `
         <div style="margin-bottom:12px;">
           <label style="font-size:11px;font-weight:800;color:var(--text-2);display:block;margin-bottom:4px;">${PLS_PREFILTRO_LABEL[campo]}</label>
           <div class="tratos-ms" id="ms-tratos-filtro-pre${campo}">
@@ -5696,46 +5603,48 @@ iniciarSabedoria();
               <div class="tratos-ms-opcoes" id="ms-opcoes-pre${campo}"></div>
             </div>
           </div>
-        </div>`).join('')}`
+        </div>`).join('')
       : `<div style="font-size:11px;color:var(--text-3);background:var(--surface2);border-radius:var(--radius-sm);padding:9px 11px;margin-bottom:12px;">
-          <i class="fas fa-circle-info"></i> Filtro fino por Fazenda/Produto/Operação/Grupo ainda não disponível (falta rodar o SQL <code>listar_opcoes_tratos.sql</code> no Supabase, ou ele deu erro — confere no SQL Editor do Supabase rodando <code>select * from listar_opcoes_tratos();</code> pra ver a mensagem exata). Dá pra filtrar só por Safra/Data mesmo assim.
+          <i class="fas fa-circle-info"></i> Filtro fino por Fazenda/Produto/Operação/Grupo ainda não disponível (rode <code>listar_opcoes_tratos.sql</code> no Supabase). Dá pra filtrar só por período mesmo assim.
         </div>`;
 
-    // Período (Data Aplicação) — opcional, os dois campos ficam em branco
-    // por padrão (sem restringir por data).
     const dataAtual = window._tratosPreFiltroDatas || { ini: '', fim: '' };
-    const blocoData = `
-      <div style="margin-bottom:12px;">
-        <label style="font-size:11px;font-weight:800;color:var(--text-2);display:block;margin-bottom:4px;">Período (Data de Aplicação)</label>
-        <div style="display:flex;gap:8px;">
-          <input type="date" id="tratos-prefiltro-data-ini" value="${dataAtual.ini}" style="flex:1;min-width:0;">
-          <input type="date" id="tratos-prefiltro-data-fim" value="${dataAtual.fim}" style="flex:1;min-width:0;">
-        </div>
-      </div>`;
+    const anoAtual = String(new Date().getFullYear());
 
     picker.innerHTML = `
-      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> Defina o que você quer ver</div>
-      ${blocoFiltros}
-      ${blocoData}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" id="tratos-prefiltro-ok" class="btn-main"><i class="fas fa-check"></i> Filtrar</button>
-        <button type="button" id="tratos-prefiltro-voltar" class="btn-secondary"><i class="fas fa-arrow-left"></i> Trocar safra(s)</button>
+      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> O que você quer ver?</div>
+
+      <div style="background:var(--green-50);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin:10px 0 16px;">
+        <label style="font-size:12px;font-weight:800;color:var(--green-700);display:block;margin-bottom:6px;"><i class="fas fa-calendar-alt"></i> Período (filtro principal)</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="date" id="tratos-prefiltro-data-ini" value="${dataAtual.ini}" style="flex:1;min-width:0;">
+          <span style="color:var(--text-3);font-size:11px;">até</span>
+          <input type="date" id="tratos-prefiltro-data-fim" value="${dataAtual.fim}" style="flex:1;min-width:0;">
+        </div>
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:6px;">Em branco = ano atual (${anoAtual}). Um período que atravessa mais de um ano (ex.: 12/2025 até 03/2026) já traz as duas safras juntas, automaticamente.</div>
       </div>
-      <div style="font-size:10.5px;color:var(--text-3);margin-top:8px;">Deixe qualquer campo em branco pra não restringir por ele. Só quando clicar em "Filtrar" o app busca os dados — do jeito que você definiu.</div>`;
+
+      <div style="font-size:11px;font-weight:800;color:var(--text-2);margin-bottom:6px;">Filtros adicionais (opcionais)</div>
+      ${blocoFiltrosFinos}
+
+      <button type="button" id="tratos-prefiltro-ok" class="btn-main" style="width:100%;justify-content:center;margin-top:4px;">
+        <i class="fas fa-magnifying-glass"></i> Filtrar
+      </button>
+      <div style="font-size:10.5px;color:var(--text-3);margin-top:8px;text-align:center;">Só busca os dados quando você tocar aqui.</div>`;
 
     if (opcoesDisponiveis) campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
 
     picker.querySelector('#tratos-prefiltro-ok').onclick = () => {
-      window._tratosPreFiltroDatas = {
-        ini: document.getElementById('tratos-prefiltro-data-ini')?.value || '',
-        fim: document.getElementById('tratos-prefiltro-data-fim')?.value || '',
-      };
+      const ini = document.getElementById('tratos-prefiltro-data-ini')?.value || '';
+      const fim = document.getElementById('tratos-prefiltro-data-fim')?.value || '';
+      window._tratosPreFiltroDatas = { ini, fim };
+      const anos = _tratosAnosEntreDatas(ini, fim);
+      _tratosSafrasAtivas = (anos && anos.length) ? anos : [anoAtual];
       picker.style.display = 'none';
       carregarDadosTratos(true);
     };
-    picker.querySelector('#tratos-prefiltro-voltar').onclick = () => _tratosMostrarSeletorSafra();
   }
-  window._tratosMostrarSeletorFiltros = _tratosMostrarSeletorFiltros;
+  window._tratosMostrarTelaFiltros = _tratosMostrarTelaFiltros;
 
   function _tratosPreMSRenderLista(campo, termo) {
     const cont = document.getElementById('ms-opcoes-pre' + campo);
@@ -5820,10 +5729,10 @@ iniciarSabedoria();
       return;
     }
 
-    // Ainda não escolheu safra nenhuma (1ª vez abrindo a tela) — mostra o
-    // seletor em vez de sair buscando tudo.
+    // Ainda não definiu filtro nenhum (1ª vez abrindo a tela) — mostra a
+    // tela de filtros em vez de sair buscando tudo.
     if (_tratosSafrasAtivas === null) {
-      _tratosMostrarSeletorSafra();
+      _tratosMostrarTelaFiltros();
       return;
     }
 
@@ -6059,19 +5968,15 @@ iniciarSabedoria();
 
   // ── Orquestra renderização ───────────────────────────────────────────────
   function renderizarTratos(dados) {
-    // As visões pesadas (Resumo Executivo, Insights, Resumo Produto×Operação,
-    // Comparativo de Dose, Área por Operação, tabela crua) foram substituídas
-    // pelo card "Emitir Relatório" — só processam dado depois que o usuário
-    // escolhe filtro + agrupamento. Isso é o que evita travar com 30+ mil linhas
-    // a cada abertura da tela ou troca de filtro.
     const contador = document.getElementById('tratos-contador');
     if (contador)
       contador.textContent =
         `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
 
-    // Filtro mudou → o relatório que estava na tela não vale mais pro filtro atual
-    const cardResultado = document.getElementById('card-tratos-relatorio-resultado');
-    if (cardResultado) cardResultado.style.display = 'none';
+    // Já mostra o relatório "por Fazenda" na hora, sem precisar que o
+    // usuário descubra sozinho que precisa clicar em algum botão — ele
+    // pode trocar pra Setor/Talhão/Produto/Operação depois se quiser.
+    if (typeof gerarRelatorioTratos === 'function') gerarRelatorioTratos('fazenda');
   }
 
 
