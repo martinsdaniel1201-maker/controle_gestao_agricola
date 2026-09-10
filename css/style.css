@@ -529,6 +529,9 @@
     .report-btn.is-soon { border-style: dashed; box-shadow: none; }
     .report-btn.is-soon .report-btn-icon { background: var(--surface2); color: var(--text-3); }
     .report-btn.is-soon .report-btn-label { color: var(--text-3); }
+    .report-btn.active { border-color: var(--green-500); background: var(--green-50); box-shadow: var(--shadow-sm); }
+    .report-btn.active .report-btn-icon { background: var(--green-500); color: #fff; }
+    .report-btn.active .report-btn-label { color: var(--green-700); }
     .report-btn-badge {
       display: inline-block; margin-top: -1px; padding: 1.5px 6px; border-radius: 50px;
       font-size: 7px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
@@ -577,20 +580,15 @@
     .toc-data { color: var(--text-3); font-size: 10.5px; font-weight: 700; }
     .toc-area { font-weight: 800; color: var(--green-900); font-size: 13px; margin-left: auto; }
     .toc-produtos { display: flex; flex-direction: column; gap: 6px; }
-    .tratos-produto-linha + .tratos-produto-linha { padding-top: 6px; border-top: 1px solid var(--border); }
-    .tpl-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
-    .tpl-produto { font-weight: 700; color: var(--text-1); font-size: 11.5px; }
-    .tpl-talhao { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--text-3); background: var(--surface2); border-radius: 999px; padding: 1px 8px; }
-    .tpl-dose-cmp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
-    .tpl-dose-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--text-3); background: var(--surface2); border-radius: 999px; padding: 2px 9px; line-height: 1.6; }
-    .tpl-dose-pill b { color: var(--text-1); font-weight: 800; font-size: 11px; margin-left: 1px; }
-    .tpl-dose-pill-real { background: var(--green-50); color: var(--green-700); }
-    .tpl-dose-pill-real.tpl-dose-alerta { background: var(--red-bg); color: var(--red); }
-    .tpl-dose-pill-real.tpl-dose-alerta b { color: var(--red); }
-    .tpl-dose-seta { font-size: 9px; color: var(--text-3); opacity: .55; }
-    .tpl-dose-dif { font-size: 10px; font-weight: 800; border-radius: 999px; padding: 2px 8px; }
-    .tpl-dose-dif-ok { background: var(--green-50); color: var(--green-700); }
-    .tpl-dose-dif-alerta { background: var(--red-bg); color: var(--red); }
+    .tratos-produto-linha + .tratos-produto-linha { padding-top: 5px; border-top: 1px solid var(--border); }
+    .tratos-produto-linha { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+    .tpl-produto { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--text-1); font-size: 11.5px; }
+    .tpl-talhao { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--text-3); background: var(--surface2); border-radius: 999px; padding: 1px 7px; }
+    .tpl-dose-compacta { flex-shrink: 0; font-size: 11px; font-weight: 800; color: var(--text-1); white-space: nowrap; }
+    .tpl-dose-compacta small { font-weight: 600; color: var(--text-3); font-size: 10px; }
+    .tpl-dose-compacta.alerta { color: var(--red); }
+    .tpl-dose-compacta.alerta small { color: var(--red); opacity: .75; }
+    .tpl-dose-dif-inline { font-size: 9.5px; font-weight: 800; color: var(--red); }
     /* Destaque visual para deixar óbvio que o card é clicável (leva a outra tela) */
     .hub-card.hub-card-destaque {
       border: 1.5px solid var(--green-500);
