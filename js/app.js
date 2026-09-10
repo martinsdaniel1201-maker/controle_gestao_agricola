@@ -4385,8 +4385,12 @@ iniciarSabedoria();
     }
 
     const anoAtual = String(new Date().getFullYear());
-    const safraEscolhida = safras.includes(anoAtual) ? anoAtual : (safras[0] || null);
-    _tratosSafrasAtivas = safraEscolhida ? [safraEscolhida] : 'todas';
+    // Sempre parte da safra atual por padrão (nunca 'todas' — mesmo se a
+    // lista de safras vier vazia por erro de rede, o ano atual ainda é uma
+    // aposta segura e não sobrecarrega o banco à toa). O usuário troca pelo
+    // botão "Trocar safra(s)" se quiser outra coisa.
+    const safraEscolhida = safras.includes(anoAtual) ? anoAtual : (safras[0] || anoAtual);
+    _tratosSafrasAtivas = [safraEscolhida];
 
     await _tratosMostrarSeletorFiltros(); // já deixa os filtros prontos, visíveis, ajustáveis
     _tratosResumoFazendaRapido(); // dispara na hora — sem esperar clique nenhum
@@ -5738,11 +5742,13 @@ iniciarSabedoria();
       safras = (data || []).map(r => r.safra).filter(Boolean);
     } catch (e) {
       console.error('[Tratos] Erro ao listar safras', e);
-      // Sem a function no banco (ex.: SQL ainda não rodado) — cai pra
-      // "carregar tudo" direto, avisando, em vez de travar a tela.
+      // NUNCA cai pra "carregar tudo" só porque essa consulta falhou —
+      // usa a safra atual como padrão seguro (é o que a maioria quer, e
+      // não sobrecarrega o banco à toa) e deixa o usuário trocar depois
+      // pelo botão "Trocar safra(s)".
       picker.style.display = 'none';
-      if (typeof showToast === 'function') showToast('⚠️ Não consegui listar as safras — carregando tudo.', 'error', 4000);
-      _tratosEscolherSafras('todas');
+      if (typeof showToast === 'function') showToast('⚠️ Não consegui listar as safras — usando a safra atual. Toque em "Trocar safra(s)" pra escolher outra.', 'error', 5000);
+      _tratosEscolherSafras([String(new Date().getFullYear())]);
       return;
     }
 
@@ -5816,6 +5822,7 @@ iniciarSabedoria();
     const safrasRpc = todasSafras ? null : _tratosSafrasAtivas;
 
     let opcoes = { fazenda: [], produto: [], operacao: [], grupoOp: [] };
+    let opcoesDisponiveis = true;
     try {
       const { data, error } = await _sbClient.rpc('listar_opcoes_tratos', { p_safras: safrasRpc });
       if (error) throw error;
@@ -5831,19 +5838,17 @@ iniciarSabedoria();
       Object.keys(opcoes).forEach(campo => opcoes[campo].sort((a,b) => a.label.localeCompare(b.label, 'pt-BR')));
     } catch (e) {
       console.error('[Tratos] Erro ao listar opções de filtro (RPC listar_opcoes_tratos)', e);
-      // Sem a function no banco ainda (SQL não rodado) — não trava a tela:
-      // pula direto pra carregar tudo, como já era o comportamento antigo.
-      picker.style.display = 'none';
-      if (typeof showToast === 'function') showToast('ℹ️ Pré-filtro indisponível ainda — carregando tudo direto.', 'info', 3500);
-      carregarDadosTratos(true);
-      return;
+      // NUNCA cai sozinho pra carregar tudo — sem essa function (SQL ainda
+      // não rodado no Supabase), só os 4 filtros de refino ficam
+      // indisponíveis; "Buscar dados" e o resumo rápido continuam ali,
+      // funcionando normalmente, só sem o refino fino por enquanto.
+      opcoesDisponiveis = false;
     }
     window._tratosPreFiltroOpcoes = opcoes;
 
     const campos = ['fazenda', 'produto', 'operacao', 'grupoOp'];
-    picker.innerHTML = `
-      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> Quer restringir antes de carregar?</div>
-      <div style="font-size:11px;color:var(--text-3);margin-bottom:12px;">Deixe em branco o que não quiser filtrar — só marcar Fazenda, por exemplo, já traz bem menos dado do servidor.</div>
+    const blocoFiltros = opcoesDisponiveis
+      ? `<div style="font-size:11px;color:var(--text-3);margin-bottom:12px;">Deixe em branco o que não quiser filtrar — só marcar Fazenda, por exemplo, já traz bem menos dado do servidor.</div>
       ${campos.map(campo => `
         <div style="margin-bottom:12px;">
           <label style="font-size:11px;font-weight:800;color:var(--text-2);display:block;margin-bottom:4px;">${PLS_PREFILTRO_LABEL[campo]}</label>
@@ -5859,7 +5864,14 @@ iniciarSabedoria();
               <div class="tratos-ms-opcoes" id="ms-opcoes-pre${campo}"></div>
             </div>
           </div>
-        </div>`).join('')}
+        </div>`).join('')}`
+      : `<div style="font-size:11px;color:var(--text-3);background:var(--surface2);border-radius:var(--radius-sm);padding:9px 11px;margin-bottom:12px;">
+          <i class="fas fa-circle-info"></i> Filtro fino por Fazenda/Produto/Operação/Grupo ainda não disponível (falta rodar o SQL <code>listar_opcoes_tratos.sql</code> no Supabase) — mas o resumo rápido abaixo já funciona normalmente.
+        </div>`;
+
+    picker.innerHTML = `
+      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> Quer restringir antes de carregar?</div>
+      ${blocoFiltros}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" id="tratos-prefiltro-ok" class="btn-main"><i class="fas fa-check"></i> Buscar dados</button>
         <button type="button" id="tratos-resumo-rapido-btn" class="btn-main" style="background:var(--green-700);"><i class="fas fa-bolt"></i> Ver resumo por Fazenda agora</button>
@@ -5867,7 +5879,7 @@ iniciarSabedoria();
       </div>
       <div style="font-size:10.5px;color:var(--text-3);margin-top:8px;">⚡ = calcula a área direto no servidor, sem baixar as linhas (mais rápido, mas só mostra o resumo por fazenda; pra ver O.S. individuais toque em "Ver O.S." dentro do resultado). "Buscar dados" traz tudo e libera todos os tipos de relatório.</div>`;
 
-    campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
+    if (opcoesDisponiveis) campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
 
     picker.querySelector('#tratos-prefiltro-ok').onclick = () => {
       picker.style.display = 'none';
