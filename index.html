@@ -1772,30 +1772,30 @@
 
       <!-- CARD: Emitir Relatório — o usuário já filtrou acima; aqui escolhe SÓ o agrupamento -->
       <div class="card" id="tratos-relatorio-card">
-        <div class="card-title"><i class="fas fa-file-lines"></i> Emitir Relatório</div>
+        <div class="card-title"><i class="fas fa-file-lines"></i> Ver os dados filtrados</div>
         <p style="font-size:11px; color:var(--text-3); margin:-6px 0 14px;">
-          Os filtros acima já valem para o relatório. Escolha por qual coluna agrupar.
+          Toque numa opção abaixo pra agrupar o que você filtrou (já mostra "Fazenda" automaticamente).
         </p>
         <div class="report-menu">
           <div>
             <div class="report-grid">
-              <button class="report-btn" onclick="gerarRelatorioTratos('fazenda')">
+              <button class="report-btn" data-tipo="fazenda" onclick="gerarRelatorioTratos('fazenda', this)">
                 <div class="report-btn-icon"><i class="fas fa-warehouse"></i></div>
                 <span class="report-btn-label">Fazenda</span>
               </button>
-              <button class="report-btn" onclick="gerarRelatorioTratos('setor')">
+              <button class="report-btn" data-tipo="setor" onclick="gerarRelatorioTratos('setor', this)">
                 <div class="report-btn-icon"><i class="fas fa-people-group"></i></div>
                 <span class="report-btn-label">Setor</span>
               </button>
-              <button class="report-btn" onclick="gerarRelatorioTratos('talhao')">
+              <button class="report-btn" data-tipo="talhao" onclick="gerarRelatorioTratos('talhao', this)">
                 <div class="report-btn-icon"><i class="fas fa-draw-polygon"></i></div>
                 <span class="report-btn-label">Talhão</span>
               </button>
-              <button class="report-btn" onclick="gerarRelatorioTratos('produto')">
+              <button class="report-btn" data-tipo="produto" onclick="gerarRelatorioTratos('produto', this)">
                 <div class="report-btn-icon"><i class="fas fa-flask"></i></div>
                 <span class="report-btn-label">Produto</span>
               </button>
-              <button class="report-btn" onclick="gerarRelatorioTratos('operacao')">
+              <button class="report-btn" data-tipo="operacao" onclick="gerarRelatorioTratos('operacao', this)">
                 <div class="report-btn-icon"><i class="fas fa-tractor"></i></div>
                 <span class="report-btn-label">Operação</span>
               </button>
