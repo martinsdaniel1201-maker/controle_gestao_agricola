@@ -5389,10 +5389,15 @@ iniciarSabedoria();
         const sel = pre[campo];
         if (sel && sel.size > 0) q = q.in(PRE_COL[campo], [...sel]);
       });
-      // Período (Data de Aplicação), se o usuário definiu na tela de filtro.
-      const datas = window._tratosPreFiltroDatas || {};
-      if (datas.ini) q = q.gte(TRATOS_SUPABASE_COLS.colData, datas.ini);
-      if (datas.fim) q = q.lte(TRATOS_SUPABASE_COLS.colData, datas.fim);
+      // O período (Data de Aplicação) escolhido na tela de filtro NÃO vira
+      // um corte exato aqui — só é usado lá na tela pra descobrir quais
+      // safras buscar (_tratosAnosEntreDatas). A busca em si filtra por
+      // SAFRA (campo confiável, sem nulos). Aplicar o intervalo de data
+      // direto na query excluiria silenciosamente qualquer O.S. sem
+      // data_aplicacao preenchida no Oracle — e isso acontece, segundo o
+      // usuário. Refinar por data exata, se quiser, é feito depois em
+      // cima dos dados já carregados (client-side), nunca cortando o que
+      // vem do servidor.
       return q;
     }
 
@@ -5621,7 +5626,7 @@ iniciarSabedoria();
           <span style="color:var(--text-3);font-size:11px;">até</span>
           <input type="date" id="tratos-prefiltro-data-fim" value="${dataAtual.fim}" style="flex:1;min-width:0;">
         </div>
-        <div style="font-size:10.5px;color:var(--text-3);margin-top:6px;">Em branco = ano atual (${anoAtual}). Um período que atravessa mais de um ano (ex.: 12/2025 até 03/2026) já traz as duas safras juntas, automaticamente.</div>
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:6px;">Em branco = ano atual (${anoAtual}). Um período que atravessa mais de um ano (ex.: 12/2025 até 03/2026) já traz as duas safras juntas, automaticamente. Obs.: isso escolhe a(s) safra(s) certa(s) pra buscar — não corta por dia exato, porque nem toda O.S. tem a data preenchida no Oracle.</div>
       </div>
 
       <div style="font-size:11px;font-weight:800;color:var(--text-2);margin-bottom:6px;">Filtros adicionais (opcionais)</div>
@@ -5746,14 +5751,15 @@ iniciarSabedoria();
       // A chave do cache precisa refletir também os pré-filtros escolhidos
       // (Fazenda/Produto/Operação/Grupo de Operação) — senão trocar de
       // filtro e voltar poderia reaproveitar por engano o cache de uma
-      // combinação diferente.
+      // combinação diferente. A data não entra aqui: ela só decide QUAIS
+      // safras buscar (já refletido na 1ª parte da chave), não filtra a
+      // query em si, então duas datas que caem na mesma safra usam o
+      // mesmo cache normalmente.
       const pre = window._tratosPreFiltros || {};
       const prefixoPre = ['fazenda','produto','operacao','grupoOp']
         .map(c => (pre[c] && pre[c].size) ? `${c}:${[...pre[c]].sort().join('|')}` : '')
         .filter(Boolean).join(';');
-      const datas = window._tratosPreFiltroDatas || {};
-      const prefixoData = (datas.ini || datas.fim) ? `data:${datas.ini || ''}~${datas.fim || ''}` : '';
-      const chaveCache = (todasSafras ? 'todas' : [...safrasFiltro].sort().join(',')) + (prefixoPre ? '__' + prefixoPre : '') + (prefixoData ? '__' + prefixoData : '');
+      const chaveCache = (todasSafras ? 'todas' : [...safrasFiltro].sort().join(',')) + (prefixoPre ? '__' + prefixoPre : '');
       const cache = !forcar ? _tratosLerCache(chaveCache) : null;
       const resultado = cache
         ? { dados: cache, erro: null }
