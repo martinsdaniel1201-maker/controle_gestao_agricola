@@ -188,15 +188,17 @@
 
 <header class="app-header">
   <div class="app-header-inner">
-    <div class="app-badge">Gestão Operacional</div>
+    <div class="app-header-top">
+      <div class="app-badge">Gestão Operacional</div>
+      <div id="user-badge-header">
+        <span class="ubh-nome"></span>
+        <button class="ubh-logout" onclick="fazerLogout()">
+          <i class="fas fa-sign-out-alt"></i> Sair
+        </button>
+      </div>
+    </div>
     <div class="app-title">CONTROLE TÉCNICO AGRÍCOLA</div>
     <div class="header-datetime" id="header-datetime">—</div>
-    <div id="user-badge-header">
-      <span class="ubh-nome"></span>
-      <button class="ubh-logout" onclick="fazerLogout()">
-        <i class="fas fa-sign-out-alt"></i> Sair
-      </button>
-    </div>
   </div>
 </header>
 
@@ -299,6 +301,10 @@
     <div class="home-welcome-clima" id="home-welcome-clima" style="display:none">
       <div class="home-welcome-temp" id="home-welcome-temp">—°</div>
       <div class="home-welcome-cond" id="home-welcome-cond">—</div>
+    </div>
+    <div id="home-sync-bar" title="Status da última sincronização de dados">
+      <span id="home-sync-dot"></span>
+      <span id="home-sync-label">Sincronizando…</span>
     </div>
     <button id="btn-forcar-atualizacao" title="Forçar atualização (limpa cache)" aria-label="Forçar atualização e limpar cache" onclick="forcarAtualizacao()">
       <i class="fas fa-rotate"></i>

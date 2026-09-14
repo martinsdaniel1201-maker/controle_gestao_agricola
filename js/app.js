@@ -1555,7 +1555,7 @@ function update() {
   document.getElementById('meta_restante').innerText = tTon < metaG
     ? `Faltam ${Math.round(metaG - tTon).toLocaleString('pt-BR')} t`
     : '✓ Meta Atingida!';
-  document.getElementById('lista-ranking').innerHTML = rankingHtml || '<p style="font-size:12px;color:var(--text-3);padding:10px 0">Nenhuma frente cadastrada.</p>';
+  document.getElementById('lista-ranking').innerHTML = rankingHtml || emptyStateHTML({icon:'fa-tractor', title:'Nenhuma frente cadastrada', msg:'Cadastre uma frente para ver o ranking de produtividade.'});
 
   // Insight de meta
   if (frentes.length > 0 && tTon < metaG * 0.7) {
@@ -1736,7 +1736,7 @@ function renderComparativo() {
     </div>`;
   }
 
-  container.innerHTML = html || '<p style="font-size:12px; color:var(--text-3); padding:10px 0;">Nenhuma frente correspondente encontrada para comparar.</p>';
+  container.innerHTML = html || emptyStateHTML({icon:'fa-code-compare', title:'Nenhuma frente encontrada', msg:'Ajuste os filtros para comparar frentes.'});
 }
 function calcularSafra() {
   const area = parseFloat(document.getElementById('safra_area').value) || 0;
@@ -2072,11 +2072,7 @@ async function carregarDadosGATEC() {
   }
 
   if (!dados.length) {
-    if (corpoPrevia) corpoPrevia.innerHTML =
-      `<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">
-        <i class="fas fa-info-circle" style="margin-right:6px;"></i>
-        Nenhum dado sincronizado ainda. Use o ícone de nuvem pra sincronizar.
-      </td></tr>`;
+    if (corpoPrevia) corpoPrevia.innerHTML = emptyStateTableRow(9, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
     return;
   }
 
@@ -2362,7 +2358,7 @@ async function carregarDadosConfOS() {
     window._confOsDados = dados;
     window._confOsCols  = { colOS: 'NR_OS', colData: 'DATA_ENCERRAMENTO', colFazenda: 'DESC_FAZENDA', colOperacao: 'DESC_OPERACAO', colObs: 'OBSERVACAO' };
     if (!dados.length) {
-      corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px;font-size:12px;">Nenhum dado sincronizado ainda. Use o ícone de nuvem pra sincronizar.</td></tr>`;
+      corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
       if (contador) contador.textContent = '0 registros';
       return;
     }
@@ -2381,7 +2377,7 @@ function renderTabelaConfOS(dados) {
   const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
 
   if (!dados || dados.length === 0) {
-    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:20px;font-size:12px;">Nenhum registro encontrado para os filtros aplicados.</td></tr>`;
+    corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-filter-circle-xmark', title:'Nenhum registro encontrado', msg:'Ajuste os filtros aplicados e tente novamente.'});
     if (contador) contador.textContent = '0 registros';
     return;
   }
@@ -3485,6 +3481,22 @@ function showToast(msg, tipo = 'success', duracao = 2800) {
     t.style.animation = 'toastOut 0.3s ease forwards';
     setTimeout(() => t.remove(), 320);
   }, duracao);
+}
+
+/* ══════════════════════════════════════════════
+   EMPTY STATE — componente global padronizado
+   (não substitui toasts de erro/ação — só telas/listas/tabelas sem dados)
+══════════════════════════════════════════════ */
+function emptyStateHTML(opts) {
+  const { icon = 'fa-inbox', title = '', msg = '', actionLabel = null, actionOnclick = null } = opts || {};
+  const tituloHtml = title ? `<div class="empty-state-title">${title}</div>` : '';
+  const actionHtml = (actionLabel && actionOnclick)
+    ? `<button type="button" class="empty-state-action" onclick="${actionOnclick}">${actionLabel}</button>`
+    : '';
+  return `<div class="empty-state"><div class="empty-state-icon"><i class="fas ${icon}"></i></div>${tituloHtml}<div class="empty-state-msg">${msg}</div>${actionHtml}</div>`;
+}
+function emptyStateTableRow(colspan, opts) {
+  return `<tr><td colspan="${colspan}" style="padding:0;">${emptyStateHTML(opts)}</td></tr>`;
 }
 
 // Hookar confirmarSalvar para mostrar toast
