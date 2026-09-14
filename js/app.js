@@ -6353,6 +6353,14 @@ iniciarSabedoria();
     return { cod, nome: nome || s };
   }
 
+  // Remove só uma palavra genérica de prefixo tipo "FAZENDA"/"SÍTIO" no
+  // começo do nome — NUNCA um "contém" livre. Usado apenas para permitir
+  // que "FAZENDA X" bata com "X" quando o código não está disponível.
+  const _PLS_PREFIXO_GENERICO = /^(FAZENDA|FAZ\.?|SITIO|S[IÍ]TIO|PROPRIEDADE)\s+/i;
+  function _plsSemPrefixoGenerico(nome) {
+    return String(nome || '').trim().replace(_PLS_PREFIXO_GENERICO, '').trim();
+  }
+
   // Acha a linha de Liberações (GATEC) que corresponde a este talhão —
   // é a mesma lógica de match que _plsStatusTalhao usava embutida, só que
   // agora devolve a linha inteira (não só o status), pra poder mostrar
@@ -6364,6 +6372,7 @@ iniciarSabedoria();
     const talhaoNorm   = String(talhao).trim().replace(/^0+/, '') || '0';
     const codNorm       = String(codFazenda || '').trim().replace(/^0+/, '');
     const fazendaNomeNorm = _norm(fazenda);
+    const fazendaSemPrefixoNorm = _norm(_plsSemPrefixoGenerico(fazenda));
 
     return rows.find(row => {
       const rFrente  = String(row['FRENTE'] || '').trim();
@@ -6373,17 +6382,21 @@ iniciarSabedoria();
       const { cod: rCod, nome: rNome } = _plsExtrairFazenda(rFazendaRaw);
       const rCodNorm = rCod.replace(/^0+/, '');
 
-      // Compara por código (mais confiável), por nome normalizado, e por
-      // último — só se as duas anteriores falharem — por "contém": nomes
-      // digitados com uma palavra a mais/a menos ("FAZENDA X" vs "X") ou
-      // abreviação continuam batendo em vez de virar "ainda não colhida"
-      // por uma diferença mínima de digitação entre as duas planilhas.
+      // Compara por código (mais confiável) e por nome normalizado. Como
+      // último recurso — só se as duas anteriores falharem — compara o
+      // nome removendo apenas uma palavra genérica de prefixo no início
+      // ("FAZENDA X" vs "X"). NUNCA usar "contém" livre entre os nomes
+      // completos: fazendas com nomes parecidos mas diferentes (ex.:
+      // "BARRINHA" e "BARRINHA II") são propriedades distintas e não podem
+      // ser cruzadas — cada uma tem sua própria liberação/OS no GATEC.
       const rNomeNorm = _norm(rNome);
+      const rNomeSemPrefixoNorm = _norm(_plsSemPrefixoGenerico(rNome));
       const bateCod  = codNorm && rCodNorm && codNorm === rCodNorm;
       const bateNome = rNomeNorm === fazendaNomeNorm;
-      const bateContem = !bateCod && !bateNome && fazendaNomeNorm.length >= 6 && rNomeNorm.length >= 6
-        && (fazendaNomeNorm.includes(rNomeNorm) || rNomeNorm.includes(fazendaNomeNorm));
-      if (!bateCod && !bateNome && !bateContem) return false;
+      const bateSemPrefixo = !bateCod && !bateNome
+        && fazendaSemPrefixoNorm && rNomeSemPrefixoNorm
+        && fazendaSemPrefixoNorm === rNomeSemPrefixoNorm;
+      if (!bateCod && !bateNome && !bateSemPrefixo) return false;
 
       const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
       const talhoesArr = rTalhoes.split(/[,;\s]+/)
