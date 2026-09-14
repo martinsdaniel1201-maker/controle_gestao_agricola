@@ -2869,17 +2869,19 @@
     #btn-voltar-menu .voltar-aba-nome {
       position: absolute; left: 50%; transform: translateX(-50%);
       font-size: 11px; font-weight: 800;
-      color: #fff; letter-spacing: 0.8px;
+      color: var(--text); letter-spacing: 0.8px;
       text-transform: uppercase; white-space: nowrap;
       pointer-events: none;
       display: flex; align-items: center; gap: 7px;
     }
     #btn-voltar-menu .voltar-aba-nome .vab-icon {
       width: 24px; height: 24px;
-      background: rgba(255,255,255,0.18); border-radius: 6px;
+      background: var(--green-50); border-radius: 6px;
       display: inline-flex; align-items: center; justify-content: center;
-      font-size: 11px; color: #fff; flex-shrink: 0;
+      font-size: 11px; color: var(--green-700); flex-shrink: 0;
     }
+    body.dark-mode #btn-voltar-menu .voltar-aba-nome { color: #EAF0EA; }
+    body.dark-mode #btn-voltar-menu .voltar-aba-nome .vab-icon { background: rgba(46,125,50,0.22); color: #81C784; }
 
     /* Lado direito: área para botões futuros */
     #btn-voltar-menu .voltar-right {
@@ -2893,38 +2895,41 @@
       display: flex; align-items: center; justify-content: center;
       width: 36px; height: 36px;
       border-radius: var(--radius-sm);
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.14);
-      color: #fff;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-2);
       font-size: 14px;
       cursor: pointer;
       transition: all 0.18s;
       flex-shrink: 0;
     }
     #btn-voltar-menu .voltar-right .nav-action-btn:hover {
-      border-color: rgba(255,255,255,0.5);
-      color: #fff;
-      background: rgba(255,255,255,0.26);
+      border-color: var(--green-500);
+      color: var(--green-700);
+      background: var(--green-50);
     }
 
-    /* Botões auxiliares (logout / kebab) dentro da barra — mesmo tratamento branco/translúcido */
+    /* Botões auxiliares (logout / kebab) dentro da barra — bordados neutros */
     #btn-voltar-menu #btn-logout,
     #btn-voltar-menu #kebab-btn {
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.14);
-      color: #fff;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-2);
     }
     #btn-voltar-menu #btn-logout:hover {
-      border-color: rgba(255,80,80,0.6);
-      color: #fff;
-      background: rgba(198,40,40,0.35);
+      border-color: var(--red);
+      color: var(--red);
+      background: var(--red-bg);
     }
     #btn-voltar-menu #kebab-btn:hover {
-      border-color: rgba(255,255,255,0.5);
-      color: #fff;
-      background: rgba(255,255,255,0.26);
+      border-color: var(--green-500);
+      color: var(--green-700);
+      background: var(--green-50);
     }
-    #btn-voltar-menu #user-badge { color: rgba(255,255,255,0.85); }
+    #btn-voltar-menu #user-badge { color: var(--text-3); }
+    body.dark-mode #btn-voltar-menu .voltar-right .nav-action-btn,
+    body.dark-mode #btn-voltar-menu #btn-logout,
+    body.dark-mode #btn-voltar-menu #kebab-btn { background: #1e1e1e; border-color: rgba(255,255,255,0.1); color: #C7D3C7; }
 
     /* Toggle dark mode button */
     #btn-dark-mode {
@@ -3357,6 +3362,14 @@
   #liberacoes #tabela-liberacoes-gatec {
     table-layout: fixed !important;
     width: 100% !important;
+  }
+  /* Cabeçalho fixo ao rolar — tabela densa, o usuário não deve perder
+     a referência de qual coluna é qual enquanto rola registros. */
+  #liberacoes #tabela-liberacoes-gatec thead th {
+    position: sticky;
+    top: 58px; /* logo abaixo da barra #btn-voltar-menu, que também é sticky */
+    z-index: 40;
+    box-shadow: 0 1.5px 0 var(--border);
   }
   #liberacoes #tabela-liberacoes-gatec th,
   #liberacoes #tabela-liberacoes-gatec td {
@@ -3924,11 +3937,20 @@ button:not(:disabled):active,
    Nota: backdrop-filter + position:sticky causa um bug de renderização
    conhecido em navegadores desktop (o elemento "some"/pisca em branco
    durante o scroll). Mantemos o tom mais profundo sem o blur. ── */
-#btn-voltar-menu,
+/* Barra superior interna (dentro de uma aba): chrome neutro, não verde —
+   evita repetir a cor de identidade em toda tela e deixa o app mais "SaaS
+   neutro + cor pontual" em vez de "site verde". */
+#btn-voltar-menu {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
 .pls-header {
   background: linear-gradient(135deg, rgba(27,94,32,0.97) 0%, rgba(56,142,60,0.97) 100%);
 }
-body.dark-mode #btn-voltar-menu,
+body.dark-mode #btn-voltar-menu {
+  background: #161C16;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
 body.dark-mode .pls-header {
   background: linear-gradient(135deg, rgba(13,59,16,0.97) 0%, rgba(27,94,32,0.97) 100%);
 }
