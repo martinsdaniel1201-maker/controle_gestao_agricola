@@ -962,6 +962,55 @@
     body.dark-mode .empty-state-action:hover { background: rgba(67,160,71,0.14); color: #81C784; border-color: #2E7D32; }
 
     /* ══════════════════════════════════════════════
+       CENTRAL DE CONTROLE AGRÍCOLA — Painel de O.S. em Aberto
+    ══════════════════════════════════════════════ */
+    .cosa-kpis {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+      margin: 12px 0;
+    }
+    @media (min-width: 640px) { .cosa-kpis { grid-template-columns: repeat(4, 1fr); } }
+    .cosa-kpi {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+      background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--text-3);
+      border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer;
+      font-family: inherit; text-align: left; transition: transform 0.15s;
+    }
+    .cosa-kpi:active { transform: scale(0.97); }
+    .cosa-kpi i { font-size: 12px; color: var(--text-3); }
+    .cosa-kpi-val { font-size: 19px; font-weight: 900; color: var(--text); line-height: 1.1; }
+    .cosa-kpi-label { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+    .cosa-kpi.cosa-ok { border-left-color: var(--green-500); }
+    .cosa-kpi.cosa-atencao { border-left-color: var(--amber); }
+    .cosa-kpi.cosa-critico { border-left-color: var(--red); }
+    .cosa-kpi.cosa-neutro { border-left-color: var(--blue); }
+    body.dark-mode .cosa-kpi { background: #1e1e1e; }
+
+    .cosa-aviso {
+      display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 8px 11px; font-size: 10.5px; color: var(--text-3); line-height: 1.5; margin-bottom: 12px;
+    }
+    .cosa-aviso > i:first-child { margin-top: 1.5px; flex-shrink: 0; color: var(--blue); align-self: flex-start; }
+    .cosa-aviso #cosa-fonte { font-weight: 700; color: var(--text-2); }
+
+    .cosa-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: 11px 13px; margin-bottom: 8px;
+    }
+    .cosa-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .cosa-card-os { font-size: 13px; font-weight: 800; color: var(--text); }
+    .cosa-card-fazenda { font-size: 12.5px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+    .cosa-card-fzd { font-weight: 500; color: var(--text-3); }
+    .cosa-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 10.5px; color: var(--text-3); }
+    .cosa-card-meta i { width: 12px; text-align: center; margin-right: 3px; }
+    .cosa-badge { padding: 3px 9px; border-radius: 50px; font-weight: 700; font-size: 10px; }
+    .cosa-badge.cosa-ok { background: var(--green-50); color: var(--green-700); }
+    .cosa-badge.cosa-atencao { background: var(--amber-bg); color: var(--amber); }
+    .cosa-badge.cosa-critico { background: var(--red-bg); color: var(--red); }
+    .cosa-badge.cosa-neutro { background: var(--blue-bg); color: var(--blue); }
+    body.dark-mode .cosa-card { background: #1e1e1e; }
+
+    /* ══════════════════════════════════════════════
        PLANEJAMENTO DE SAFRA — CSS
        (agora é uma aba normal, sem overlay fixo próprio)
     ══════════════════════════════════════════════ */
@@ -3364,11 +3413,14 @@
     width: 100% !important;
   }
   /* Cabeçalho fixo ao rolar — tabela densa, o usuário não deve perder
-     a referência de qual coluna é qual enquanto rola registros. */
+     a referência de qual coluna é qual enquanto rola registros.
+     z-index BAIXO de propósito: dropdowns/filtros usam 40+ nesta mesma
+     tela (ex.: .tratos-ms-lista), e o cabeçalho nunca pode competir com
+     eles — só precisa ficar acima do corpo da tabela, que não tem z-index. */
   #liberacoes #tabela-liberacoes-gatec thead th {
     position: sticky;
     top: 58px; /* logo abaixo da barra #btn-voltar-menu, que também é sticky */
-    z-index: 40;
+    z-index: 5;
     box-shadow: 0 1.5px 0 var(--border);
   }
   #liberacoes #tabela-liberacoes-gatec th,

@@ -109,9 +109,10 @@ function showTab(e, id) {
     'liberacoes_menu': { nome: 'LIBERAÇÕES', icon: 'fa-table' },
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
-    'conf_menu':   { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
-    'conf_os_aba': { nome: 'CONFERÊNCIAS', icon: 'fa-clipboard-check' },
-    'conf_novo_recurso': { nome: 'CONFERÊNCIAS', icon: 'fa-tools' },
+    'conf_menu':   { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-gauge-high' },
+    'conf_os_aba': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-clipboard-check' },
+    'central_os_aging': { nome: 'O.S. EM ABERTO', icon: 'fa-hourglass-half' },
+    'conf_novo_recurso': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-tools' },
     'tratos_menu': { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
     'tratos_aba':  { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
     'tratos_novo_recurso': { nome: 'TRATOS CULTURAIS', icon: 'fa-tools' },
@@ -135,6 +136,9 @@ function showTab(e, id) {
   }
   if (id === 'conf_os_aba' && !window._confOsDados) {
     carregarDadosConfOS();
+  }
+  if (id === 'central_os_aging' && typeof cosaInit === 'function') {
+    cosaInit();
   }
   if (id === 'planejamento_safra' && typeof window.plsAoAbrirSecao === 'function') {
     window.plsAoAbrirSecao();
@@ -3497,6 +3501,230 @@ function emptyStateHTML(opts) {
 }
 function emptyStateTableRow(colspan, opts) {
   return `<tr><td colspan="${colspan}" style="padding:0;">${emptyStateHTML(opts)}</td></tr>`;
+}
+
+/* ══════════════════════════════════════════════
+   CENTRAL DE CONTROLE AGRÍCOLA — sincronização com Supabase
+   Mesmo padrão de Liberações/Conf.O.S: uma aba publicada de uma planilha
+   Google Sheets (CSV) alimenta a tabela `central_os` no Supabase, e a tela
+   lê do Supabase. Preencha URL_CENTRAL_OS_CSV com o link "Publicar na
+   web" (formato CSV) da aba que você for atualizando a cada refresh do
+   Power BI. Enquanto estiver vazio, a tela usa o instantâneo estático
+   (js/central_os_dados.js) normalmente — nada quebra.
+══════════════════════════════════════════════ */
+const URL_CENTRAL_OS_CSV = ""; // TODO: colar aqui o link "Publicar na web" (CSV) da aba de O.S. da planilha
+
+function _centralOsCarregarCSVFonte() {
+  return new Promise((resolve, reject) => {
+    Papa.parse(URL_CENTRAL_OS_CSV, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
+        resolve(results.data);
+      },
+      error: reject,
+    });
+  });
+}
+
+// Espera as mesmas colunas que aparecem no Power BI (EMPRESA, OS, DT_ABERT,
+// FZD, DSC_FZD, TIPO, STATUS_OS, DIAS) — cole a tabela na planilha com esse
+// cabeçalho e não precisa mudar nada aqui.
+async function _centralOsMontarRegistroSupabase(row) {
+  const reg = {
+    empresa     : _gatecTxtOuNull(row['EMPRESA']),
+    os          : _gatecTxtOuNull(row['OS']),
+    dt_abert    : _gatecTxtOuNull(row['DT_ABERT']),
+    fzd         : _gatecTxtOuNull(row['FZD']),
+    dsc_fazenda : _gatecTxtOuNull(row['DSC_FZD']),
+    tipo        : _gatecTxtOuNull(row['TIPO']),
+    status_os   : _gatecTxtOuNull(row['STATUS_OS']),
+    dias        : _gatecNumOuNull(row['DIAS']),
+  };
+  // Identidade = empresa + OS (uma O.S. é única dentro de cada empresa)
+  reg.linha_hash = await _gatecSha256Hex(`${reg.empresa ?? ''}|${reg.os ?? ''}`);
+  return reg;
+}
+
+async function _centralOsBuscarSupabasePaginado() {
+  const PAGINA = 1000;
+  let de = 0, todas = [];
+  while (true) {
+    const { data, error } = await _sbClient.from('central_os').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todas.push(...data);
+    if (data.length < PAGINA) break;
+    de += PAGINA;
+  }
+  return todas;
+}
+
+async function sincronizarCentralOsSupabase() {
+  if (!URL_CENTRAL_OS_CSV) {
+    if (typeof showToast === 'function') showToast('⚠️ Ainda não configurado — falta colar o link da planilha em URL_CENTRAL_OS_CSV (js/app.js).', 'error', 5500);
+    return;
+  }
+  if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
+  const btn = document.getElementById('btn-central-os-sync-supabase');
+  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const dados = await _centralOsCarregarCSVFonte();
+    const registros = await Promise.all(dados.map(_centralOsMontarRegistroSupabase));
+    const LOTE = 300;
+    let erros = 0;
+    for (let i = 0; i < registros.length; i += LOTE) {
+      const lote = registros.slice(i, i + LOTE);
+      const { error } = await _sbClient.from('central_os').upsert(lote, { onConflict: 'linha_hash' });
+      if (error) { erros++; console.error('[Central O.S.→Supabase] erro no lote', i, error); }
+    }
+    if (typeof showToast === 'function') showToast(erros === 0 ? `✅ Supabase sincronizado: ${registros.length} O.S.` : `⚠️ ${erros} lote(s) com erro — veja o console.`, erros === 0 ? 'success' : 'error', 4000);
+    await cosaInit();
+  } catch (e) {
+    console.error('[Central O.S.→Supabase] erro geral', e);
+    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar — veja o console (F12).', 'error', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
+  }
+}
+window.sincronizarCentralOsSupabase = sincronizarCentralOsSupabase;
+
+/* ══════════════════════════════════════════════
+   CENTRAL DE CONTROLE AGRÍCOLA — Painel de O.S. em Aberto
+   Fonte: Supabase (tabela `central_os`) quando já sincronizado; senão cai
+   pro instantâneo estático extraído do Power BI (window._centralOSDados,
+   ver js/central_os_dados.js) — a tela funciona nos dois casos.
+══════════════════════════════════════════════ */
+let _cosaFiltroEmpresa = '';
+let _cosaFiltroStatus = '';
+let _cosaFonte = 'estatico'; // 'supabase' ou 'estatico', só pra mostrar na tela
+
+async function cosaInit() {
+  // Tenta Supabase primeiro; se a tabela ainda não tem nada, mantém o
+  // instantâneo estático que já veio embutido no app.
+  if (typeof _sbClient !== 'undefined') {
+    try {
+      const brutos = await _centralOsBuscarSupabasePaginado();
+      if (brutos && brutos.length) {
+        window._centralOSDados = brutos.map(r => ({
+          empresa: r.empresa || '', os: r.os || '', dt: r.dt_abert || '',
+          fzd: r.fzd || '', dsc: r.dsc_fazenda || '', tipo: r.tipo || '',
+          status: r.status_os || '', dias: r.dias,
+        }));
+        _cosaFonte = 'supabase';
+      }
+    } catch (e) {
+      console.warn('[Central O.S.] Supabase indisponível, usando instantâneo estático.', e);
+    }
+  }
+
+  const fonteEl = document.getElementById('cosa-fonte');
+  if (fonteEl) {
+    fonteEl.innerHTML = _cosaFonte === 'supabase'
+      ? '<i class="fas fa-satellite-dish"></i> Sincronizado com o Supabase'
+      : '<i class="fas fa-camera"></i> Instantâneo estático (Power BI) — ainda não sincronizado';
+  }
+
+  const dados = window._centralOSDados || [];
+  if (!dados.length) return;
+
+  // Chips de Empresa — geradas a partir dos dados reais, nada fixo no HTML
+  const empresas = [...new Set(dados.map(r => r.empresa).filter(Boolean))].sort();
+  const chipsEmpresa = document.getElementById('cosa-chips-empresa');
+  if (chipsEmpresa) {
+    chipsEmpresa.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="cosaFiltrar('empresa','')"><i class="fas fa-layer-group"></i> Todas</button>` +
+      empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="cosaFiltrar('empresa','${e}')">${e}</button>`).join('');
+  }
+
+  // Chips de Situação (buckets de dias em aberto)
+  const statusOrdem = ['< 7', '> 7 e < 15', '> 15', 'PLANEJADO'];
+  const statusExistentes = statusOrdem.filter(s => dados.some(r => r.status === s));
+  const chipsStatus = document.getElementById('cosa-chips-status');
+  if (chipsStatus) {
+    chipsStatus.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="cosaFiltrar('status','')"><i class="fas fa-layer-group"></i> Todas</button>` +
+      statusExistentes.map(s => `<button class="lib-frente-chip" data-v="${s}" onclick="cosaFiltrar('status','${s}')">${s}</button>`).join('');
+  }
+
+  // Período (menor/maior data de abertura)
+  const datas = dados.map(r => r.dt).filter(Boolean).sort();
+  const periodoEl = document.getElementById('cosa-periodo');
+  if (periodoEl && datas.length) {
+    const fmt = d => { const [a,m,dd] = d.split('-'); return `${dd}/${m}/${a}`; };
+    periodoEl.textContent = `${fmt(datas[0])} e ${fmt(datas[datas.length-1])}`;
+  }
+
+  cosaRender();
+}
+
+function cosaFiltrar(tipo, valor) {
+  if (tipo === 'empresa') _cosaFiltroEmpresa = valor;
+  if (tipo === 'status') _cosaFiltroStatus = valor;
+  const container = tipo === 'empresa' ? document.getElementById('cosa-chips-empresa') : document.getElementById('cosa-chips-status');
+  if (container) {
+    container.querySelectorAll('.lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.v === valor));
+  }
+  cosaRender();
+}
+
+function cosaRender() {
+  const dados = window._centralOSDados || [];
+  const _cosaNorm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const busca = _cosaNorm(document.getElementById('cosa-busca')?.value || '');
+
+  const filtrados = dados.filter(r => {
+    if (_cosaFiltroEmpresa && r.empresa !== _cosaFiltroEmpresa) return false;
+    if (_cosaFiltroStatus && r.status !== _cosaFiltroStatus) return false;
+    if (busca) {
+      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd}`);
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+
+  // KPIs por bucket (sempre calculados sobre TODOS os dados, não só o filtro —
+  // dão o panorama geral independente do que está sendo pesquisado)
+  const buckets = [
+    { key: '< 7',        label: 'Até 7 dias',    icon: 'fa-circle-check',      cls: 'cosa-ok' },
+    { key: '> 7 e < 15',  label: '7 a 15 dias',   icon: 'fa-triangle-exclamation', cls: 'cosa-atencao' },
+    { key: '> 15',       label: 'Mais de 15 dias', icon: 'fa-circle-exclamation', cls: 'cosa-critico' },
+    { key: 'PLANEJADO',  label: 'Planejado',     icon: 'fa-calendar',          cls: 'cosa-neutro' },
+  ];
+  const kpiEl = document.getElementById('cosa-kpis');
+  if (kpiEl) {
+    kpiEl.innerHTML = buckets.map(b => {
+      const n = dados.filter(r => r.status === b.key).length;
+      if (!n) return '';
+      return `<button class="cosa-kpi ${b.cls}" onclick="cosaFiltrar('status','${b.key}')">
+        <i class="fas ${b.icon}"></i>
+        <span class="cosa-kpi-val">${n}</span>
+        <span class="cosa-kpi-label">${b.label}</span>
+      </button>`;
+    }).join('');
+  }
+
+  const listaEl = document.getElementById('cosa-lista');
+  if (!listaEl) return;
+  if (!filtrados.length) {
+    listaEl.innerHTML = emptyStateHTML({icon:'fa-filter-circle-xmark', title:'Nenhuma O.S. encontrada', msg:'Ajuste os filtros ou o termo de busca.'});
+    return;
+  }
+  const clsPorStatus = { '< 7':'cosa-ok', '> 7 e < 15':'cosa-atencao', '> 15':'cosa-critico', 'PLANEJADO':'cosa-neutro' };
+  listaEl.innerHTML = filtrados
+    .sort((a,b) => (b.dias||0) - (a.dias||0))
+    .map(r => `
+      <div class="cosa-card">
+        <div class="cosa-card-top">
+          <span class="cosa-card-os">OS ${r.os}</span>
+          <span class="cosa-badge ${clsPorStatus[r.status]||'cosa-neutro'}">${r.status}</span>
+        </div>
+        <div class="cosa-card-fazenda">${r.dsc || '—'}${r.fzd ? ` <span class="cosa-card-fzd">#${r.fzd}</span>` : ''}</div>
+        <div class="cosa-card-meta">
+          <span><i class="fas fa-building"></i> ${r.empresa}</span>
+          <span><i class="fas fa-handshake"></i> ${r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio'}</span>
+          <span><i class="fas fa-clock"></i> ${r.dias != null ? r.dias + ' dias' : '—'}</span>
+        </div>
+      </div>
+    `).join('');
 }
 
 // Hookar confirmarSalvar para mostrar toast
