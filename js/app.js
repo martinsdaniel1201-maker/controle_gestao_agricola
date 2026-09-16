@@ -3504,48 +3504,17 @@ function emptyStateTableRow(colspan, opts) {
 }
 
 /* ══════════════════════════════════════════════
-   CENTRAL DE CONTROLE AGRÍCOLA — sincronização com Supabase
-   Mesmo padrão de Liberações/Conf.O.S: uma aba publicada de uma planilha
-   Google Sheets (CSV) alimenta a tabela `central_os` no Supabase, e a tela
-   lê do Supabase. Preencha URL_CENTRAL_OS_CSV com o link "Publicar na
-   web" (formato CSV) da aba que você for atualizando a cada refresh do
-   Power BI. Enquanto estiver vazio, a tela usa o instantâneo estático
-   (js/central_os_dados.js) normalmente — nada quebra.
+   CENTRAL DE CONTROLE AGRÍCOLA — Painel de O.S. em Aberto
+   Fonte: tabela `central_os` no Supabase, alimentada por importação manual
+   de Excel/CSV direto no Table Editor do Supabase (a partir da planilha
+   "O.S_Dias_app" / resultado do "SQL DE O.S" rodado no Oracle/oraipi) —
+   sem planilha Google publicada, sem botão de sync no app.
+   Se a tabela ainda estiver vazia, cai pro instantâneo estático que veio
+   junto com o app (window._centralOSDados, ver js/central_os_dados.js).
+   Aceita tanto o schema antigo (dt_abert/digitador/dsc_fzd) quanto o novo
+   direto da planilha (data/responsavel/status já prontos) — mapeamento
+   tolerante pros dois casos.
 ══════════════════════════════════════════════ */
-const URL_CENTRAL_OS_CSV = ""; // TODO: colar aqui o link "Publicar na web" (CSV) da aba de O.S. da planilha
-
-function _centralOsCarregarCSVFonte() {
-  return new Promise((resolve, reject) => {
-    Papa.parse(URL_CENTRAL_OS_CSV, {
-      download: true, header: true, skipEmptyLines: true,
-      complete: (results) => {
-        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
-        resolve(results.data);
-      },
-      error: reject,
-    });
-  });
-}
-
-// Espera as mesmas colunas que aparecem no Power BI (EMPRESA, OS, DT_ABERT,
-// FZD, DSC_FZD, TIPO, STATUS_OS, DIAS) — cole a tabela na planilha com esse
-// cabeçalho e não precisa mudar nada aqui.
-async function _centralOsMontarRegistroSupabase(row) {
-  const reg = {
-    empresa     : _gatecTxtOuNull(row['EMPRESA']),
-    os          : _gatecTxtOuNull(row['OS']),
-    dt_abert    : _gatecTxtOuNull(row['DT_ABERT']),
-    fzd         : _gatecTxtOuNull(row['FZD']),
-    dsc_fazenda : _gatecTxtOuNull(row['DSC_FZD']),
-    tipo        : _gatecTxtOuNull(row['TIPO']),
-    status_os   : _gatecTxtOuNull(row['STATUS_OS']),
-    dias        : _gatecNumOuNull(row['DIAS']),
-  };
-  // Identidade = empresa + OS (uma O.S. é única dentro de cada empresa)
-  reg.linha_hash = await _gatecSha256Hex(`${reg.empresa ?? ''}|${reg.os ?? ''}`);
-  return reg;
-}
-
 async function _centralOsBuscarSupabasePaginado() {
   const PAGINA = 1000;
   let de = 0, todas = [];
@@ -3560,44 +3529,18 @@ async function _centralOsBuscarSupabasePaginado() {
   return todas;
 }
 
-async function sincronizarCentralOsSupabase() {
-  if (!URL_CENTRAL_OS_CSV) {
-    if (typeof showToast === 'function') showToast('⚠️ Ainda não configurado — falta colar o link da planilha em URL_CENTRAL_OS_CSV (js/app.js).', 'error', 5500);
-    return;
-  }
-  if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
-  const btn = document.getElementById('btn-central-os-sync-supabase');
-  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
-  try {
-    const dados = await _centralOsCarregarCSVFonte();
-    const registros = await Promise.all(dados.map(_centralOsMontarRegistroSupabase));
-    const LOTE = 300;
-    let erros = 0;
-    for (let i = 0; i < registros.length; i += LOTE) {
-      const lote = registros.slice(i, i + LOTE);
-      const { error } = await _sbClient.from('central_os').upsert(lote, { onConflict: 'linha_hash' });
-      if (error) { erros++; console.error('[Central O.S.→Supabase] erro no lote', i, error); }
-    }
-    if (typeof showToast === 'function') showToast(erros === 0 ? `✅ Supabase sincronizado: ${registros.length} O.S.` : `⚠️ ${erros} lote(s) com erro — veja o console.`, erros === 0 ? 'success' : 'error', 4000);
-    await cosaInit();
-  } catch (e) {
-    console.error('[Central O.S.→Supabase] erro geral', e);
-    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar — veja o console (F12).', 'error', 5000);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
-  }
+function _cosaBucket(dias) {
+  if (dias == null || isNaN(dias)) return 'PLANEJADO';
+  if (dias < 7) return '< 7';
+  if (dias < 15) return '> 7 e < 15';
+  return '> 15';
 }
-window.sincronizarCentralOsSupabase = sincronizarCentralOsSupabase;
 
-/* ══════════════════════════════════════════════
-   CENTRAL DE CONTROLE AGRÍCOLA — Painel de O.S. em Aberto
-   Fonte: Supabase (tabela `central_os`) quando já sincronizado; senão cai
-   pro instantâneo estático extraído do Power BI (window._centralOSDados,
-   ver js/central_os_dados.js) — a tela funciona nos dois casos.
-══════════════════════════════════════════════ */
 let _cosaFiltroEmpresa = '';
 let _cosaFiltroStatus = '';
+let _cosaFiltroResp = '';
 let _cosaFonte = 'estatico'; // 'supabase' ou 'estatico', só pra mostrar na tela
+let _cosaChart = null;
 
 async function cosaInit() {
   // Tenta Supabase primeiro; se a tabela ainda não tem nada, mantém o
@@ -3607,9 +3550,16 @@ async function cosaInit() {
       const brutos = await _centralOsBuscarSupabasePaginado();
       if (brutos && brutos.length) {
         window._centralOSDados = brutos.map(r => ({
-          empresa: r.empresa || '', os: r.os || '', dt: r.dt_abert || '',
-          fzd: r.fzd || '', dsc: r.dsc_fazenda || '', tipo: r.tipo || '',
-          status: r.status_os || '', dias: r.dias,
+          layer: r.layer || '',
+          empresa: r.empresa || '',
+          os: r.os || '',
+          tipo: r.tipo_os || r.tipo || '',
+          dt: r.data || r.dt_abert || r.dt || '',
+          responsavel: r.responsavel || r.digitador || '',
+          fzd: r.fzd || '',
+          dsc: r.dsc_fzd || r.dsc || '',
+          dias: r.dias,
+          status: r.status || _cosaBucket(r.dias),
         }));
         _cosaFonte = 'supabase';
       }
@@ -3621,19 +3571,27 @@ async function cosaInit() {
   const fonteEl = document.getElementById('cosa-fonte');
   if (fonteEl) {
     fonteEl.innerHTML = _cosaFonte === 'supabase'
-      ? '<i class="fas fa-satellite-dish"></i> Sincronizado com o Supabase'
-      : '<i class="fas fa-camera"></i> Instantâneo estático (Power BI) — ainda não sincronizado';
+      ? '<i class="fas fa-satellite-dish"></i> Dados do Supabase'
+      : '<i class="fas fa-camera"></i> Instantâneo estático (Power BI) — ainda não importado no Supabase';
   }
 
   const dados = window._centralOSDados || [];
   if (!dados.length) return;
 
-  // Chips de Empresa — geradas a partir dos dados reais, nada fixo no HTML
+  // Chips de Empresa
   const empresas = [...new Set(dados.map(r => r.empresa).filter(Boolean))].sort();
   const chipsEmpresa = document.getElementById('cosa-chips-empresa');
   if (chipsEmpresa) {
     chipsEmpresa.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="cosaFiltrar('empresa','')"><i class="fas fa-layer-group"></i> Todas</button>` +
       empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="cosaFiltrar('empresa','${e}')">${e}</button>`).join('');
+  }
+
+  // Chips de Responsável
+  const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
+  const chipsResp = document.getElementById('cosa-chips-resp');
+  if (chipsResp) {
+    chipsResp.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="cosaFiltrar('responsavel','')"><i class="fas fa-layer-group"></i> Todos</button>` +
+      responsaveis.map(r => `<button class="lib-frente-chip" data-v="${r}" onclick="cosaFiltrar('responsavel','${r}')">${r}</button>`).join('');
   }
 
   // Chips de Situação (buckets de dias em aberto)
@@ -3659,11 +3617,68 @@ async function cosaInit() {
 function cosaFiltrar(tipo, valor) {
   if (tipo === 'empresa') _cosaFiltroEmpresa = valor;
   if (tipo === 'status') _cosaFiltroStatus = valor;
-  const container = tipo === 'empresa' ? document.getElementById('cosa-chips-empresa') : document.getElementById('cosa-chips-status');
+  if (tipo === 'responsavel') _cosaFiltroResp = valor;
+  const mapaId = { empresa: 'cosa-chips-empresa', status: 'cosa-chips-status', responsavel: 'cosa-chips-resp' };
+  const container = document.getElementById(mapaId[tipo]);
   if (container) {
     container.querySelectorAll('.lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.v === valor));
   }
   cosaRender();
+}
+
+function _cosaCorTema(nomeVar) {
+  return getComputedStyle(document.documentElement).getPropertyValue(nomeVar).trim() || '#999';
+}
+
+function cosaRenderChart(dadosBase) {
+  const card = document.getElementById('cosa-chart-card');
+  const canvas = document.getElementById('cosa-chart');
+  if (!card || !canvas || typeof Chart === 'undefined') return;
+
+  // Agrupa por responsável x bucket, ignorando o filtro de Situação (o
+  // gráfico sempre mostra a composição completa) mas respeitando
+  // empresa/busca/responsável selecionados.
+  const porResp = {};
+  dadosBase.forEach(r => {
+    const nome = r.responsavel || 'Não informado';
+    if (!porResp[nome]) porResp[nome] = { '< 7': 0, '> 7 e < 15': 0, '> 15': 0 };
+    if (porResp[nome][r.status] != null) porResp[nome][r.status]++;
+  });
+  const nomes = Object.keys(porResp)
+    .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0))
+    .slice(0, 10);
+
+  if (!nomes.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const cOk = _cosaCorTema('--green-500');
+  const cAtencao = _cosaCorTema('--amber');
+  const cCritico = _cosaCorTema('--red');
+  const cTexto = _cosaCorTema('--text-3');
+  const cGrid = _cosaCorTema('--border');
+
+  const datasets = [
+    { label: 'Até 7 dias', data: nomes.map(n => porResp[n]['< 7']), backgroundColor: cOk },
+    { label: '7 a 15 dias', data: nomes.map(n => porResp[n]['> 7 e < 15']), backgroundColor: cAtencao },
+    { label: 'Mais de 15 dias', data: nomes.map(n => porResp[n]['> 15']), backgroundColor: cCritico },
+  ];
+
+  if (_cosaChart) { _cosaChart.destroy(); }
+  _cosaChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels: nomes, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
+        y: { stacked: true, beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
+        tooltip: { titleFont: { size: 11 }, bodyFont: { size: 11 } },
+      },
+    },
+  });
 }
 
 function cosaRender() {
@@ -3671,9 +3686,10 @@ function cosaRender() {
   const _cosaNorm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const busca = _cosaNorm(document.getElementById('cosa-busca')?.value || '');
 
-  const filtrados = dados.filter(r => {
+  // Base sem o filtro de Situação — usada pelo gráfico e pelos KPIs.
+  const baseSemStatus = dados.filter(r => {
     if (_cosaFiltroEmpresa && r.empresa !== _cosaFiltroEmpresa) return false;
-    if (_cosaFiltroStatus && r.status !== _cosaFiltroStatus) return false;
+    if (_cosaFiltroResp && r.responsavel !== _cosaFiltroResp) return false;
     if (busca) {
       const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd}`);
       if (!alvo.includes(busca)) return false;
@@ -3681,8 +3697,9 @@ function cosaRender() {
     return true;
   });
 
-  // KPIs por bucket (sempre calculados sobre TODOS os dados, não só o filtro —
-  // dão o panorama geral independente do que está sendo pesquisado)
+  const filtrados = baseSemStatus.filter(r => !_cosaFiltroStatus || r.status === _cosaFiltroStatus);
+
+  // KPIs por bucket
   const buckets = [
     { key: '< 7',        label: 'Até 7 dias',    icon: 'fa-circle-check',      cls: 'cosa-ok' },
     { key: '> 7 e < 15',  label: '7 a 15 dias',   icon: 'fa-triangle-exclamation', cls: 'cosa-atencao' },
@@ -3692,7 +3709,7 @@ function cosaRender() {
   const kpiEl = document.getElementById('cosa-kpis');
   if (kpiEl) {
     kpiEl.innerHTML = buckets.map(b => {
-      const n = dados.filter(r => r.status === b.key).length;
+      const n = baseSemStatus.filter(r => r.status === b.key).length;
       if (!n) return '';
       return `<button class="cosa-kpi ${b.cls}" onclick="cosaFiltrar('status','${b.key}')">
         <i class="fas ${b.icon}"></i>
@@ -3701,6 +3718,8 @@ function cosaRender() {
       </button>`;
     }).join('');
   }
+
+  cosaRenderChart(baseSemStatus);
 
   const listaEl = document.getElementById('cosa-lista');
   if (!listaEl) return;
@@ -3721,6 +3740,7 @@ function cosaRender() {
         <div class="cosa-card-meta">
           <span><i class="fas fa-building"></i> ${r.empresa}</span>
           <span><i class="fas fa-handshake"></i> ${r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio'}</span>
+          <span><i class="fas fa-user"></i> ${r.responsavel || '—'}</span>
           <span><i class="fas fa-clock"></i> ${r.dias != null ? r.dias + ' dias' : '—'}</span>
         </div>
       </div>

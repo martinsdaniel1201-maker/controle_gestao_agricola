@@ -1484,6 +1484,10 @@
           <div class="lib-frentes-chips" id="cosa-chips-empresa"></div>
         </div>
         <div class="lib-filtros-section">
+          <span class="lib-filtros-label">Responsável</span>
+          <div class="lib-frentes-chips" id="cosa-chips-resp"></div>
+        </div>
+        <div class="lib-filtros-section">
           <span class="lib-filtros-label">Situação</span>
           <div class="lib-frentes-chips" id="cosa-chips-status"></div>
         </div>
@@ -1501,13 +1505,22 @@
 
       <div id="cosa-kpis" class="cosa-kpis"></div>
 
+      <div class="cosa-chart-card" id="cosa-chart-card" style="display:none;">
+        <div class="cosa-chart-head">
+          <i class="fas fa-chart-column"></i>
+          <span>O.S. por Responsável</span>
+        </div>
+        <div class="cosa-chart-wrap">
+          <canvas id="cosa-chart"></canvas>
+        </div>
+      </div>
+
       <div class="cosa-aviso">
         <i class="fas fa-circle-info"></i>
         <span>
-          <span id="cosa-fonte"><i class="fas fa-camera"></i> Instantâneo estático (Power BI) — ainda não sincronizado</span>
+          <span id="cosa-fonte"><i class="fas fa-camera"></i> Instantâneo estático (Power BI) — ainda não importado no Supabase</span>
           · Datas de abertura entre <span id="cosa-periodo"></span>.
         </span>
-        <button class="tratos-header-icon-btn" id="btn-central-os-sync-supabase" title="Sincronizar planilha → Supabase" onclick="sincronizarCentralOsSupabase()" style="margin-left:auto; flex-shrink:0;"><i class="fas fa-cloud-arrow-up"></i></button>
       </div>
 
       <div id="cosa-lista"></div>
