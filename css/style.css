@@ -3425,17 +3425,6 @@
     table-layout: fixed !important;
     width: 100% !important;
   }
-  /* Cabeçalho fixo ao rolar — tabela densa, o usuário não deve perder
-     a referência de qual coluna é qual enquanto rola registros.
-     z-index BAIXO de propósito: dropdowns/filtros usam 40+ nesta mesma
-     tela (ex.: .tratos-ms-lista), e o cabeçalho nunca pode competir com
-     eles — só precisa ficar acima do corpo da tabela, que não tem z-index. */
-  #liberacoes #tabela-liberacoes-gatec thead th {
-    position: sticky;
-    top: 58px; /* logo abaixo da barra #btn-voltar-menu, que também é sticky */
-    z-index: 5;
-    box-shadow: 0 1.5px 0 var(--border);
-  }
   #liberacoes #tabela-liberacoes-gatec th,
   #liberacoes #tabela-liberacoes-gatec td {
     white-space: nowrap !important;
