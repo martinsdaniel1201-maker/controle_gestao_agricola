@@ -112,6 +112,7 @@ function showTab(e, id) {
     'conf_menu':   { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-gauge-high' },
     'conf_os_aba': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-clipboard-check' },
     'central_os_aging': { nome: 'O.S. EM ABERTO', icon: 'fa-hourglass-half' },
+    'central_apontamentos': { nome: 'APONTAMENTO DE HORAS', icon: 'fa-users-gear' },
     'conf_novo_recurso': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-tools' },
     'tratos_menu': { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
     'tratos_aba':  { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
@@ -139,6 +140,9 @@ function showTab(e, id) {
   }
   if (id === 'central_os_aging' && typeof cosaInit === 'function') {
     cosaInit();
+  }
+  if (id === 'central_apontamentos' && typeof capoInit === 'function') {
+    capoInit();
   }
   if (id === 'planejamento_safra' && typeof window.plsAoAbrirSecao === 'function') {
     window.plsAoAbrirSecao();
@@ -3670,8 +3674,8 @@ function cosaRenderChart(dadosBase) {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { stacked: true, ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
-        y: { stacked: true, beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
+        x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
       },
       plugins: {
         legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
@@ -3745,6 +3749,246 @@ function cosaRender() {
         </div>
       </div>
     `).join('');
+}
+
+/* ══════════════════════════════════════════════
+   CENTRAL DE CONTROLE AGRÍCOLA — Apontamento de Horas
+   Fonte: tabela `central_apontamentos` no Supabase, alimentada pela aba
+   "Operadores_Geral_app" (mesmo arquivo CONTROLE DANIEL.xlsm), mesmo
+   mecanismo de sync automático de Liberações/O.S.
+   Cada linha = 1 equipamento em 1 dia. PLANEJADA = soma de horas_dia;
+   APONTADAS = soma de horas_apontadas. Agregados no cliente por
+   responsável / equipamento / supervisor conforme o filtro ativo.
+   Gráfico é AGRUPADO (barras lado a lado), nunca empilhado numa só barra.
+══════════════════════════════════════════════ */
+window._centralApontDados = window._centralApontDados || [
+  // Instantâneo de referência (números reais tirados do relatório Power BI
+  // enviado) — some assim que a tabela central_apontamentos tiver dados.
+  { empresa:'PAS', responsavel:'ANDRÉ',        supervisor:'', cod_equip:'', horas_dia:8112, horas_apontadas:8112 },
+  { empresa:'PAS', responsavel:'FRANZIN',      supervisor:'', cod_equip:'', horas_dia:5304, horas_apontadas:5304 },
+  { empresa:'PAS', responsavel:'JOSÉ RICARDO', supervisor:'', cod_equip:'', horas_dia:5304, horas_apontadas:5304 },
+  { empresa:'PAS', responsavel:'BERTOCO',      supervisor:'', cod_equip:'', horas_dia:4056, horas_apontadas:4056 },
+  { empresa:'PAS', responsavel:'PATRICK',      supervisor:'', cod_equip:'', horas_dia:3224, horas_apontadas:3224 },
+  { empresa:'PAS', responsavel:'WELDER',       supervisor:'', cod_equip:'', horas_dia:2808, horas_apontadas:2808 },
+  { empresa:'PAS', responsavel:'GONZALEZ',     supervisor:'', cod_equip:'', horas_dia:1872, horas_apontadas:1872 },
+  { empresa:'PAS', responsavel:'VALDIR',       supervisor:'', cod_equip:'', horas_dia:312,  horas_apontadas:312  },
+];
+
+async function _centralApontBuscarSupabasePaginado() {
+  const PAGINA = 1000;
+  let de = 0, todas = [];
+  while (true) {
+    const { data, error } = await _sbClient.from('central_apontamentos').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todas.push(...data);
+    if (data.length < PAGINA) break;
+    de += PAGINA;
+  }
+  return todas;
+}
+
+let _capoFiltroEmpresa = '';
+let _capoFiltroResp = '';
+let _capoFiltroSuperv = '';
+let _capoFonte = 'estatico';
+let _capoChart = null;
+
+async function capoInit() {
+  if (typeof _sbClient !== 'undefined') {
+    try {
+      const brutos = await _centralApontBuscarSupabasePaginado();
+      if (brutos && brutos.length) {
+        window._centralApontDados = brutos.map(r => ({
+          empresa: r.empresa || '', responsavel: r.responsavel || '', supervisor: r.supervisor || '',
+          cod_equip: r.cod_equip || '', cc_equipamento: r.cc_equipamento || '',
+          data_inicio: r.data_inicio || '',
+          horas_dia: Number(r.horas_dia) || 0, horas_apontadas: Number(r.horas_apontadas) || 0,
+        }));
+        _capoFonte = 'supabase';
+      }
+    } catch (e) {
+      console.warn('[Apontamento de Horas] Supabase indisponível, usando instantâneo estático.', e);
+    }
+  }
+
+  const fonteEl = document.getElementById('capo-fonte');
+  if (fonteEl) {
+    fonteEl.innerHTML = _capoFonte === 'supabase'
+      ? '<i class="fas fa-satellite-dish"></i> Dados do Supabase'
+      : '<i class="fas fa-camera"></i> Instantâneo estático — ainda não importado no Supabase';
+  }
+
+  const dados = window._centralApontDados || [];
+  if (!dados.length) return;
+
+  const empresas = [...new Set(dados.map(r => r.empresa).filter(Boolean))].sort();
+  const chipsEmpresa = document.getElementById('capo-chips-empresa');
+  if (chipsEmpresa) {
+    chipsEmpresa.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('empresa','')"><i class="fas fa-layer-group"></i> Todas</button>` +
+      empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="capoFiltrar('empresa','${e}')">${e}</button>`).join('');
+  }
+
+  const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
+  const chipsResp = document.getElementById('capo-chips-resp');
+  if (chipsResp) {
+    chipsResp.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('responsavel','')"><i class="fas fa-layer-group"></i> Todos</button>` +
+      responsaveis.map(r => `<button class="lib-frente-chip" data-v="${r}" onclick="capoFiltrar('responsavel','${r}')">${r}</button>`).join('');
+  }
+
+  const supervisores = [...new Set(dados.map(r => r.supervisor).filter(Boolean))].sort();
+  const chipsSuperv = document.getElementById('capo-chips-superv');
+  if (chipsSuperv) {
+    chipsSuperv.innerHTML = supervisores.length
+      ? `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('supervisor','')"><i class="fas fa-layer-group"></i> Todos</button>` +
+        supervisores.map(s => `<button class="lib-frente-chip" data-v="${s}" onclick="capoFiltrar('supervisor','${s}')">${s}</button>`).join('')
+      : `<span style="font-size:11px;color:var(--text-3);">Sem dado de supervisor ainda</span>`;
+  }
+
+  const datas = dados.map(r => r.data_inicio).filter(Boolean).sort();
+  const periodoEl = document.getElementById('capo-periodo');
+  if (periodoEl) {
+    if (datas.length) {
+      const fmt = d => { const [a,m,dd] = String(d).split('-'); return `${dd}/${m}/${a}`; };
+      periodoEl.textContent = `${fmt(datas[0])} a ${fmt(datas[datas.length-1])}`;
+    } else {
+      periodoEl.textContent = 'não informado nos dados atuais';
+    }
+  }
+
+  capoRender();
+}
+
+function capoFiltrar(tipo, valor) {
+  if (tipo === 'empresa') _capoFiltroEmpresa = valor;
+  if (tipo === 'responsavel') _capoFiltroResp = valor;
+  if (tipo === 'supervisor') _capoFiltroSuperv = valor;
+  const mapaId = { empresa: 'capo-chips-empresa', responsavel: 'capo-chips-resp', supervisor: 'capo-chips-superv' };
+  const container = document.getElementById(mapaId[tipo]);
+  if (container) {
+    container.querySelectorAll('.lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.v === valor));
+  }
+  capoRender();
+}
+
+function capoRenderChart(filtrados) {
+  const canvas = document.getElementById('capo-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const porResp = {};
+  filtrados.forEach(r => {
+    const nome = r.responsavel || 'Não informado';
+    if (!porResp[nome]) porResp[nome] = { planejada: 0, apontadas: 0 };
+    porResp[nome].planejada += r.horas_dia || 0;
+    porResp[nome].apontadas += r.horas_apontadas || 0;
+  });
+  const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
+
+  const cVerde = _cosaCorTema('--green-500');
+  const cAmarelo = _cosaCorTema('--amber');
+  const cTexto = _cosaCorTema('--text-3');
+  const cGrid = _cosaCorTema('--border');
+
+  // Barras AGRUPADAS lado a lado (não empilhadas): cada série é uma barra
+  // própria por responsável, nunca dividindo cores dentro da mesma barra.
+  const datasets = [
+    { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cVerde },
+    { label: 'Apontadas', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cAmarelo },
+  ];
+
+  if (_capoChart) { _capoChart.destroy(); }
+  _capoChart = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels: nomes, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
+        tooltip: { titleFont: { size: 11 }, bodyFont: { size: 11 } },
+      },
+    },
+  });
+}
+
+function capoRender() {
+  const dados = window._centralApontDados || [];
+  const filtrados = dados.filter(r => {
+    if (_capoFiltroEmpresa && r.empresa !== _capoFiltroEmpresa) return false;
+    if (_capoFiltroResp && r.responsavel !== _capoFiltroResp) return false;
+    if (_capoFiltroSuperv && r.supervisor !== _capoFiltroSuperv) return false;
+    return true;
+  });
+
+  const totalPlanejada = filtrados.reduce((s, r) => s + (r.horas_dia || 0), 0);
+  const totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
+  const totalNaoApontadas = totalPlanejada - totalApontadas;
+  const pctCobertura = totalPlanejada > 0 ? Math.round((totalApontadas / totalPlanejada) * 100) : 0;
+
+  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  const kpiEl = document.getElementById('capo-kpis');
+  if (kpiEl) {
+    kpiEl.innerHTML = `
+      <div class="cosa-kpi cosa-neutro">
+        <i class="fas fa-calendar-check"></i>
+        <span class="cosa-kpi-val">${fmtH(totalPlanejada)}</span>
+        <span class="cosa-kpi-label">Planejada (h)</span>
+      </div>
+      <div class="cosa-kpi cosa-ok">
+        <i class="fas fa-circle-check"></i>
+        <span class="cosa-kpi-val">${fmtH(totalApontadas)}</span>
+        <span class="cosa-kpi-label">Apontada (h)</span>
+      </div>
+      <div class="cosa-kpi ${totalNaoApontadas > 0 ? 'cosa-critico' : 'cosa-ok'}">
+        <i class="fas fa-triangle-exclamation"></i>
+        <span class="cosa-kpi-val">${fmtH(totalNaoApontadas)}</span>
+        <span class="cosa-kpi-label">Não apontada (h)</span>
+      </div>
+      <div class="cosa-kpi cosa-atencao">
+        <i class="fas fa-percent"></i>
+        <span class="cosa-kpi-val">${pctCobertura}%</span>
+        <span class="cosa-kpi-label">Cobertura</span>
+      </div>
+    `;
+  }
+
+  capoRenderChart(filtrados);
+
+  const porEquip = {};
+  filtrados.forEach(r => {
+    if (!r.cod_equip) return;
+    const chave = r.cod_equip;
+    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: 0, apontadas: 0 };
+    porEquip[chave].planejada += r.horas_dia || 0;
+    porEquip[chave].apontadas += r.horas_apontadas || 0;
+  });
+  const listaEquip = Object.values(porEquip).sort((a,b) => (b.planejada - b.apontadas) - (a.planejada - a.apontadas));
+
+  const listaEl = document.getElementById('capo-lista');
+  if (!listaEl) return;
+  if (!listaEquip.length) {
+    listaEl.innerHTML = emptyStateHTML({icon:'fa-tractor', title:'Sem detalhamento por equipamento ainda', msg:'Assim que a tabela central_apontamentos tiver a coluna cod_equip preenchida, a lista aparece aqui.'});
+    return;
+  }
+  listaEl.innerHTML = listaEquip.map(e => {
+    const dif = e.planejada - e.apontadas;
+    return `
+      <div class="cosa-card">
+        <div class="cosa-card-top">
+          <span class="cosa-card-os">${e.equip}</span>
+          <span class="cosa-badge ${dif > 0 ? 'cosa-critico' : 'cosa-ok'}">${dif > 0 ? '-' + fmtH(dif) + 'h' : 'OK'}</span>
+        </div>
+        <div class="cosa-card-fazenda">${e.cc || '—'}</div>
+        <div class="cosa-card-meta">
+          <span><i class="fas fa-calendar-check"></i> Planejada: ${fmtH(e.planejada)}h</span>
+          <span><i class="fas fa-circle-check"></i> Apontada: ${fmtH(e.apontadas)}h</span>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // Hookar confirmarSalvar para mostrar toast
