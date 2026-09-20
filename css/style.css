@@ -962,6 +962,70 @@
     body.dark-mode .empty-state-action:hover { background: rgba(67,160,71,0.14); color: #81C784; border-color: #2E7D32; }
 
     /* ══════════════════════════════════════════════
+       CENTRAL DE CONTROLE AGRÍCOLA — Painel de O.S. em Aberto
+    ══════════════════════════════════════════════ */
+    .cosa-kpis {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+      margin: 12px 0;
+    }
+    @media (min-width: 640px) { .cosa-kpis { grid-template-columns: repeat(4, 1fr); } }
+    .cosa-kpi {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+      background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--text-3);
+      border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer;
+      font-family: inherit; text-align: left; transition: transform 0.15s;
+    }
+    .cosa-kpi:active { transform: scale(0.97); }
+    .cosa-kpi i { font-size: 12px; color: var(--text-3); }
+    .cosa-kpi-val { font-size: 19px; font-weight: 900; color: var(--text); line-height: 1.1; }
+    .cosa-kpi-label { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+    .cosa-kpi.cosa-ok { border-left-color: var(--green-500); }
+    .cosa-kpi.cosa-atencao { border-left-color: var(--amber); }
+    .cosa-kpi.cosa-critico { border-left-color: var(--red); }
+    .cosa-kpi.cosa-neutro { border-left-color: var(--blue); }
+    .cosa-kpi.cosa-total { border-left-color: var(--green-700); background: var(--green-50); }
+    body.dark-mode .cosa-kpi.cosa-total { background: rgba(46,125,50,0.14); }
+    body.dark-mode .cosa-kpi { background: #1e1e1e; }
+
+    .cosa-aviso {
+      display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 8px 11px; font-size: 10.5px; color: var(--text-3); line-height: 1.5; margin-bottom: 12px;
+    }
+    .cosa-aviso > i:first-child { margin-top: 1.5px; flex-shrink: 0; color: var(--blue); align-self: flex-start; }
+    .cosa-aviso #cosa-fonte { font-weight: 700; color: var(--text-2); }
+
+    .cosa-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: 11px 13px; margin-bottom: 8px;
+    }
+    .cosa-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .cosa-card-os { font-size: 13px; font-weight: 800; color: var(--text); }
+    .cosa-card-fazenda { font-size: 12.5px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+    .cosa-card-fzd { font-weight: 500; color: var(--text-3); }
+    .cosa-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 10.5px; color: var(--text-3); }
+    .cosa-card-meta i { width: 12px; text-align: center; margin-right: 3px; }
+    .cosa-badge { padding: 3px 9px; border-radius: 50px; font-weight: 700; font-size: 10px; }
+    .cosa-badge.cosa-ok { background: var(--green-50); color: var(--green-700); }
+    .cosa-badge.cosa-atencao { background: var(--amber-bg); color: var(--amber); }
+    .cosa-badge.cosa-critico { background: var(--red-bg); color: var(--red); }
+    .cosa-badge.cosa-neutro { background: var(--blue-bg); color: var(--blue); }
+    body.dark-mode .cosa-card { background: #1e1e1e; }
+
+    .cosa-chart-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: 14px; margin-bottom: 12px;
+    }
+    .cosa-chart-head {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11.5px; font-weight: 800; color: var(--text-2);
+      text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px;
+    }
+    .cosa-chart-head i { color: var(--green-700); }
+    .cosa-chart-wrap { position: relative; height: 220px; }
+    body.dark-mode .cosa-chart-card { background: #1e1e1e; }
+
+    /* ══════════════════════════════════════════════
        PLANEJAMENTO DE SAFRA — CSS
        (agora é uma aba normal, sem overlay fixo próprio)
     ══════════════════════════════════════════════ */
@@ -2869,17 +2933,19 @@
     #btn-voltar-menu .voltar-aba-nome {
       position: absolute; left: 50%; transform: translateX(-50%);
       font-size: 11px; font-weight: 800;
-      color: #fff; letter-spacing: 0.8px;
+      color: var(--text); letter-spacing: 0.8px;
       text-transform: uppercase; white-space: nowrap;
       pointer-events: none;
       display: flex; align-items: center; gap: 7px;
     }
     #btn-voltar-menu .voltar-aba-nome .vab-icon {
       width: 24px; height: 24px;
-      background: rgba(255,255,255,0.18); border-radius: 6px;
+      background: var(--green-50); border-radius: 6px;
       display: inline-flex; align-items: center; justify-content: center;
-      font-size: 11px; color: #fff; flex-shrink: 0;
+      font-size: 11px; color: var(--green-700); flex-shrink: 0;
     }
+    body.dark-mode #btn-voltar-menu .voltar-aba-nome { color: #EAF0EA; }
+    body.dark-mode #btn-voltar-menu .voltar-aba-nome .vab-icon { background: rgba(46,125,50,0.22); color: #81C784; }
 
     /* Lado direito: área para botões futuros */
     #btn-voltar-menu .voltar-right {
@@ -2893,38 +2959,41 @@
       display: flex; align-items: center; justify-content: center;
       width: 36px; height: 36px;
       border-radius: var(--radius-sm);
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.14);
-      color: #fff;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-2);
       font-size: 14px;
       cursor: pointer;
       transition: all 0.18s;
       flex-shrink: 0;
     }
     #btn-voltar-menu .voltar-right .nav-action-btn:hover {
-      border-color: rgba(255,255,255,0.5);
-      color: #fff;
-      background: rgba(255,255,255,0.26);
+      border-color: var(--green-500);
+      color: var(--green-700);
+      background: var(--green-50);
     }
 
-    /* Botões auxiliares (logout / kebab) dentro da barra — mesmo tratamento branco/translúcido */
+    /* Botões auxiliares (logout / kebab) dentro da barra — bordados neutros */
     #btn-voltar-menu #btn-logout,
     #btn-voltar-menu #kebab-btn {
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.14);
-      color: #fff;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text-2);
     }
     #btn-voltar-menu #btn-logout:hover {
-      border-color: rgba(255,80,80,0.6);
-      color: #fff;
-      background: rgba(198,40,40,0.35);
+      border-color: var(--red);
+      color: var(--red);
+      background: var(--red-bg);
     }
     #btn-voltar-menu #kebab-btn:hover {
-      border-color: rgba(255,255,255,0.5);
-      color: #fff;
-      background: rgba(255,255,255,0.26);
+      border-color: var(--green-500);
+      color: var(--green-700);
+      background: var(--green-50);
     }
-    #btn-voltar-menu #user-badge { color: rgba(255,255,255,0.85); }
+    #btn-voltar-menu #user-badge { color: var(--text-3); }
+    body.dark-mode #btn-voltar-menu .voltar-right .nav-action-btn,
+    body.dark-mode #btn-voltar-menu #btn-logout,
+    body.dark-mode #btn-voltar-menu #kebab-btn { background: #1e1e1e; border-color: rgba(255,255,255,0.1); color: #C7D3C7; }
 
     /* Toggle dark mode button */
     #btn-dark-mode {
@@ -3924,11 +3993,20 @@ button:not(:disabled):active,
    Nota: backdrop-filter + position:sticky causa um bug de renderização
    conhecido em navegadores desktop (o elemento "some"/pisca em branco
    durante o scroll). Mantemos o tom mais profundo sem o blur. ── */
-#btn-voltar-menu,
+/* Barra superior interna (dentro de uma aba): chrome neutro, não verde —
+   evita repetir a cor de identidade em toda tela e deixa o app mais "SaaS
+   neutro + cor pontual" em vez de "site verde". */
+#btn-voltar-menu {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
 .pls-header {
   background: linear-gradient(135deg, rgba(27,94,32,0.97) 0%, rgba(56,142,60,0.97) 100%);
 }
-body.dark-mode #btn-voltar-menu,
+body.dark-mode #btn-voltar-menu {
+  background: #161C16;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
 body.dark-mode .pls-header {
   background: linear-gradient(135deg, rgba(13,59,16,0.97) 0%, rgba(27,94,32,0.97) 100%);
 }
