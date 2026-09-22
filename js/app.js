@@ -3495,6 +3495,110 @@ function showToast(msg, tipo = 'success', duracao = 2800) {
    EMPTY STATE — componente global padronizado
    (não substitui toasts de erro/ação — só telas/listas/tabelas sem dados)
 ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   MULTI-SELECT GENÉRICO (dropdown com busca + checkboxes)
+   Mesmo visual do seletor de fazenda em Tratos (.tratos-ms-*), só que
+   reutilizável por qualquer tela — usado em Responsável/Supervisor da
+   Central (Apontamento e O.S.), onde uma lista de chips ficava grande
+   demais e poluía a tela.
+══════════════════════════════════════════════ */
+window._msState = window._msState || {};
+
+function msInit(id, opcoes, onChange, selecionadosIniciais) {
+  window._msState[id] = {
+    opcoes: opcoes || [],
+    selecionados: new Set(selecionadosIniciais || []),
+    onChange: onChange || null,
+    textoBusca: '',
+  };
+  msRenderOpcoes(id);
+  msAtualizarDisplay(id);
+}
+
+function msToggle(id) {
+  document.querySelectorAll('.tratos-ms.open').forEach(el => {
+    if (el.id !== 'ms-' + id) el.classList.remove('open');
+  });
+  const el = document.getElementById('ms-' + id);
+  if (el) el.classList.toggle('open');
+}
+
+function msRenderOpcoes(id) {
+  const st = window._msState[id];
+  const cont = document.getElementById('ms-opcoes-' + id);
+  if (!st || !cont) return;
+  const norm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const busca = norm(st.textoBusca);
+  const filtradas = st.opcoes.filter(o => !busca || norm(o).includes(busca));
+  if (!filtradas.length) {
+    cont.innerHTML = `<div class="tratos-ms-opt ss-empty">Nenhum resultado</div>`;
+    return;
+  }
+  cont.innerHTML = filtradas.map(o => `
+    <label class="tratos-ms-opt">
+      <input type="checkbox" ${st.selecionados.has(o) ? 'checked' : ''} onchange="msToggleOpcao('${id}', '${String(o).replace(/'/g, "\\'")}')">
+      <span>${o}</span>
+    </label>`).join('');
+}
+
+function msToggleOpcao(id, valor) {
+  const st = window._msState[id];
+  if (!st) return;
+  if (st.selecionados.has(valor)) st.selecionados.delete(valor); else st.selecionados.add(valor);
+  msAtualizarDisplay(id);
+  if (st.onChange) st.onChange([...st.selecionados]);
+}
+
+function msAtualizarDisplay(id) {
+  const st = window._msState[id];
+  const disp = document.getElementById('ms-display-' + id);
+  const clearIcon = document.getElementById('ms-clear-' + id);
+  if (!st || !disp) return;
+  const n = st.selecionados.size;
+  disp.textContent = n === 0 ? 'Todos' : (n === 1 ? [...st.selecionados][0] : `${n} selecionados`);
+  disp.classList.toggle('tem-valor', n > 0);
+  if (clearIcon) clearIcon.style.display = n > 0 ? '' : 'none';
+}
+
+function msFiltrarTexto(id, texto) {
+  const st = window._msState[id];
+  if (!st) return;
+  st.textoBusca = texto;
+  msRenderOpcoes(id);
+}
+
+function msLimpar(id) {
+  const st = window._msState[id];
+  if (!st) return;
+  st.selecionados.clear();
+  msRenderOpcoes(id);
+  msAtualizarDisplay(id);
+  if (st.onChange) st.onChange([]);
+}
+
+function _msMontarHtml(id, placeholderTodos) {
+  return `
+    <div class="tratos-ms" id="ms-${id}">
+      <div class="tratos-ms-input-wrap" onclick="msToggle('${id}')">
+        <i class="fas fa-search tratos-ms-icon"></i>
+        <span class="tratos-ms-display" id="ms-display-${id}">${placeholderTodos || 'Todos'}</span>
+        <i class="fas fa-times tratos-ms-clear" id="ms-clear-${id}" style="display:none;" onclick="event.stopPropagation(); msLimpar('${id}')"></i>
+        <i class="fas fa-chevron-down tratos-ms-chevron"></i>
+      </div>
+      <div class="tratos-ms-lista">
+        <div class="tratos-ms-search"><input type="text" placeholder="Buscar..." oninput="msFiltrarTexto('${id}', this.value)" onclick="event.stopPropagation()"></div>
+        <div class="tratos-ms-opcoes" id="ms-opcoes-${id}"></div>
+      </div>
+    </div>`;
+}
+
+// Fecha qualquer dropdown aberto ao clicar fora dele.
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('.tratos-ms.open').forEach(el => {
+    if (!el.contains(e.target)) el.classList.remove('open');
+  });
+});
+
 function emptyStateHTML(opts) {
   const { icon = 'fa-inbox', title = '', msg = '', actionLabel = null, actionOnclick = null } = opts || {};
   const tituloHtml = title ? `<div class="empty-state-title">${title}</div>` : '';
@@ -3542,7 +3646,7 @@ function _cosaBucket(dias) {
 
 let _cosaFiltroEmpresa = '';
 let _cosaFiltroStatus = '';
-let _cosaFiltroResp = '';
+let _cosaFiltroResp = [];
 let _cosaFonte = 'estatico'; // 'supabase' ou 'estatico', só pra mostrar na tela
 let _cosaChart = null;
 
@@ -3590,12 +3694,16 @@ async function cosaInit() {
       empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="cosaFiltrar('empresa','${e}')">${e}</button>`).join('');
   }
 
-  // Chips de Responsável
+  // Responsável — dropdown com busca e seleção múltipla (evita fileira
+  // enorme de chips quando há muitos nomes).
   const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
   const chipsResp = document.getElementById('cosa-chips-resp');
   if (chipsResp) {
-    chipsResp.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="cosaFiltrar('responsavel','')"><i class="fas fa-layer-group"></i> Todos</button>` +
-      responsaveis.map(r => `<button class="lib-frente-chip" data-v="${r}" onclick="cosaFiltrar('responsavel','${r}')">${r}</button>`).join('');
+    chipsResp.innerHTML = _msMontarHtml('cosa-resp');
+    msInit('cosa-resp', responsaveis, (selecionados) => {
+      _cosaFiltroResp = selecionados;
+      cosaRender();
+    }, _cosaFiltroResp);
   }
 
   // Chips de Situação (buckets de dias em aberto)
@@ -3621,8 +3729,7 @@ async function cosaInit() {
 function cosaFiltrar(tipo, valor) {
   if (tipo === 'empresa') _cosaFiltroEmpresa = valor;
   if (tipo === 'status') _cosaFiltroStatus = valor;
-  if (tipo === 'responsavel') _cosaFiltroResp = valor;
-  const mapaId = { empresa: 'cosa-chips-empresa', status: 'cosa-chips-status', responsavel: 'cosa-chips-resp' };
+  const mapaId = { empresa: 'cosa-chips-empresa', status: 'cosa-chips-status' };
   const container = document.getElementById(mapaId[tipo]);
   if (container) {
     container.querySelectorAll('.lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.v === valor));
@@ -3693,7 +3800,7 @@ function cosaRender() {
   // Base sem o filtro de Situação — usada pelo gráfico e pelos KPIs.
   const baseSemStatus = dados.filter(r => {
     if (_cosaFiltroEmpresa && r.empresa !== _cosaFiltroEmpresa) return false;
-    if (_cosaFiltroResp && r.responsavel !== _cosaFiltroResp) return false;
+    if (_cosaFiltroResp.length && !_cosaFiltroResp.includes(r.responsavel)) return false;
     if (busca) {
       const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd}`);
       if (!alvo.includes(busca)) return false;
@@ -3795,8 +3902,8 @@ async function _centralApontBuscarSupabasePaginado() {
 }
 
 let _capoFiltroEmpresa = '';
-let _capoFiltroResp = '';
-let _capoFiltroSuperv = '';
+let _capoFiltroResp = [];
+let _capoFiltroSuperv = [];
 let _capoFonte = 'estatico';
 let _capoChart = null;
 
@@ -3835,68 +3942,52 @@ async function capoInit() {
       empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="capoFiltrar('empresa','${e}')">${e}</button>`).join('');
   }
 
-  const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
-  const chipsResp = document.getElementById('capo-chips-resp');
-  if (chipsResp) {
-    chipsResp.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('responsavel','')"><i class="fas fa-layer-group"></i> Todos</button>` +
-      responsaveis.map(r => `<button class="lib-frente-chip" data-v="${r}" onclick="capoFiltrar('responsavel','${r}')">${r}</button>`).join('');
-  }
-
-  const supervisores = [...new Set(dados.map(r => r.supervisor).filter(Boolean))].sort();
-  const chipsSuperv = document.getElementById('capo-chips-superv');
-  if (chipsSuperv) {
-    chipsSuperv.innerHTML = supervisores.length
-      ? `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('supervisor','')"><i class="fas fa-layer-group"></i> Todos</button>` +
-        supervisores.map(s => `<button class="lib-frente-chip" data-v="${s}" onclick="capoFiltrar('supervisor','${s}')">${s}</button>`).join('')
-      : `<span style="font-size:11px;color:var(--text-3);">Sem dado de supervisor ainda</span>`;
-  }
-
-  const datas = dados.map(r => r.data_inicio).filter(Boolean).sort();
-  const periodoEl = document.getElementById('capo-periodo');
-  if (periodoEl) {
-    if (datas.length) {
-      const fmt = d => { const [a,m,dd] = String(d).split('-'); return `${dd}/${m}/${a}`; };
-      periodoEl.textContent = `${fmt(datas[0])} a ${fmt(datas[datas.length-1])}`;
-    } else {
-      periodoEl.textContent = 'não informado nos dados atuais';
-    }
-  }
-
+  // Responsável e Supervisor: dropdown com busca e seleção múltipla (uma
+  // fileira de chips com dezenas de nomes poluía demais a tela). Continuam
+  // "em cascata" por Empresa: as OPÇÕES mostradas se restringem à empresa
+  // selecionada, sem precisar esconder o campo inteiro.
   _capoAtualizarChipsResp();
+  _capoAtualizarChipsSuperv();
+
   capoRender();
 }
 
-// Responsável é uma lista CASCATA por Empresa — sem empresa escolhida, fica
-// oculto de propósito (com muitas unidades, mostrar todo mundo de uma vez
-// só polui a tela). Escolhendo uma empresa, aparecem só os responsáveis
-// que de fato aparecem nos dados daquela empresa.
+// Responsável/Supervisor em cascata por Empresa: com "Todas" selecionado,
+// mostra todo mundo (a busca do dropdown já resolve a poluição visual);
+// escolhendo uma empresa, a lista de opções fica restrita a quem realmente
+// aparece nos dados daquela empresa.
 function _capoAtualizarChipsResp() {
-  const wrap = document.getElementById('capo-resp-wrap');
   const chipsResp = document.getElementById('capo-chips-resp');
-  if (!wrap || !chipsResp) return;
+  if (!chipsResp) return;
+  const dados = (window._centralApontDados || []).filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
+  const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
+  chipsResp.innerHTML = _msMontarHtml('capo-resp');
+  _capoFiltroResp = _capoFiltroResp.filter(v => responsaveis.includes(v));
+  msInit('capo-resp', responsaveis, (selecionados) => { _capoFiltroResp = selecionados; capoRender(); }, _capoFiltroResp);
+}
 
-  if (!_capoFiltroEmpresa) {
-    wrap.style.display = 'none';
-    _capoFiltroResp = '';
+function _capoAtualizarChipsSuperv() {
+  const chipsSuperv = document.getElementById('capo-chips-superv');
+  if (!chipsSuperv) return;
+  const dados = (window._centralApontDados || []).filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
+  const supervisores = [...new Set(dados.map(r => r.supervisor).filter(Boolean))].sort();
+  if (!supervisores.length) {
+    chipsSuperv.innerHTML = `<span style="font-size:11px;color:var(--text-3);">Sem dado de supervisor ainda</span>`;
     return;
   }
-  wrap.style.display = '';
-  const dados = (window._centralApontDados || []).filter(r => r.empresa === _capoFiltroEmpresa);
-  const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
-  chipsResp.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('responsavel','')"><i class="fas fa-layer-group"></i> Todos</button>` +
-    responsaveis.map(r => `<button class="lib-frente-chip" data-v="${r}" onclick="capoFiltrar('responsavel','${r}')">${r}</button>`).join('');
+  chipsSuperv.innerHTML = _msMontarHtml('capo-superv');
+  _capoFiltroSuperv = _capoFiltroSuperv.filter(v => supervisores.includes(v));
+  msInit('capo-superv', supervisores, (selecionados) => { _capoFiltroSuperv = selecionados; capoRender(); }, _capoFiltroSuperv);
 }
 
 function capoFiltrar(tipo, valor) {
   if (tipo === 'empresa') _capoFiltroEmpresa = valor;
-  if (tipo === 'responsavel') _capoFiltroResp = valor;
-  if (tipo === 'supervisor') _capoFiltroSuperv = valor;
-  const mapaId = { empresa: 'capo-chips-empresa', responsavel: 'capo-chips-resp', supervisor: 'capo-chips-superv' };
+  const mapaId = { empresa: 'capo-chips-empresa' };
   const container = document.getElementById(mapaId[tipo]);
   if (container) {
     container.querySelectorAll('.lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.v === valor));
   }
-  if (tipo === 'empresa') _capoAtualizarChipsResp();
+  if (tipo === 'empresa') { _capoAtualizarChipsResp(); _capoAtualizarChipsSuperv(); }
   capoRender();
 }
 
@@ -3949,8 +4040,8 @@ function capoRender() {
   const dataAte = document.getElementById('capo-data-ate')?.value || '';
   const filtrados = dados.filter(r => {
     if (_capoFiltroEmpresa && r.empresa !== _capoFiltroEmpresa) return false;
-    if (_capoFiltroResp && r.responsavel !== _capoFiltroResp) return false;
-    if (_capoFiltroSuperv && r.supervisor !== _capoFiltroSuperv) return false;
+    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
+    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
     if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
     if (dataAte && (!r.data_inicio || r.data_inicio > dataAte)) return false;
     return true;
@@ -3960,6 +4051,24 @@ function capoRender() {
   const totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
   const totalNaoApontadas = totalPlanejada - totalApontadas;
   const pctCobertura = totalPlanejada > 0 ? Math.round((totalApontadas / totalPlanejada) * 100) : 0;
+
+  // "Período" mostrado reflete o que está REALMENTE sendo somado: o
+  // filtro De/Até quando preenchido, senão o intervalo real dos dados
+  // filtrados (nunca o total geral não filtrado — isso é o que confundia).
+  const periodoEl = document.getElementById('capo-periodo');
+  if (periodoEl) {
+    const fmtBR = iso => { const [a,m,dd] = String(iso).split('-'); return `${dd}/${m}/${a}`; };
+    if (dataDe || dataAte) {
+      const de = dataDe ? fmtBR(dataDe) : '—';
+      const ate = dataAte ? fmtBR(dataAte) : '—';
+      periodoEl.textContent = `${de} a ${ate} (filtro aplicado)`;
+    } else {
+      const datasFiltradas = filtrados.map(r => r.data_inicio).filter(Boolean).sort();
+      periodoEl.textContent = datasFiltradas.length
+        ? `${fmtBR(datasFiltradas[0])} a ${fmtBR(datasFiltradas[datasFiltradas.length-1])}`
+        : 'não informado nos dados atuais';
+    }
+  }
 
   const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
   const kpiEl = document.getElementById('capo-kpis');
@@ -9102,30 +9211,38 @@ function _onLogout() {
    degrau de histórico em cima.
 ══════════════════════════════════════════════════════════════════════════ */
 (function () {
+  // Pilha das abas abertas nesta "sessão" de navegação (zera ao voltar pra
+  // Home). Cada índice é um id de aba — o topo é a aba visível agora.
+  let _cttTabStack = [];
+
   function _cttPushState(marker) {
     try { history.pushState({ ctt: true, marker: marker }, '', location.href); }
     catch (err) { /* ambiente sem suporte a History API — ignora silenciosamente */ }
   }
 
-  // Cada troca de aba/seção conta como um passo de navegação.
+  // Cada troca de aba/seção conta como um passo de navegação E entra na
+  // pilha, pra "voltar" saber pra qual tela anterior (não só pra Home) ir.
   const _showTabOriginal = window.showTab;
   if (typeof _showTabOriginal === 'function') {
     window.showTab = function (e, id) {
       _showTabOriginal(e, id);
+      _cttTabStack.push(id);
       _cttPushState('tab:' + id);
     };
   }
 
   // Ao voltar pro menu Home (pelo botão em tela, pelo bn-home, ou pelo
-  // próprio popstate abaixo), consome o degrau de histórico correspondente
-  // pra não deixar "lixo" acumulado que exigiria apertar voltar de novo à
-  // toa mais tarde.
+  // próprio popstate abaixo quando a pilha esvazia), consome de uma vez
+  // TODOS os degraus de histórico acumulados na pilha atual — assim o
+  // navegador e o estado do app nunca ficam dessincronizados.
   const _voltarParaHomeOriginal = window.voltarParaHome;
   if (typeof _voltarParaHomeOriginal === 'function') {
     window.voltarParaHome = function () {
       _voltarParaHomeOriginal();
-      if (history.state && history.state.ctt) {
-        try { history.back(); } catch (err) { /* ignora */ }
+      const passos = _cttTabStack.length;
+      _cttTabStack = [];
+      if (passos > 0 && history.state && history.state.ctt) {
+        try { history.go(-passos); } catch (err) { /* ignora */ }
       }
     };
   }
@@ -9151,9 +9268,20 @@ function _onLogout() {
       overlayAberto.classList.remove('open');
       return;
     }
-    // 2) Está dentro de uma seção? Volta pro menu Home em vez de sair do app.
+    // 2) Está dentro de uma seção? Volta pra tela ANTERIOR da pilha — igual
+    //    o botão "voltar" de qualquer app nativo — e só cai na Home quando
+    //    não sobra mais nada empilhado (era aqui que voltava direto pra
+    //    Home sempre, não importa quantos níveis o usuário tinha entrado).
     if (document.body.classList.contains('tab-open')) {
-      _voltarParaHomeOriginal ? _voltarParaHomeOriginal() : voltarParaHome();
+      _cttTabStack.pop(); // tira a aba atual, que é a que está saindo de cena
+      const anterior = _cttTabStack[_cttTabStack.length - 1];
+      if (anterior) {
+        _showTabOriginal(null, anterior);
+      } else if (_voltarParaHomeOriginal) {
+        _voltarParaHomeOriginal();
+      } else {
+        voltarParaHome();
+      }
       return;
     }
     // 3) Já está na Home sem nada aberto: deixa o navegador seguir o
