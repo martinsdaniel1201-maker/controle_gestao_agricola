@@ -3908,6 +3908,13 @@ let _capoFonte = 'estatico';
 let _capoChart = null;
 
 async function capoInit() {
+  // Mostra que está buscando ANTES de esperar o Supabase responder — sem
+  // isso a tela ficava em branco por alguns segundos e parecia "sem dado".
+  const fonteElInicial = document.getElementById('capo-fonte');
+  if (fonteElInicial) fonteElInicial.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando dados do Supabase...';
+  const listaElInicial = document.getElementById('capo-lista');
+  if (listaElInicial) listaElInicial.innerHTML = emptyStateHTML({icon:'fa-spinner fa-spin', title:'Carregando...', msg:'Buscando os dados mais recentes no Supabase.'});
+
   if (typeof _sbClient !== 'undefined') {
     try {
       const brutos = await _centralApontBuscarSupabasePaginado();
@@ -4008,6 +4015,7 @@ function capoRenderChart(filtrados) {
   const cAmarelo = _cosaCorTema('--amber');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
+  const cLabel = _cosaCorTema('--text');
 
   // Barras AGRUPADAS lado a lado (não empilhadas): cada série é uma barra
   // própria por responsável, nunca dividindo cores dentro da mesma barra.
@@ -4016,12 +4024,39 @@ function capoRenderChart(filtrados) {
     { label: 'Apontadas', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cAmarelo },
   ];
 
+  const fmtCompacto = n => Math.round(n).toLocaleString('pt-BR');
+
+  // Etiquetinha com o valor em cima de cada barra — igual no BI, sem
+  // precisar passar o mouse pra ver o número. Plugin pequeno, embutido
+  // aqui mesmo, sem depender de nenhuma biblioteca extra.
+  const plugRotulos = {
+    id: 'rotulosValor',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = '600 9px Arial';
+      ctx.fillStyle = cLabel;
+      ctx.textAlign = 'center';
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar, i) => {
+          const valor = ds.data[i];
+          if (!valor) return;
+          ctx.fillText(fmtCompacto(valor), bar.x, bar.y - 4);
+        });
+      });
+      ctx.restore();
+    },
+  };
+
   if (_capoChart) { _capoChart.destroy(); }
   _capoChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: { labels: nomes, datasets },
+    plugins: [plugRotulos],
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 16 } },
       scales: {
         x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
@@ -4034,12 +4069,58 @@ function capoRenderChart(filtrados) {
   });
 }
 
+// Quantos dias tem o período — usa o filtro De/Até quando preenchido,
+// senão o intervalo real dos dados disponíveis (nunca conta a mais).
+function _capoDiasNoPeriodo(dadosBase, dataDe, dataAte) {
+  if (dataDe && dataAte) {
+    const de = new Date(dataDe + 'T00:00:00');
+    const ate = new Date(dataAte + 'T00:00:00');
+    return Math.max(1, Math.round((ate - de) / 86400000) + 1);
+  }
+  const datas = dadosBase.map(r => r.data_inicio).filter(Boolean).sort();
+  if (!datas.length) return 0;
+  const de = new Date(datas[0] + 'T00:00:00');
+  const ate = new Date(datas[datas.length - 1] + 'T00:00:00');
+  return Math.max(1, Math.round((ate - de) / 86400000) + 1);
+}
+
+// Taxa diária de cada equipamento (horas_dia mais frequente no histórico
+// dele) — usada pra calcular Planejada = taxa × dias do período, contando
+// TAMBÉM os dias sem nenhum apontamento lançado. É assim que o BI calcula
+// (confirmado batendo a conta: 45.296h/19 dias e 71.520h/30 dias da PAS
+// dão exatamente 2.384h/dia nos dois casos — uma taxa fixa vezes os dias,
+// não a soma só do que foi de fato apontado).
+function _capoTaxaPorEquipamento(escopoBase) {
+  const porEquip = {};
+  escopoBase.forEach(r => {
+    if (!r.cod_equip || !r.horas_dia) return;
+    if (!porEquip[r.cod_equip]) porEquip[r.cod_equip] = {};
+    porEquip[r.cod_equip][r.horas_dia] = (porEquip[r.cod_equip][r.horas_dia] || 0) + 1;
+  });
+  const taxas = {};
+  Object.keys(porEquip).forEach(cod => {
+    const contagem = porEquip[cod];
+    let melhorValor = 0, melhorContagem = -1;
+    Object.keys(contagem).forEach(v => {
+      if (contagem[v] > melhorContagem) { melhorContagem = contagem[v]; melhorValor = Number(v); }
+    });
+    taxas[cod] = melhorValor;
+  });
+  return taxas;
+}
+
 function capoRender() {
   const dados = window._centralApontDados || [];
   const dataDe = document.getElementById('capo-data-de')?.value || '';
   const dataAte = document.getElementById('capo-data-ate')?.value || '';
-  const filtrados = dados.filter(r => {
-    if (_capoFiltroEmpresa && r.empresa !== _capoFiltroEmpresa) return false;
+
+  // Escopo da EMPRESA, sem ainda aplicar responsável/supervisor/data — é a
+  // base usada pra descobrir a taxa diária "de verdade" de cada
+  // equipamento (precisa do histórico completo dele, não só dos dias
+  // filtrados, senão a taxa fica incompleta também).
+  const porEmpresa = dados.filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
+
+  const filtrados = porEmpresa.filter(r => {
     if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
     if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
     if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
@@ -4047,8 +4128,26 @@ function capoRender() {
     return true;
   });
 
-  const totalPlanejada = filtrados.reduce((s, r) => s + (r.horas_dia || 0), 0);
-  const totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
+  let totalPlanejada, totalApontadas;
+  const semFiltroPessoa = !_capoFiltroResp.length && !_capoFiltroSuperv.length;
+  if (semFiltroPessoa) {
+    // Sem filtrar por pessoa: dá pra calcular igual o BI (taxa do
+    // equipamento × dias do período), porque o total pertence à empresa
+    // inteira, sem ambiguidade de "de quem" é a hora planejada.
+    const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+    const taxas = _capoTaxaPorEquipamento(porEmpresa);
+    totalPlanejada = Object.values(taxas).reduce((s, t) => s + t * dias, 0);
+    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
+  } else {
+    // Filtrando por responsável/supervisor: um mesmo equipamento pode ter
+    // mais de um operador no período, então não dá pra atribuir a taxa
+    // cheia do equipamento a uma pessoa só sem risco de contar horas de
+    // outra pessoa também. Aqui mantemos a soma direta dos apontamentos
+    // dessa pessoa como aproximação — mais conservadora, mas pode ficar
+    // abaixo do "correto" em dias que essa pessoa não lançou nada.
+    totalPlanejada = filtrados.reduce((s, r) => s + (r.horas_dia || 0), 0);
+    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
+  }
   const totalNaoApontadas = totalPlanejada - totalApontadas;
   const pctCobertura = totalPlanejada > 0 ? Math.round((totalApontadas / totalPlanejada) * 100) : 0;
 
@@ -4099,12 +4198,13 @@ function capoRender() {
 
   capoRenderChart(filtrados);
 
+  const diasEquip = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+  const taxasEquip = _capoTaxaPorEquipamento(porEmpresa);
   const porEquip = {};
   filtrados.forEach(r => {
     if (!r.cod_equip) return;
     const chave = r.cod_equip;
-    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: 0, apontadas: 0 };
-    porEquip[chave].planejada += r.horas_dia || 0;
+    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: (taxasEquip[chave] || 0) * diasEquip, apontadas: 0 };
     porEquip[chave].apontadas += r.horas_apontadas || 0;
   });
   const listaEquip = Object.values(porEquip).sort((a,b) => (b.planejada - b.apontadas) - (a.planejada - a.apontadas));
@@ -9189,7 +9289,7 @@ function _onLogout() {
       h.style.transform = 'translate(-100%, -50%)';
       setTimeout(() => h.classList.remove('snapping'), 260);
     }
-    if (confirmou) voltarParaHome();
+    if (confirmou) history.back(); // dispara o mesmo popstate do botão/gesto nativo de voltar — respeita a pilha de telas, não pula direto pra Home
     activeSection = null;
   }
 
