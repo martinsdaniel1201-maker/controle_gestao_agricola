@@ -4011,17 +4011,20 @@ function capoRenderChart(filtrados) {
   });
   const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
 
+  const cAzul = _cosaCorTema('--blue');
   const cVerde = _cosaCorTema('--green-500');
-  const cAmarelo = _cosaCorTema('--amber');
+  const cVermelho = _cosaCorTema('--red');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
   const cLabel = _cosaCorTema('--text');
 
-  // Barras AGRUPADAS lado a lado (não empilhadas): cada série é uma barra
-  // própria por responsável, nunca dividindo cores dentro da mesma barra.
+  // 3 barras lado a lado por responsável — igual você pediu: dá pra ver
+  // de cara quem está devendo (barra vermelha) sem precisar comparar
+  // altura de planejada x apontada de cabeça.
   const datasets = [
-    { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cVerde },
-    { label: 'Apontadas', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cAmarelo },
+    { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cAzul },
+    { label: 'Apontada', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cVerde },
+    { label: 'Falta apontar', data: nomes.map(n => Math.max(0, porResp[n].planejada - porResp[n].apontadas)), backgroundColor: cVermelho },
   ];
 
   const fmtCompacto = n => Math.round(n).toLocaleString('pt-BR');
@@ -4204,7 +4207,7 @@ function capoRender() {
   filtrados.forEach(r => {
     if (!r.cod_equip) return;
     const chave = r.cod_equip;
-    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: (taxasEquip[chave] || 0) * diasEquip, apontadas: 0 };
+    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: (taxasEquip[chave] || 0) * diasEquip, apontadas: 0, taxa: taxasEquip[chave] || 0 };
     porEquip[chave].apontadas += r.horas_apontadas || 0;
   });
   const listaEquip = Object.values(porEquip).sort((a,b) => (b.planejada - b.apontadas) - (a.planejada - a.apontadas));
@@ -4217,6 +4220,12 @@ function capoRender() {
   }
   listaEl.innerHTML = listaEquip.map(e => {
     const dif = e.planejada - e.apontadas;
+    // Converte a diferença em DIAS usando a taxa própria do equipamento —
+    // mais fácil de bater o olho do que só a quantidade de horas.
+    const diasPendentes = (dif > 0 && e.taxa > 0) ? (dif / e.taxa) : 0;
+    const diasTxt = diasPendentes > 0
+      ? ` <span class="cosa-card-fzd">(${diasPendentes.toLocaleString('pt-BR', {maximumFractionDigits: 1})} dia${diasPendentes >= 1.05 ? 's' : ''})</span>`
+      : '';
     return `
       <div class="cosa-card">
         <div class="cosa-card-top">
@@ -4227,10 +4236,76 @@ function capoRender() {
         <div class="cosa-card-meta">
           <span><i class="fas fa-calendar-check"></i> Planejada: ${fmtH(e.planejada)}h</span>
           <span><i class="fas fa-circle-check"></i> Apontada: ${fmtH(e.apontadas)}h</span>
+          ${dif > 0 ? `<span><i class="fas fa-triangle-exclamation"></i> Pendente: ${fmtH(dif)}h${diasTxt}</span>` : ''}
         </div>
       </div>
     `;
   }).join('');
+}
+
+async function capoExportarGrafico() {
+  if (!_capoChart) { if (typeof showToast === 'function') showToast('Gráfico ainda não carregado.', 'error', 2500); return; }
+
+  // Monta um texto de cobrança pronto — quem está devendo horas aparece
+  // primeiro, quem já concluiu aparece marcado como em dia.
+  const dados = window._centralApontDados || [];
+  const dataDe = document.getElementById('capo-data-de')?.value || '';
+  const dataAte = document.getElementById('capo-data-ate')?.value || '';
+  const porEmpresa = dados.filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
+  const filtrados = porEmpresa.filter(r => {
+    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
+    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+    if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
+    if (dataAte && (!r.data_inicio || r.data_inicio > dataAte)) return false;
+    return true;
+  });
+  const porResp = {};
+  filtrados.forEach(r => {
+    const nome = r.responsavel || 'Não informado';
+    if (!porResp[nome]) porResp[nome] = { planejada: 0, apontadas: 0 };
+    porResp[nome].planejada += r.horas_dia || 0;
+    porResp[nome].apontadas += r.horas_apontadas || 0;
+  });
+  const linhas = Object.entries(porResp)
+    .map(([nome, v]) => ({ nome, falta: Math.max(0, v.planejada - v.apontadas) }))
+    .sort((a, b) => b.falta - a.falta);
+  const fmtH = n => Math.round(n).toLocaleString('pt-BR');
+  const periodoTxt = document.getElementById('capo-periodo')?.textContent || '';
+  let texto = `*Apontamento de Horas${_capoFiltroEmpresa ? ' — ' + _capoFiltroEmpresa : ''}*\nPeríodo: ${periodoTxt}\n\n`;
+  linhas.forEach(l => {
+    texto += l.falta > 0 ? `⚠️ ${l.nome}: faltam ${fmtH(l.falta)}h\n` : `✅ ${l.nome}: em dia\n`;
+  });
+
+  const canvas = document.getElementById('capo-chart');
+  canvas.toBlob(async (blob) => {
+    if (!blob) { if (typeof showToast === 'function') showToast('Não consegui gerar a imagem do gráfico.', 'error', 3000); return; }
+    const arquivo = new File([blob], 'apontamento-de-horas.png', { type: 'image/png' });
+
+    // Onde o navegador suporta (a maioria dos celulares), abre direto o
+    // menu de compartilhar do sistema com a imagem — WhatsApp é uma das
+    // opções ali, sem precisar baixar nada antes.
+    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      try {
+        await navigator.share({ files: [arquivo], title: 'Apontamento de Horas', text: texto });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+      }
+    }
+
+    // Sem suporte a compartilhar arquivo: baixa a imagem e abre o WhatsApp
+    // já com o texto de cobrança pronto — só falta anexar a imagem baixada.
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'apontamento-de-horas.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (typeof showToast === 'function') showToast('📥 Imagem baixada. Abrindo o WhatsApp com o texto — é só anexar a imagem.', 'success', 5000);
+    setTimeout(() => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    }, 600);
+  }, 'image/png');
 }
 
 // Hookar confirmarSalvar para mostrar toast
