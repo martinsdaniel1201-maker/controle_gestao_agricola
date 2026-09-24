@@ -1547,7 +1547,7 @@
                    style="border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12.5px;padding:8px 10px;width:100%;box-sizing:border-box;">
           </div>
         </div>
-        <div class="lib-filtros-section" id="capo-resp-wrap" style="display:none;">
+        <div class="lib-filtros-section" id="capo-resp-wrap">
           <span class="lib-filtros-label">Responsável</span>
           <div class="lib-frentes-chips" id="capo-chips-resp"></div>
         </div>
@@ -1563,6 +1563,7 @@
         <div class="cosa-chart-head">
           <i class="fas fa-chart-column"></i>
           <span>Planejado × Apontado por Responsável</span>
+          <button class="tratos-header-icon-btn" id="btn-capo-exportar" title="Exportar gráfico (compartilhar / baixar)" onclick="capoExportarGrafico()" style="margin-left:auto;"><i class="fas fa-share-nodes"></i></button>
         </div>
         <div class="cosa-chart-wrap">
           <canvas id="capo-chart"></canvas>
