@@ -1037,7 +1037,14 @@ async function atualizarSyncLabelReal() {
   }
 }
 window.atualizarSyncLabelReal = atualizarSyncLabelReal;
-window.addEventListener('load', () => { atualizarSyncLabelReal(); });
+window.addEventListener('load', () => {
+  atualizarSyncLabelReal();
+  // Sincronização real acontece no app Python, em segundo plano — sem
+  // isso, o status da Home só se atualizava na hora que a página abria e
+  // ficava parado o resto do dia mesmo com Liberações sincronizando de
+  // novo várias vezes. Rechecagem a cada 1 min pega isso sem pesar.
+  setInterval(atualizarSyncLabelReal, 60000);
+});
 
 function registrarSync(status, fonte) {
   const agora = new Date();
@@ -3755,9 +3762,12 @@ function cosaRenderChart(dadosBase) {
     if (!porResp[nome]) porResp[nome] = { '< 7': 0, '> 7 e < 15': 0, '> 15': 0 };
     if (porResp[nome][r.status] != null) porResp[nome][r.status]++;
   });
+  // No celular, menos categorias — senão os rótulos viram sopa de letras
+  // (mesmo ajuste feito no gráfico de Apontamento de Horas).
+  const noMobile = window.innerWidth < 480;
   const nomes = Object.keys(porResp)
     .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0))
-    .slice(0, 10);
+    .slice(0, noMobile ? 5 : 10);
 
   if (!nomes.length) { card.style.display = 'none'; return; }
   card.style.display = 'block';
@@ -3767,6 +3777,7 @@ function cosaRenderChart(dadosBase) {
   const cCritico = _cosaCorTema('--red');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
+  const cLabel = _cosaCorTema('--text');
 
   const datasets = [
     { label: 'Até 7 dias', data: nomes.map(n => porResp[n]['< 7']), backgroundColor: cOk },
@@ -3774,14 +3785,40 @@ function cosaRenderChart(dadosBase) {
     { label: 'Mais de 15 dias', data: nomes.map(n => porResp[n]['> 15']), backgroundColor: cCritico },
   ];
 
+  // Mesma etiquetinha de valor em cima da barra do Apontamento de Horas —
+  // só desenha se couber, pra nunca embolar os números.
+  const plugRotulos = {
+    id: 'rotulosValorOS',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = `600 ${noMobile ? 8 : 9}px Arial`;
+      ctx.fillStyle = cLabel;
+      ctx.textAlign = 'center';
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar, i) => {
+          const valor = ds.data[i];
+          if (!valor) return;
+          const texto = String(valor);
+          if (ctx.measureText(texto).width > bar.width + 10) return;
+          ctx.fillText(texto, bar.x, bar.y - 4);
+        });
+      });
+      ctx.restore();
+    },
+  };
+
   if (_cosaChart) { _cosaChart.destroy(); }
   _cosaChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: { labels: nomes, datasets },
+    plugins: [plugRotulos],
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 16 } },
       scales: {
-        x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
+        x: { ticks: { color: cTexto, font: { size: noMobile ? 9 : 10 } }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
       },
       plugins: {
@@ -4009,7 +4046,13 @@ function capoRenderChart(filtrados) {
     porResp[nome].planejada += r.horas_dia || 0;
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
-  const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
+  // No celular a tela é estreita demais pra 12 pessoas × 3 barras cada —
+  // os números viravam uma sopa de letrinhas ilegível. Mostra só os
+  // top 5 no mobile (ainda são os que mais importam, já que a lista tá
+  // ordenada por quem tem mais planejado) e 12 no desktop, que tem espaço.
+  const noMobile = window.innerWidth < 480;
+  const limite = noMobile ? 5 : 12;
+  const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, limite);
 
   const cAzul = _cosaCorTema('--blue');
   const cVerde = _cosaCorTema('--green-500');
@@ -4027,17 +4070,25 @@ function capoRenderChart(filtrados) {
     { label: 'Falta apontar', data: nomes.map(n => Math.max(0, porResp[n].planejada - porResp[n].apontadas)), backgroundColor: cVermelho },
   ];
 
-  const fmtCompacto = n => Math.round(n).toLocaleString('pt-BR');
+  const fmtCompacto = n => {
+    // Números grandes ficam abreviados (12.3k) no celular — inteiros
+    // completos (12.345) só quando tem espaço de sobra no desktop.
+    if (noMobile && n >= 1000) return (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
+    return Math.round(n).toLocaleString('pt-BR');
+  };
 
   // Etiquetinha com o valor em cima de cada barra — igual no BI, sem
   // precisar passar o mouse pra ver o número. Plugin pequeno, embutido
-  // aqui mesmo, sem depender de nenhuma biblioteca extra.
+  // aqui mesmo, sem depender de nenhuma biblioteca extra. Só desenha se a
+  // barra tiver largura suficiente pro texto não virar uma sopa de letras
+  // (é isso que causava os números embolados no mobile).
   const plugRotulos = {
     id: 'rotulosValor',
     afterDatasetsDraw(chart) {
       const { ctx } = chart;
+      const tamanhoFonte = noMobile ? 8 : 9;
       ctx.save();
-      ctx.font = '600 9px Arial';
+      ctx.font = `600 ${tamanhoFonte}px Arial`;
       ctx.fillStyle = cLabel;
       ctx.textAlign = 'center';
       chart.data.datasets.forEach((ds, di) => {
@@ -4045,7 +4096,10 @@ function capoRenderChart(filtrados) {
         meta.data.forEach((bar, i) => {
           const valor = ds.data[i];
           if (!valor) return;
-          ctx.fillText(fmtCompacto(valor), bar.x, bar.y - 4);
+          const texto = fmtCompacto(valor);
+          const larguraTexto = ctx.measureText(texto).width;
+          if (larguraTexto > bar.width + 10) return; // não cabe — melhor omitir que embolar
+          ctx.fillText(texto, bar.x, bar.y - 4);
         });
       });
       ctx.restore();
@@ -4061,7 +4115,7 @@ function capoRenderChart(filtrados) {
       responsive: true, maintainAspectRatio: false,
       layout: { padding: { top: 16 } },
       scales: {
-        x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
+        x: { ticks: { color: cTexto, font: { size: noMobile ? 9 : 10 } }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
       },
       plugins: {
