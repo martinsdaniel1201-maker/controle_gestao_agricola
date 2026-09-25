@@ -1023,6 +1023,25 @@
     }
     .cosa-chart-head i { color: var(--green-700); }
     .cosa-chart-wrap { position: relative; height: 220px; }
+    @media (max-width: 480px) {
+      .cosa-chart-wrap { height: 260px; }
+    }
+
+    .capo-filtro-datas {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin: 0 0 12px;
+    }
+    .capo-data-input {
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); color: var(--text); font-size: 12.5px;
+      padding: 8px 6px; width: 100%; min-width: 0; box-sizing: border-box;
+    }
+    /* <input type="date"> nativo tem uma largura mínima própria (o
+       "chrome" do seletor) que estoura uma coluna de 1fr em telas
+       estreitas mesmo com width:100% — empilha em vez de vazar. */
+    @media (max-width: 420px) {
+      .capo-filtro-datas { grid-template-columns: 1fr; }
+    }
     body.dark-mode .cosa-chart-card { background: #1e1e1e; }
 
     /* ══════════════════════════════════════════════
@@ -1799,7 +1818,7 @@
 
     /* ── WIDGET BOAS-VINDAS (HOME) ── */
     .home-welcome-bar {
-      display: flex; align-items: center; gap: 12px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
@@ -1810,6 +1829,20 @@
       animation: cardEntrada 0.32s cubic-bezier(.4,0,.2,1) 0.05s both;
     }
     body.tab-open .home-welcome-bar { display: none; }
+    /* No celular tava tudo espremido numa fileira só (avatar + nome +
+       clima + status de sync + botão) — o status de sync e o botão de
+       atualizar ganham linha própria embaixo, com mais respiro. */
+    @media (max-width: 480px) {
+      #home-sync-bar, #btn-forcar-atualizacao {
+        flex: 0 0 auto;
+      }
+      #home-sync-bar {
+        order: 10; flex: 1 1 auto; margin-top: 10px;
+        padding-top: 10px; border-top: 1px solid var(--border);
+        justify-content: center;
+      }
+      #btn-forcar-atualizacao { order: 11; margin-top: 10px; }
+    }
     .home-welcome-avatar {
       width: 44px; height: 44px; border-radius: 14px;
       background: var(--grad); color: white;
