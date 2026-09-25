@@ -1873,18 +1873,6 @@
 
     /* Status de sincronização — vive dentro da welcome bar (dado real,
        lido de sync_status no Supabase; some se a query não retornar nada) */
-    #home-sync-bar {
-      display: flex; align-items: center; gap: 5px;
-      flex-shrink: 0; margin-right: 2px;
-      padding: 4px 9px; border-radius: 50px;
-      background: var(--surface2); border: 1px solid var(--border);
-    }
-    #home-sync-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--green-500); flex-shrink: 0;
-    }
-    #home-sync-label { font-size: 9.5px; font-weight: 700; color: var(--text-3); white-space: nowrap; }
-    body.dark-mode #home-sync-bar { background: #1e1e1e; }
 
     /* ── CALCULADORA EXTRAS ── */
     .calc-section-title {
@@ -3808,42 +3796,6 @@ body.dark-mode .resumo-cards .medal-text {
   /* ══════════════════════════════════════════════
      MELHORIA 6 — HISTÓRICO DE SINCRONIZAÇÃO
   ══════════════════════════════════════════════ */
-  #home-sync-historico {
-    margin: 0 0 10px 0;
-  }
-  #home-sync-historico .sync-hist-title {
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .sync-hist-item {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 5px 8px;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--text-2);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    margin-bottom: 4px;
-  }
-  .sync-hist-item .shi-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .sync-hist-item .shi-dot.ok { background: var(--green-500); }
-  .sync-hist-item .shi-dot.err { background: var(--red); }
-  .sync-hist-item .shi-time { color: var(--text-3); flex-shrink: 0; }
-
   /* ══════════════════════════════════════════════
      MELHORIA 7 — MODO COMPACTO DE TABELA
   ══════════════════════════════════════════════ */
