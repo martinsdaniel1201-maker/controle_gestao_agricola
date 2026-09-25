@@ -1006,109 +1006,6 @@ function forcarAtualizacao() {
    MELHORIA 1+2+3 — RESUMO EXECUTIVO, SYNC E CHUVA
 ══════════════════════════════════════════════ */
 
-// Registro de histórico de sincronização (máx 5)
-window._syncHistorico = [];
-
-// Busca a hora REAL da última sincronização feita pelo Python (tabela
-// sync_status no Supabase) — em vez de usar a hora que o navegador buscou
-// os dados, que é o que a home mostrava antes.
-async function atualizarSyncLabelReal() {
-  const label = document.getElementById('home-sync-label');
-  const dot   = document.getElementById('home-sync-dot');
-  if (!label && !dot) return;
-  try {
-    if (typeof _sbClient === 'undefined') return;
-    const { data, error } = await _sbClient.from('sync_status').select('*');
-    if (error || !data || !data.length) return;
-
-    let maisRecente = data[0];
-    for (const row of data) {
-      if (new Date(row.ultimo_sync) > new Date(maisRecente.ultimo_sync)) maisRecente = row;
-    }
-    const dt = new Date(maisRecente.ultimo_sync);
-    const hh = String(dt.getHours()).padStart(2, '0');
-    const mm = String(dt.getMinutes()).padStart(2, '0');
-    const houveErro = data.some(r => r.status === 'erro');
-
-    if (label) label.textContent = `Sync às ${hh}:${mm}`;
-    if (dot)   dot.style.background = houveErro ? 'var(--red)' : 'var(--green-500)';
-  } catch (e) {
-    console.error('[SyncStatusReal]', e);
-  }
-}
-window.atualizarSyncLabelReal = atualizarSyncLabelReal;
-window.addEventListener('load', () => {
-  atualizarSyncLabelReal();
-  // Sincronização real acontece no app Python, em segundo plano — sem
-  // isso, o status da Home só se atualizava na hora que a página abria e
-  // ficava parado o resto do dia mesmo com Liberações sincronizando de
-  // novo várias vezes. Rechecagem a cada 1 min pega isso sem pesar.
-  setInterval(atualizarSyncLabelReal, 60000);
-});
-
-function registrarSync(status, fonte) {
-  const agora = new Date();
-  const hh = String(agora.getHours()).padStart(2,'0');
-  const mm = String(agora.getMinutes()).padStart(2,'0');
-  const entrada = { hora: `${hh}:${mm}`, status, fonte };
-  window._syncHistorico.unshift(entrada);
-  if (window._syncHistorico.length > 5) window._syncHistorico.pop();
-
-  // Label/dot da home agora vêm da hora REAL de sincronização do Python
-  // (sync_status no Supabase), não da hora que o navegador buscou os dados.
-  atualizarSyncLabelReal();
-
-  // MELHORIA 6: atualiza lista do histórico
-  renderSyncHistorico();
-
-  atualizarHubStatusLiberacoes();
-}
-
-// Faixa de status ao vivo no topo do hub "Liberações"
-function atualizarHubStatusLiberacoes() {
-  const dot = document.getElementById('hub-status-liberacoes-dot');
-  const txt = document.getElementById('hub-status-liberacoes-txt');
-  if (!txt) return;
-
-  const ultima = window._syncHistorico && window._syncHistorico[0];
-  let partes = [];
-  if (ultima) {
-    partes.push(`${ultima.status === 'ok' ? 'Sincronizado' : 'Falha na sync'} às ${ultima.hora}`);
-    if (dot) dot.style.background = ultima.status === 'ok' ? 'var(--green-500)' : 'var(--red)';
-  } else {
-    partes.push('Ainda sem sincronização nesta sessão');
-    if (dot) dot.style.background = 'var(--text-3)';
-  }
-
-  if (window._gatecDados && window._gatecDados.length) {
-    const frentesPermitidas = ["401", "402", "403", "404", "451"];
-    const abertas = new Set();
-    window._gatecDados.forEach(row => {
-      const frente = (row["FRENTE"] || "").trim();
-      if (!frentesPermitidas.includes(frente)) return;
-      const status = (row["STATUS OS"] || "").toUpperCase();
-      if (!status.includes("ENCERRADA")) abertas.add(frente);
-    });
-    partes.push(`${abertas.size} frente${abertas.size === 1 ? '' : 's'} em aberto`);
-  }
-
-  txt.textContent = partes.join(' · ');
-}
-
-function renderSyncHistorico() {
-  const wrap = document.getElementById('home-sync-historico');
-  const lista = document.getElementById('sync-hist-lista');
-  if (!wrap || !lista) return;
-  if (window._syncHistorico.length === 0) { wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
-  lista.innerHTML = window._syncHistorico.map(e => `
-    <div class="sync-hist-item">
-      <div class="shi-dot ${e.status === 'ok' ? 'ok' : 'err'}"></div>
-      <span>${e.status === 'ok' ? '✅' : '❌'} ${e.fonte || 'Planilha'}</span>
-      <span class="shi-time">${e.hora}</span>
-    </div>`).join('');
-}
-
 function atualizarResumoExecutivo() {
   if (!window._gatecDados || window._gatecDados.length === 0) return;
 
@@ -1152,8 +1049,6 @@ function atualizarResumoExecutivo() {
 
   // Popula select oculto de fazendas no filtro de Liberações
   popularFazendaLibSelect();
-
-  atualizarHubStatusLiberacoes();
 }
 
 // MELHORIA 3: Dias sem chuva via Open-Meteo
@@ -2258,8 +2153,6 @@ const difIcon = isNaN(difNum)
         badge.style.display = abertas > 0 ? 'inline-flex' : 'none';
       }
 
-      // MELHORIA 2+6: registra sincronização no histórico
-      registrarSync('ok', 'GATEC/Liberações');
       // MELHORIA 1+4+5: atualiza resumo executivo da home
       atualizarResumoExecutivo();
 }
