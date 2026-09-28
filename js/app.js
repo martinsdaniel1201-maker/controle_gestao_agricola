@@ -3743,10 +3743,14 @@ function _cosaCorTema(nomeVar) {
   return getComputedStyle(document.documentElement).getPropertyValue(nomeVar).trim() || '#999';
 }
 
+let _cosaUltimaBase = null;
+let _cosaModoHorizontal = null;
+
 function cosaRenderChart(dadosBase) {
   const card = document.getElementById('cosa-chart-card');
   const canvas = document.getElementById('cosa-chart');
   if (!card || !canvas || typeof Chart === 'undefined') return;
+  _cosaUltimaBase = dadosBase;
 
   // Agrupa por responsável x bucket, ignorando o filtro de Situação (o
   // gráfico sempre mostra a composição completa) mas respeitando
@@ -3757,12 +3761,15 @@ function cosaRenderChart(dadosBase) {
     if (!porResp[nome]) porResp[nome] = { '< 7': 0, '> 7 e < 15': 0, '> 15': 0 };
     if (porResp[nome][r.status] != null) porResp[nome][r.status]++;
   });
-  // No celular, menos categorias — senão os rótulos viram sopa de letras
-  // (mesmo ajuste feito no gráfico de Apontamento de Horas).
-  const noMobile = window.innerWidth < 480;
+
+  // Mesmas pessoas e mesmos números em qualquer tela (top 10 por nº de
+  // O.S.). No celular/tablet em pé o gráfico vira horizontal — igual ao de
+  // Apontamento de Horas — em vez de esconder responsáveis.
+  const horizontal = window.innerWidth <= _CAPO_BP_MOBILE;
+  _cosaModoHorizontal = horizontal;
   const nomes = Object.keys(porResp)
     .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0))
-    .slice(0, noMobile ? 4 : 10);
+    .slice(0, 10);
 
   if (!nomes.length) { card.style.display = 'none'; return; }
   card.style.display = 'block';
@@ -3780,29 +3787,59 @@ function cosaRenderChart(dadosBase) {
     { label: 'Mais de 15 dias', data: nomes.map(n => porResp[n]['> 15']), backgroundColor: cCritico },
   ];
 
-  // Mesma etiquetinha de valor em cima da barra do Apontamento de Horas —
-  // só desenha se couber, pra nunca embolar os números.
+  const fonteRotulo = horizontal ? 10 : 9;
+
+  // Altura do card cresce com o nº de responsáveis no mobile (58px por
+  // pessoa + legenda/eixo); no desktop devolve o controle pro CSS.
+  const wrap = canvas.parentElement;
+  if (wrap) wrap.style.height = horizontal ? (nomes.length * 58 + 64) + 'px' : '';
+
+  // Reserva espaço à direita pro maior número caber ao lado da barra.
+  let paddingDireita = 12;
+  if (horizontal) {
+    const c2 = canvas.getContext('2d');
+    c2.save();
+    c2.font = `600 ${fonteRotulo}px Arial`;
+    const maior = Math.max(0, ...datasets.map(ds => Math.max(0, ...ds.data)));
+    paddingDireita = Math.ceil(c2.measureText(String(maior)).width) + 10;
+    c2.restore();
+  }
+
+  // Etiqueta de valor. Horizontal: à direita da barra, centralizada na
+  // altura dela. Vertical (desktop): em cima, só se couber.
   const plugRotulos = {
     id: 'rotulosValorOS',
     afterDatasetsDraw(chart) {
       const { ctx } = chart;
       ctx.save();
-      ctx.font = `600 ${noMobile ? 8 : 9}px Arial`;
+      ctx.font = `600 ${fonteRotulo}px Arial`;
       ctx.fillStyle = cLabel;
-      ctx.textAlign = 'center';
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((bar, i) => {
           const valor = ds.data[i];
           if (!valor) return;
           const texto = String(valor);
-          if (ctx.measureText(texto).width > bar.width + 10) return;
-          ctx.fillText(texto, bar.x, bar.y - 4);
+          if (horizontal) {
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texto, bar.x + 4, bar.y);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            if (ctx.measureText(texto).width > bar.width + 10) return;
+            ctx.fillText(texto, bar.x, bar.y - 4);
+          }
         });
       });
       ctx.restore();
     },
   };
+
+  const escalaValores = { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0, maxTicksLimit: horizontal ? 5 : undefined }, grid: { color: cGrid } };
+  const escalaNomes = horizontal
+    ? { ticks: { color: cLabel, font: { size: 10, weight: '600' }, autoSkip: false, callback(v) { return _capoQuebrarNome(this.getLabelForValue(v), 11); } }, grid: { display: false } }
+    : { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } };
 
   if (_cosaChart) { _cosaChart.destroy(); }
   _cosaChart = new Chart(canvas.getContext('2d'), {
@@ -3810,19 +3847,31 @@ function cosaRenderChart(dadosBase) {
     data: { labels: nomes, datasets },
     plugins: [plugRotulos],
     options: {
+      indexAxis: horizontal ? 'y' : 'x',
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 16 } },
-      scales: {
-        x: { ticks: { color: cTexto, font: { size: noMobile ? 9 : 10 } }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
-      },
+      layout: { padding: horizontal ? { top: 4, right: paddingDireita } : { top: 16 } },
+      datasets: horizontal ? { bar: { categoryPercentage: 0.82, barPercentage: 0.95 } } : {},
+      interaction: horizontal ? { mode: 'index', axis: 'y', intersect: false } : undefined,
+      scales: horizontal ? { x: escalaValores, y: escalaNomes } : { x: escalaNomes, y: escalaValores },
       plugins: {
         legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
-        tooltip: { titleFont: { size: 11 }, bodyFont: { size: 11 } },
+        tooltip: {
+          titleFont: { size: 11 }, bodyFont: { size: 11 },
+          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed[horizontal ? 'x' : 'y']} O.S.` },
+        },
       },
     },
   });
 }
+
+// Girou o celular / redimensionou e cruzou o ponto de troca: redesenha.
+window.addEventListener('resize', () => {
+  clearTimeout(window._cosaResizeT);
+  window._cosaResizeT = setTimeout(() => {
+    if (!_cosaUltimaBase || !document.getElementById('cosa-chart')) return;
+    if ((window.innerWidth <= _CAPO_BP_MOBILE) !== _cosaModoHorizontal) cosaRenderChart(_cosaUltimaBase);
+  }, 200);
+});
 
 function cosaRender() {
   const dados = window._centralOSDados || [];
@@ -3872,6 +3921,7 @@ function cosaRender() {
 
   const listaEl = document.getElementById('cosa-lista');
   if (!listaEl) return;
+  _cosaGarantirBarraExportar(listaEl);
   if (!filtrados.length) {
     listaEl.innerHTML = emptyStateHTML({icon:'fa-filter-circle-xmark', title:'Nenhuma O.S. encontrada', msg:'Ajuste os filtros ou o termo de busca.'});
     return;
@@ -3894,6 +3944,275 @@ function cosaRender() {
         </div>
       </div>
     `).join('');
+}
+
+/* ══════════════════════════════════════════════
+   O.S. EM ABERTO — Exportação (PDF / Excel)
+   Geral ou por encarregado(s), com ênfase nas O.S. com mais de 15 dias:
+   ficam no topo, em vermelho, e cada seção abre com um aviso destacado.
+══════════════════════════════════════════════ */
+const _COSA_SEM_NOME = 'Não informado';
+const _cosaExp = { escopo: 'geral', sel: new Set(), so15: false, lista: [] };
+
+const _cosaCritica = r => r.status === '> 15';
+const _cosaNomeResp = r => r.responsavel || _COSA_SEM_NOME;
+const _cosaEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const _cosaRotuloStatus = { '< 7': 'Até 7 dias', '> 7 e < 15': '7 a 15 dias', '> 15': 'Mais de 15 dias', 'PLANEJADO': 'Planejado' };
+const _cosaFmtData = d => { const s = String(d || '').slice(0, 10); const p = s.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : (s || '—'); };
+const _cosaSlug = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+const _cosaOrdenarDias = (a, b) => (Number(b.dias) || -1) - (Number(a.dias) || -1);
+
+// Botão fica logo acima da lista de O.S. (injetado aqui pra não depender do HTML).
+function _cosaGarantirBarraExportar(listaEl) {
+  if (document.getElementById('cosa-export-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'cosa-export-bar';
+  bar.className = 'cosa-exp-bar';
+  bar.innerHTML = `<button type="button" class="btn-secondary cosa-exp-btn" onclick="cosaAbrirExportar()"><i class="fas fa-file-export"></i> Exportar O.S.</button>`;
+  listaEl.parentNode.insertBefore(bar, listaEl);
+}
+
+// Base da exportação: respeita a Empresa escolhida nos chips; a escolha de
+// encarregado é feita dentro da própria janela de exportação.
+function _cosaBaseExport() {
+  return (window._centralOSDados || []).filter(r => !_cosaFiltroEmpresa || r.empresa === _cosaFiltroEmpresa);
+}
+
+function _cosaEncarregadosExport(base) {
+  const m = {};
+  base.forEach(r => {
+    const n = _cosaNomeResp(r);
+    if (!m[n]) m[n] = { nome: n, total: 0, criticas: 0 };
+    m[n].total++;
+    if (_cosaCritica(r)) m[n].criticas++;
+  });
+  return Object.values(m).sort((a, b) => b.criticas - a.criticas || b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function _cosaExpMontarSecoes() {
+  let base = _cosaBaseExport();
+  if (_cosaExp.so15) base = base.filter(_cosaCritica);
+  const geral = _cosaExp.escopo === 'geral';
+  let secoes;
+  if (geral) {
+    secoes = [{ nome: null, linhas: base.slice().sort(_cosaOrdenarDias) }];
+  } else {
+    secoes = _cosaExp.lista
+      .filter(e => _cosaExp.sel.has(e.nome))
+      .map(e => ({ nome: e.nome, linhas: base.filter(r => _cosaNomeResp(r) === e.nome).sort(_cosaOrdenarDias) }))
+      .filter(s => s.linhas.length);
+  }
+  const total = secoes.reduce((s, x) => s + x.linhas.length, 0);
+  const criticas = secoes.reduce((s, x) => s + x.linhas.filter(_cosaCritica).length, 0);
+  return { secoes, total, criticas, geral };
+}
+
+function cosaAbrirExportar() {
+  const base = _cosaBaseExport();
+  if (!base.length) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
+  _cosaExp.lista = _cosaEncarregadosExport(base);
+  const nomesValidos = new Set(_cosaExp.lista.map(e => e.nome));
+  // Se já tem encarregado filtrado na tela, abre direto nele.
+  const daTela = (_cosaFiltroResp || []).filter(n => nomesValidos.has(n));
+  _cosaExp.sel = new Set(daTela);
+  _cosaExp.escopo = daTela.length ? 'enc' : 'geral';
+  _cosaExp.so15 = false;
+
+  let ov = document.getElementById('cosa-exp-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'cosa-exp-overlay';
+    ov.className = 'mais-sheet-overlay';
+    ov.innerHTML = '<div class="mais-sheet-box cosa-exp-box" id="cosa-exp-box"></div>';
+    ov.addEventListener('click', (e) => { if (e.target === ov) cosaExpFechar(); });
+    document.body.appendChild(ov);
+  }
+  _cosaExpRender();
+  requestAnimationFrame(() => ov.classList.add('open'));
+}
+
+function cosaExpFechar() {
+  document.getElementById('cosa-exp-overlay')?.classList.remove('open');
+}
+
+function cosaExpEscopo(e) { _cosaExp.escopo = e; _cosaExpRender(); }
+function cosaExpSo15(v) { _cosaExp.so15 = !!v; _cosaExpRender(); }
+function cosaExpToggle(i) {
+  const nome = _cosaExp.lista[i]?.nome;
+  if (nome == null) return;
+  if (_cosaExp.sel.has(nome)) _cosaExp.sel.delete(nome); else _cosaExp.sel.add(nome);
+  _cosaExpRender();
+}
+function cosaExpTodos() {
+  const todos = _cosaExp.sel.size === _cosaExp.lista.length;
+  _cosaExp.sel = todos ? new Set() : new Set(_cosaExp.lista.map(e => e.nome));
+  _cosaExpRender();
+}
+
+function _cosaExpRender() {
+  const box = document.getElementById('cosa-exp-box');
+  if (!box) return;
+  const scrollAnterior = box.querySelector('.cosa-exp-lista')?.scrollTop || 0;
+  const { total, criticas, secoes } = _cosaExpMontarSecoes();
+  const enc = _cosaExp.escopo === 'enc';
+  const semSelecao = enc && !_cosaExp.sel.size;
+  const semDados = !total;
+  const desabilitar = (semSelecao || semDados) ? 'disabled' : '';
+
+  const listaHtml = enc ? `
+    <div class="cosa-exp-lista-head">
+      <span>Encarregados</span>
+      <button type="button" class="cosa-exp-link" onclick="cosaExpTodos()">${_cosaExp.sel.size === _cosaExp.lista.length ? 'Limpar' : 'Selecionar todos'}</button>
+    </div>
+    <div class="cosa-exp-lista">
+      ${_cosaExp.lista.map((e, i) => `
+        <label class="cosa-exp-item ${_cosaExp.sel.has(e.nome) ? 'on' : ''}">
+          <input type="checkbox" ${_cosaExp.sel.has(e.nome) ? 'checked' : ''} onchange="cosaExpToggle(${i})">
+          <span class="cosa-exp-nome">${_cosaEsc(e.nome)}</span>
+          <span class="cosa-exp-cont">${e.total} O.S.${e.criticas ? ` · <b class="cosa-exp-crit">${e.criticas} &gt;15d</b>` : ''}</span>
+        </label>`).join('')}
+    </div>` : '';
+
+  let resumo;
+  if (semSelecao) resumo = 'Selecione ao menos um encarregado.';
+  else if (semDados) resumo = 'Nenhuma O.S. neste filtro.';
+  else resumo = `<b>${total}</b> O.S. serão exportadas${enc && secoes.length > 1 ? ` em ${secoes.length} seções` : ''} · <b class="${criticas ? 'cosa-exp-crit' : ''}">${criticas}</b> com mais de 15 dias`;
+
+  box.innerHTML = `
+    <div class="mais-sheet-handle"></div>
+    <div class="mais-sheet-title">Exportar O.S. em aberto${_cosaFiltroEmpresa ? ` · ${_cosaEsc(_cosaFiltroEmpresa)}` : ''}</div>
+    <div class="cosa-exp-seg">
+      <button type="button" class="${!enc ? 'on' : ''}" onclick="cosaExpEscopo('geral')"><i class="fas fa-layer-group"></i> Geral</button>
+      <button type="button" class="${enc ? 'on' : ''}" onclick="cosaExpEscopo('enc')"><i class="fas fa-user-tie"></i> Por encarregado</button>
+    </div>
+    ${listaHtml}
+    <label class="cosa-exp-check">
+      <input type="checkbox" ${_cosaExp.so15 ? 'checked' : ''} onchange="cosaExpSo15(this.checked)">
+      <span>Somente O.S. com <b>mais de 15 dias</b></span>
+    </label>
+    <div class="cosa-exp-resumo">${resumo}</div>
+    <div class="cosa-exp-acoes">
+      <button type="button" class="btn-main" ${desabilitar} onclick="cosaExpGerar('pdf')"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
+      <button type="button" class="btn-secondary" ${desabilitar} onclick="cosaExpGerar('csv')"><i class="fas fa-file-excel"></i> Excel (CSV)</button>
+    </div>`;
+  const novaLista = box.querySelector('.cosa-exp-lista');
+  if (novaLista) novaLista.scrollTop = scrollAnterior;
+}
+
+function cosaExpGerar(formato) {
+  if (formato === 'csv') _cosaExpCSV(); else _cosaExpPDF();
+}
+
+function _cosaExpNomeArquivo(geral, secoes, ext) {
+  const dataTxt = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+  const alvo = geral ? 'Geral' : (secoes.length === 1 ? _cosaSlug(secoes[0].nome) : 'Por_encarregado');
+  return `OS_em_aberto_${alvo}_${dataTxt}.${ext}`;
+}
+
+function _cosaExpCSV() {
+  const { secoes, total, geral } = _cosaExpMontarSecoes();
+  if (!total) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
+  const cab = ['Encarregado', 'O.S.', 'Fazenda', 'Cód. Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias em aberto', 'Situação', 'Mais de 15 dias'];
+  const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const linhas = [];
+  secoes.forEach(s => s.linhas.forEach(r => linhas.push([
+    _cosaNomeResp(r), r.os, r.dsc, r.fzd, r.empresa, r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio',
+    _cosaFmtData(r.dt), r.dias != null ? r.dias : '', _cosaRotuloStatus[r.status] || r.status, _cosaCritica(r) ? 'SIM' : '',
+  ].map(q).join(';'))));
+  const csv = '\uFEFF' + cab.map(q).join(';') + '\n' + linhas.join('\n');
+  _baixarArquivo(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), _cosaExpNomeArquivo(geral, secoes, 'csv'));
+  showToast(`✅ ${total} O.S. exportadas!`, 'success', 2500);
+  cosaExpFechar();
+}
+
+// Linha de contagem + faixa vermelha de alerta quando há O.S. > 15 dias.
+function _cosaExpResumoPDF(pdf, y, pgW, linhas) {
+  const c = k => linhas.filter(r => r.status === k).length;
+  const nCrit = c('> 15'), nPlan = c('PLANEJADO');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(34, 40, 31);
+  let txt = `${linhas.length} O.S. em aberto   |   Até 7 dias: ${c('< 7')}   |   7 a 15 dias: ${c('> 7 e < 15')}   |   Mais de 15 dias: ${nCrit}`;
+  if (nPlan) txt += `   |   Planejado: ${nPlan}`;
+  pdf.text(txt, 12, y + 3);
+  y += 7;
+  if (nCrit) {
+    pdf.setFillColor(198, 40, 40);
+    pdf.roundedRect(12, y, pgW - 24, 8, 1.5, 1.5, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(9.5);
+    pdf.text(`ATENÇÃO: ${nCrit} O.S. com mais de 15 dias em aberto — priorizar o encerramento`, 16, y + 5.4);
+    y += 12;
+  } else {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(46, 125, 50);
+    pdf.text('Nenhuma O.S. com mais de 15 dias em aberto.', 12, y + 3);
+    y += 8;
+  }
+  return y;
+}
+
+function _cosaExpPDF() {
+  const { secoes, total, geral } = _cosaExpMontarSecoes();
+  if (!total) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
+  if (!(window.jspdf && window.jspdf.jsPDF) && !window.jsPDF) { showToast('⚠️ Biblioteca de PDF não carregada.', 'error', 3000); return; }
+
+  const titulo = geral ? 'O.S. em Aberto — Geral' : (secoes.length === 1 ? `O.S. em Aberto — ${secoes[0].nome}` : 'O.S. em Aberto — Por Encarregado');
+  const subt = [
+    _cosaFiltroEmpresa ? `Empresa: ${_cosaFiltroEmpresa}` : 'Todas as empresas',
+    geral ? 'Todos os encarregados' : (secoes.length === 1 ? `Encarregado: ${secoes[0].nome}` : `${secoes.length} encarregados`),
+    _cosaExp.so15 ? 'Somente mais de 15 dias' : null,
+  ].filter(Boolean).join('   ·   ');
+
+  const { pdf, y: y0, pgW } = _novoPDFRelatorio(titulo, subt, geral ? 'landscape' : 'portrait');
+
+  const cabGeral = ['O.S.', 'Encarregado', 'Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias', 'Situação'];
+  const cabEnc = ['O.S.', 'Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias', 'Situação'];
+  const colGeral = { 0:{cellWidth:22}, 1:{cellWidth:44}, 2:{cellWidth:84}, 3:{cellWidth:20}, 4:{cellWidth:22}, 5:{cellWidth:26}, 6:{cellWidth:16, halign:'center'}, 7:{cellWidth:30} };
+  const colEnc = { 0:{cellWidth:20}, 1:{cellWidth:62}, 2:{cellWidth:18}, 3:{cellWidth:20}, 4:{cellWidth:24}, 5:{cellWidth:16, halign:'center'}, 6:{cellWidth:26} };
+
+  secoes.forEach((sec, i) => {
+    let y = y0;
+    if (i > 0) { pdf.addPage(); y = 16; }
+    if (!geral) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(27, 94, 32);
+      pdf.text(sec.nome, 12, y + 4);
+      y += 9;
+    }
+    y = _cosaExpResumoPDF(pdf, y, pgW, sec.linhas);
+
+    const flags = sec.linhas.map(_cosaCritica);
+    const body = sec.linhas.map(r => {
+      const fazenda = (r.dsc || '—') + (r.fzd ? `  #${r.fzd}` : '');
+      const dias = r.dias != null ? String(r.dias) : '—';
+      const tipo = r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio';
+      const st = _cosaRotuloStatus[r.status] || r.status || '—';
+      return geral
+        ? [r.os || '—', _cosaNomeResp(r), fazenda, r.empresa || '—', tipo, _cosaFmtData(r.dt), dias, st]
+        : [r.os || '—', fazenda, r.empresa || '—', tipo, _cosaFmtData(r.dt), dias, st];
+    });
+
+    pdf.autoTable({
+      ...(_PDF_TABLE_ESTILO),
+      startY: y,
+      head: [geral ? cabGeral : cabEnc],
+      body,
+      columnStyles: geral ? colGeral : colEnc,
+      didParseCell: (data) => {
+        if (data.section === 'body' && flags[data.row.index]) {
+          data.cell.styles.fillColor = [255, 235, 238];
+          data.cell.styles.textColor = [198, 40, 40];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+  });
+
+  _finalizarPDFRelatorio(pdf, _cosaExpNomeArquivo(geral, secoes, 'pdf'));
+  cosaExpFechar();
 }
 
 /* ══════════════════════════════════════════════
@@ -4030,9 +4349,32 @@ function capoFiltrar(tipo, valor) {
   capoRender();
 }
 
+// Telas até 768px (celular e tablet em pé) usam o gráfico em barras
+// HORIZONTAIS: cada responsável ganha uma "linha" com 3 barras empilhadas
+// e o número escrito ao lado da barra — sem depender da largura da tela.
+// No desktop continua o gráfico vertical de sempre.
+const _CAPO_BP_MOBILE = 768;
+let _capoUltimosArgs = null;
+let _capoModoHorizontal = null;
+
+function _capoQuebrarNome(nome, max) {
+  // "JOSÉ RICARDO" -> ['JOSÉ', 'RICARDO']: o nome inteiro aparece, em
+  // duas linhas, em vez de comer a largura do gráfico.
+  const palavras = String(nome).split(/\s+/);
+  const linhas = [];
+  let atual = '';
+  palavras.forEach(p => {
+    if (atual && (atual + ' ' + p).length > max) { linhas.push(atual); atual = p; }
+    else atual = atual ? atual + ' ' + p : p;
+  });
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
 function capoRenderChart(filtrados, planejadaPorResp) {
   const canvas = document.getElementById('capo-chart');
   if (!canvas || typeof Chart === 'undefined') return;
+  _capoUltimosArgs = [filtrados, planejadaPorResp];
 
   // Apontada: soma direta das linhas de cada pessoa (isso já bate com o
   // BI). Planejada: vem pronta de planejadaPorResp (taxa do equipamento ×
@@ -4044,13 +4386,12 @@ function capoRenderChart(filtrados, planejadaPorResp) {
     if (!porResp[nome]) porResp[nome] = { planejada: planejadaPorResp[nome] || 0, apontadas: 0 };
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
-  // No celular a tela é estreita demais pra 12 pessoas × 3 barras cada —
-  // os números viravam uma sopa de letrinhas ilegível. Mostra só os
-  // top 5 no mobile (ainda são os que mais importam, já que a lista tá
-  // ordenada por quem tem mais planejado) e 12 no desktop, que tem espaço.
-  const noMobile = window.innerWidth < 480;
-  const limite = noMobile ? 4 : 12;
-  const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, limite);
+
+  // Mesmas pessoas e mesmos números em qualquer tela (top 12 por horas
+  // planejadas). O que muda no celular é só a orientação do gráfico.
+  const horizontal = window.innerWidth <= _CAPO_BP_MOBILE;
+  _capoModoHorizontal = horizontal;
+  const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
 
   const cAzul = _cosaCorTema('--blue');
   const cVerde = _cosaCorTema('--green-500');
@@ -4059,50 +4400,74 @@ function capoRenderChart(filtrados, planejadaPorResp) {
   const cGrid = _cosaCorTema('--border');
   const cLabel = _cosaCorTema('--text');
 
-  // 3 barras lado a lado por responsável — igual você pediu: dá pra ver
-  // de cara quem está devendo (barra vermelha) sem precisar comparar
-  // altura de planejada x apontada de cabeça.
+  // 3 barras lado a lado por responsável — dá pra ver de cara quem está
+  // devendo (barra vermelha) sem comparar altura de planejada x apontada.
   const datasets = [
     { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cAzul },
     { label: 'Apontada', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cVerde },
     { label: 'Falta apontar', data: nomes.map(n => Math.max(0, porResp[n].planejada - porResp[n].apontadas)), backgroundColor: cVermelho },
   ];
 
-  const fmtCompacto = n => {
-    // Números grandes ficam abreviados (12.3k) no celular — inteiros
-    // completos (12.345) só quando tem espaço de sobra no desktop.
-    if (noMobile && n >= 1000) return (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
-    return Math.round(n).toLocaleString('pt-BR');
-  };
+  const fmtNum = n => Math.round(n).toLocaleString('pt-BR');
+  const fmtEixo = n => (n >= 1000 ? (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k' : String(n));
+  const fonteRotulo = horizontal ? 10 : 9;
 
-  // Etiquetinha com o valor em cima de cada barra — igual no BI, sem
-  // precisar passar o mouse pra ver o número. Plugin pequeno, embutido
-  // aqui mesmo, sem depender de nenhuma biblioteca extra. Só desenha se a
-  // barra tiver largura suficiente pro texto não virar uma sopa de letras
-  // (é isso que causava os números embolados no mobile).
+  // Altura do card: no mobile cresce conforme o nº de pessoas (58px por
+  // pessoa + legenda/eixo), então nada fica espremido e a página rola.
+  // No desktop devolve o controle pro CSS (.cosa-chart-wrap).
+  const wrap = canvas.parentElement;
+  if (wrap) wrap.style.height = horizontal ? (nomes.length * 58 + 64) + 'px' : '';
+
+  // Espaço reservado à direita pro maior número caber inteiro ao lado da
+  // barra, sem ser cortado na borda do gráfico.
+  let paddingDireita = 12;
+  if (horizontal) {
+    const c2 = canvas.getContext('2d');
+    c2.save();
+    c2.font = `600 ${fonteRotulo}px Arial`;
+    const maior = Math.max(0, ...datasets.map(ds => Math.max(0, ...ds.data)));
+    paddingDireita = Math.ceil(c2.measureText(fmtNum(maior)).width) + 10;
+    c2.restore();
+  }
+
+  // Etiqueta com o valor de cada barra. Horizontal: à direita da barra,
+  // centralizada na altura dela (cada barra tem ~15px, a fonte tem 10 —
+  // não há como sobrepor). Vertical (desktop): em cima, só se couber.
   const plugRotulos = {
     id: 'rotulosValor',
     afterDatasetsDraw(chart) {
       const { ctx } = chart;
-      const tamanhoFonte = noMobile ? 8 : 9;
       ctx.save();
-      ctx.font = `600 ${tamanhoFonte}px Arial`;
+      ctx.font = `600 ${fonteRotulo}px Arial`;
       ctx.fillStyle = cLabel;
-      ctx.textAlign = 'center';
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((bar, i) => {
           const valor = ds.data[i];
           if (!valor) return;
-          const texto = fmtCompacto(valor);
-          const larguraTexto = ctx.measureText(texto).width;
-          if (larguraTexto > bar.width + 10) return; // não cabe — melhor omitir que embolar
-          ctx.fillText(texto, bar.x, bar.y - 4);
+          const texto = fmtNum(valor);
+          if (horizontal) {
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texto, bar.x + 4, bar.y);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            if (ctx.measureText(texto).width > bar.width + 10) return; // não cabe — melhor omitir que embolar
+            ctx.fillText(texto, bar.x, bar.y - 4);
+          }
         });
       });
       ctx.restore();
     },
   };
+
+  const escalaValores = horizontal
+    ? { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, maxTicksLimit: 5, callback: v => fmtEixo(v) }, grid: { color: cGrid } }
+    : { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } };
+  const escalaNomes = horizontal
+    ? { ticks: { color: cLabel, font: { size: 10, weight: '600' }, autoSkip: false, callback(v) { return _capoQuebrarNome(this.getLabelForValue(v), 11); } }, grid: { display: false } }
+    : { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } };
 
   if (_capoChart) { _capoChart.destroy(); }
   _capoChart = new Chart(canvas.getContext('2d'), {
@@ -4110,19 +4475,33 @@ function capoRenderChart(filtrados, planejadaPorResp) {
     data: { labels: nomes, datasets },
     plugins: [plugRotulos],
     options: {
+      indexAxis: horizontal ? 'y' : 'x',
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 16 } },
-      scales: {
-        x: { ticks: { color: cTexto, font: { size: noMobile ? 9 : 10 } }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
-      },
+      layout: { padding: horizontal ? { top: 4, right: paddingDireita } : { top: 16 } },
+      datasets: horizontal ? { bar: { categoryPercentage: 0.82, barPercentage: 0.95 } } : {},
+      interaction: horizontal ? { mode: 'index', axis: 'y', intersect: false } : undefined,
+      scales: horizontal ? { x: escalaValores, y: escalaNomes } : { x: escalaNomes, y: escalaValores },
       plugins: {
         legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
-        tooltip: { titleFont: { size: 11 }, bodyFont: { size: 11 } },
+        tooltip: {
+          titleFont: { size: 11 }, bodyFont: { size: 11 },
+          callbacks: { label: c => ` ${c.dataset.label}: ${fmtNum(c.parsed[horizontal ? 'x' : 'y'])} h` },
+        },
       },
     },
   });
 }
+
+// Girou o celular / redimensionou a janela e cruzou o ponto de troca
+// (vertical <-> horizontal): redesenha com o layout certo.
+window.addEventListener('resize', () => {
+  clearTimeout(window._capoResizeT);
+  window._capoResizeT = setTimeout(() => {
+    if (!_capoUltimosArgs || !document.getElementById('capo-chart')) return;
+    const deveSerHorizontal = window.innerWidth <= _CAPO_BP_MOBILE;
+    if (deveSerHorizontal !== _capoModoHorizontal) capoRenderChart(..._capoUltimosArgs);
+  }, 200);
+});
 
 // Quantos dias tem o período — usa o filtro De/Até quando preenchido,
 // senão o intervalo real dos dados disponíveis (nunca conta a mais).
