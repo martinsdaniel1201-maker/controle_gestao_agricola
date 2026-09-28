@@ -1006,6 +1006,104 @@ function forcarAtualizacao() {
    MELHORIA 1+2+3 — RESUMO EXECUTIVO, SYNC E CHUVA
 ══════════════════════════════════════════════ */
 
+// Registro de histórico de sincronização (máx 5)
+window._syncHistorico = [];
+
+// Busca a hora REAL da última sincronização feita pelo Python (tabela
+// sync_status no Supabase) — em vez de usar a hora que o navegador buscou
+// os dados, que é o que a home mostrava antes.
+async function atualizarSyncLabelReal() {
+  const label = document.getElementById('home-sync-label');
+  const dot   = document.getElementById('home-sync-dot');
+  if (!label && !dot) return;
+  try {
+    if (typeof _sbClient === 'undefined') return;
+    const { data, error } = await _sbClient.from('sync_status').select('*');
+    if (error || !data || !data.length) return;
+
+    let maisRecente = data[0];
+    for (const row of data) {
+      if (new Date(row.ultimo_sync) > new Date(maisRecente.ultimo_sync)) maisRecente = row;
+    }
+    const dt = new Date(maisRecente.ultimo_sync);
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    const houveErro = data.some(r => r.status === 'erro');
+
+    if (label) label.textContent = `Sync às ${hh}:${mm}`;
+    if (dot)   dot.style.background = houveErro ? 'var(--red)' : 'var(--green-500)';
+  } catch (e) {
+    console.error('[SyncStatusReal]', e);
+  }
+}
+// home-sync-bar removido da Home a pedido do usuário (ficou ruim visualmente).
+// Mantida só a função pra não quebrar quem ainda chamar window.atualizarSyncLabelReal
+// em outro lugar — ela já sai de imediato se os elementos não existirem no DOM.
+window.atualizarSyncLabelReal = atualizarSyncLabelReal;
+
+function registrarSync(status, fonte) {
+  const agora = new Date();
+  const hh = String(agora.getHours()).padStart(2,'0');
+  const mm = String(agora.getMinutes()).padStart(2,'0');
+  const entrada = { hora: `${hh}:${mm}`, status, fonte };
+  window._syncHistorico.unshift(entrada);
+  if (window._syncHistorico.length > 5) window._syncHistorico.pop();
+
+  // Label/dot da home agora vêm da hora REAL de sincronização do Python
+  // (sync_status no Supabase), não da hora que o navegador buscou os dados.
+  atualizarSyncLabelReal();
+
+  // MELHORIA 6: atualiza lista do histórico
+  renderSyncHistorico();
+
+  atualizarHubStatusLiberacoes();
+}
+
+// Faixa de status ao vivo no topo do hub "Liberações"
+function atualizarHubStatusLiberacoes() {
+  const dot = document.getElementById('hub-status-liberacoes-dot');
+  const txt = document.getElementById('hub-status-liberacoes-txt');
+  if (!txt) return;
+
+  const ultima = window._syncHistorico && window._syncHistorico[0];
+  let partes = [];
+  if (ultima) {
+    partes.push(`${ultima.status === 'ok' ? 'Sincronizado' : 'Falha na sync'} às ${ultima.hora}`);
+    if (dot) dot.style.background = ultima.status === 'ok' ? 'var(--green-500)' : 'var(--red)';
+  } else {
+    partes.push('Ainda sem sincronização nesta sessão');
+    if (dot) dot.style.background = 'var(--text-3)';
+  }
+
+  if (window._gatecDados && window._gatecDados.length) {
+    const frentesPermitidas = ["401", "402", "403", "404", "451"];
+    const abertas = new Set();
+    window._gatecDados.forEach(row => {
+      const frente = (row["FRENTE"] || "").trim();
+      if (!frentesPermitidas.includes(frente)) return;
+      const status = (row["STATUS OS"] || "").toUpperCase();
+      if (!status.includes("ENCERRADA")) abertas.add(frente);
+    });
+    partes.push(`${abertas.size} frente${abertas.size === 1 ? '' : 's'} em aberto`);
+  }
+
+  txt.textContent = partes.join(' · ');
+}
+
+function renderSyncHistorico() {
+  const wrap = document.getElementById('home-sync-historico');
+  const lista = document.getElementById('sync-hist-lista');
+  if (!wrap || !lista) return;
+  if (window._syncHistorico.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  lista.innerHTML = window._syncHistorico.map(e => `
+    <div class="sync-hist-item">
+      <div class="shi-dot ${e.status === 'ok' ? 'ok' : 'err'}"></div>
+      <span>${e.status === 'ok' ? '✅' : '❌'} ${e.fonte || 'Planilha'}</span>
+      <span class="shi-time">${e.hora}</span>
+    </div>`).join('');
+}
+
 function atualizarResumoExecutivo() {
   if (!window._gatecDados || window._gatecDados.length === 0) return;
 
@@ -1049,6 +1147,8 @@ function atualizarResumoExecutivo() {
 
   // Popula select oculto de fazendas no filtro de Liberações
   popularFazendaLibSelect();
+
+  atualizarHubStatusLiberacoes();
 }
 
 // MELHORIA 3: Dias sem chuva via Open-Meteo
@@ -2153,6 +2253,8 @@ const difIcon = isNaN(difNum)
         badge.style.display = abertas > 0 ? 'inline-flex' : 'none';
       }
 
+      // MELHORIA 2+6: registra sincronização no histórico
+      registrarSync('ok', 'GATEC/Liberações');
       // MELHORIA 1+4+5: atualiza resumo executivo da home
       atualizarResumoExecutivo();
 }
@@ -3660,7 +3762,7 @@ function cosaRenderChart(dadosBase) {
   const noMobile = window.innerWidth < 480;
   const nomes = Object.keys(porResp)
     .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0))
-    .slice(0, noMobile ? 5 : 10);
+    .slice(0, noMobile ? 4 : 10);
 
   if (!nomes.length) { card.style.display = 'none'; return; }
   card.style.display = 'block';
@@ -3928,15 +4030,18 @@ function capoFiltrar(tipo, valor) {
   capoRender();
 }
 
-function capoRenderChart(filtrados) {
+function capoRenderChart(filtrados, planejadaPorResp) {
   const canvas = document.getElementById('capo-chart');
   if (!canvas || typeof Chart === 'undefined') return;
 
+  // Apontada: soma direta das linhas de cada pessoa (isso já bate com o
+  // BI). Planejada: vem pronta de planejadaPorResp (taxa do equipamento ×
+  // dias, dividida proporcionalmente entre quem apontou nele) — NUNCA
+  // soma horas_dia das linhas aqui, que é o cálculo que subcontava.
   const porResp = {};
   filtrados.forEach(r => {
     const nome = r.responsavel || 'Não informado';
-    if (!porResp[nome]) porResp[nome] = { planejada: 0, apontadas: 0 };
-    porResp[nome].planejada += r.horas_dia || 0;
+    if (!porResp[nome]) porResp[nome] = { planejada: planejadaPorResp[nome] || 0, apontadas: 0 };
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
   // No celular a tela é estreita demais pra 12 pessoas × 3 barras cada —
@@ -3944,7 +4049,7 @@ function capoRenderChart(filtrados) {
   // top 5 no mobile (ainda são os que mais importam, já que a lista tá
   // ordenada por quem tem mais planejado) e 12 no desktop, que tem espaço.
   const noMobile = window.innerWidth < 480;
-  const limite = noMobile ? 5 : 12;
+  const limite = noMobile ? 4 : 12;
   const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, limite);
 
   const cAzul = _cosaCorTema('--blue');
@@ -4059,6 +4164,39 @@ function _capoTaxaPorEquipamento(escopoBase) {
   return taxas;
 }
 
+// Divide a Planejada de cada EQUIPAMENTO (taxa × dias) entre os
+// responsáveis que de fato apontaram horas nele dentro do período — na
+// mesma proporção das horas apontadas de cada um. Um equipamento sem
+// nenhum apontamento no período (ninguém tocou nele) não entra aqui —
+// ele ainda conta no total geral da empresa, só não é "culpa" de ninguém
+// específico. Isso substitui a soma direta de horas_dia por pessoa, que
+// tinha o mesmo problema do total antigo: só contava dias com linha na
+// planilha, então ficava bem abaixo do BI.
+function _capoPlanejadaPorResponsavel(escopoData, taxas, dias) {
+  const porEquipResp = {};
+  escopoData.forEach(r => {
+    if (!r.cod_equip) return;
+    if (!porEquipResp[r.cod_equip]) porEquipResp[r.cod_equip] = {};
+    const nome = r.responsavel || 'Não informado';
+    porEquipResp[r.cod_equip][nome] = (porEquipResp[r.cod_equip][nome] || 0) + (r.horas_apontadas || 0);
+  });
+  const planejadaPorResp = {};
+  Object.keys(porEquipResp).forEach(equip => {
+    const planejadaEquip = (taxas[equip] || 0) * dias;
+    if (!planejadaEquip) return;
+    const porResp = porEquipResp[equip];
+    const nomes = Object.keys(porResp);
+    const totalApontadoEquip = nomes.reduce((s, n) => s + porResp[n], 0);
+    nomes.forEach(nome => {
+      // Se ninguém apontou nada nesse equipamento (só apareceu com 0h por
+      // algum motivo), divide igual entre quem aparece — melhor que travar.
+      const fracao = totalApontadoEquip > 0 ? (porResp[nome] / totalApontadoEquip) : (1 / nomes.length);
+      planejadaPorResp[nome] = (planejadaPorResp[nome] || 0) + planejadaEquip * fracao;
+    });
+  });
+  return planejadaPorResp;
+}
+
 function capoRender() {
   const dados = window._centralApontDados || [];
   const dataDe = document.getElementById('capo-data-de')?.value || '';
@@ -4070,34 +4208,52 @@ function capoRender() {
   // filtrados, senão a taxa fica incompleta também).
   const porEmpresa = dados.filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
 
-  const filtrados = porEmpresa.filter(r => {
-    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
-    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+  // Mesmo escopo, mas já com o filtro de DATA (sem ainda o de pessoa) —
+  // é o que a atribuição por responsável precisa: saber quem mexeu em
+  // cada equipamento DENTRO do período escolhido, antes de decidir quais
+  // pessoas mostrar.
+  const porEmpresaData = porEmpresa.filter(r => {
     if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
     if (dataAte && (!r.data_inicio || r.data_inicio > dataAte)) return false;
     return true;
   });
 
-  let totalPlanejada, totalApontadas;
+  const filtrados = porEmpresaData.filter(r => {
+    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
+    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+    return true;
+  });
+
+  // Taxa diária por equipamento + dias do período — a base de TUDO que é
+  // "Planejada" nesta tela, sempre calculada igual ao BI (taxa × dias,
+  // contando também dias sem apontamento nenhum lançado).
+  const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+  const taxas = _capoTaxaPorEquipamento(porEmpresa);
+
+  // Planejada de CADA responsável: a hora planejada de um equipamento é
+  // dividida entre quem apontou horas nele DENTRO do período, na mesma
+  // proporção de cada um (quem apontou 80% das horas leva 80% da
+  // planejada daquele equipamento). Sem isso, somar horas_dia das linhas
+  // existentes subcontava exatamente como o total geral subcontava antes.
+  const planejadaPorResp = _capoPlanejadaPorResponsavel(porEmpresaData, taxas, dias);
+
   const semFiltroPessoa = !_capoFiltroResp.length && !_capoFiltroSuperv.length;
-  if (semFiltroPessoa) {
-    // Sem filtrar por pessoa: dá pra calcular igual o BI (taxa do
-    // equipamento × dias do período), porque o total pertence à empresa
-    // inteira, sem ambiguidade de "de quem" é a hora planejada.
-    const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
-    const taxas = _capoTaxaPorEquipamento(porEmpresa);
-    totalPlanejada = Object.values(taxas).reduce((s, t) => s + t * dias, 0);
-    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
-  } else {
-    // Filtrando por responsável/supervisor: um mesmo equipamento pode ter
-    // mais de um operador no período, então não dá pra atribuir a taxa
-    // cheia do equipamento a uma pessoa só sem risco de contar horas de
-    // outra pessoa também. Aqui mantemos a soma direta dos apontamentos
-    // dessa pessoa como aproximação — mais conservadora, mas pode ficar
-    // abaixo do "correto" em dias que essa pessoa não lançou nada.
-    totalPlanejada = filtrados.reduce((s, r) => s + (r.horas_dia || 0), 0);
-    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
-  }
+  const totalPlanejada = semFiltroPessoa
+    ? Object.values(taxas).reduce((s, t) => s + t * dias, 0)
+    : Object.keys(planejadaPorResp)
+        .filter(nome => (!_capoFiltroResp.length || _capoFiltroResp.includes(nome)) && true)
+        .reduce((s, nome) => {
+          // Só soma quem também passa no filtro de supervisor — precisa
+          // checar pelas linhas de fato, já que planejadaPorResp não
+          // carrega supervisor (uma pessoa só tem 1 supervisor, então dá
+          // pra pegar de qualquer linha dela em porEmpresaData).
+          if (_capoFiltroSuperv.length) {
+            const temSuperv = porEmpresaData.some(r => r.responsavel === nome && _capoFiltroSuperv.includes(r.supervisor));
+            if (!temSuperv) return s;
+          }
+          return s + planejadaPorResp[nome];
+        }, 0);
+  const totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
   const totalNaoApontadas = totalPlanejada - totalApontadas;
   const pctCobertura = totalPlanejada > 0 ? Math.round((totalApontadas / totalPlanejada) * 100) : 0;
 
@@ -4146,7 +4302,7 @@ function capoRender() {
     `;
   }
 
-  capoRenderChart(filtrados);
+  capoRenderChart(filtrados, planejadaPorResp);
 
   const diasEquip = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
   const taxasEquip = _capoTaxaPorEquipamento(porEmpresa);
@@ -4199,18 +4355,23 @@ async function capoExportarGrafico() {
   const dataDe = document.getElementById('capo-data-de')?.value || '';
   const dataAte = document.getElementById('capo-data-ate')?.value || '';
   const porEmpresa = dados.filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
-  const filtrados = porEmpresa.filter(r => {
-    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
-    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+  const porEmpresaData = porEmpresa.filter(r => {
     if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
     if (dataAte && (!r.data_inicio || r.data_inicio > dataAte)) return false;
     return true;
   });
+  const filtrados = porEmpresaData.filter(r => {
+    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
+    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+    return true;
+  });
+  const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+  const taxas = _capoTaxaPorEquipamento(porEmpresa);
+  const planejadaPorResp = _capoPlanejadaPorResponsavel(porEmpresaData, taxas, dias);
   const porResp = {};
   filtrados.forEach(r => {
     const nome = r.responsavel || 'Não informado';
-    if (!porResp[nome]) porResp[nome] = { planejada: 0, apontadas: 0 };
-    porResp[nome].planejada += r.horas_dia || 0;
+    if (!porResp[nome]) porResp[nome] = { planejada: planejadaPorResp[nome] || 0, apontadas: 0 };
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
   const linhas = Object.entries(porResp)
