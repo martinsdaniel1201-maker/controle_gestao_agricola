@@ -166,6 +166,50 @@ function showTab(e, id) {
 /* Destaca o item correspondente na barra de navegação inferior. Seções sem
    ícone próprio na barra (Conferências, Simulador, Clima, Calculadora)
    destacam o botão "Mais", já que vivem dentro daquele sheet. */
+// Seções que vivem dentro do "Mais": o botão passa a mostrar a seção
+// atual (ícone + rótulo curto) em vez de um "Mais" genérico.
+const _BN_SECOES_MAIS = {
+  'conf_menu':            { label: 'Central',   icon: 'fa-gauge-high' },
+  'conf_os_aba':          { label: 'Central',   icon: 'fa-clipboard-check' },
+  'conf_novo_recurso':    { label: 'Central',   icon: 'fa-gauge-high' },
+  'central_os_aging':     { label: 'O.S.',      icon: 'fa-hourglass-half' },
+  'central_apontamentos': { label: 'Horas',     icon: 'fa-users-gear' },
+  'simulador':            { label: 'Simulador', icon: 'fa-tractor' },
+  'clima_aba':            { label: 'Clima',     icon: 'fa-cloud-sun' },
+  'calc_aba':             { label: 'Calc.',     icon: 'fa-calculator' },
+  'planejamento_safra':   { label: 'Safra',     icon: 'fa-route' },
+};
+// Sub-telas da Central Agrícola marcam o item "Central" dentro do sheet.
+const _BN_GRUPO_SHEET = {
+  'conf_os_aba': 'conf_menu', 'conf_novo_recurso': 'conf_menu',
+  'central_os_aging': 'conf_menu', 'central_apontamentos': 'conf_menu',
+};
+let _bnMaisOriginal = null;
+let _bnSecaoAtual = null;
+
+function _bnRestaurarMais() {
+  const el = document.getElementById('bn-mais');
+  if (!el) return;
+  if (_bnMaisOriginal != null) el.innerHTML = _bnMaisOriginal;
+  el.classList.remove('bn-dinamico');
+}
+
+function _bnAplicarMaisDinamico(cfg) {
+  const el = document.getElementById('bn-mais');
+  if (!el) return;
+  if (_bnMaisOriginal == null) _bnMaisOriginal = el.innerHTML; // guarda o "Mais" original 1x
+  const iconWrap = el.querySelector('.bn-icon');
+  const labelEl = el.querySelector('.bn-label');
+  if (!iconWrap || !labelEl) return; // estrutura inesperada: não mexe
+  iconWrap.innerHTML = `<i class="fas ${cfg.icon}"></i><span class="bn-mais-badge" aria-hidden="true"><i class="fas fa-ellipsis"></i></span>`;
+  labelEl.textContent = cfg.label;
+  el.classList.add('bn-dinamico');
+  el.setAttribute('aria-label', `${cfg.label} — toque para ver mais seções`);
+}
+
+/* Destaca o item correspondente na barra de navegação inferior. Seções sem
+   ícone próprio na barra passam a aparecer NO próprio botão "Mais" (ícone e
+   nome da seção atual), pra barra sempre dizer onde você está. */
 function atualizarBottomNavAtivo(id) {
   const mapa = {
     'liberacoes_menu':     'bn-liberacoes',
@@ -176,13 +220,28 @@ function atualizarBottomNavAtivo(id) {
     'plantio_aba':         'bn-plantio',
     'mapas_aba':           'bn-mapas'
   };
+  _bnSecaoAtual = id;
   const alvoId = mapa[id] || 'bn-mais';
+  const cfgMais = _BN_SECOES_MAIS[id];
+  if (alvoId === 'bn-mais' && cfgMais) _bnAplicarMaisDinamico(cfgMais);
+  else _bnRestaurarMais();
   document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
   const alvo = document.getElementById(alvoId);
   if (alvo) alvo.classList.add('active');
 }
 
+// Marca no sheet "Mais" a seção em que você está ("Você está aqui").
+function _bnMarcarSheetAtual() {
+  const alvoId = _BN_GRUPO_SHEET[_bnSecaoAtual] || _bnSecaoAtual;
+  document.querySelectorAll('#mais-sheet-overlay .mais-sheet-item').forEach(item => {
+    const oc = item.getAttribute('onclick') || '';
+    const ids = [...oc.matchAll(/['"]([a-z0-9_]+)['"]/gi)].map(m => m[1]);
+    item.classList.toggle('atual', !!alvoId && ids.includes(alvoId));
+  });
+}
+
 function abrirMaisSheet() {
+  _bnMarcarSheetAtual();
   document.getElementById('mais-sheet-overlay').classList.add('open');
 }
 
@@ -230,6 +289,8 @@ function voltarParaHome() {
   document.getElementById('btn-voltar-menu').style.display = 'none';
   document.getElementById('btn-atualizar-global').style.display = 'none';
   document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  _bnRestaurarMais();
+  _bnSecaoAtual = null;
   document.getElementById('mais-sheet-overlay').classList.remove('open');
 
   // Reexibe a Sabedoria de Campo
@@ -4725,6 +4786,40 @@ function capoRender() {
   }).join('');
 }
 
+/* Imagem do gráfico pra compartilhar: o canvas do Chart.js é TRANSPARENTE,
+   e o WhatsApp mostra PNG transparente com fundo preto (texto escuro some).
+   Aqui montamos um canvas novo com fundo BRANCO sólido, título e subtítulo,
+   e o gráfico por cima — legível em qualquer app, tema claro ou escuro. */
+function _cnvBrancoParaExportar(canvasGrafico, titulo, subtitulo) {
+  const escala = canvasGrafico.width / (canvasGrafico.clientWidth || canvasGrafico.width || 1);
+  const pad = Math.round(16 * escala);
+  const fTit = Math.round(15 * escala), fSub = Math.round(11 * escala);
+  const altCab = Math.round((subtitulo ? 46 : 30) * escala);
+  const out = document.createElement('canvas');
+  out.width = canvasGrafico.width + pad * 2;
+  out.height = canvasGrafico.height + altCab + pad * 2;
+  const c = out.getContext('2d');
+  c.fillStyle = '#FFFFFF';
+  c.fillRect(0, 0, out.width, out.height);
+  c.textBaseline = 'alphabetic';
+  c.fillStyle = '#1B5E20';
+  c.font = `800 ${fTit}px Arial, sans-serif`;
+  c.fillText(titulo, pad, pad + fTit);
+  if (subtitulo) {
+    c.fillStyle = '#4A554A';
+    c.font = `500 ${fSub}px Arial, sans-serif`;
+    c.fillText(subtitulo, pad, pad + fTit + Math.round(8 * escala) + fSub);
+  }
+  c.strokeStyle = '#E0E5E0';
+  c.lineWidth = Math.max(1, Math.round(escala));
+  c.beginPath();
+  c.moveTo(pad, pad + altCab - Math.round(6 * escala));
+  c.lineTo(out.width - pad, pad + altCab - Math.round(6 * escala));
+  c.stroke();
+  c.drawImage(canvasGrafico, pad, pad + altCab);
+  return out;
+}
+
 async function capoExportarGrafico() {
   if (!_capoChart) { if (typeof showToast === 'function') showToast('Gráfico ainda não carregado.', 'error', 2500); return; }
 
@@ -4763,7 +4858,11 @@ async function capoExportarGrafico() {
     texto += l.falta > 0 ? `⚠️ ${l.nome}: faltam ${fmtH(l.falta)}h\n` : `✅ ${l.nome}: em dia\n`;
   });
 
-  const canvas = document.getElementById('capo-chart');
+  const canvas = _cnvBrancoParaExportar(
+    document.getElementById('capo-chart'),
+    `Apontamento de Horas${_capoFiltroEmpresa ? ' — ' + _capoFiltroEmpresa : ''}`,
+    `${periodoTxt ? 'Período: ' + periodoTxt + '   ·   ' : ''}Planejada × Apontada × Falta apontar (h)`
+  );
   canvas.toBlob(async (blob) => {
     if (!blob) { if (typeof showToast === 'function') showToast('Não consegui gerar a imagem do gráfico.', 'error', 3000); return; }
     const arquivo = new File([blob], 'apontamento-de-horas.png', { type: 'image/png' });
