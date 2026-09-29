@@ -1504,6 +1504,7 @@
         <div class="cosa-chart-head">
           <i class="fas fa-chart-column"></i>
           <span>O.S. por Responsável</span>
+          <button class="tratos-header-icon-btn" id="btn-cosa-exportar" title="Exportar gráfico (compartilhar / baixar)" onclick="cosaExportarGrafico()" style="margin-left:auto;"><i class="fas fa-share-nodes"></i></button>
         </div>
         <div class="cosa-chart-wrap">
           <canvas id="cosa-chart"></canvas>
@@ -1531,16 +1532,14 @@
           <span class="lib-filtros-label">Empresa</span>
           <div class="lib-frentes-chips" id="capo-chips-empresa"></div>
         </div>
-        <div class="lib-filtros-row" style="grid-template-columns: 1fr 1fr; display:grid; gap:10px;">
+        <div class="lib-filtros-row capo-filtro-datas">
           <div class="lib-filtros-field">
             <span class="lib-filtros-label">De</span>
-            <input type="date" id="capo-data-de" onchange="capoRender()"
-                   style="border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12.5px;padding:8px 10px;width:100%;box-sizing:border-box;">
+            <input type="date" id="capo-data-de" onchange="capoRender()" class="capo-data-input">
           </div>
           <div class="lib-filtros-field">
             <span class="lib-filtros-label">Até</span>
-            <input type="date" id="capo-data-ate" onchange="capoRender()"
-                   style="border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:12.5px;padding:8px 10px;width:100%;box-sizing:border-box;">
+            <input type="date" id="capo-data-ate" onchange="capoRender()" class="capo-data-input">
           </div>
         </div>
         <div class="lib-filtros-section" id="capo-resp-wrap">
