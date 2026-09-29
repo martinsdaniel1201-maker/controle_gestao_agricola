@@ -3934,6 +3934,66 @@ window.addEventListener('resize', () => {
   }, 200);
 });
 
+// Compartilhar o gráfico de O.S. como imagem — mesmo tratamento do gráfico
+// de Apontamento de Horas (_cnvBrancoParaExportar dá fundo branco, senão o
+// WhatsApp mostra o canvas transparente do Chart.js com fundo preto e o
+// texto some). Junto vai um resumo em texto por encarregado.
+async function cosaExportarGrafico() {
+  if (!_cosaChart) { if (typeof showToast === 'function') showToast('Gráfico ainda não carregado.', 'error', 2500); return; }
+
+  // _cosaUltimaBase é a mesma base já usada pelo gráfico (respeita Empresa,
+  // Encarregado e busca; ignora só o filtro de Situação).
+  const dadosBase = _cosaUltimaBase || [];
+  const porResp = {};
+  dadosBase.forEach(r => {
+    const nome = r.responsavel || 'Não informado';
+    if (!porResp[nome]) porResp[nome] = { total: 0, criticas: 0 };
+    porResp[nome].total++;
+    if (r.status === '> 15') porResp[nome].criticas++;
+  });
+  const linhas = Object.entries(porResp)
+    .map(([nome, v]) => ({ nome, ...v }))
+    .sort((a, b) => b.criticas - a.criticas || b.total - a.total);
+
+  const periodoTxt = document.getElementById('cosa-periodo')?.textContent || '';
+  let texto = `*O.S. em Aberto${_cosaFiltroEmpresa ? ' — ' + _cosaFiltroEmpresa : ''}*\nDatas de abertura entre ${periodoTxt}\n\n`;
+  linhas.forEach(l => {
+    texto += l.criticas > 0 ? `⚠️ ${l.nome}: ${l.total} O.S. (${l.criticas} com mais de 15 dias)\n` : `✅ ${l.nome}: ${l.total} O.S.\n`;
+  });
+
+  const canvas = _cnvBrancoParaExportar(
+    document.getElementById('cosa-chart'),
+    `O.S. em Aberto${_cosaFiltroEmpresa ? ' — ' + _cosaFiltroEmpresa : ''}`,
+    `${periodoTxt ? 'Abertura entre ' + periodoTxt + '   ·   ' : ''}Até 7 × 7 a 15 × Mais de 15 dias`
+  );
+  canvas.toBlob(async (blob) => {
+    if (!blob) { if (typeof showToast === 'function') showToast('Não consegui gerar a imagem do gráfico.', 'error', 3000); return; }
+    const arquivo = new File([blob], 'os-em-aberto.png', { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      try {
+        await navigator.share({ files: [arquivo], title: 'O.S. em Aberto', text: texto });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+      }
+    }
+
+    // Sem suporte a compartilhar arquivo: baixa a imagem e abre o WhatsApp
+    // já com o texto pronto — só falta anexar a imagem baixada.
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'os-em-aberto.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (typeof showToast === 'function') showToast('📥 Imagem baixada. Abrindo o WhatsApp com o texto — é só anexar a imagem.', 'success', 5000);
+    setTimeout(() => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    }, 600);
+  }, 'image/png');
+}
+
 function cosaRender() {
   const dados = window._centralOSDados || [];
   const _cosaNorm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -8528,6 +8588,10 @@ iniciarSabedoria();
     document.getElementById('plantio-safra-label').textContent     =
       safra === '26_27' ? 'Safra 26/27' : 'Safra 25/26';
 
+    // Entrou num nível interno: o gesto/botão de voltar agora retorna ao
+    // seletor de safra (e não direto pra Home).
+    _plantioEmpilharNivel();
+
     if (!_cache[safra].loaded) {
       carregarDadosPlantio();
     } else {
@@ -8535,11 +8599,22 @@ iniciarSabedoria();
     }
   }
 
+  // Nível interno do Plantio (seletor de safra → conteúdo/comparar) no histórico de voltar.
+  function _plantioEmpilharNivel() {
+    if (typeof window.cttEmpilharVoltar !== 'function') return;
+    window.cttEmpilharVoltar(
+      'plantio-nivel',
+      plantioVoltarSeletor,
+      () => document.getElementById('plantio-seletor-safra')?.style.display === 'none'
+    );
+  }
+
   function plantioVoltarSeletor() {
     document.getElementById('plantio-seletor-safra').style.display = 'flex';
     document.getElementById('plantio-conteudo').style.display      = 'none';
     document.getElementById('plantio-comparar').style.display      = 'none';
     _compararAberto = false;
+    if (typeof window.cttDesempilharVoltar === 'function') window.cttDesempilharVoltar('plantio-nivel');
   }
 
   function plantioAbrirComparar() {
@@ -8547,6 +8622,7 @@ iniciarSabedoria();
     document.getElementById('plantio-seletor-safra').style.display = 'none';
     document.getElementById('plantio-conteudo').style.display      = 'none';
     document.getElementById('plantio-comparar').style.display      = 'block';
+    _plantioEmpilharNivel();
     // Carrega ambas as safras se necessário
     _garantirSafraCarregada('25_26');
     _garantirSafraCarregada('26_27');
@@ -9962,90 +10038,168 @@ function _onLogout() {
  
 
 /* ══════════════════════════════════════════════════════════════════════════
-   BUGFIX ANDROID: botão/gesto físico de "voltar" saía direto do app (ou
-   fechava a aba) em vez de fechar um modal aberto ou voltar pro menu Home
-   de dentro de uma seção. Causa: o app não empilhava nenhum estado de
-   histórico (history.pushState/popstate) — pro navegador, cada "voltar"
-   contava como sair da página atual, já que não havia nenhum passo interno
-   registrado. Isso NÃO muda nenhuma função existente por dentro; só observa
-   as mesmas aberturas de aba/modal que já existiam e empilha/desempilha um
-   degrau de histórico em cima.
+   HISTÓRICO / GESTO DE VOLTAR (botão físico do Android, swipe da borda e
+   swipe nativo do iOS) — todos convergem em history.back() → popstate.
+
+   O app mantém um ESPELHO do histórico do navegador (_hist). Cada degrau
+   empilhado é um destes tipos:
+     • 'tab'  — uma seção aberta (showTab)
+     • 'view' — um NÍVEL INTERNO de uma seção (ex.: Plantio: seletor de
+                safra → conteúdo da safra). Registrado por quem abre o nível
+                via window.cttEmpilharVoltar / cttDesempilharVoltar
+     • 'ov'   — um modal/bottom-sheet aberto (qualquer .modal-overlay ou
+                .mais-sheet-overlay, inclusive os criados dinamicamente)
+   Cada "voltar" desfaz exatamente o degrau do topo:
+     modal aberto → fecha o modal | nível interno → volta ao nível anterior |
+     seção → volta pra seção ANTERIOR (só cai na Home quando não sobra nada).
+
+   Correções em relação à versão anterior:
+   1) Níveis internos (Plantio etc.) não existiam no histórico → "voltar"
+      saltava direto pra Home/seção anterior. Agora entram como degrau.
+   2) Modais fechados pelo botão da tela deixavam um degrau "fantasma" no
+      histórico, e o espelho saía de sincronia. Agora o degrau é removido
+      junto com o fechamento (ou descartado sem efeito, se estiver no meio).
+   3) Só os overlays que existiam no carregamento eram observados; os
+      criados depois (ex.: exportar O.S.) faziam o "voltar" pular de tela.
+   4) Tocar na seção em que você já está não empilha mais um degrau repetido.
 ══════════════════════════════════════════════════════════════════════════ */
 (function () {
-  // Pilha das abas abertas nesta "sessão" de navegação (zera ao voltar pra
-  // Home). Cada índice é um id de aba — o topo é a aba visível agora.
-  let _cttTabStack = [];
+  const _hist = [];          // espelho dos degraus empilhados (topo = último)
+  let _ignorar = 0;          // popstates provocados por nós mesmos (limpeza)
+  let _ignorarTimer = null;
 
-  function _cttPushState(marker) {
-    try { history.pushState({ ctt: true, marker: marker }, '', location.href); }
-    catch (err) { /* ambiente sem suporte a History API — ignora silenciosamente */ }
+  function _ignorarProximoPop() {
+    _ignorar++;
+    clearTimeout(_ignorarTimer);
+    // Rede de segurança: se o navegador não disparar o popstate esperado, não
+    // deixa o contador "engolir" um voltar legítimo do usuário depois.
+    _ignorarTimer = setTimeout(function () { _ignorar = 0; }, 700);
   }
 
-  // Cada troca de aba/seção conta como um passo de navegação E entra na
-  // pilha, pra "voltar" saber pra qual tela anterior (não só pra Home) ir.
+  function _estadoDoApp() { return !!(history.state && history.state.ctt); }
+
+  function _pushEntrada(item) {
+    try { history.pushState({ ctt: true, t: item.t }, '', location.href); }
+    catch (err) { return false; }  // ambiente sem History API — ignora
+    _hist.push(item);
+    return true;
+  }
+
+  // Remove do navegador degraus que já foram descartados no espelho, sem
+  // mexer na tela (o popstate resultante é ignorado).
+  function _limparDegraus(n) {
+    if (n <= 0 || !_estadoDoApp()) return;
+    _ignorarProximoPop();
+    try { history.go(-n); } catch (err) { /* ignora */ }
+  }
+
+  const _ultimoIndice = function (pred) {
+    for (let i = _hist.length - 1; i >= 0; i--) if (pred(_hist[i])) return i;
+    return -1;
+  };
+  const _topoTab = function () {
+    const i = _ultimoIndice(function (x) { return x.t === 'tab'; });
+    return i >= 0 ? _hist[i].id : null;
+  };
+  // Degrau que já não faz sentido desfazer (modal já fechado / nível já saído)
+  const _orfao = function (x) {
+    if (x.t === 'ov')   return !x.el.classList.contains('open');
+    if (x.t === 'view') return !!x.ativo && !x.ativo();
+    return false;
+  };
+
+  /* ── seções ─────────────────────────────────────────────────────────── */
   const _showTabOriginal = window.showTab;
   if (typeof _showTabOriginal === 'function') {
     window.showTab = function (e, id) {
       _showTabOriginal(e, id);
-      _cttTabStack.push(id);
-      _cttPushState('tab:' + id);
+      if (_topoTab() !== id) _pushEntrada({ t: 'tab', id: id });
     };
   }
 
-  // Ao voltar pro menu Home (pelo botão em tela, pelo bn-home, ou pelo
-  // próprio popstate abaixo quando a pilha esvazia), consome de uma vez
-  // TODOS os degraus de histórico acumulados na pilha atual — assim o
-  // navegador e o estado do app nunca ficam dessincronizados.
   const _voltarParaHomeOriginal = window.voltarParaHome;
   if (typeof _voltarParaHomeOriginal === 'function') {
     window.voltarParaHome = function () {
       _voltarParaHomeOriginal();
-      const passos = _cttTabStack.length;
-      _cttTabStack = [];
-      if (passos > 0 && history.state && history.state.ctt) {
-        try { history.go(-passos); } catch (err) { /* ignora */ }
-      }
+      const passos = _hist.length;
+      _hist.length = 0;
+      _limparDegraus(passos);  // consome todos os degraus de uma vez
     };
   }
 
-  // Qualquer modal/overlay que já existia no app (.modal-overlay,
-  // #mais-sheet-overlay) empilha um degrau quando ganha a classe "open" —
-  // sem precisar alterar cada função de abrir modal uma por uma.
-  document.querySelectorAll('.modal-overlay, .mais-sheet-overlay').forEach(function (overlay) {
-    let estavaAberto = overlay.classList.contains('open');
-    new MutationObserver(function () {
-      const abertoAgora = overlay.classList.contains('open');
-      if (abertoAgora && !estavaAberto) {
-        _cttPushState('overlay:' + (overlay.id || overlay.className));
-      }
-      estavaAberto = abertoAgora;
-    }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
-  });
+  /* ── níveis internos de uma seção ───────────────────────────────────────
+     window.cttEmpilharVoltar(id, aoVoltar, ativo)
+       id       identifica o nível (evita empilhar o mesmo duas vezes)
+       aoVoltar função que volta ao nível anterior (a mesma do botão da tela)
+       ativo    (opcional) devolve true enquanto o nível ainda está aberto
+     window.cttDesempilharVoltar(id): chame quando o app sair do nível por
+     conta própria (botão "voltar" da tela) pra manter o histórico em dia. */
+  window.cttEmpilharVoltar = function (id, aoVoltar, ativo) {
+    const topo = _hist[_hist.length - 1];
+    if (topo && topo.t === 'view' && topo.id === id) return;
+    _pushEntrada({ t: 'view', id: id, aoVoltar: aoVoltar, ativo: ativo });
+  };
+  window.cttDesempilharVoltar = function (id) {
+    const i = _ultimoIndice(function (x) { return x.t === 'view' && x.id === id; });
+    if (i < 0) return;
+    if (i === _hist.length - 1) { _hist.pop(); _limparDegraus(1); }
+    else { _hist[i].ativo = function () { return false; }; } // descartado no próximo voltar
+  };
 
+  /* ── modais / bottom-sheets ─────────────────────────────────────────────
+     Um observador único no <body> pega TODO overlay, inclusive os criados
+     depois do carregamento. */
+  const _SEL_OVERLAY = '.modal-overlay, .mais-sheet-overlay';
+  const _ovAberto = new WeakMap();
+
+  function _checarOverlay(el) {
+    const aberto = el.classList.contains('open');
+    if (aberto === (_ovAberto.get(el) === true)) return;
+    _ovAberto.set(el, aberto);
+    if (aberto) { _pushEntrada({ t: 'ov', el: el }); return; }
+    const i = _ultimoIndice(function (x) { return x.t === 'ov' && x.el === el; });
+    if (i < 0) return;                                   // já consumido pelo "voltar"
+    if (i === _hist.length - 1) { _hist.pop(); _limparDegraus(1); }
+    // se há degraus por cima (ex.: fechou o sheet e já navegou), o degrau fica
+    // no meio e é descartado sem efeito no próximo "voltar".
+  }
+
+  document.querySelectorAll(_SEL_OVERLAY).forEach(function (el) {
+    _ovAberto.set(el, el.classList.contains('open'));
+  });
+  new MutationObserver(function (muts) {
+    muts.forEach(function (m) {
+      const el = m.target;
+      if (el.nodeType === 1 && el.matches(_SEL_OVERLAY)) _checarOverlay(el);
+    });
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+  /* ── o "voltar" em si ───────────────────────────────────────────────── */
   window.addEventListener('popstate', function () {
-    // 1) Tem modal/overlay aberto? Fecha ele primeiro (em vez de sair do app).
-    const overlayAberto = document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open');
-    if (overlayAberto) {
-      overlayAberto.classList.remove('open');
+    if (_ignorar > 0) { _ignorar--; return; }
+
+    // Desfaz o degrau do topo; degraus "órfãos" no caminho são pulados.
+    let real = null, saltados = 0;
+    while (_hist.length) {
+      const it = _hist.pop();
+      if (_orfao(it)) { saltados++; continue; }
+      real = it;
+      break;
+    }
+    // O navegador já andou 1 degrau; anda o resto dos que descartamos.
+    _limparDegraus(saltados + (real ? 1 : 0) - 1);
+
+    if (!real) {
+      // Nada conhecido no espelho: se está numa seção, cai na Home (antes de sair do app).
+      if (document.body.classList.contains('tab-open') && _voltarParaHomeOriginal) _voltarParaHomeOriginal();
       return;
     }
-    // 2) Está dentro de uma seção? Volta pra tela ANTERIOR da pilha — igual
-    //    o botão "voltar" de qualquer app nativo — e só cai na Home quando
-    //    não sobra mais nada empilhado (era aqui que voltava direto pra
-    //    Home sempre, não importa quantos níveis o usuário tinha entrado).
-    if (document.body.classList.contains('tab-open')) {
-      _cttTabStack.pop(); // tira a aba atual, que é a que está saindo de cena
-      const anterior = _cttTabStack[_cttTabStack.length - 1];
-      if (anterior) {
-        _showTabOriginal(null, anterior);
-      } else if (_voltarParaHomeOriginal) {
-        _voltarParaHomeOriginal();
-      } else {
-        voltarParaHome();
-      }
-      return;
-    }
-    // 3) Já está na Home sem nada aberto: deixa o navegador seguir o
-    //    comportamento padrão (ex.: sair do app), que é o esperado aqui.
+    if (real.t === 'ov')   { real.el.classList.remove('open'); return; }
+    if (real.t === 'view') { try { real.aoVoltar(); } catch (err) { /* ignora */ } return; }
+
+    // Seção: volta pra ANTERIOR da pilha; só cai na Home se não sobrou nenhuma.
+    const anterior = _topoTab();
+    if (anterior) _showTabOriginal(null, anterior);
+    else if (_voltarParaHomeOriginal) _voltarParaHomeOriginal();
   });
 })();
