@@ -1027,20 +1027,20 @@
       .cosa-chart-wrap { height: 260px; }
     }
 
-    .capo-filtro-datas {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-      margin: 0 0 12px;
-    }
+    /* .lib-filtros-row já é display:grid; aqui só fixamos 2 colunas iguais
+       e a margem — a classe .lib-filtros-field cuida do min-width:0. */
+    .capo-filtro-datas { grid-template-columns: 1fr 1fr !important; margin: 0 0 12px; }
     .capo-data-input {
       border: 1px solid var(--border); border-radius: var(--radius-sm);
       background: var(--surface); color: var(--text); font-size: 12.5px;
       padding: 8px 6px; width: 100%; min-width: 0; box-sizing: border-box;
+      -webkit-appearance: none; appearance: none; /* remove o "chrome" extra do Android que alarga o input */
     }
     /* <input type="date"> nativo tem uma largura mínima própria (o
        "chrome" do seletor) que estoura uma coluna de 1fr em telas
        estreitas mesmo com width:100% — empilha em vez de vazar. */
     @media (max-width: 420px) {
-      .capo-filtro-datas { grid-template-columns: 1fr; }
+      .capo-filtro-datas { grid-template-columns: 1fr !important; }
     }
     body.dark-mode .cosa-chart-card { background: #1e1e1e; }
 
