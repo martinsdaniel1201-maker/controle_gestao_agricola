@@ -3685,6 +3685,9 @@ function emptyStateTableRow(colspan, opts) {
    Aceita tanto o schema antigo (dt_abert/digitador/dsc_fzd) quanto o novo
    direto da planilha (data/responsavel/status já prontos) — mapeamento
    tolerante pros dois casos.
+   Coluna `operacoes` (texto, operações distintas separadas por ", ") é
+   opcional — vem do SQL combinado O.S. + Atividades (LISTAGG DISTINCT no
+   Oracle, já sem duplicar). Ausente = card não mostra a linha.
 ══════════════════════════════════════════════ */
 async function _centralOsBuscarSupabasePaginado() {
   const PAGINA = 1000;
@@ -3731,6 +3734,9 @@ async function cosaInit() {
           dsc: r.dsc_fzd || r.dsc || '',
           dias: r.dias,
           status: r.status || _cosaBucket(r.dias),
+          // Operações agrícolas ligadas à O.S. (texto já vindo separado por
+          // vírgula do SQL/Excel — ver nota no início deste bloco).
+          operacoes: r.operacoes || r.operacao || r.oper || '',
         }));
         _cosaFonte = 'supabase';
       }
@@ -4004,7 +4010,7 @@ function cosaRender() {
     if (_cosaFiltroEmpresa && r.empresa !== _cosaFiltroEmpresa) return false;
     if (_cosaFiltroResp.length && !_cosaFiltroResp.includes(r.responsavel)) return false;
     if (busca) {
-      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd}`);
+      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd} ${r.operacoes || ''}`);
       if (!alvo.includes(busca)) return false;
     }
     return true;
@@ -4048,6 +4054,29 @@ function cosaRender() {
     return;
   }
   const clsPorStatus = { '< 7':'cosa-ok', '> 7 e < 15':'cosa-atencao', '> 15':'cosa-critico', 'PLANEJADO':'cosa-neutro' };
+
+  // Uma O.S. pode ter várias operações agrícolas (ex.: "1078 - Transporte
+  // de Água"); vêm prontas e já sem duplicar do SQL/planilha, uma por
+  // linha, separadas por "; " — aceita também vírgula (formato antigo, só
+  // descrição, sem código) pra não quebrar em dados mais velhos.
+  const _COSA_RE_OPER = /^(\d+)\s*-\s*(.+)$/;
+  const _cosaChipsOperacoes = (txt) => {
+    const bruto = String(txt || '').trim();
+    if (!bruto) return '';
+    const partes = bruto.split(bruto.includes(';') ? ';' : ',').map(s => s.trim()).filter(Boolean);
+    if (!partes.length) return '';
+    const linhas = partes.map(p => {
+      const m = p.match(_COSA_RE_OPER);
+      return m
+        ? `<div class="cosa-oper-row"><span class="cosa-oper-codigo">${_cosaEsc(m[1])}</span><span class="cosa-oper-desc">${_cosaEsc(m[2])}</span></div>`
+        : `<div class="cosa-oper-row"><span class="cosa-oper-dot"></span><span class="cosa-oper-desc">${_cosaEsc(p)}</span></div>`;
+    }).join('');
+    return `<div class="cosa-card-oper">
+      <div class="cosa-oper-head"><i class="fas fa-wrench"></i> Operações <span class="cosa-oper-count">${partes.length}</span></div>
+      ${linhas}
+    </div>`;
+  };
+
   listaEl.innerHTML = filtrados
     .sort((a,b) => (b.dias||0) - (a.dias||0))
     .map(r => `
@@ -4057,6 +4086,7 @@ function cosaRender() {
           <span class="cosa-badge ${clsPorStatus[r.status]||'cosa-neutro'}">${r.status}</span>
         </div>
         <div class="cosa-card-fazenda">${r.dsc || '—'}${r.fzd ? ` <span class="cosa-card-fzd">#${r.fzd}</span>` : ''}</div>
+        ${_cosaChipsOperacoes(r.operacoes)}
         <div class="cosa-card-meta">
           <span><i class="fas fa-building"></i> ${r.empresa}</span>
           <span><i class="fas fa-handshake"></i> ${r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio'}</span>
@@ -4233,12 +4263,12 @@ function _cosaExpNomeArquivo(geral, secoes, ext) {
 function _cosaExpCSV() {
   const { secoes, total, geral } = _cosaExpMontarSecoes();
   if (!total) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
-  const cab = ['Encarregado', 'O.S.', 'Fazenda', 'Cód. Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias em aberto', 'Situação', 'Mais de 15 dias'];
+  const cab = ['Encarregado', 'O.S.', 'Fazenda', 'Cód. Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias em aberto', 'Situação', 'Operações', 'Mais de 15 dias'];
   const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
   const linhas = [];
   secoes.forEach(s => s.linhas.forEach(r => linhas.push([
     _cosaNomeResp(r), r.os, r.dsc, r.fzd, r.empresa, r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio',
-    _cosaFmtData(r.dt), r.dias != null ? r.dias : '', _cosaRotuloStatus[r.status] || r.status, _cosaCritica(r) ? 'SIM' : '',
+    _cosaFmtData(r.dt), r.dias != null ? r.dias : '', _cosaRotuloStatus[r.status] || r.status, r.operacoes || '', _cosaCritica(r) ? 'SIM' : '',
   ].map(q).join(';'))));
   const csv = '\uFEFF' + cab.map(q).join(';') + '\n' + linhas.join('\n');
   _baixarArquivo(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), _cosaExpNomeArquivo(geral, secoes, 'csv'));
@@ -4307,7 +4337,11 @@ function _cosaExpPDF() {
 
     const flags = sec.linhas.map(_cosaCritica);
     const body = sec.linhas.map(r => {
-      const fazenda = (r.dsc || '—') + (r.fzd ? `  #${r.fzd}` : '');
+      // Operações entram como 2ª linha DENTRO da própria célula da Fazenda
+      // (autoTable quebra por \n sozinho) — evita adicionar coluna e
+      // reabrir a conta de largura da tabela.
+      let fazenda = (r.dsc || '—') + (r.fzd ? `  #${r.fzd}` : '');
+      if (r.operacoes) fazenda += `\nOperações: ${r.operacoes}`;
       const dias = r.dias != null ? String(r.dias) : '—';
       const tipo = r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio';
       const st = _cosaRotuloStatus[r.status] || r.status || '—';
