@@ -4558,3 +4558,40 @@ body.dark-mode .bn-mais-badge { background: #1E261E; border-color: #3A4E35; colo
 }
 body.dark-mode .mais-sheet-item.atual { background: rgba(67,160,71,0.16); border-color: #43A047; }
 body.dark-mode .mais-sheet-item.atual::after { color: #9CCC9F; }
+
+/* ── O.S. EM ABERTO — bloco "Operações" no card (código + descrição) ── */
+.cosa-card-oper {
+  margin: 2px 0 10px; padding: 8px 10px 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-left: 3px solid var(--green-500); border-radius: 8px;
+}
+.cosa-oper-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--green-700); margin-bottom: 5px;
+}
+.cosa-oper-head i { font-size: 9px; }
+.cosa-oper-count {
+  margin-left: auto; font-size: 9px; font-weight: 800;
+  color: var(--text-3); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 50px; padding: 1px 7px;
+}
+.cosa-oper-row {
+  display: flex; align-items: baseline; gap: 7px;
+  padding: 3px 0; font-size: 11.5px; line-height: 1.35;
+}
+.cosa-oper-row + .cosa-oper-row { border-top: 1px dashed var(--border); }
+.cosa-oper-codigo {
+  flex-shrink: 0; font-family: 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+  font-size: 10px; font-weight: 800; color: var(--green-900);
+  background: var(--green-50); border: 1px solid var(--green-500);
+  border-radius: 5px; padding: 1px 6px; min-width: 30px; text-align: center;
+}
+.cosa-oper-dot {
+  flex-shrink: 0; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--green-500); margin: 0 3px;
+}
+.cosa-oper-desc { color: var(--text-2); font-weight: 600; }
+body.dark-mode .cosa-card-oper { background: #212821; border-color: #333; }
+body.dark-mode .cosa-oper-codigo { background: rgba(67,160,71,0.16); border-color: #3A6B3D; color: #9CCC9F; }
+body.dark-mode .cosa-oper-count { background: #262626; border-color: #333; }
