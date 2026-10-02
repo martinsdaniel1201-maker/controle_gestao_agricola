@@ -17,7 +17,7 @@ const _sbClient = supabase.createClient(_SB_URL, _SB_KEY, {
    LOADING PADRÃO
    Componente único de carregamento (ícone + skeleton animado) usado em
    todas as telas do app — Liberações, Conferências, Clima, Planejamento
-   de Safra, Plantio e Tratos Culturais. Antes cada tela tinha seu próprio
+   de Safra e Plantio. Antes cada tela tinha seu próprio
    spinnerzinho de texto isolado (ou nem tinha animação nenhuma); agora
    todo mundo chama a mesma função e usa a mesma cara.
    CSS injetado via JS (não depende de mexer no style.css/index.html).
@@ -114,9 +114,6 @@ function showTab(e, id) {
     'central_os_aging': { nome: 'O.S. EM ABERTO', icon: 'fa-hourglass-half' },
     'central_apontamentos': { nome: 'APONTAMENTO DE HORAS', icon: 'fa-users-gear' },
     'conf_novo_recurso': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-tools' },
-    'tratos_menu': { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
-    'tratos_aba':  { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
-    'tratos_novo_recurso': { nome: 'TRATOS CULTURAIS', icon: 'fa-tools' },
     'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
     'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' },
     'plantio_aba': { nome: 'PLANTIO',      icon: 'fa-seedling' },
@@ -164,26 +161,18 @@ function showTab(e, id) {
 }
 
 /* Destaca o item correspondente na barra de navegação inferior. Seções sem
-   ícone próprio na barra (Conferências, Simulador, Clima, Calculadora)
-   destacam o botão "Mais", já que vivem dentro daquele sheet. */
+   ícone próprio na barra (Simulador, Clima, Calculadora) destacam o botão
+   "Mais", já que vivem dentro daquele sheet. A Central Agrícola tem botão
+   fixo próprio na barra. */
 // Seções que vivem dentro do "Mais": o botão passa a mostrar a seção
 // atual (ícone + rótulo curto) em vez de um "Mais" genérico.
 const _BN_SECOES_MAIS = {
-  'conf_menu':            { label: 'Central',   icon: 'fa-gauge-high' },
-  'conf_os_aba':          { label: 'Central',   icon: 'fa-clipboard-check' },
-  'conf_novo_recurso':    { label: 'Central',   icon: 'fa-gauge-high' },
-  'central_os_aging':     { label: 'O.S.',      icon: 'fa-hourglass-half' },
-  'central_apontamentos': { label: 'Horas',     icon: 'fa-users-gear' },
   'simulador':            { label: 'Simulador', icon: 'fa-tractor' },
   'clima_aba':            { label: 'Clima',     icon: 'fa-cloud-sun' },
   'calc_aba':             { label: 'Calc.',     icon: 'fa-calculator' },
   'planejamento_safra':   { label: 'Safra',     icon: 'fa-route' },
 };
-// Sub-telas da Central Agrícola marcam o item "Central" dentro do sheet.
-const _BN_GRUPO_SHEET = {
-  'conf_os_aba': 'conf_menu', 'conf_novo_recurso': 'conf_menu',
-  'central_os_aging': 'conf_menu', 'central_apontamentos': 'conf_menu',
-};
+const _BN_GRUPO_SHEET = {};
 let _bnMaisOriginal = null;
 let _bnSecaoAtual = null;
 
@@ -214,9 +203,11 @@ function atualizarBottomNavAtivo(id) {
   const mapa = {
     'liberacoes_menu':     'bn-liberacoes',
     'liberacoes':          'bn-liberacoes',
-    'tratos_menu':         'bn-tratos',
-    'tratos_aba':          'bn-tratos',
-    'tratos_novo_recurso': 'bn-tratos',
+    'conf_menu':           'bn-central',
+    'conf_os_aba':         'bn-central',
+    'central_os_aging':    'bn-central',
+    'central_apontamentos':'bn-central',
+    'conf_novo_recurso':   'bn-central',
     'plantio_aba':         'bn-plantio',
     'mapas_aba':           'bn-mapas'
   };
@@ -370,14 +361,6 @@ function atualizarKebabMenu() {
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
-  } else if (abaId === 'tratos_aba') {
-    itens = [
-      { secao: 'Exportar' },
-      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
-      { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' },
-      { secao: 'App' },
-      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
-    ];
   } else if (abaId === 'plantio_aba') {
     itens = [
       { secao: 'Exportar' },
@@ -410,12 +393,11 @@ function kebabAcao(acao) {
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarPDFLiberacoes();
       else if (sid === 'conf_os_aba') exportarPDFConfOS();
-      else if (sid === 'tratos_aba') exportarPDFTratos();
       else if (sid === 'plantio_aba') {
         if (document.getElementById('plantio-comparar')?.style.display !== 'none') exportarPDFComparar();
         else exportarPDFMapaPlantio();
       }
-      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Conferências, Tratos e Plantio.', 'info', 3000);
+      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Conferências e Plantio.', 'info', 3000);
       break;
     }
     case 'excel': {
@@ -424,8 +406,7 @@ function kebabAcao(acao) {
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarExcelLiberacoes();
       else if (sid === 'conf_os_aba') exportarConfOsExcel();
-      else if (sid === 'tratos_aba') exportarTratosExcel();
-      else showToast('ℹ️ Exportação Excel disponível em Liberações, Conferências e Tratos Culturais.', 'info', 3000);
+      else showToast('ℹ️ Exportação Excel disponível em Liberações e Conferências.', 'info', 3000);
       break;
     }
     case 'atualizar':
@@ -1921,7 +1902,7 @@ function calcularVariedade() {
 ══════════════════════════════════════════════ */
 const URL_GATEC_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
 
-// ── Helpers próprios do módulo (mesmo padrão usado em Tratos) ──────────────
+// ── Helpers próprios do módulo (padrão próprio do módulo) ──────────────
 function _gatecTxtOuNull(v) {
   const s = (v ?? '').toString().trim();
   return s === '' ? null : s;
@@ -2752,7 +2733,7 @@ function _atualizarContadorFrentesLib() {
 
 /* ══════════════════════════════════════════════
    APP-SS: Search-Select genérico reutilizável
-   (usa mesma lógica do tratos-ss, mas global)
+   (componente global)
 ══════════════════════════════════════════════ */
 function _appSSRefs(ssId) {
   const wrap  = document.getElementById('ss-' + ssId);
@@ -2875,8 +2856,8 @@ function toggleResumoMobile() {
   if (label) label.textContent = aberto ? 'Toque para recolher' : 'Toque para expandir';
 }
 
-/* Multi-seleção de Fazenda em Liberações — mesmo componente visual usado em
-   Tratos Culturais (window._tratosMultiSel.libFazenda) */
+/* Multi-seleção de Fazenda em Liberações (window._tratosMultiSel.libFazenda —
+   componente definido em "SELETOR MÚLTIPLO DE FAZENDA — LIBERAÇÕES") */
 function _libFazendaSelecionadas() {
   return window._tratosMultiSel?.libFazenda || new Set();
 }
@@ -5640,13 +5621,6 @@ setTimeout(() => {
   if (typeof carregarPlanejamentoSafra === 'function') carregarPlanejamentoSafra();
 }, 2000);
 
-// Pré-carregar Tratos Culturais em background foi REMOVIDO — mesmo só a
-// safra atual já é gente demais (dezenas/centenas de milhares de linhas),
-// e o carregamento ficava "preso" bem na hora que o usuário abria a aba,
-// travando a tela de loading sem deixar nem usar o atalho rápido. Agora
-// a aba de Tratos abre direto no resumo rápido por Fazenda (via RPC,
-// calculado no servidor) assim que é aberta — ver _tratosAutoAbrirRapido.
-
 // Dark mode
 restaurarDarkMode();
 
@@ -5683,12 +5657,6 @@ function toggleCard(id) {
   card.classList.toggle('open');
 }
 
-// Colapsável para cards de Tratos Culturais — acionado pelo header clicável
-function toggleTratosCard(headerEl) {
-  const card = headerEl.closest('.tratos-card-collapsible');
-  if (!card) return;
-  card.classList.toggle('open');
-}
   /* ══════════════════════════════════════════════
    SERVICE WORKER — SUPORTE OFFLINE / PWA
 ══════════════════════════════════════════════ */
@@ -5836,862 +5804,18 @@ iniciarSabedoria();
   if (inpFim) { inpFim.max = ontemStr; inpFim.min = '1940-01-01'; inpFim.value = ontemStr; }
 })();
 
-/* ══════════════════════════════════════════════
-   MÓDULO TRATOS CULTURAIS
-   Fonte: aba PCP — terceira aba da planilha (gid=724202507)
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   SELETOR MÚLTIPLO DE FAZENDA — LIBERAÇÕES
+   Dropdown com busca e seleção múltipla do filtro "Fazenda" da tela
+   Liberações (mesmo visual .tratos-ms-*).
+   — window._tratosMultiSel.libFazenda     = Set de fazendas marcadas
+   — window._tratosMultiOpcoes.libFazenda  = lista {value,label} disponível
+══════════════════════════════════════════════════════════════ */
 (function() {
   'use strict';
 
-  // ── URL da aba PCP (3ª aba da planilha) ──────────────────────────────────
-  // Se não carregar, confirme o gid em: Arquivo → Publicar na web → selecione "PCP" → copie o link CSV.
-  const URL_TRATOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=724202507&single=true&output=csv';
-
-  const ALERTA_DOSE_PCT = 10;
-
-  window._tratosDados     = null;
-  window._tratosFiltrados = null;
-  let   _tratosIniciado   = false;
-
-  window.iniciarModuloTratos     = iniciarModuloTratos;
-  window.carregarDadosTratos     = carregarDadosTratos;
-  window.filtrarTratos           = filtrarTratos;
-  window.exportarTratosExcel     = exportarTratosExcel;
-  window.gerarRelatorioTratos    = gerarRelatorioTratos;
-  window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
-  window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
-
-  // Ao abrir a aba de Tratos, já cai direto na tela de filtros (Período +
-  // Fazenda/Produto/Operação/Grupo) — sem baixar nenhuma linha ainda e sem
-  // nenhuma consulta prévia de safra (isso agora é derivado da data). O
-  // usuário define o que quer ver e só busca os dados quando clicar em
-  // "Filtrar".
-  function _tratosAutoAbrirRapido() {
-    if (_tratosIniciado) return; // já foi aberto nesta sessão — não repete
-    _tratosIniciado = true;
-    _tratosMostrarTelaFiltros();
-  }
-  window._tratosAutoAbrirRapido = _tratosAutoAbrirRapido;
-
-  /* ══════════════════════════════════════════════════════════════
-     SINCRONIZAÇÃO COM SUPABASE (public.tratos_pcp)
-     — Tabela no schema "public" (evita o erro 406 do schema "ctt"
-       não exposto na Data API — ver /sql/01_criar_tabela_tratos_pcp.sql)
-     — Busca a planilha PCP direto do Google Sheets (fonte da verdade
-       pra sincronizar) via _tratosCarregarCSVFonte() — não usa
-       window._tratosDados, que a partir de agora vem do Supabase
-       (é o que a TELA usa pra exibir, não pra sincronizar)
-     — Monta 1 registro por linha, com um hash SHA-256 de TODO o
-       conteúdo relevante da linha como chave de upsert idempotente.
-       Isso é o que garante "não duplicar": resincronizar a mesma
-       planilha nunca cria linha nova, e uma linha genuinamente
-       diferente (mesmo que só a área mude, por fracionamento) sempre
-       vira um registro à parte — nunca sobrescreve outra por engano.
-     — Nro. Lançamento sozinho NÃO é chave (pode cobrir vários
-       produtos da mesma O.S.), por isso não é usado como PK.
-  ══════════════════════════════════════════════════════════════ */
-  function _txtOuNull(v) {
-    const s = (v == null ? '' : String(v)).trim();
-    return s === '' ? null : s;
-  }
-  function _numOuNull(v) {
-    const n = parseNum(v);
-    return isNaN(n) ? null : n;
-  }
-  function _dataISOOuNull(v) {
-    const d = parseData(v);
-    if (!d) return null;
-    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-  async function _sha256Hex(str) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  async function _montarRegistroTratosSupabase(row, cols) {
-    const reg = {
-      data_aplicacao   : _dataISOOuNull(row[cols.colData]),
-      nr_os            : _txtOuNull(row[cols.colOS]),
-      cod_produto      : _txtOuNull(row[cols.colCodProd]),
-      desc_produto     : _txtOuNull(row[cols.colDescProd]),
-      cod_operacao     : _txtOuNull(row[cols.colCodOp]),
-      desc_operacao    : _txtOuNull(row[cols.colDescOp]),
-      cod_fazenda      : _txtOuNull(row[cols.colCodFazenda]),
-      desc_fazenda     : _txtOuNull(row[cols.colFazenda]),
-      cod_empresa      : _txtOuNull(row[cols.colCodEmpresa]),
-      abv_empresa      : _txtOuNull(row[cols.colAbvEmpresa]),
-      nro_lancamento   : _txtOuNull(row[cols.colLancamento]),
-      safra            : _txtOuNull(row[cols.colSafra]),
-      cod_funcionario  : _txtOuNull(row[cols.colCodFuncionario]),
-      nome_funcionario : _txtOuNull(row[cols.colFuncionario]),
-      cod_processo     : _txtOuNull(row[cols.colCodProcesso]),
-      desc_processo    : _txtOuNull(row[cols.colDescProcesso]),
-      cod_subprocesso  : _txtOuNull(row[cols.colCodSubprocesso]),
-      desc_subprocesso : _txtOuNull(row[cols.colDescSubprocesso]),
-      cod_grupo_op     : _txtOuNull(row[cols.colCodGrupoOp]),
-      desc_grupo_op    : _txtOuNull(row[cols.colDescGrupoOp]),
-      unidade          : _txtOuNull(row[cols.colUnidade]),
-      cod_setor        : _txtOuNull(row[cols.colCodSetor]),
-      desc_setor       : _txtOuNull(row[cols.colDescSetor]),
-      cod_bloco        : _txtOuNull(row[cols.colCodBloco]),
-      desc_bloco       : _txtOuNull(row[cols.colDescBloco]),
-      cod_talhao       : _txtOuNull(row[cols.colCodTalhao]),
-      municipio        : _txtOuNull(row[cols.colMunicipio]),
-      variedade        : _txtOuNull(row[cols.colVariedade]),
-      situacao_talhao  : _txtOuNull(row[cols.colSituacaoTalhao]),
-      area_aplicada    : _numOuNull(row[cols.colArea]),
-      dose_recomendada : _numOuNull(row[cols.colDoseRec]),
-      dose_aplicada    : _numOuNull(row[cols.colDoseAplic]),
-    };
-    // Chave canônica: todas as colunas em ordem fixa (alfabética) — não importa
-    // a ordem em que a planilha manda as colunas, o hash sai sempre igual
-    // pro mesmo conteúdo.
-    const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
-    reg.linha_hash = await _sha256Hex(base);
-    return reg;
-  }
-
-  // ⚠️ MUDANÇA DE ARQUITETURA: quem alimenta public.tratos_pcp agora é o
-  // script Python (sync_excel_supabase.py), rodando fora do navegador, lendo
-  // o Excel/SQL Oracle direto (325 mil linhas — inviável montar hash de cada
-  // linha e fazer upsert pelo navegador, era isso que o código antigo fazia
-  // lendo do Google Sheets). Esse botão deixou de "sincronizar a fonte" e
-  // virou só "recarregar do Supabase agora", ignorando o cache de 5 min.
-  // As funções antigas de leitura do CSV/hash (_tratosCarregarCSVFonte,
-  // _montarRegistroTratosSupabase) ficaram no arquivo sem uso, caso um dia
-  // precisem de novo — não fazem mal ficarem paradas.
-  async function sincronizarTratosSupabase() {
-    if (typeof _sbClient === 'undefined') {
-      if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000);
-      return;
-    }
-    const btn = document.getElementById('btn-tratos-sync-supabase');
-    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recarregando...'; }
-    try {
-      // forcar=true: ignora qualquer cache antigo e busca de novo no Supabase
-      await carregarDadosTratos(true);
-      if (typeof showToast === 'function') showToast('✅ Dados recarregados do Supabase.', 'success', 3000);
-    } catch (e) {
-      console.error('[Tratos→Supabase] erro ao recarregar', e);
-      if (typeof showToast === 'function') showToast('❌ Erro ao recarregar do Supabase — veja o console (F12).', 'error', 5000);
-    } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
-    }
-  }
-
-
-  // ── Definição dos NÍVEIS de agrupamento por dimensão de relatório ───────
-  //   Cada nível tem uma chave de agrupamento (key) e um texto de exibição
-  //   (label) — às vezes iguais, às vezes o label combina código+descrição.
-  function _tratosNiveisDisponiveis() {
-    const c = window._tratosCols || {};
-    return {
-      produto: {
-        key:   r => (r[c.colDescProd] || r[c.colCodProd] || '').trim(),
-        label: r => [r[c.colCodProd], r[c.colDescProd]].filter(Boolean).join(' · ') || 'Sem produto',
-      },
-      fazenda: {
-        key:   r => (r[c.colFazenda] || r[c.colCodFazenda] || '').trim(),
-        label: r => [r[c.colCodFazenda], r[c.colFazenda]].filter(Boolean).join(' · ') || 'Sem fazenda',
-      },
-      setor: {
-        key:   r => (r[c.colDescSetor] || r[c.colCodSetor] || '').trim(),
-        label: r => (r[c.colDescSetor] || r[c.colCodSetor] || 'Sem setor').trim(),
-      },
-      talhao: {
-        key:   r => (r[c.colCodTalhao] || '').trim(),
-        label: r => (r[c.colCodTalhao] || 'Sem talhão').trim(),
-      },
-      grupoOp: {
-        key:   r => (r[c.colCodGrupoOp] || r[c.colDescGrupoOp] || '').trim(),
-        label: r => [r[c.colCodGrupoOp], r[c.colDescGrupoOp]].filter(Boolean).join(' - ') || 'Sem grupo',
-      },
-      subgrupo: {
-        key:   r => (r[c.colCodSubprocesso] || r[c.colDescSubprocesso] || '').trim(),
-        label: r => [r[c.colCodSubprocesso], r[c.colDescSubprocesso]].filter(Boolean).join(' - ') || 'Sem subprocesso',
-      },
-      operacao: {
-        key:   r => (r[c.colDescOp] || r[c.colCodOp] || '').trim(),
-        label: r => [r[c.colCodOp], r[c.colDescOp]].filter(Boolean).join(' · ') || 'Sem operação',
-      },
-    };
-  }
-
-  // ── Quais níveis (em ordem) cada botão de relatório usa ─────────────────
-  //   "fazenda" e "talhao" mudam de comportamento conforme o filtro de
-  //   Produto já estar ativo ou não (ver pedido do usuário).
-  const TRATOS_RELATORIO_TITULOS = {
-    fazenda : 'Aplicação por Fazenda',
-    setor   : 'Aplicação por Setor',
-    talhao  : 'Aplicação por Talhão',
-    produto : 'Aplicação por Produto',
-    operacao: 'Aplicação por Operação',
-  };
-  function _tratosNiveisRelatorio(tipo) {
-    // Só pula o nível "produto" quando exatamente 1 produto está selecionado no filtro
-    // (com vários selecionados, o agrupamento por produto ainda ajuda a distinguir)
-    const filtroProdutoUnico = (window._tratosMultiSel?.produto?.size || 0) === 1;
-    switch (tipo) {
-      case 'fazenda':  return filtroProdutoUnico ? ['fazenda'] : ['produto', 'fazenda'];
-      case 'setor':    return ['setor'];
-      case 'talhao':   return ['fazenda', 'talhao'];
-      case 'produto':  return ['produto'];
-      // Subprocesso ainda não vem do Supabase (cod_subprocesso/desc_subprocesso
-      // seguem comentados em TRATOS_SUPABASE_COLS — não tem esse dado
-      // disponível no SQL atual). Enquanto isso, pula direto pra Grupo de
-      // Operação → Operação; incluir o nível "subgrupo" sem o dado por trás
-      // só juntava TUDO num único grupo fake "Sem subprocesso" com o total
-      // geral disfarçado de subtotal.
-      case 'operacao': return ['grupoOp', 'operacao'];
-      default:         return null;
-    }
-  }
-
-  // ── Gera o relatório hierárquico respeitando os filtros já aplicados ────
-  function gerarRelatorioTratos(tipo, btnEl) {
-    if (!window._tratosDados || !window._tratosDados.length) {
-      if (typeof showToast === 'function') showToast('⚠️ Aguarde os dados carregarem e tente novamente.', 'error', 2500);
-      return;
-    }
-    const niveis = _tratosNiveisRelatorio(tipo);
-    if (!niveis) return;
-    const dados = window._tratosFiltrados && window._tratosFiltrados.length ? window._tratosFiltrados : window._tratosDados;
-    // Marca visualmente qual relatório está sendo mostrado agora.
-    document.querySelectorAll('.report-btn').forEach(b => b.classList.remove('active'));
-    const btn = btnEl || document.querySelector(`.report-btn[data-tipo="${tipo}"]`);
-    if (btn) btn.classList.add('active');
-    _mostrarResultadoHierarquico(tipo, niveis, dados);
-  }
-
-  // ── Texto-resumo dos filtros atualmente aplicados (reaproveitado no card e no PDF) ──
-  function _tratosFiltrosAtivosTexto() {
-    const pares = [
-      ['Aplicador', 'tratos-filtro-aplicador'], ['Empresa', 'tratos-filtro-empresa'],
-    ];
-    const ativos = pares.map(([lbl, id]) => {
-      const v = selectVal(id);
-      return v ? `${lbl}: ${v}` : null;
-    }).filter(Boolean);
-    // Multi-select (Safra / Produto / Fazenda / Operação / Subprocesso / Grupo de Operação) — lista os valores marcados
-    const selSafra = window._tratosMultiSel?.safra       || new Set();
-    const selProd  = window._tratosMultiSel?.produto     || new Set();
-    const selFaz   = window._tratosMultiSel?.fazenda     || new Set();
-    const selOp    = window._tratosMultiSel?.operacao    || new Set();
-    const selSub   = window._tratosMultiSel?.subprocesso || new Set();
-    const selGrOp  = window._tratosMultiSel?.grupoOp     || new Set();
-    if (selSafra.size) ativos.unshift(`Safra: ${[...selSafra].join(', ')}`);
-    if (selProd.size) ativos.unshift(`Produto: ${[...selProd].join(', ')}`);
-    if (selFaz.size)  ativos.unshift(`Fazenda: ${[...selFaz].join(', ')}`);
-    if (selSub.size)  ativos.push(`Subprocesso: ${[...selSub].join(', ')}`);
-    if (selGrOp.size) ativos.push(`Grupo de Operação: ${[...selGrOp].join(', ')}`);
-    if (selOp.size)   ativos.push(`Operação: ${[...selOp].join(', ')}`);
-    const bIni = document.getElementById('tratos-filtro-data-ini')?.value || '';
-    const bFim = document.getElementById('tratos-filtro-data-fim')?.value || '';
-    if (bIni || bFim) ativos.push('Período: ' + (bIni || '…') + ' a ' + (bFim || '…'));
-    return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
-  }
-
-  // ── Linha de UM produto aplicado, dentro do card da O.S. — comparação de
-  //    dose em formato compacto (pill "Rec" → pill "Real" + selo de %),
-  //    em vez da frase longa "Recomendada: X   Aplicada: Y" de antes ────────
-  function _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem) {
-    const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-    const dr = parseNum(row[colDoseRec]);
-    const da = parseNum(row[colDoseAplic]);
-    let alerta = false;
-    let difStr = '';
-    if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
-      const pct = ((da - dr) / dr) * 100;
-      alerta = Math.abs(pct) > ALERTA_DOSE_PCT;
-      // Só mostra a diferença quando ela é grande o bastante pra importar —
-      // menos números na linha quando tá tudo dentro do esperado.
-      if (alerta) difStr = ` <span class="tpl-dose-dif-inline">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>`;
-    }
-    const produto = [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
-    const talhaoHtml = (mostrarTalhao && colCodTalhao)
-      ? `<span class="tpl-talhao">T${esc((row[colCodTalhao] || '—').trim() || '—')}</span>` : '';
-    const contagemHtml = (contagem && contagem > 1)
-      ? `<span class="tpl-talhao">× ${contagem}</span>` : '';
-    // 1 linha só: nome do produto (corta com "..." se for longo) + dose
-    // aplicada em destaque, dose recomendada pequena do lado — em vez de
-    // duas pílulas + seta + selo que antes ocupavam a linha toda.
-    return `<div class="tratos-produto-linha">
-      <span class="tpl-produto" title="${esc(produto)}">${esc(produto)}</span>
-      ${talhaoHtml}${contagemHtml}
-      <span class="tpl-dose-compacta${alerta ? ' alerta' : ''}" title="Aplicada / Recomendada">${esc(row[colDoseAplic] || '—')} <small>/ ${esc(row[colDoseRec] || '—')}</small>${difStr}</span>
-    </div>`;
-  }
-
-
-  // ── Colapsa linhas de produto repetidas dentro da MESMA O.S. — a planilha
-  //    PCP traz uma linha por talhão, então um produto com a mesma dose
-  //    aparecia repetido N vezes (uma por talhão) no card. Quando o relatório
-  //    não mostra o talhão (ex.: "Aplicação por Fazenda"), agrupa por
-  //    (produto + dose recomendada + dose aplicada) e mostra 1 linha só,
-  //    com "× N talhões" quando fizer sentido. Quando o relatório é por
-  //    Talhão, mantém o comportamento anterior (1 linha por talhão) ────────
-  function _tratosProdutoLinhasDedup(osRows, mostrarTalhao) {
-    const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-    const grupos = new Map(); // chave -> { row, contagem }
-    osRows.forEach(row => {
-      const chave = mostrarTalhao
-        ? [row[colCodProd], row[colDescProd], row[colDoseRec], row[colDoseAplic], row[colCodTalhao]].join('§')
-        : [row[colCodProd], row[colDescProd], row[colDoseRec], row[colDoseAplic]].join('§');
-      if (!grupos.has(chave)) grupos.set(chave, { row, contagem: 0 });
-      grupos.get(chave).contagem++;
-    });
-    return [...grupos.values()]
-      .map(({ row, contagem }) => _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem))
-      .join('');
-  }
-
-  // ── Card de UMA Ordem de Serviço, com todos os produtos aplicados nela
-  //    juntos — é o nível de detalhe (folha) de qualquer relatório. Assim
-  //    a O.S. aparece UMA vez só (com a área certa, sem duplicar) e não fica
-  //    uma área solta por produto/talhão espalhada pela tela ───────────────
-  function _tratosOSCardHTML(osRows, colOS, colArea, colCodTalhao, mostrarTalhao) {
-    const { colData } = window._tratosCols || {};
-    const os = (osRows[0][colOS] || '—').trim() || '—';
-    const dataLinha = osRows.find(r => (r[colData] || '').trim())?.[colData] || '—';
-    const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
-    const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-    const linhas = _tratosProdutoLinhasDedup(osRows, mostrarTalhao);
-    return `<div class="tratos-os-card">
-      <div class="toc-topo">
-        <span class="toc-os">O.S. ${esc(os)}</span>
-        <span class="toc-data">${esc(dataLinha)}</span>
-        <span class="toc-area">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</span>
-      </div>
-      <div class="toc-produtos">${linhas}</div>
-    </div>`;
-  }
-
-  // ── Renderiza recursivamente os níveis de agrupamento; no nível final,
-  //    agrupa por O.S. (nunca por produto/talhão solto) e mostra um card por
-  //    O.S. — código de talhão só aparece nesse card quando o relatório
-  //    escolhido for justamente o "Aplicação por Talhão" ───────────────────
-  function _tratosRenderNivel(rows, niveisDefs, niveisChaves, idx, colOS, colArea, colCodTalhao) {
-    if (idx >= niveisChaves.length) {
-      const mostrarTalhao = niveisChaves.includes('talhao');
-      const { colData } = window._tratosCols || {};
-      const porOS = new Map(); // O.S. -> linhas daquela O.S.
-      rows.forEach(row => {
-        const chave = (row[colOS] || '').trim() || '—';
-        if (!porOS.has(chave)) porOS.set(chave, []);
-        porOS.get(chave).push(row);
-      });
-      const cardsHtml = [...porOS.values()]
-        .sort((a, b) => (a[0][colData] || '').localeCompare(b[0][colData] || '', 'pt-BR'))
-        .map(osRows => _tratosOSCardHTML(osRows, colOS, colArea, colCodTalhao, mostrarTalhao))
-        .join('');
-      // Detalhe (cards de O.S.) fica minimizado por padrão — o grupo acima já
-      // mostra o total consolidado; o usuário expande só se quiser ver as O.S. ─
-      const totalOS = porOS.size;
-      const uid = 'osdet-' + Math.random().toString(36).slice(2, 10);
-      return `<div class="tratos-os-detalhe-toggle" onclick="_tratosToggleDetalheOS('${uid}', this)" data-total="${totalOS}">
-          <i class="fas fa-chevron-right toggle-chevron"></i>
-          <span>Ver ${totalOS} O.S.</span>
-        </div>
-        <div class="tratos-os-detalhe-corpo" id="${uid}" style="display:none;">${cardsHtml}</div>`;
-    }
-    const nivelDef = niveisDefs[niveisChaves[idx]];
-    const grupos = new Map(); // key -> { label, rows }
-    [...rows]
-      .sort((a, b) => nivelDef.key(a).localeCompare(nivelDef.key(b), 'pt-BR', { numeric: true }))
-      .forEach(row => {
-        const key = nivelDef.key(row) || '—';
-        if (!grupos.has(key)) grupos.set(key, { label: nivelDef.label(row), rows: [] });
-        grupos.get(key).rows.push(row);
-      });
-
-    let html = '';
-    grupos.forEach(({ label, rows: gRows }) => {
-      const areaMap = _calcAreaOS(gRows, colOS, colArea, colCodTalhao);
-      const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-      const statsExtra = _tratosStatsDoseGrupo(gRows);
-      html += `<div class="tratos-grupo-bar nivel-${idx}">
-        <span class="tgb-label">${esc(label)}</span>
-        <span class="tgb-stats">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha${statsExtra}</span>
-      </div>
-      <div class="tratos-grupo-corpo nivel-${idx}">
-        ${_tratosRenderNivel(gRows, niveisDefs, niveisChaves, idx + 1, colOS, colArea, colCodTalhao)}
-      </div>`;
-    });
-    return html;
-  }
-
-  // ── Estatística de dose exibida na barra de cada grupo do relatório.
-  //    Só faz sentido calcular a MÉDIA de dose quando o grupo tem UM produto
-  //    só (produtos diferentes têm doses/unidades diferentes, misturar não
-  //    ajuda). Sempre rotulado ("aplicada" / "recomendada") pra não ficar
-  //    ambíguo pra quem não conhece a planilha. Quando o grupo mistura mais
-  //    de um produto, não mostra nada extra além da área ────────────────────
-  function _tratosStatsDoseGrupo(gRows) {
-    const { colCodProd, colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    const produtos = new Set(gRows.map(r => [r[colCodProd], r[colDescProd]].filter(Boolean).join('§')));
-    if (produtos.size !== 1) return '';
-    let somaRec = 0, nRec = 0, somaApl = 0, nApl = 0;
-    gRows.forEach(r => {
-      const dr = parseNum(r[colDoseRec]);
-      const da = parseNum(r[colDoseAplic]);
-      if (!isNaN(dr)) { somaRec += dr; nRec++; }
-      if (!isNaN(da)) { somaApl += da; nApl++; }
-    });
-    if (!nRec && !nApl) return '';
-    const fmt = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-    const partes = [];
-    if (nApl) partes.push(`dose média aplicada: <b>${fmt(somaApl / nApl)}</b>`);
-    if (nRec) partes.push(`dose média recomendada: <b>${fmt(somaRec / nRec)}</b>`);
-    return partes.length ? ` · ${partes.join(' × ')}` : '';
-  }
-
-  // Expande/colapsa o bloco de cards de O.S. dentro de um grupo do relatório
-  function _tratosToggleDetalheOS(uid, btnEl) {
-    const corpo = document.getElementById(uid);
-    if (!corpo) return;
-    const abrindo = corpo.style.display === 'none';
-    corpo.style.display = abrindo ? 'block' : 'none';
-    btnEl.classList.toggle('open', abrindo);
-    const label = btnEl.querySelector('span');
-    if (label) {
-      const totalOS = btnEl.dataset.total || '';
-      label.textContent = abrindo ? 'Ocultar O.S.' : `Ver ${totalOS} O.S.`;
-    }
-  }
-  window._tratosToggleDetalheOS = _tratosToggleDetalheOS;
-
-  const TRATOS_LIMITE_REGISTROS = 800; // limite de linhas processadas por relatório (performance no celular)
-
-  function _mostrarResultadoHierarquico(tipo, niveisChaves, dadosFiltrados) {
-    const card = document.getElementById('card-tratos-relatorio-resultado');
-    const titulo = document.getElementById('tr-resultado-titulo');
-    const filtrosEl = document.getElementById('tr-resultado-filtros');
-    const corpo = document.getElementById('tr-resultado-corpo');
-    if (!card || !corpo) return;
-
-    const { colOS, colArea, colCodTalhao } = window._tratosCols || {};
-    const excedeu = dadosFiltrados.length > TRATOS_LIMITE_REGISTROS;
-    const base = excedeu ? dadosFiltrados.slice(0, TRATOS_LIMITE_REGISTROS) : dadosFiltrados;
-
-    titulo.textContent = TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório';
-    const areaGeralMap = _calcAreaOS(dadosFiltrados, colOS, colArea, colCodTalhao);
-    const areaGeral = Object.values(areaGeralMap).reduce((s, v) => s + v, 0);
-    filtrosEl.textContent = `${dadosFiltrados.length} registro${dadosFiltrados.length !== 1 ? 's' : ''} no filtro`
-      + (excedeu ? ` — processando os primeiros ${TRATOS_LIMITE_REGISTROS} (refine os filtros pra ver o restante)` : '')
-      + `   ·   ${_tratosFiltrosAtivosTexto()}`;
-
-    const niveisDefs = _tratosNiveisDisponiveis();
-    const pillArea = `<div class="tratos-area-pill"><i class="fas fa-ruler-combined"></i> Área total aplicada: <b>${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b></div>`;
-    corpo.innerHTML = pillArea + `<div class="tratos-hierarquia">${_tratosRenderNivel(base, niveisDefs, niveisChaves, 0, colOS, colArea, colCodTalhao)}</div>`;
-
-    window._tratosRelatorioAtual = { tipo, niveisChaves, dados: dadosFiltrados };
-    card.style.display = 'block';
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  // ── Exporta em PDF o relatório hierárquico que está na tela (formato plano,
-  //    uma coluna por nível + os dados de cada aplicação) ──────────────────
-  function exportarPDFRelatorioAgrupado() {
-    const atual = window._tratosRelatorioAtual;
-    if (!atual) { if (typeof showToast === 'function') showToast('⚠️ Gere um relatório primeiro.', 'error', 2500); return; }
-
-    const { tipo, niveisChaves, dados } = atual;
-    const { colData, colOS, colArea, colCodTalhao, colCodProd, colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    const niveisDefs = _tratosNiveisDisponiveis();
-
-    const ordenado = [...dados].sort((a, b) => {
-      for (const nk of niveisChaves) {
-        const cmp = niveisDefs[nk].key(a).localeCompare(niveisDefs[nk].key(b), 'pt-BR', { numeric: true });
-        if (cmp !== 0) return cmp;
-      }
-      return (a[colOS] || '').localeCompare(b[colOS] || '', 'pt-BR');
-    });
-
-    // Agrupa por (níveis do relatório + O.S.) — cada O.S. vira UMA linha na
-    // tabela, com todos os produtos aplicados nela juntos numa célula só,
-    // em vez de 1 linha solta por produto/talhão (o que espalhava a mesma
-    // O.S. em várias linhas com pedaços de área que pareciam de talhão).
-    const grupos = new Map();
-    ordenado.forEach(row => {
-      const chaveNiveis = niveisChaves.map(nk => niveisDefs[nk].key(row)).join('§');
-      const os = (row[colOS] || '').trim() || '—';
-      const chave = chaveNiveis + '§§' + os;
-      if (!grupos.has(chave)) grupos.set(chave, []);
-      grupos.get(chave).push(row);
-    });
-
-    const nomesNiveis = { produto: 'Produto', fazenda: 'Fazenda', setor: 'Setor', talhao: 'Talhão', grupoOp: 'Grupo de Operação', subgrupo: 'Subprocesso', operacao: 'Operação' };
-    const head = [[...niveisChaves.map(nk => nomesNiveis[nk] || nk), 'Data', 'Nº O.S.', 'Área (ha)', 'Produtos aplicados — dose recomendada → dose aplicada']];
-    const body = [...grupos.values()].map(osRows => {
-      const first = osRows[0];
-      const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
-      const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-      const produtosTxt = osRows.map(r => {
-        const dr = parseNum(r[colDoseRec]);
-        const da = parseNum(r[colDoseAplic]);
-        const difStr = (!isNaN(dr) && dr > 0 && !isNaN(da))
-          ? ' (' + (((da - dr) / dr) * 100 >= 0 ? '+' : '') + (((da - dr) / dr) * 100).toFixed(1) + '%)' : '';
-        const nome = [r[colCodProd], r[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
-        return `${nome}: ${r[colDoseRec] || '—'} → ${r[colDoseAplic] || '—'}${difStr}`;
-      }).join('\n');
-      return [
-        ...niveisChaves.map(nk => niveisDefs[nk].label(first)),
-        first[colData] || '—', first[colOS] || '—',
-        area.toLocaleString('pt-BR', { maximumFractionDigits: 1 }),
-        produtosTxt,
-      ];
-    });
-
-    // Área total sem duplicar (ver _calcAreaOS) — em destaque no cabeçalho do PDF
-    const areaTotalMap = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-    const areaTotalPDF = Object.values(areaTotalMap).reduce((s, v) => s + v, 0);
-    const { pdf, y } = _novoPDFRelatorio(
-      `Tratos Culturais — ${TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório'}`,
-      `Área total aplicada: ${areaTotalPDF.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha   ·   ${_tratosFiltrosAtivosTexto()}`,
-      'landscape'
-    );
-    pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body, bodyStyles: { ...(_PDF_TABLE_ESTILO.bodyStyles || {}), valign: 'top' } });
-    _finalizarPDFRelatorio(pdf, `Tratos_${(TRATOS_RELATORIO_TITULOS[tipo] || 'relatorio').replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
-  }
-  window.tratosSSAbrir       = tratosSSAbrir;
-  window.tratosSSFiltrar     = tratosSSFiltrar;
-  window.tratosSSLimpar      = tratosSSLimpar;
-
-  // ── HELPER: Calcula mapa OS → área SEM duplicar ─────────────────────────
-  //   A planilha PCP traz o Cód. Talhão explícito, então a regra é exata:
-  //     · Agrupa cada linha por (O.S. + Talhão)
-  //     · Dentro do mesmo (O.S. + Talhão): se as áreas registradas forem
-  //       todas IGUAIS → conta uma vez só (linhas repetidas por produto
-  //       aplicado na mesma passada, ex.: 2 produtos na mesma aplicação)
-  //     · Se forem DIFERENTES → soma (fracionamento dentro do próprio talhão)
-  //     · Talhões DIFERENTES dentro da mesma O.S. são SEMPRE somados —
-  //       nunca deduplicados entre si, pois são áreas fisicamente distintas
-  //   Se colTalhao não for informado, cai de volta na heurística por O.S. isolada.
-  function _calcAreaOS(dados, colOS, colArea, colTalhao) {
-    const osGrupos = {}; // os -> { talhaoKey -> [areas] }
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (!os) return;
-      const talhaoKey = colTalhao ? ((row[colTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
-      const area = parseNum(row[colArea]) || 0;
-      if (!osGrupos[os]) osGrupos[os] = {};
-      if (!osGrupos[os][talhaoKey]) osGrupos[os][talhaoKey] = [];
-      osGrupos[os][talhaoKey].push(area);
-    });
-    const areaOS = {};
-    Object.entries(osGrupos).forEach(([os, porTalhao]) => {
-      let total = 0;
-      Object.values(porTalhao).forEach(areas => {
-        const unicas = new Set(areas.map(a => Math.round(a * 10000)));
-        total += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
-      });
-      areaOS[os] = total;
-    });
-    return areaOS;
-  }
-
-  // ── Lazy init — abre já no resumo rápido (sem baixar linha nenhuma) ────────
-  function iniciarModuloTratos() {
-    _tratosAutoAbrirRapido();
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  function parseData(str) {
-    if (!str) return null;
-    str = str.trim();
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-      const [d, m, y] = str.split('/');
-      return new Date(+y, +m - 1, +d);
-    }
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.substring(0, 10));
-    return null;
-  }
-
-  function parseNum(v) {
-    if (v === null || v === undefined || v === '') return NaN;
-    return parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
-  }
-
-  function esc(v) {
-    return String(v == null ? '—' : v)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Detecção robusta de colunas ──────────────────────────────────────────
-  // Remove acentos e caracteres especiais, compara por inclusão
-  function detectarColunas(fields) {
-    const norm = s => String(s).toUpperCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^A-Z0-9]/g,'');
-
-    function findCol(candidates) {
-      // 1) match exato
-      for (const kw of candidates) {
-        const kwn = norm(kw);
-        const f = fields.find(c => norm(c) === kwn);
-        if (f) return f;
-      }
-      // 2) match parcial
-      for (const kw of candidates) {
-        const kwn = norm(kw);
-        const f = fields.find(c => norm(c).includes(kwn));
-        if (f) return f;
-      }
-      return '';
-    }
-
-    // Candidatos ordenados por especificidade (mais específico primeiro)
-    return {
-      colData      : findCol(['DATA APLICACAO','DATAAPLIC','DT APLIC','DATA']),
-      colOS        : findCol(['NR OS','NROS','NR. O.S.','N OS','NUMEROOS','OS']),
-      colCodProd   : findCol(['COD PRODUTO','CODPROD','CODIGO PRODUTO','COD PROD']),
-      colDescProd  : findCol(['DESC PRODUTO','DESCPROD','DESCRICAO PRODUTO','NOME PRODUTO','PRODUTO']),
-      colCodOp     : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
-      colDescOp    : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
-      colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ','CODFAZ']),
-      colFazenda   : findCol(['DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','DESC FAZENDA','DESCFAZENDA','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE']),
-      colArea      : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
-      colDoseRec   : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
-      colDoseAplic : findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
-
-      // ── Colunas adicionadas com a nova estrutura da planilha PCP ──────────
-      colCodEmpresa   : findCol(['COD EMPRESA','CODIGO EMPRESA']),
-      colAbvEmpresa   : findCol(['ABV EMPRESA','ABREVIACAO EMPRESA']),
-      colLancamento   : findCol(['NRO LANCAMENTO','NUMERO LANCAMENTO','LANCAMENTO']),
-      colSafra        : findCol(['SAFRA']),
-      colCodFuncionario: findCol(['COD FUNCIONARIO','CODIGO FUNCIONARIO']),
-      colFuncionario  : findCol(['NOME FUNCIONARIO','FUNCIONARIO','APLICADOR']), // = Aplicador
-      colCodProcesso  : findCol(['COD PROCESSO','CODIGO PROCESSO']),
-      colDescProcesso : findCol(['DESC PROCESSO','PROCESSO']),
-      colCodSubprocesso : findCol(['COD SUBPROCESSO','CODIGO SUBPROCESSO']),
-      colDescSubprocesso: findCol(['DESC SUBPROCESSO','SUBPROCESSO']),
-      colCodGrupoOp   : findCol(['COD GRUPO OP','CODIGO GRUPO OPERACAO']),
-      colDescGrupoOp  : findCol(['DESC GRUPO OP','GRUPO OPERACAO']),
-      colUnidade      : findCol(['UNIDADE']),
-      colCodSetor     : findCol(['COD SETOR','CODIGO SETOR']),
-      colDescSetor    : findCol(['DESC SETOR','SETOR']),
-      colCodBloco     : findCol(['COD BLOCO','CODIGO BLOCO']),
-      colDescBloco    : findCol(['DESC BLOCO','BLOCO']),
-      colCodTalhao    : findCol(['COD TALHAO','CODIGO TALHAO','TALHAO']),
-      colMunicipio    : findCol(['MUNICIPIO']),
-      colVariedade    : findCol(['VARIEDADE']),
-      colPrimeiraEntradaCana: findCol(['PRIMEIRA ENTRADA CANA']),
-      colUltimaEntradaCana  : findCol(['ULTIMA ENTRADA CANA']),
-      colAbvEstagioCorte    : findCol(['ABV ESTAGIO CORTE']),
-      colCodEstagioCorte    : findCol(['COD ESTAGIO CORTE','CODIGO ESTAGIO CORTE']),
-      colDtCorteAtual : findCol(['DT CORTE ATUAL']),
-      colDtPlantio    : findCol(['DT PLANTIO']),
-      colDtPrimCorte  : findCol(['DT PRIM CORTE']),
-      colDtUltCorte   : findCol(['DT ULT CORTE']),
-      colMesAplic     : findCol(['MES APLIC']),
-      colMesAnoAplic  : findCol(['MES ANO APLIC']),
-      colSituacaoTalhao: findCol(['SITUACAO TALHAO']),
-    };
-  }
-
-  // ── Popula <select> com valores únicos ordenados ─────────────────────────
-  function popularSelect(id, dados, col, defaultLabel) {
-    const sel = document.getElementById(id);
-    if (!sel || !col) return;
-    const anterior = sel.value;
-    const unicos = [...new Set(dados.map(r => (r[col] || '').trim()))].filter(Boolean).sort();
-    sel.innerHTML = `<option value="">${defaultLabel}</option>`;
-    unicos.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v;
-      o.textContent = v;
-      if (v === anterior) o.selected = true;
-      sel.appendChild(o);
-    });
-  }
-
-  // ── Popula <select> com "Cód · Desc" como label e value = valor exato da coluna ──
-  // Se colDesc não detectada, usa colCod como fallback.
-  // value sempre = o valor RAW da coluna usada — filtrarTratos compara direto com o mesmo campo.
-  function popularSelectCodDesc(id, dados, colCod, colDesc, defaultLabel) {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    const colValor = colDesc || colCod; // coluna cujo valor vai para o filtro
-    if (!colValor) return;
-    const anterior = sel.value;
-    // mapa: valorFiltro → cod (para montar label visual)
-    const mapa = {};
-    dados.forEach(r => {
-      const val = (r[colValor] || '').trim();
-      const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
-      if (val && !mapa[val]) mapa[val] = cod;
-    });
-    const vals = Object.keys(mapa).sort((a, b) => {
-      const codA = parseInt(mapa[a], 10);
-      const codB = parseInt(mapa[b], 10);
-      if (!isNaN(codA) && !isNaN(codB) && codA !== codB) return codA - codB;
-      if (!isNaN(codA) && isNaN(codB)) return -1;
-      if (isNaN(codA) && !isNaN(codB)) return 1;
-      return a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true });
-    });
-    sel.innerHTML = `<option value="">${defaultLabel}</option>`;
-    vals.forEach(val => {
-      const o = document.createElement('option');
-      o.value = val;                              // value = valor exato da linha — sem transformação
-      const cod = mapa[val];
-      o.textContent = cod ? `${cod} · ${val}` : val;
-      if (val === anterior) o.selected = true;
-      sel.appendChild(o);
-    });
-    // Garante que o select não fique em estado inconsistente após repopular
-    if (anterior && !vals.includes(anterior)) sel.value = '';
-  }
-
-  // Lê o value de um select de forma segura (sem depender de comportamento nativo variável)
-  function selectVal(id) {
-    const el = document.getElementById(id);
-    if (!el) return '';
-    return (el.options[el.selectedIndex]?.value || '').trim();
-  }
-
-  /* ══════════════════════════════════════════════════════════════
-     SEARCH-SELECT CUSTOMIZADO (Produto / Grupo de Operação / Aplicador)
-     — O <select> real fica oculto e é a única fonte de verdade.
-     — Ao escolher, apenas seta sel.value (dispara 'change' por
-       compatibilidade, mas nada mais ouve esse evento) — o filtro só
-       é aplicado quando o usuário clica no botão "Filtrar".
-  ══════════════════════════════════════════════════════════════ */
-  function _tratosSSRefs(selectId) {
-    const sel    = document.getElementById(selectId);
-    const wrap   = document.getElementById('ss-' + selectId);
-    if (!sel || !wrap) return null;
-    const input  = wrap.querySelector('.tratos-ss-input');
-    const lista  = wrap.querySelector('.tratos-ss-lista');
-    const clearBtn = wrap.querySelector('.tratos-ss-clear');
-    return { sel, wrap, input, lista, clearBtn };
-  }
-
-  // Monta a lista de opções (a partir do <select> real) e aplica filtro de texto opcional
-  function _tratosSSRenderLista(selectId, termo) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    const { sel, lista } = r;
-    const termoNorm = (termo || '').trim().toLowerCase();
-    const opts = Array.from(sel.options).filter(o => o.value !== ''); // ignora "— Todos —"
-
-    const filtradas = !termoNorm
-      ? opts
-      : opts.filter(o => o.textContent.toLowerCase().includes(termoNorm));
-
-    if (filtradas.length === 0) {
-      lista.innerHTML = `<div class="tratos-ss-opt ss-empty">Nenhum resultado</div>`;
-      return;
-    }
-
-    lista.innerHTML = filtradas.map(o => {
-      const selecionado = o.value === sel.value && sel.value !== '';
-      return `<div class="tratos-ss-opt${selecionado ? ' selected' : ''}" data-val="${esc(o.value)}">${o.innerHTML}</div>`;
-    }).join('');
-
-    // Liga clique em cada opção
-    lista.querySelectorAll('.tratos-ss-opt[data-val]').forEach(div => {
-      div.addEventListener('mousedown', (ev) => {
-        ev.preventDefault(); // evita perder o foco antes do click
-        _tratosSSEscolher(selectId, div.dataset.val);
-      });
-    });
-  }
-
-  // Abre a lista (chamado no focus do input)
-  function tratosSSAbrir(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    document.querySelectorAll('.tratos-ss.open').forEach(el => {
-      if (el.id !== 'ss-' + selectId) el.classList.remove('open');
-    });
-    r.wrap.classList.add('open');
-    // Seleciona todo o texto do campo ao abrir, para que a digitação substitua imediatamente
-    r.input.select();
-    _tratosSSRenderLista(selectId, '');
-  }
-
-  // Filtra conforme o usuário digita
-  function tratosSSFiltrar(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    r.wrap.classList.add('open');
-    if (r.clearBtn) r.clearBtn.style.display = r.input.value ? 'block' : 'none';
-    _tratosSSRenderLista(selectId, r.input.value);
-  }
-
-  // Usuário clicou numa opção da lista
-  function _tratosSSEscolher(selectId, val) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    r.sel.value = val;
-    if (val) {
-      const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-      r.input.value = optLabel ? optLabel.textContent : val;
-      r.clearBtn.style.display = 'block';
-    } else {
-      r.input.value = '';
-      r.clearBtn.style.display = 'none';
-    }
-    r.wrap.classList.remove('open');
-    r.sel.dispatchEvent(new Event('change'));
-  }
-
-  // Botão "x" — limpa o filtro
-  function tratosSSLimpar(selectId) {
-    _tratosSSEscolher(selectId, '');
-  }
-
-  // Sincroniza o texto exibido no input com o valor atual do select (chamado após popular os selects)
-  function _tratosSSSync(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    const val = r.sel.value;
-    const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-    r.input.value = (val && optLabel) ? optLabel.textContent : '';
-    if (r.clearBtn) r.clearBtn.style.display = val ? 'block' : 'none';
-  }
-
-  // Fecha qualquer lista aberta ao clicar fora do componente
-  document.addEventListener('click', (ev) => {
-    document.querySelectorAll('.tratos-ss.open').forEach(wrap => {
-      if (!wrap.contains(ev.target)) wrap.classList.remove('open');
-    });
-  });
-
-  /* ══════════════════════════════════════════════════════════════
-     MULTI-SELECT CUSTOMIZADO (Fazenda / Operação Agrícola)
-     — window._tratosMultiSel[campo] guarda o Set de valores marcados
-     — window._tratosMultiOpcoes[campo] guarda a lista {value,label}
-       disponível (repopulada a cada carga de dados)
-  ══════════════════════════════════════════════════════════════ */
-  window._tratosMultiSel    = { fazenda: new Set(), operacao: new Set(), produto: new Set(), grupoOp: new Set(), subprocesso: new Set(), libFazenda: new Set(), safra: new Set() };
-  window._tratosMultiOpcoes = { fazenda: [], operacao: [], produto: [], grupoOp: [], subprocesso: [], libFazenda: [], safra: [] };
-
-  function _tratosMSPopular(campo, dados, colCod, colDesc) {
-    const colValor = colDesc || colCod;
-    if (!colValor) { window._tratosMultiOpcoes[campo] = []; return; }
-    const mapa = {};
-    dados.forEach(r => {
-      const val = (r[colValor] || '').trim();
-      const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
-      if (val && !mapa[val]) mapa[val] = cod;
-    });
-    const vals = Object.keys(mapa).sort((a, b) => {
-      const codA = parseInt(mapa[a], 10);
-      const codB = parseInt(mapa[b], 10);
-      if (!isNaN(codA) && !isNaN(codB) && codA !== codB) return codA - codB;
-      if (!isNaN(codA) && isNaN(codB)) return -1;
-      if (isNaN(codA) && !isNaN(codB)) return 1;
-      return a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true });
-    });
-    window._tratosMultiOpcoes[campo] = vals.map(v => ({ value: v, label: mapa[v] ? `${mapa[v]} · ${v}` : v }));
-    // Remove da seleção valores que sumiram do dataset atual
-    const validos = new Set(vals);
-    [...window._tratosMultiSel[campo]].forEach(v => { if (!validos.has(v)) window._tratosMultiSel[campo].delete(v); });
-    _tratosMSSyncDisplay(campo);
-  }
+  window._tratosMultiSel    = { libFazenda: new Set() };
+  window._tratosMultiOpcoes = { libFazenda: [] };
 
   function _tratosMSRenderLista(campo, termo) {
     const cont = document.getElementById('ms-opcoes-' + campo);
@@ -6706,45 +5830,10 @@ iniciarSabedoria();
     const sel = window._tratosMultiSel[campo];
     cont.innerHTML = filtradas.map(o => `
       <label class="tratos-ms-opt">
-        <input type="checkbox" value="${esc(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="tratosMSToggle('${campo}', this.value, this.checked)">
-        <span>${esc(o.label)}</span>
+        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="tratosMSToggle('${campo}', this.value, this.checked)">
+        <span>${escapeHtml(o.label)}</span>
       </label>`).join('');
   }
-
-  function tratosMSAbrir(campo) {
-    const wrap = document.getElementById('ms-tratos-filtro-' + campo);
-    if (!wrap) return;
-    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
-    document.querySelectorAll('.tratos-ss.open').forEach(el => el.classList.remove('open'));
-    const abrindo = !wrap.classList.contains('open');
-    wrap.classList.toggle('open', abrindo);
-    if (abrindo) _tratosMSRenderLista(campo, '');
-  }
-
-  function tratosMSFiltrarTexto(campo, termo) {
-    _tratosMSRenderLista(campo, termo);
-  }
-
-  function tratosMSToggle(campo, val, marcado) {
-    const sel = window._tratosMultiSel[campo];
-    if (marcado) sel.add(val); else sel.delete(val);
-    _tratosMSSyncDisplay(campo);
-    // Nos filtros de Tratos, a seleção só vale quando o usuário clica em "Filtrar".
-    // Já em Liberações não existe botão "Filtrar" — a tabela reage na hora.
-    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
-  }
-
-  function tratosMSLimpar(campo) {
-    window._tratosMultiSel[campo].clear();
-    _tratosMSRenderLista(campo, '');
-    _tratosMSSyncDisplay(campo);
-    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
-  }
-  window.tratosMSAbrir = tratosMSAbrir;
-  window.tratosMSFiltrarTexto = tratosMSFiltrarTexto;
-  window.tratosMSToggle = tratosMSToggle;
-  window.tratosMSLimpar = tratosMSLimpar;
-  window._tratosMSSyncDisplay = _tratosMSSyncDisplay;
 
   function _tratosMSSyncDisplay(campo) {
     const disp = document.getElementById('ms-display-' + campo);
@@ -6769,777 +5858,47 @@ iniciarSabedoria();
     }
   }
 
+  function tratosMSAbrir(campo) {
+    const wrap = document.getElementById('ms-tratos-filtro-' + campo);
+    if (!wrap) return;
+    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
+    const abrindo = !wrap.classList.contains('open');
+    wrap.classList.toggle('open', abrindo);
+    if (abrindo) _tratosMSRenderLista(campo, '');
+  }
+
+  function tratosMSFiltrarTexto(campo, termo) {
+    _tratosMSRenderLista(campo, termo);
+  }
+
+  // Em Liberações não existe botão "Filtrar" — a tabela reage na hora.
+  function tratosMSToggle(campo, val, marcado) {
+    const sel = window._tratosMultiSel[campo];
+    if (marcado) sel.add(val); else sel.delete(val);
+    _tratosMSSyncDisplay(campo);
+    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
+  }
+
+  function tratosMSLimpar(campo) {
+    window._tratosMultiSel[campo].clear();
+    _tratosMSRenderLista(campo, '');
+    _tratosMSSyncDisplay(campo);
+    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
+  }
+
+  window.tratosMSAbrir        = tratosMSAbrir;
+  window.tratosMSFiltrarTexto = tratosMSFiltrarTexto;
+  window.tratosMSToggle       = tratosMSToggle;
+  window.tratosMSLimpar       = tratosMSLimpar;
+  window._tratosMSSyncDisplay = _tratosMSSyncDisplay;
+
   // Fecha qualquer lista multi-select aberta ao clicar fora
   document.addEventListener('click', (ev) => {
     document.querySelectorAll('.tratos-ms.open').forEach(wrap => {
       if (!wrap.contains(ev.target)) wrap.classList.remove('open');
     });
   });
-
-  // ── Carrega a planilha PCP direto do Google Sheets (uso interno) ──────────
-  // Usada SÓ pela sincronização (sincronizarTratosSupabase) — não alimenta
-  // mais a tela diretamente. A leitura que a tela usa é carregarDadosTratos(),
-  // que lê do Supabase (ver mais abaixo).
-  function _tratosCarregarCSVFonte() {
-    return new Promise((resolve, reject) => {
-      Papa.parse(URL_TRATOS, {
-        download     : true,
-        header       : true,
-        skipEmptyLines: true,
-        complete: function(results) {
-          if (!results.data || results.data.length === 0) {
-            reject(new Error('Nenhum dado encontrado na aba PCP.'));
-            return;
-          }
-          const cols = detectarColunas(results.meta.fields || []);
-          resolve({ dados: results.data, cols });
-        },
-        error: function(err) { reject(err); }
-      });
-    });
-  }
-
-  // Mapeamento fixo das colunas da tabela public.tratos_pcp (Supabase).
-  // ⚠️ Fonte mudou: antes era alimentada pelo botão de sync dentro do app,
-  // lendo a planilha do Google Sheets. Agora quem alimenta é o script Python
-  // (sync_excel_supabase.py / função sincronizar_pcp()), lendo a aba
-  // "AutoPCP_app" do Excel (que é só o nome da ABA — a tabela no Supabase
-  // continua se chamando tratos_pcp). O app só LÊ essa tabela.
-  // Nomes de coluna aqui precisam bater exatamente com o COLUMN_MAP_PCP do
-  // script Python.
-  const TRATOS_SUPABASE_TABLE = 'tratos_pcp';
-  const TRATOS_SUPABASE_COLS = {
-    colData: 'data_aplicacao', colOS: 'nr_os',
-    colCodProd: 'cod_produto', colDescProd: 'desc_produto',
-    colCodOp: 'cod_operacao', colDescOp: 'desc_operacao',
-    colCodFazenda: 'cod_fazenda', colFazenda: 'desc_fazenda',
-    colArea: 'area_aplicada', colDoseRec: 'dose_recomendada', colDoseAplic: 'dose_aplicada',
-    colCodEmpresa: 'cod_empresa',
-    colSafra: 'safra',
-    colCodFuncionario: 'cod_funcionario',
-    colCodGrupoOp: 'cod_grupo_op', colDescGrupoOp: 'desc_grupo_op',
-    colCodSetor: 'cod_setor', colCodBloco: 'cod_bloco', colCodTalhao: 'cod_talhao',
-    colSituacaoTalhao: 'situacao_talhao',
-    // Novos campos vindos do SQL Oracle (ainda não usados em nenhum relatório,
-    // mas já ficam disponíveis pra quando precisar)
-    colDtPlantio: 'dt_plantio', colDtCorteAtual: 'dt_corte_atual',
-    colDtPrimCorte: 'dt_prim_corte', colDtUltCorte: 'dt_ult_corte',
-    colMesAplic: 'mes_aplic', colMesAnoAplic: 'mes_ano_aplic',
-    // ── Ainda não disponíveis no SQL atual (ver observações da última vez) —
-    // deixe comentado até confirmarmos as tabelas de origem:
-    // colAbvEmpresa: 'abv_empresa', colLancamento: 'nro_lancamento',
-    // colFuncionario: 'nome_funcionario', colCodProcesso: 'cod_processo',
-    // colDescProcesso: 'desc_processo', colCodSubprocesso: 'cod_subprocesso',
-    // colDescSubprocesso: 'desc_subprocesso', colUnidade: 'unidade',
-    // colDescSetor: 'desc_setor', colDescBloco: 'desc_bloco',
-    // colMunicipio: 'municipio', colVariedade: 'variedade',
-  };
-
-  // É estático (não depende de dado carregado) — já deixa disponível desde
-  // já, pra o resumo rápido por Fazenda (via RPC) conseguir montar o card
-  // de O.S. no drill-down sem precisar de um carregamento completo antes.
-  window._tratosCols = TRATOS_SUPABASE_COLS;
-
-  // Converte number/string numérica (Postgres numeric, decimal com ponto)
-  // para o formato BR com vírgula, igual ao que a planilha sempre mostrou.
-  function _numParaBR(v) {
-    if (v === null || v === undefined || v === '') return '';
-    const n = typeof v === 'number' ? v : parseFloat(v);
-    return isNaN(n) ? '' : String(n).replace('.', ',');
-  }
-
-  // Busca TODAS as linhas de public.tratos_pcp (todas as safras), em páginas
-  // de 1000. ⚠️ IMPORTANTE (325 mil linhas na tabela): disparar TODAS as
-  // páginas em paralelo (como era antes) significa ~325 requisições
-  // simultâneas de uma vez — é isso que pesa. A otimização aqui é buscar em
-  // lotes de CONCORRENCIA páginas por vez (em vez de todas de uma só vez),
-  // sem cortar nenhum dado — o app continua mostrando qualquer safra que
-  // exista na tabela. `safras`/`todasSafras` ficam como parâmetros opcionais
-  // (não usados hoje) caso algum dia se queira filtrar direto no Supabase.
-  // Tenta de novo (com um pequeno intervalo) antes de desistir de uma
-  // página — com conexão de campo instável e ~55 rodadas de busca agora
-  // (325 mil linhas), uma falha passageira numa única página não deveria
-  // derrubar o carregamento inteiro.
-  async function _tratosComRetry(query, tentativas = 2) {
-    let ultimoErro = null;
-    for (let i = 0; i <= tentativas; i++) {
-      const resp = await query;
-      if (!resp.error) return resp;
-      ultimoErro = resp.error;
-      if (i < tentativas) await new Promise(r => setTimeout(r, 800 * (i + 1)));
-    }
-    return { data: null, error: ultimoErro };
-  }
-
-  async function _tratosBuscarSupabasePaginado(safras, todasSafras, onProgresso) {
-    const PAGINA = 1000;
-    const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
-    const temFiltro = !todasSafras && Array.isArray(safras) && safras.length > 0;
-
-    // Pré-filtros escolhidos ANTES de carregar (Fazenda/Produto/Operação/
-    // Grupo de Operação) — cada um vira um .in() na query, então o
-    // Supabase já devolve só o que interessa, em vez do app baixar a
-    // safra inteira pra filtrar depois na tela.
-    const pre = window._tratosPreFiltros || {};
-    const PRE_COL = { fazenda: TRATOS_SUPABASE_COLS.colCodFazenda, produto: TRATOS_SUPABASE_COLS.colCodProd, operacao: TRATOS_SUPABASE_COLS.colCodOp, grupoOp: TRATOS_SUPABASE_COLS.colCodGrupoOp };
-
-    function baseQuery() {
-      let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
-      if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
-      Object.keys(PRE_COL).forEach(campo => {
-        const sel = pre[campo];
-        if (sel && sel.size > 0) q = q.in(PRE_COL[campo], [...sel]);
-      });
-      // O período (Data de Aplicação) escolhido na tela de filtro NÃO vira
-      // um corte exato aqui — só é usado lá na tela pra descobrir quais
-      // safras buscar (_tratosAnosEntreDatas). A busca em si filtra por
-      // SAFRA (campo confiável, sem nulos). Aplicar o intervalo de data
-      // direto na query excluiria silenciosamente qualquer O.S. sem
-      // data_aplicacao preenchida no Oracle — e isso acontece, segundo o
-      // usuário. Refinar por data exata, se quiser, é feito depois em
-      // cima dos dados já carregados (client-side), nunca cortando o que
-      // vem do servidor.
-      return q;
-    }
-
-    // OTIMIZADO: pagina por CURSOR (id > último id já lido) em vez de
-    // OFFSET/range. Com OFFSET, cada página precisa que o Postgres processe
-    // todas as linhas das páginas anteriores pra "pular" até o ponto certo —
-    // numa tabela de ~325 mil linhas, a página 300 já está pagando o custo
-    // de 300 mil linhas puladas, e isso ACUMULA a cada página seguinte. É a
-    // causa mais provável tanto da demora quanto dos erros/timeout nas
-    // páginas mais fundas. Cursor por id usa o índice direto: toda página
-    // custa praticamente o mesmo, não importa a profundidade — muito mais
-    // rápido E muito mais confiável (sem penalidade que cresce com o tempo).
-    const todas = [];
-    let cursor = -1; // menor que qualquer id real (bigserial começa em 1)
-    let acabou = false;
-    let erroFinal = null;
-
-    while (!acabou) {
-      const resp = await _tratosComRetry(
-        baseQuery().order('id', { ascending: true }).gt('id', cursor).limit(PAGINA)
-      );
-      if (resp.error) {
-        // Não descarta o que já foi carregado até aqui — devolve parcial
-        // em vez de jogar fora tudo por causa de 1 página que falhou (ex.:
-        // internet cair no meio do carregamento no campo).
-        erroFinal = resp.error;
-        break;
-      }
-      const data = resp.data || [];
-      if (!data.length) break;
-      todas.push(...data);
-      cursor = data[data.length - 1].id;
-      if (typeof onProgresso === 'function') onProgresso(todas.length);
-      if (data.length < PAGINA) acabou = true;
-    }
-    return { dados: todas, erro: erroFinal };
-  }
-
-  // ── Cache em sessionStorage — evita refazer a busca pesada toda vez que o
-  // usuário só troca de aba e volta. Válido por 5 minutos; o botão "Atualizar"
-  // (ícone de sync) sempre ignora o cache e busca na hora.
-  const TRATOS_CACHE_TTL_MS = 5 * 60 * 1000;
-
-  const TRATOS_CACHE_KEY = 'tratos_cache_v2';
-
-  function _tratosLerCache(chave) {
-    try {
-      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY + ':' + chave);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      if (!obj || !obj.ts || (Date.now() - obj.ts) > TRATOS_CACHE_TTL_MS || !Array.isArray(obj.dados)) return null;
-      return obj.dados;
-    } catch (e) { return null; }
-  }
-
-  function _tratosGravarCache(dados, chave) {
-    try {
-      // Com muitas safras marcadas de uma vez isso pode estourar a cota do
-      // sessionStorage (uns 5-10 MB). Nesse caso o catch abaixo só desiste
-      // do cache silenciosamente; a tela funciona normalmente, só não fica
-      // em cache pra próxima troca de aba (recarrega do zero).
-      sessionStorage.setItem(TRATOS_CACHE_KEY + ':' + chave, JSON.stringify({ ts: Date.now(), dados }));
-    } catch (e) { /* sessionStorage indisponível/cheio — segue sem cache, não é crítico */ }
-  }
-
-  // Mostra/esconde o card de carregamento animado, escondendo o resto do
-  // conteúdo da aba enquanto os dados não chegam — pra ficar bem visível
-  // que está carregando (em vez do textinho pequeno de antes).
-  // `null` = ainda não escolheu nenhuma safra (1ª vez); array = safras
-  // escolhidas; 'todas' = optou por carregar o histórico completo mesmo assim.
-  let _tratosSafrasAtivas = null;
-
-  function _tratosMostrarLoading(mostrar) {
-    const loadingCard = document.getElementById('tratos-loading-card');
-    const filtrosCard = document.getElementById('tratos-filtros-card');
-    const relatorioCard = document.getElementById('tratos-relatorio-card');
-    // Padroniza o conteúdo do card (o card em si já existe fixo no
-    // index.html) com o mesmo componente animado usado no resto do app.
-    if (mostrar && loadingCard && typeof cttLoadingHTML === 'function') {
-      loadingCard.innerHTML = cttLoadingHTML('Carregando Tratos Culturais...', { icone: 'fa-spray-can' });
-    }
-    if (loadingCard) loadingCard.style.display = mostrar ? 'block' : 'none';
-    if (filtrosCard) filtrosCard.style.display = mostrar ? 'none' : '';
-    if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
-    const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
-    if (btnTrocarFiltro) btnTrocarFiltro.style.display = mostrar ? 'none' : '';
-  }
-
-  // Garante que a animação de carregamento fique visível por pelo menos
-  // alguns instantes, mesmo quando os dados vêm rapidinho do cache —
-  // assim o usuário sempre percebe que algo está acontecendo.
-  function _tratosEsperarMin(promessa, msMin) {
-    const espera = new Promise(resolve => setTimeout(resolve, msMin));
-    return Promise.all([promessa, espera]).then(([resultado]) => resultado);
-  }
-
-  // ── Seletor de safra — carrega só o que o usuário escolher ────────────────
-  // Em vez de sempre buscar as 325 mil linhas da tabela toda, mostra
-  // primeiro uma lista (bem barata: só o DISTINCT de safra, via RPC) e deixa
-  // o usuário escolher quais safras quer ver antes de buscar os dados de
-  // verdade.
-  function _tratosCriarPickerDom() {
-    const loadingCard = document.getElementById('tratos-loading-card');
-    if (!loadingCard || !loadingCard.parentNode) return null;
-    let picker = document.getElementById('tratos-safra-picker');
-    if (picker) return picker;
-    // Reaproveita a classe "card" (mesma dos outros cards da aba) — sem
-    // estilo inline nosso, herda a aparência real do app.
-    picker = document.createElement('div');
-    picker.className = 'card';
-    picker.id = 'tratos-safra-picker';
-    loadingCard.parentNode.insertBefore(picker, loadingCard);
-
-    const btnTrocarFiltro = document.createElement('button');
-    btnTrocarFiltro.id = 'tratos-btn-trocar-prefiltro';
-    btnTrocarFiltro.type = 'button';
-    btnTrocarFiltro.className = 'btn-secondary';
-    btnTrocarFiltro.style.cssText = 'display:none;margin-bottom:10px;';
-    btnTrocarFiltro.innerHTML = '<i class="fas fa-filter"></i> Trocar filtros';
-    btnTrocarFiltro.onclick = () => _tratosMostrarTelaFiltros();
-    loadingCard.parentNode.insertBefore(btnTrocarFiltro, loadingCard);
-
-    return picker;
-  }
-
-  // Converte o período escolhido em quais safras (anos) buscar — o usuário
-  // não escolhe mais a safra numa lista separada, é derivado direto da data.
-  // Ex.: 15/12/2025 até 10/03/2026 → ['2025','2026'].
-  function _tratosAnosEntreDatas(dataIniStr, dataFimStr) {
-    if (!dataIniStr && !dataFimStr) return null; // nenhum período definido
-    const anoAtual = new Date().getFullYear();
-    const anoIni = dataIniStr ? parseInt(dataIniStr.slice(0, 4), 10) : anoAtual;
-    const anoFim = dataFimStr ? parseInt(dataFimStr.slice(0, 4), 10) : anoAtual;
-    const de = Math.min(anoIni, anoFim), ate = Math.max(anoIni, anoFim);
-    const anos = [];
-    for (let a = de; a <= ate; a++) anos.push(String(a));
-    return anos;
-  }
-
-  // ── Pré-filtro (Fazenda/Produto/Operação/Grupo de Operação) ANTES de
-  // carregar os dados — reduz o quanto precisa vir do Supabase quando o
-  // usuário já sabe o que quer ver (ex.: só 1 fazenda).
-  window._tratosPreFiltros = window._tratosPreFiltros || { fazenda: new Set(), produto: new Set(), operacao: new Set(), grupoOp: new Set() };
-  window._tratosPreFiltroOpcoes = window._tratosPreFiltroOpcoes || { fazenda: [], produto: [], operacao: [], grupoOp: [] };
-
-  const PLS_PREFILTRO_LABEL = { fazenda: 'Fazenda', produto: 'Produto', operacao: 'Operação Agrícola', grupoOp: 'Grupo de Operação' };
-
-  // ── TELA ÚNICA DE FILTROS — Período (Data) é o filtro PRINCIPAL, em
-  // destaque no topo; os outros (Fazenda/Produto/Operação/Grupo) vêm
-  // depois, opcionais. Só busca dado nenhum quando o usuário clica em
-  // "Filtrar" — nada acontece sozinho antes disso.
-  async function _tratosMostrarTelaFiltros() {
-    _tratosMostrarLoading(false);
-    const filtrosCard = document.getElementById('tratos-filtros-card');
-    const relatorioCard = document.getElementById('tratos-relatorio-card');
-    if (filtrosCard) filtrosCard.style.display = 'none';
-    if (relatorioCard) relatorioCard.style.display = 'none';
-    const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
-    if (btnTrocarFiltro) btnTrocarFiltro.style.display = 'none';
-
-    const picker = _tratosCriarPickerDom();
-    if (!picker) { carregarDadosTratos(true); return; } // sem onde encaixar — não trava o fluxo
-
-    picker.style.display = 'block';
-    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Preparando filtros...</div>';
-
-    // Opções de Fazenda/Produto/Operação/Grupo — busca pro universo todo
-    // (sem travar numa safra específica ainda); só popula a lista de
-    // escolhas, quem restringe de verdade é o clique em "Filtrar".
-    let opcoes = { fazenda: [], produto: [], operacao: [], grupoOp: [] };
-    let opcoesDisponiveis = true;
-    try {
-      const { data, error } = await _sbClient.rpc('listar_opcoes_tratos', { p_safras: null });
-      if (error) throw error;
-      const CAMPO_MAP = { fazenda: 'fazenda', produto: 'produto', operacao: 'operacao', grupo_op: 'grupoOp' };
-      (data || []).forEach(r => {
-        const campo = CAMPO_MAP[r.campo];
-        if (!campo || (!r.cod && !r.descricao)) return;
-        opcoes[campo].push({
-          value: String(r.cod ?? r.descricao),
-          label: [r.cod, r.descricao].filter(Boolean).join(' · ') || String(r.cod ?? r.descricao),
-        });
-      });
-      Object.keys(opcoes).forEach(campo => opcoes[campo].sort((a,b) => a.label.localeCompare(b.label, 'pt-BR')));
-    } catch (e) {
-      console.error('[Tratos] Erro ao listar opções de filtro (RPC listar_opcoes_tratos)', e);
-      // NUNCA cai sozinho pra carregar tudo — sem essa function (SQL ainda
-      // não rodado, ou deu erro), só os 4 filtros de refino ficam
-      // indisponíveis; filtrar por período continua funcionando normal.
-      opcoesDisponiveis = false;
-    }
-    window._tratosPreFiltroOpcoes = opcoes;
-
-    const campos = ['fazenda', 'produto', 'operacao', 'grupoOp'];
-    const blocoFiltrosFinos = opcoesDisponiveis
-      ? campos.map(campo => `
-        <div style="margin-bottom:12px;">
-          <label style="font-size:11px;font-weight:800;color:var(--text-2);display:block;margin-bottom:4px;">${PLS_PREFILTRO_LABEL[campo]}</label>
-          <div class="tratos-ms" id="ms-tratos-filtro-pre${campo}">
-            <div class="tratos-ms-input-wrap" onclick="_tratosPreMSAbrir('${campo}')">
-              <i class="fas fa-search tratos-ms-icon"></i>
-              <span class="tratos-ms-display" id="ms-display-pre${campo}">— Todas —</span>
-              <i class="fas fa-times tratos-ms-clear" id="ms-clear-pre${campo}" style="display:none;" onclick="event.stopPropagation(); _tratosPreMSLimpar('${campo}')"></i>
-              <i class="fas fa-chevron-down tratos-ms-chevron"></i>
-            </div>
-            <div class="tratos-ms-lista">
-              <div class="tratos-ms-search"><input type="text" placeholder="Buscar..." oninput="_tratosPreMSFiltrarTexto('${campo}', this.value)" onclick="event.stopPropagation()"></div>
-              <div class="tratos-ms-opcoes" id="ms-opcoes-pre${campo}"></div>
-            </div>
-          </div>
-        </div>`).join('')
-      : `<div style="font-size:11px;color:var(--text-3);background:var(--surface2);border-radius:var(--radius-sm);padding:9px 11px;margin-bottom:12px;">
-          <i class="fas fa-circle-info"></i> Filtro fino por Fazenda/Produto/Operação/Grupo ainda não disponível (rode <code>listar_opcoes_tratos.sql</code> no Supabase). Dá pra filtrar só por período mesmo assim.
-        </div>`;
-
-    const dataAtual = window._tratosPreFiltroDatas || { ini: '', fim: '' };
-    const anoAtual = String(new Date().getFullYear());
-
-    picker.innerHTML = `
-      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> O que você quer ver?</div>
-
-      <div style="background:var(--green-50);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin:10px 0 16px;">
-        <label style="font-size:12px;font-weight:800;color:var(--green-700);display:block;margin-bottom:6px;"><i class="fas fa-calendar-alt"></i> Período (filtro principal)</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="date" id="tratos-prefiltro-data-ini" value="${dataAtual.ini}" style="flex:1;min-width:0;">
-          <span style="color:var(--text-3);font-size:11px;">até</span>
-          <input type="date" id="tratos-prefiltro-data-fim" value="${dataAtual.fim}" style="flex:1;min-width:0;">
-        </div>
-        <div style="font-size:10.5px;color:var(--text-3);margin-top:6px;">Em branco = ano atual (${anoAtual}). Um período que atravessa mais de um ano (ex.: 12/2025 até 03/2026) já traz as duas safras juntas, automaticamente. Obs.: isso escolhe a(s) safra(s) certa(s) pra buscar — não corta por dia exato, porque nem toda O.S. tem a data preenchida no Oracle.</div>
-      </div>
-
-      <div style="font-size:11px;font-weight:800;color:var(--text-2);margin-bottom:6px;">Filtros adicionais (opcionais)</div>
-      ${blocoFiltrosFinos}
-
-      <button type="button" id="tratos-prefiltro-ok" class="btn-main" style="width:100%;justify-content:center;margin-top:4px;">
-        <i class="fas fa-magnifying-glass"></i> Filtrar
-      </button>
-      <div style="font-size:10.5px;color:var(--text-3);margin-top:8px;text-align:center;">Só busca os dados quando você tocar aqui.</div>`;
-
-    if (opcoesDisponiveis) campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
-
-    picker.querySelector('#tratos-prefiltro-ok').onclick = () => {
-      const ini = document.getElementById('tratos-prefiltro-data-ini')?.value || '';
-      const fim = document.getElementById('tratos-prefiltro-data-fim')?.value || '';
-      window._tratosPreFiltroDatas = { ini, fim };
-      const anos = _tratosAnosEntreDatas(ini, fim);
-      _tratosSafrasAtivas = (anos && anos.length) ? anos : [anoAtual];
-      picker.style.display = 'none';
-      carregarDadosTratos(true);
-    };
-  }
-  window._tratosMostrarTelaFiltros = _tratosMostrarTelaFiltros;
-
-  function _tratosPreMSRenderLista(campo, termo) {
-    const cont = document.getElementById('ms-opcoes-pre' + campo);
-    if (!cont) return;
-    const termoNorm = (termo || '').trim().toLowerCase();
-    const opcoes = window._tratosPreFiltroOpcoes[campo] || [];
-    const filtradas = !termoNorm ? opcoes : opcoes.filter(o => o.label.toLowerCase().includes(termoNorm));
-    if (!filtradas.length) {
-      cont.innerHTML = `<div class="tratos-ms-opt ss-empty">Nenhum resultado</div>`;
-      return;
-    }
-    const sel = window._tratosPreFiltros[campo];
-    cont.innerHTML = filtradas.map(o => `
-      <label class="tratos-ms-opt">
-        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="_tratosPreMSToggle('${campo}', this.value, this.checked)">
-        <span>${escapeHtml(o.label)}</span>
-      </label>`).join('');
-  }
-
-  function _tratosPreMSAbrir(campo) {
-    const wrap = document.getElementById('ms-tratos-filtro-pre' + campo);
-    if (!wrap) return;
-    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
-    const abrindo = !wrap.classList.contains('open');
-    wrap.classList.toggle('open', abrindo);
-    if (abrindo) _tratosPreMSRenderLista(campo, '');
-  }
-
-  function _tratosPreMSFiltrarTexto(campo, termo) { _tratosPreMSRenderLista(campo, termo); }
-
-  function _tratosPreMSToggle(campo, val, marcado) {
-    if (marcado) window._tratosPreFiltros[campo].add(val); else window._tratosPreFiltros[campo].delete(val);
-    _tratosPreMSSyncDisplay(campo);
-  }
-
-  function _tratosPreMSLimpar(campo) {
-    window._tratosPreFiltros[campo].clear();
-    _tratosPreMSRenderLista(campo, '');
-    _tratosPreMSSyncDisplay(campo);
-  }
-  window._tratosPreMSAbrir = _tratosPreMSAbrir;
-  window._tratosPreMSFiltrarTexto = _tratosPreMSFiltrarTexto;
-  window._tratosPreMSToggle = _tratosPreMSToggle;
-  window._tratosPreMSLimpar = _tratosPreMSLimpar;
-
-  function _tratosPreMSSyncDisplay(campo) {
-    const disp = document.getElementById('ms-display-pre' + campo);
-    const clearBtn = document.getElementById('ms-clear-pre' + campo);
-    if (!disp) return;
-    const sel = window._tratosPreFiltros[campo];
-    const opcoes = window._tratosPreFiltroOpcoes[campo] || [];
-    if (sel.size === 0) {
-      disp.textContent = '— Todas —';
-      disp.classList.remove('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'none';
-    } else if (sel.size === 1) {
-      const [v] = sel;
-      const opt = opcoes.find(o => o.value === v);
-      disp.textContent = opt ? opt.label : v;
-      disp.classList.add('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'block';
-    } else {
-      disp.textContent = `${sel.size} selecionados`;
-      disp.classList.add('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'block';
-    }
-  }
-
-  // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
-  // Passe forcar=true (botão "Atualizar"/troca de safra) pra ignorar o cache.
-  // Usa _tratosSafrasAtivas (definido pelo seletor de safra) pra saber o que buscar.
-  async function carregarDadosTratos(forcar, silencioso) {
-    _tratosIniciado = true;
-    const contador = document.getElementById('tratos-contador');
-    if (contador) contador.textContent = 'Carregando...';
-    _tratosMostrarLoading(true);
-
-    if (typeof _sbClient === 'undefined') {
-      _tratosMostrarLoading(false);
-      if (contador) contador.textContent = 'Erro ao carregar';
-      if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
-      return;
-    }
-
-    // Ainda não definiu filtro nenhum (1ª vez abrindo a tela) — mostra a
-    // tela de filtros em vez de sair buscando tudo.
-    if (_tratosSafrasAtivas === null) {
-      _tratosMostrarTelaFiltros();
-      return;
-    }
-
-    const todasSafras = _tratosSafrasAtivas === 'todas';
-    const safrasFiltro = todasSafras ? [] : _tratosSafrasAtivas;
-
-    try {
-      // Só busca as safras escolhidas no seletor — não a tabela toda. Isso é
-      // o que realmente resolve o peso: menos páginas, menos linhas na
-      // memória do navegador, carregamento bem mais rápido.
-      // A chave do cache precisa refletir também os pré-filtros escolhidos
-      // (Fazenda/Produto/Operação/Grupo de Operação) — senão trocar de
-      // filtro e voltar poderia reaproveitar por engano o cache de uma
-      // combinação diferente. A data não entra aqui: ela só decide QUAIS
-      // safras buscar (já refletido na 1ª parte da chave), não filtra a
-      // query em si, então duas datas que caem na mesma safra usam o
-      // mesmo cache normalmente.
-      const pre = window._tratosPreFiltros || {};
-      const prefixoPre = ['fazenda','produto','operacao','grupoOp']
-        .map(c => (pre[c] && pre[c].size) ? `${c}:${[...pre[c]].sort().join('|')}` : '')
-        .filter(Boolean).join(';');
-      const chaveCache = (todasSafras ? 'todas' : [...safrasFiltro].sort().join(',')) + (prefixoPre ? '__' + prefixoPre : '');
-      const cache = !forcar ? _tratosLerCache(chaveCache) : null;
-      const resultado = cache
-        ? { dados: cache, erro: null }
-        : await _tratosEsperarMin(
-            _tratosBuscarSupabasePaginado(safrasFiltro, todasSafras, (n) => {
-              // Contador ao vivo — mostra que tá andando em vez de parecer
-              // travado enquanto as páginas vão chegando.
-              const loadingCard = document.getElementById('tratos-loading-card');
-              const texto = loadingCard ? loadingCard.querySelector('.ctt-loader-texto') : null;
-              if (texto) texto.textContent = `Carregando Tratos Culturais... (${n.toLocaleString('pt-BR')} registros)`;
-            }),
-            550
-          );
-      const brutos = resultado.dados;
-      // Se deu erro no meio do carregamento mas já tinha juntado alguma
-      // coisa, mostra o que já tem em vez de descartar tudo — só avisa
-      // que ficou incompleto, pra poder tentar de novo depois.
-      if (resultado.erro && brutos.length > 0 && !silencioso && typeof showToast === 'function') {
-        showToast(`⚠️ Carregamento incompleto (${brutos.length.toLocaleString('pt-BR')} registros carregados) — a conexão caiu no meio. Toque em "Atualizar" pra tentar completar.`, 'error', 5500);
-      } else if (resultado.erro && brutos.length === 0) {
-        throw resultado.erro;
-      }
-      if (!cache && brutos.length > 0 && !resultado.erro) _tratosGravarCache(brutos, chaveCache);
-
-      _tratosMostrarLoading(false);
-
-      if (!brutos.length) {
-        if (contador) contador.textContent = '0 registros';
-        if (typeof showToast === 'function') showToast('ℹ️ Nenhum dado sincronizado ainda. Use o ícone de nuvem para sincronizar.', 'info', 3000);
-        return;
-      }
-
-      // Normaliza os 3 campos numéricos pro formato BR (vírgula), igual à
-      // planilha original — o resto das linhas já vem com os nomes certos.
-      const dados = brutos.map(r => ({
-        ...r,
-        area_aplicada   : _numParaBR(r.area_aplicada),
-        dose_recomendada: _numParaBR(r.dose_recomendada),
-        dose_aplicada   : _numParaBR(r.dose_aplicada),
-      }));
-
-      const cols = TRATOS_SUPABASE_COLS;
-      window._tratosDados     = dados;
-      window._tratosFiltrados = dados;
-
-      // Popula os filtros de seleção múltipla (Produto / Fazenda / Operação Agrícola /
-      // Subprocesso / Grupo de Operação) — todos permitem marcar mais de um valor
-      _tratosMSPopular('produto',     dados, cols.colCodProd,       cols.colDescProd);
-      _tratosMSPopular('fazenda',     dados, cols.colCodFazenda,    cols.colFazenda);
-      _tratosMSPopular('operacao',    dados, cols.colCodOp,         cols.colDescOp);
-      _tratosMSPopular('subprocesso', dados, cols.colCodSubprocesso, cols.colDescSubprocesso);
-      _tratosMSPopular('grupoOp',     dados, cols.colCodGrupoOp,    cols.colDescGrupoOp);
-
-      // Filtro principal (Safra) — multi-seleção, permite escolher 1 ou 2 safras
-      _tratosMSPopular('safra', dados, null, cols.colSafra);
-
-      // Filtros restantes em "Mais filtros" (Aplicador / Empresa)
-      popularSelectCodDesc('tratos-filtro-aplicador', dados, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
-      popularSelectCodDesc('tratos-filtro-empresa',   dados, cols.colCodEmpresa,     cols.colAbvEmpresa,      '— Todas —');
-      _tratosSSSync('tratos-filtro-aplicador');
-
-      renderizarTratos(dados);
-      if (!silencioso && !resultado.erro && typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
-    } catch (err) {
-      console.error('[Tratos] Erro Supabase:', err);
-      _tratosMostrarLoading(false);
-      if (contador) contador.textContent = 'Erro ao carregar';
-      // Preload em segundo plano que falhou (ex.: sem internet no boot)
-      // não deve travar a tela achando que "já carregou" — libera pra
-      // tentar de novo (picker normal) quando o usuário realmente abrir
-      // a aba, em vez de ficar preso num erro que ele nem viu.
-      if (silencioso) { _tratosIniciado = false; _tratosSafrasAtivas = null; return; }
-      // Só fala de "login" quando o erro realmente indica sessão/token —
-      // qualquer outro erro (rede, timeout etc.) tem uma causa bem diferente
-      // e dizer "verifique se está logado" só confundiria quem tá com
-      // conexão ruim no campo.
-      const msgErro = String(err?.message || '').toLowerCase();
-      const codErro = String(err?.code || '');
-      const pareceAuth = msgErro.includes('jwt') || msgErro.includes('token') || msgErro.includes('auth')
-        || codErro === 'PGRST301' || codErro === '401' || err?.status === 401;
-      const msg = pareceAuth
-        ? '⚠️ Sessão expirada — saia e entre de novo pra atualizar o login.'
-        : '⚠️ Erro de conexão ao carregar dados do Supabase. Verifique sua internet e tente de novo.';
-      if (typeof showToast === 'function') showToast(msg, 'error', 4500);
-    }
-  }
-
-
-  // ── Exporta PDF da tabela filtrada ──────────────────────────────────────
-  function exportarPDFTratos() {
-    const dados = window._tratosFiltrados || window._tratosDados;
-    if (!dados || !dados.length) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
-    const { colData, colOS, colCodProd, colDescProd, colCodOp,
-            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-
-    const filtrosTxt = _tratosFiltrosAtivosTexto();
-
-    // Área total sem duplicar (ver _calcAreaOS)
-    const areaOSMap = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-    const somaArea = Object.values(areaOSMap).reduce((s, v) => s + v, 0);
-
-    const { pdf, y } = _novoPDFRelatorio('Tratos Culturais', `${dados.length} registros   ·   ${filtrosTxt}   ·   Área total: ${somaArea.toFixed(1)} ha`, 'landscape');
-
-    pdf.autoTable({
-      ...(_PDF_TABLE_ESTILO),
-      startY: y,
-      head: [['Data', 'Nº O.S.', 'Fazenda', 'Talhão', 'Produto', 'Operação', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']],
-      body: dados.map(row => {
-        const dr = parseNum(row[colDoseRec]);
-        const da = parseNum(row[colDoseAplic]);
-        let difPct = '—';
-        if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
-          const pct = ((da - dr) / dr) * 100;
-          difPct = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-        }
-        return [
-          row[colData]        || '—',
-          row[colOS]          || '—',
-          [row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · ') || row[colFazenda] || row[colCodFazenda] || '—',
-          row[colCodTalhao]   || '—',
-          [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || '—',
-          [row[colCodOp], row[colDescOp]].filter(Boolean).join(' · ') || '—',
-          row[colArea]        || '—',
-          row[colDoseRec]     || '—',
-          row[colDoseAplic]   || '—',
-          difPct,
-        ];
-      }),
-      columnStyles: { 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' } },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 9) {
-          const raw = String(data.cell.raw || '');
-          if (raw.includes('-')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
-          else if (raw !== '—') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
-        }
-      },
-    });
-
-    _finalizarPDFRelatorio(pdf, `Tratos_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
-  }
-  window.exportarPDFTratos = exportarPDFTratos;
-
-  // ── Aplica filtros ───────────────────────────────────────────────────────
-  function filtrarTratos() {
-    if (!window._tratosDados) return;
-    const { colData, colDescProd, colCodProd, colFazenda, colCodFazenda, colDescOp,
-            colFuncionario, colCodFuncionario, colDescGrupoOp, colCodGrupoOp,
-            colDescSubprocesso, colCodSubprocesso,
-            colAbvEmpresa, colCodEmpresa, colSafra } = window._tratosCols || {};
-    // Mesma coluna usada pelo _tratosMSPopular para montar os values
-    const colProdEfetivo   = colDescProd        || colCodProd;
-    const colFazEfetiva    = colFazenda         || colCodFazenda;
-    const colAplicEfetivo  = colFuncionario     || colCodFuncionario;
-    const colEmpresaEfetiva= colAbvEmpresa      || colCodEmpresa;
-    const colGrupoOpEfetivo= colDescGrupoOp     || colCodGrupoOp;
-    const colSubprocEfetivo= colDescSubprocesso || colCodSubprocesso;
-
-    // selectVal lê o value real da option selecionada, evitando bugs em browsers mobile
-    const selProd    = window._tratosMultiSel?.produto     || new Set();
-    const selGrupoOp = window._tratosMultiSel?.grupoOp     || new Set();
-    const selSubproc = window._tratosMultiSel?.subprocesso || new Set();
-    const selFaz     = window._tratosMultiSel?.fazenda     || new Set();
-    const selOp      = window._tratosMultiSel?.operacao    || new Set();
-    const selSafra   = window._tratosMultiSel?.safra       || new Set();
-    const bAplicador = selectVal('tratos-filtro-aplicador');
-    const bEmpresa   = selectVal('tratos-filtro-empresa');
-    const bDataIni = (document.getElementById('tratos-filtro-data-ini')?.value || '').trim();
-    const bDataFim = (document.getElementById('tratos-filtro-data-fim')?.value || '').trim();
-    const dIni     = bDataIni ? new Date(bDataIni + 'T00:00:00') : null;
-    const dFim     = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
-
-    const filtrados = window._tratosDados.filter(row => {
-      if (selProd.size    && !selProd.has((row[colProdEfetivo]     || '').trim())) return false;
-      if (selGrupoOp.size && !selGrupoOp.has((row[colGrupoOpEfetivo] || '').trim())) return false;
-      if (selSubproc.size && !selSubproc.has((row[colSubprocEfetivo] || '').trim())) return false;
-      if (selFaz.size && !selFaz.has((row[colFazEfetiva] || '').trim()))    return false;
-      if (selOp.size  && !selOp.has((row[colDescOp]       || '').trim()))   return false;
-      if (selSafra.size && !selSafra.has((row[colSafra]   || '').trim()))  return false;
-      if (bAplicador && (row[colAplicEfetivo] || '').trim() !== bAplicador) return false;
-      if (bEmpresa   && (row[colEmpresaEfetiva] || '').trim() !== bEmpresa) return false;
-      if (dIni || dFim) {
-        const dRow = parseData(row[colData]);
-        if (dRow) {
-          if (dIni && dRow < dIni) return false;
-          if (dFim && dRow > dFim) return false;
-        }
-      }
-      return true;
-    });
-
-    window._tratosFiltrados = filtrados;
-    // Atualiza contador
-    const contador = document.getElementById('tratos-contador');
-    if (contador) {
-      const total = window._tratosDados.length;
-      contador.textContent = filtrados.length === total
-        ? `${total} registros`
-        : `${filtrados.length} de ${total} registros`;
-    }
-    renderizarTratos(filtrados);
-  }
-
-  // ── Mostra/oculta o bloco "Mais filtros" ────────────────────────────────
-  function toggleMaisFiltrosTratos(el) {
-    const bloco = document.getElementById('tratos-filtros-mais');
-    if (!bloco) return;
-    const aberto = bloco.style.display !== 'none';
-    bloco.style.display = aberto ? 'none' : 'grid';
-    el.classList.toggle('open', !aberto);
-  }
-  window.toggleMaisFiltrosTratos = toggleMaisFiltrosTratos;
-
-  // ── Orquestra renderização ───────────────────────────────────────────────
-  function renderizarTratos(dados) {
-    const contador = document.getElementById('tratos-contador');
-    if (contador)
-      contador.textContent =
-        `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
-
-    // Já mostra o relatório "por Fazenda" na hora, sem precisar que o
-    // usuário descubra sozinho que precisa clicar em algum botão — ele
-    // pode trocar pra Setor/Talhão/Produto/Operação depois se quiser.
-    if (typeof gerarRelatorioTratos === 'function') gerarRelatorioTratos('fazenda');
-  }
-
-
-  // ── EXPORTAR EXCEL (CSV BOM UTF-8) ───────────────────────────────────────
-  function exportarTratosExcel() {
-    const dados = window._tratosFiltrados;
-    if (!dados || dados.length === 0) {
-      if (typeof showToast === 'function') showToast('⚠️ Nenhum dado para exportar.', 'error', 2500);
-      return;
-    }
-    const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp,
-            colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    // Fallback: se não há coluna de descrição, usa o código como descrição também
-    const colFazDescExport = colFazenda || colCodFazenda;
-
-    const cab = ['Data Aplicação','Nº O.S.','Cód. Fazenda','Desc. Fazenda',
-                 'Cód. Produto','Desc. Produto',
-                 'Cód. Operação','Desc. Operação Agr.','Área Aplic. (ha)',
-                 'Dose Recomendada','Dose Aplicada','Diferença (%)'];
-
-    const linhas = dados.map(row => {
-      const dr  = parseNum(row[colDoseRec]);
-      const da  = parseNum(row[colDoseAplic]);
-      const dif = (!isNaN(dr) && dr > 0 && !isNaN(da))
-        ? (((da-dr)/dr)*100).toFixed(1)+'%' : '';
-      return [
-        row[colData]             || '',
-        row[colOS]               || '',
-        row[colCodFazenda]       || '',
-        row[colFazDescExport]    || '',
-        row[colCodProd]          || '',
-        row[colDescProd]         || '',
-        row[colCodOp]            || '',
-        row[colDescOp]           || '',
-        row[colArea]             || '',
-        row[colDoseRec]          || '',
-        row[colDoseAplic]        || '',
-        dif
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';');
-    });
-
-    const csv  = '\uFEFF' + cab.map(c=>`"${c}"`).join(';') + '\n' + linhas.join('\n');
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), {
-      href: url,
-      download: `tratos_culturais_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`
-    });
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    if (typeof showToast === 'function') showToast(`✅ ${dados.length} registros exportados!`, 'success', 2500);
-  }
-
-})(); /* fim IIFE TRATOS CULTURAIS */
+})(); /* fim SELETOR MÚLTIPLO DE FAZENDA — LIBERAÇÕES */
 
 
 
@@ -8257,9 +6616,8 @@ iniciarSabedoria();
   };
 
   // Estado do multi-select de fazendas do "Consultar Fazenda" — mesmo
-  // padrão visual/interativo do multi-select de Tratos (classes tratos-ms/
-  // tratos-ms-opt reaproveitadas), mas com estado próprio pra não mexer
-  // em nada do filtro de Tratos.
+  // padrão visual/interativo do multi-select de Liberações (classes
+  // tratos-ms/tratos-ms-opt reaproveitadas), com estado próprio.
   window._plsMultiSel    = window._plsMultiSel    || new Set();
   window._plsMultiOpcoes = window._plsMultiOpcoes || [];
 
@@ -8512,7 +6870,6 @@ iniciarSabedoria();
    MÓDULO PLANTIO
    26/27 Diário: gid=409434796  | Base: gid=1046721215
    25/26 Diário: gid=1655110352 | Base: gid=1840703975
-   PCP (tratos): gid=724202507
 ══════════════════════════════════════════════ */
 (function() {
   'use strict';
@@ -8529,7 +6886,6 @@ iniciarSabedoria();
       base:   BASE_URL + '?gid=1840703975&single=true&output=csv',
     },
   };
-  const URL_PCP = BASE_URL + '?gid=724202507&single=true&output=csv';
 
   const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -9119,29 +7475,6 @@ iniciarSabedoria();
         };
       })
       .filter(r => r !== null && r.fazenda);
-  }
-
-  /* ── normalização PCP (header:true normal) ───────────────────────── */
-  function _normalizarPcp(rows) {
-    if (!rows || !rows.length) return [];
-    const fields = Object.keys(rows[0]);
-    const cData    = _findCol(fields, ['DATA APLICACAO','DATA APLIC','DATA']);
-    const cCodOp   = _findCol(fields, ['COD OPERACAO','CODOP','COD OP','CODIGO OPERACAO','COD. OPERACAO']);
-    const cFazenda = _findCol(fields, ['DESCRICAO FAZENDA','DESC FAZENDA','DESCFAZENDA','FAZENDA']);
-    const cTalhao  = _findCol(fields, ['TALHAO','TALHÃO','TALHON']);
-
-    return rows
-      .map(r => {
-        const codOp = String(r[cCodOp] || '').trim();
-        if (!['1013','1014','1045'].includes(codOp)) return null;
-        return {
-          data:    _parseData(r[cData]),
-          codOp,
-          fazenda: String(r[cFazenda] || '').trim(),
-          talhao:  String(r[cTalhao]  || '').trim(),
-        };
-      })
-      .filter(r => r !== null && r.data);
   }
 
   /* ── renderização principal ──────────────────────────────────────── */
