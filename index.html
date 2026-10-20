@@ -337,64 +337,6 @@
     </div>
   </div>
 
-  <!-- ══ COTAÇÕES DE MERCADO (Soja · Milho · Açúcar · Cana) ══ -->
-  <div id="home-cotacoes" class="cot-wrap">
-    <div class="cot-head">
-      <span class="cot-title"><i class="fas fa-chart-line"></i> Mercado agrícola</span>
-      <span class="cot-meta">
-        <span id="cot-status" class="cot-status">carregando...</span>
-        <button type="button" class="cot-refresh" id="cot-refresh" onclick="carregarCotacoes(true)" aria-label="Atualizar cotações"><i class="fas fa-rotate"></i></button>
-      </span>
-    </div>
-    <div class="cot-tabs" role="tablist">
-      <button type="button" class="cot-tab" id="cot-tab-cepea" onclick="cotTrocarVista('cepea')">CEPEA · físico</button>
-      <button type="button" class="cot-tab" id="cot-tab-bolsa" onclick="cotTrocarVista('bolsa')">Bolsa · Chicago/ICE</button>
-    </div>
-
-    <!-- Vista CEPEA (widget oficial, isolado em iframe) -->
-    <div id="cot-vista-cepea">
-      <iframe id="cot-cepea-frame" class="cot-cepea-frame" title="Indicadores CEPEA/ESALQ"
-        sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" loading="lazy"></iframe>
-      <div id="cot-cepea-fallback" class="cot-cepea-fallback" style="display:none">
-        Não foi possível carregar os indicadores do CEPEA agora (sem conexão ou fonte indisponível).
-        <button type="button" onclick="cotRenderizarCepea(true)">Tentar de novo</button>
-      </div>
-      <div class="cot-foot">Fonte: CEPEA/ESALQ-USP · uso sob licença CC BY-NC 4.0. Atualização diária.</div>
-    </div>
-
-    <!-- Vista Bolsa (Edge Function cotacoes) -->
-    <div id="cot-vista-bolsa" style="display:none">
-      <div class="cot-grid" id="cot-grid">
-        <div class="cot-card" id="cot-soja">
-          <span class="cot-label"><i class="fas fa-leaf"></i> Soja</span>
-          <span class="cot-val" id="cot-soja-val">—</span>
-          <span class="cot-var" id="cot-soja-var"></span>
-          <span class="cot-sub">saca 60 kg</span>
-        </div>
-        <div class="cot-card" id="cot-milho">
-          <span class="cot-label"><i class="fas fa-wheat-awn"></i> Milho</span>
-          <span class="cot-val" id="cot-milho-val">—</span>
-          <span class="cot-var" id="cot-milho-var"></span>
-          <span class="cot-sub">saca 60 kg</span>
-        </div>
-        <div class="cot-card" id="cot-acucar">
-          <span class="cot-label"><i class="fas fa-cube"></i> Açúcar</span>
-          <span class="cot-val" id="cot-acucar-val">—</span>
-          <span class="cot-var" id="cot-acucar-var"></span>
-          <span class="cot-sub">saca 50 kg</span>
-        </div>
-      </div>
-      <div class="cot-foot">Referência de bolsa (CBOT/ICE) convertida pelo dólar. Não é o preço físico.</div>
-    </div>
-
-    <!-- Cana: sempre visível -->
-    <div class="cot-card cot-cana-row" id="cot-cana" onclick="editarParametrosCana()" title="Toque para ajustar ATR e preço">
-      <span class="cot-label"><i class="fas fa-seedling"></i> Cana-de-açúcar · estimativa</span>
-      <span class="cot-val" id="cot-cana-val">—</span>
-      <span class="cot-sub" id="cot-cana-sub">toque p/ definir ATR</span>
-    </div>
-  </div>
-
   <!-- MELHORIA 4: Chips de frente -->
   <div id="home-frentes-chips" style="display:none">
     <!-- chips injetados via JS -->
