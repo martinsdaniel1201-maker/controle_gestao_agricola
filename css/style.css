@@ -4453,3 +4453,50 @@ body.dark-mode .mais-sheet-item.atual::after { color: #9CCC9F; }
 body.dark-mode .cosa-card-oper { background: #212821; border-color: #333; }
 body.dark-mode .cosa-oper-codigo { background: rgba(67,160,71,0.16); border-color: #3A6B3D; color: #9CCC9F; }
 body.dark-mode .cosa-oper-count { background: #262626; border-color: #333; }
+
+
+/* ══ COTAÇÕES DE MERCADO (home) ══ */
+.cot-wrap { margin: 0 12px 14px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: 0 1px 2px rgba(20,40,20,.04), 0 6px 18px rgba(20,40,20,.05); }
+.cot-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cot-title { font-size: 12px; font-weight: 800; color: var(--text); letter-spacing: .2px; display: flex; align-items: center; gap: 7px; }
+.cot-title i { color: var(--green-700); }
+.cot-meta { display: flex; align-items: center; gap: 8px; }
+.cot-status { font-size: 10px; font-weight: 600; color: var(--text-3); }
+.cot-status.erro { color: var(--red); }
+.cot-refresh { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); color: var(--text-2); font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cot-refresh.girando i { animation: cot-giro .9s linear infinite; }
+@keyframes cot-giro { to { transform: rotate(360deg); } }
+.cot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 640px) { .cot-grid { grid-template-columns: repeat(4, 1fr); } }
+.cot-card { display: flex; flex-direction: column; gap: 2px; padding: 10px 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 0; }
+#cot-cana { cursor: pointer; }
+.cot-label { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; display: flex; align-items: center; gap: 5px; }
+.cot-label i { color: var(--green-500); font-size: 10px; }
+.cot-val { font-size: 19px; font-weight: 800; color: var(--text); letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+.cot-var { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cot-var.sobe { color: var(--green-700); }
+.cot-var.desce { color: var(--red); }
+.cot-var.neutro { color: var(--text-3); }
+.cot-sub { font-size: 10px; font-weight: 600; color: var(--text-3); }
+.cot-foot { margin-top: 8px; font-size: 9.5px; font-weight: 500; color: var(--text-3); line-height: 1.4; }
+.cot-card.skeleton .cot-val { color: transparent; border-radius: 6px; background: linear-gradient(90deg, var(--surface2) 25%, var(--green-100) 37%, var(--surface2) 63%); background-size: 400% 100%; animation: cot-brilho 1.4s ease-in-out infinite; }
+@keyframes cot-brilho { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+body.dark-mode .cot-wrap { background: #1a1a1a; border-color: #2b2b2b; }
+body.dark-mode .cot-card { background: #222; border-color: #2e2e2e; }
+body.dark-mode .cot-val, body.dark-mode .cot-title { color: #f1f1f1; }
+body.dark-mode .cot-refresh { background: #222; border-color: #333; color: #ccc; }
+body.dark-mode .cot-var.sobe { color: #81C784; }
+
+
+/* ══ COTAÇÕES: abas + CEPEA ══ */
+.cot-tabs { display: flex; gap: 6px; padding: 3px; margin-bottom: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 999px; }
+.cot-tab { flex: 1; border: 0; background: transparent; color: var(--text-3); font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 999px; cursor: pointer; transition: all .18s; }
+.cot-tab.ativa { background: var(--surface); color: var(--green-700); box-shadow: 0 1px 3px rgba(20,40,20,.12); }
+.cot-cepea-frame { display: block; width: 100%; height: 150px; border: 0; border-radius: var(--radius-md); background: transparent; }
+.cot-cepea-fallback { padding: 14px; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: var(--surface2); border: 1px dashed var(--border-strong); border-radius: var(--radius-md); line-height: 1.45; }
+.cot-cepea-fallback button { display: block; margin-top: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--green-700); font-weight: 700; font-size: 11px; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.cot-cana-row { margin-top: 10px; }
+body.dark-mode .cot-tabs { background: #222; border-color: #2e2e2e; }
+body.dark-mode .cot-tab.ativa { background: #2b2b2b; color: #81C784; }
+body.dark-mode .cot-cepea-fallback { background: #222; border-color: #333; color: #ccc; }
+body.dark-mode .cot-cepea-fallback button { background: #2b2b2b; border-color: #333; color: #81C784; }
