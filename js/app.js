@@ -1929,6 +1929,22 @@ function _gatecArredondaBR(v) {
   if (isNaN(n)) return String(v ?? '');
   return Math.round(n).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 }
+// Normaliza nome de coluna (sem acento, caixa ou pontuação) p/ achar "AREA LIBERADA (HA)"
+function _gatecNormCab(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+// Talhões: padroniza "5,6,7" / "5 , 6" para "5, 6, 7" — assim a quebra de linha
+// acontece só entre os números (nas vírgulas), nunca no meio de um número.
+function _libFmtTalhoes(v) {
+  return String(v ?? '').trim().replace(/\s*,\s*/g, ', ');
+}
+// Formata hectares no padrão BR com 2 casas (alinha a vírgula na coluna): 12,50 · 1.234,56 · "—" quando vazio
+function _gatecFmtHa(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 async function _gatecSha256Hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -1965,6 +1981,10 @@ async function _gatecMontarRegistroSupabase(row) {
     tch             : _gatecNumOuNull(row['TCH']),
     status_os       : _gatecTxtOuNull(row['STATUS OS']),
   };
+  // Área liberada (ha): só entra no envio se a coluna existir na planilha —
+  // assim uma sincronização por aqui nunca zera o valor que veio do Excel.
+  const _chaveArea = Object.keys(row).find(k => _gatecNormCab(k) === 'AREALIBERADAHA');
+  if (_chaveArea !== undefined) reg.area_liberada_ha = _gatecNumOuNull(row[_chaveArea]);
   // Chave de identidade da liberação — estável ao longo de toda a colheita
   const identidade = {
     cod_liberacao  : reg.cod_liberacao,
@@ -2089,7 +2109,7 @@ async function sincronizarGatecSupabase() {
 async function carregarDadosGATEC() {
   const corpoPrevia = document.getElementById('corpo-tabela-gatec');
   if (corpoPrevia) corpoPrevia.innerHTML =
-    `<tr><td colspan="9">${cttLoadingHTML('Carregando Liberações...', { icone: 'fa-table' })}</td></tr>`;
+    `<tr><td colspan="10">${cttLoadingHTML('Carregando Liberações...', { icone: 'fa-table' })}</td></tr>`;
 
   if (typeof _sbClient === 'undefined') {
     if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
@@ -2107,6 +2127,7 @@ async function carregarDadosGATEC() {
       'FRENTE'         : r.frente || '',
       'DESC.FAZENDA'   : r.desc_fazenda || '',
       'LISTAGEM TALHAO': r.listagem_talhao || '',
+      'AREA LIBERADA (HA)': r.area_liberada_ha ?? '',
       'PROD. ESTIMADA' : _gatecNumParaBR(r.prod_estimada),
       'PROD. REAL'     : _gatecNumParaBR(r.prod_real),
       'DIF PROD.'      : _gatecNumParaBR(r.dif_prod),
@@ -2116,7 +2137,7 @@ async function carregarDadosGATEC() {
   } catch (err) {
     console.error('[Liberações] Erro Supabase:', err);
     if (corpoPrevia) corpoPrevia.innerHTML =
-      `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
+      `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
         <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
         Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.
       </td></tr>`;
@@ -2124,7 +2145,7 @@ async function carregarDadosGATEC() {
   }
 
   if (!dados.length) {
-    if (corpoPrevia) corpoPrevia.innerHTML = emptyStateTableRow(9, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
+    if (corpoPrevia) corpoPrevia.innerHTML = emptyStateTableRow(10, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
     return;
   }
 
@@ -2266,11 +2287,12 @@ const difIcon = isNaN(difNum)
         return `<tr class="linha-tabela">
           <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
           <td data-label="Frente:">${row["FRENTE"] || ""}</td>
-          <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
-          <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
+          <td data-label="Fazenda:" class="cell-fazenda" title="${escapeHtml(row["DESC.FAZENDA"] || "")}">${row["DESC.FAZENDA"] || ""}</td>
+          <td data-label="Talhões:" class="cell-talhoes">${_libFmtTalhoes(row["LISTAGEM TALHAO"])}</td>
+          <td data-label="Área (ha):" class="cell-area-lib" style="text-align:right;">${_gatecFmtHa(row["AREA LIBERADA (HA)"])}</td>
           <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
           <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
-           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};">${difIcon}${difProd}</td>
+           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};"><span class="dif-wrap">${difIcon}<span class="dif-num">${difProd}</span></span></td>
           <td data-label="TCH:" style="text-align:right;">${tch}</td>
           <td data-label="Status:" style="text-align:center;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
@@ -2578,7 +2600,7 @@ function exportarExcelLiberacoes() {
 
   if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
 
-  const cabecalho = ['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Prod. Estimada', 'Prod. Real', 'TCH', 'Dif. Prod.', 'Status'];
+  const cabecalho = ['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Área Liberada (ha)', 'Prod. Estimada', 'Prod. Real', 'TCH', 'Dif. Prod.', 'Status'];
   const linhas = filtrados.map(row => {
     const status = (row['STATUS OS'] || '').toUpperCase();
     return [
@@ -2586,6 +2608,7 @@ function exportarExcelLiberacoes() {
       row['FRENTE']           || '',
       row['DESC.FAZENDA']     || '',
       row['LISTAGEM TALHAO']  || '',
+      _gatecFmtHa(row['AREA LIBERADA (HA)']).replace('—', ''),
       row['PROD. ESTIMADA']   || '',
       row['PROD. REAL']       || '',
       row['TCH']              || '',
@@ -2644,6 +2667,7 @@ function exportarPDFLiberacoes() {
       row['FRENTE']          || '—',
       row['DESC.FAZENDA']    || '—',
       row['LISTAGEM TALHAO'] || '—',
+      _gatecFmtHa(row['AREA LIBERADA (HA)']),
       row['PROD. ESTIMADA']  || '—',
       row['PROD. REAL']      || '—',
       row['DIF PROD.']       || '—',
@@ -2655,22 +2679,22 @@ function exportarPDFLiberacoes() {
   pdf.autoTable({
     ...(_PDF_TABLE_ESTILO),
     startY: y,
-    head: [['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Prod. Est.', 'Prod. Real', 'Dif. Prod.', 'TCH', 'Status']],
+    head: [['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Área (ha)', 'Prod. Est.', 'Prod. Real', 'Dif. Prod.', 'TCH', 'Status']],
     body: linhas,
     columnStyles: {
-      3: { cellWidth: 55 },
-      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
-      8: { halign: 'center' },
+      3: { cellWidth: 50 },
+      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' },
+      9: { halign: 'center' },
     },
     didParseCell: (data) => {
       if (data.section === 'body') {
-        if (data.column.index === 6) { // Dif. Prod.
+        if (data.column.index === 7) { // Dif. Prod.
           const raw = String(data.cell.raw || '');
           if (raw.includes('-')) data.cell.styles.textColor = [198, 40, 40];
           else if (raw !== '—' && raw !== 'SEM PRODUÇÃO') data.cell.styles.textColor = [46, 125, 50];
           if (raw !== '—') data.cell.styles.fontStyle = 'bold';
         }
-        if (data.column.index === 8) { // Status
+        if (data.column.index === 9) { // Status
           const raw = String(data.cell.raw || '');
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = raw === 'ENCERRADA' ? [120, 120, 120] : [46, 125, 50];
@@ -2888,7 +2912,7 @@ function filtrarTabela() {
   document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
     const frente  = (linha.cells[1]?.textContent || '').trim();
     const fazenda = (linha.cells[2]?.textContent || '').trim();
-    const status  = (linha.cells[8]?.textContent || '').toUpperCase().trim();
+    const status  = (linha.cells[9]?.textContent || '').toUpperCase().trim();
     const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
     const okFazenda = _libFazendaOk(fazenda);
     const okStatus  = !bStatus  || status.includes(bStatus);
