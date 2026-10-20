@@ -3216,8 +3216,15 @@
     text-overflow: ellipsis;
   }
   /* Coluna Status (9ª): nunca corta o texto do badge (ENCERRADA/ABERTA) */
-  #liberacoes #tabela-liberacoes-gatec th:nth-child(9),
-  #liberacoes #tabela-liberacoes-gatec td:nth-child(9) {
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(10),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(10) {
+    overflow: visible;
+    text-overflow: clip;
+  }
+  /* 5ª coluna = Área (ha): valor compacto e sempre inteiro (sem reticências) */
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(5) {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
     overflow: visible;
     text-overflow: clip;
   }
@@ -3230,6 +3237,37 @@
     text-overflow: clip;
   }
 }
+
+/* Liberações em telas médias (tablet / janela estreita): com a coluna
+   "Área (ha)" são 10 colunas — fonte e espaçamentos um pouco menores e
+   larguras redistribuídas para nada ficar cortado. Desktop largo e celular
+   não são afetados. */
+@media (min-width: 769px) and (max-width: 1100px) {
+  #liberacoes #tabela-liberacoes-gatec th,
+  #liberacoes #tabela-liberacoes-gatec td { padding-left: 3px !important; padding-right: 3px !important; }
+  #liberacoes #tabela-liberacoes-gatec th { font-size: 10px !important; letter-spacing: 0 !important; }
+  #liberacoes #tabela-liberacoes-gatec tbody { font-size: 11px !important; }
+  #liberacoes #tabela-liberacoes-gatec .badge { font-size: 9px !important; padding: 3px 6px !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(1) { width: 11% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(2) { width: 7% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(3) { width: 13% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(4) { width: 14% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(5) { width: 9% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(6),
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(7) { width: 10% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(8) { width: 9% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(9) { width: 5% !important; }
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(10) { width: 12% !important; }
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(1),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(2),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(5),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(6),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(7),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(9) { overflow: visible; text-overflow: clip; }
+}
+
+/* Talhões: quebra de linha só entre os números (vírgulas), nunca no meio de um número */
+#tabela-liberacoes-gatec td.cell-talhoes { word-break: normal; overflow-wrap: break-word; line-height: 1.35; }
 
 /* ── COMPATIBILIDADE COM O SEU DARK MODE OBRIGATÓRIO ── */
 body.dark-mode .resumo-cards .frente-card {
@@ -4056,7 +4094,7 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     grid-template-areas:
       "lib     lib     status  status"
       "frente  faz     faz     faz"
-      "talh    talh    talh    talh"
+      "talh    talh    talh    area"
       "est     real    dif     tch";
     column-gap: 4px;
     row-gap: 2px;
@@ -4074,12 +4112,12 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   }
   #tabela-liberacoes-gatec tbody td:nth-child(1)::before { content: none !important; }
 
-  #tabela-liberacoes-gatec tbody td:nth-child(9) {
+  #tabela-liberacoes-gatec tbody td:nth-child(10) {
     grid-area: status; display: flex !important;
     justify-content: flex-end; align-items: center;
   }
-  #tabela-liberacoes-gatec tbody td:nth-child(9)::before { content: none !important; }
-  #tabela-liberacoes-gatec tbody td:nth-child(9) .badge {
+  #tabela-liberacoes-gatec tbody td:nth-child(10)::before { content: none !important; }
+  #tabela-liberacoes-gatec tbody td:nth-child(10) .badge {
     white-space: nowrap !important; font-size: 9.5px !important; padding: 4px 9px !important;
   }
 
@@ -4097,7 +4135,10 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   }
   #tabela-liberacoes-gatec tbody td:nth-child(2)::before {
     content: 'Frente ' !important; font-weight: 700 !important; text-transform: none !important;
+    font-size: 9.5px !important; margin-right: 1px !important;
   }
+  /* "Frente 401" sempre numa linha só (a regra geral de células forçava quebra) */
+  #tabela-liberacoes-gatec tbody td:nth-child(2) { white-space: nowrap !important; text-align: left !important; }
 
   #tabela-liberacoes-gatec tbody td:nth-child(4) {
     grid-area: talh; display: block !important; text-align: left !important;
@@ -4108,24 +4149,53 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
     font-size: 9px !important; letter-spacing: .4px; color: var(--text-3) !important;
   }
 
-  #tabela-liberacoes-gatec tbody td:nth-child(5),
+  /* Área liberada: ocupa o canto direito da linha dos Talhões (mesmo estilo dos rótulos das métricas) */
+  #tabela-liberacoes-gatec tbody td:nth-child(5) {
+    grid-area: area; display: flex !important; flex-direction: column !important;
+    align-items: flex-end !important; justify-content: flex-start !important;
+    text-align: right !important; margin: 4px 0 8px;
+    font-size: 13px !important; font-weight: 800 !important; color: var(--text) !important;
+    white-space: nowrap;
+  }
+  #tabela-liberacoes-gatec tbody td:nth-child(5)::before {
+    content: 'Área (ha)' !important; display: block;
+    font-size: 8.5px !important; font-weight: 700 !important;
+    text-transform: uppercase !important; letter-spacing: .3px;
+    color: var(--text-3) !important; margin: 0 0 2px;
+  }
+
   #tabela-liberacoes-gatec tbody td:nth-child(6),
   #tabela-liberacoes-gatec tbody td:nth-child(7),
-  #tabela-liberacoes-gatec tbody td:nth-child(8) {
+  #tabela-liberacoes-gatec tbody td:nth-child(8),
+  #tabela-liberacoes-gatec tbody td:nth-child(9) {
     display: flex !important; flex-direction: column !important;
     align-items: center !important; justify-content: center !important;
     text-align: center !important; padding: 8px 2px 0 !important;
     border-top: 1px solid var(--border) !important;
     font-size: 13px !important; font-weight: 800 !important;
   }
-  #tabela-liberacoes-gatec tbody td:nth-child(5) { grid-area: est; }
-  #tabela-liberacoes-gatec tbody td:nth-child(6) { grid-area: real; }
-  #tabela-liberacoes-gatec tbody td:nth-child(7) { grid-area: dif; }
-  #tabela-liberacoes-gatec tbody td:nth-child(8) { grid-area: tch; }
+  /* Rótulos das métricas: uma linha só, sem dois-pontos (mesmo padrão nas 4) */
+  #tabela-liberacoes-gatec tbody td:nth-child(6)::before { content: 'Prod. Est.' !important; }
+  #tabela-liberacoes-gatec tbody td:nth-child(7)::before { content: 'Prod. Real' !important; }
+  #tabela-liberacoes-gatec tbody td:nth-child(8)::before { content: 'Dif. Prod.' !important; }
+  #tabela-liberacoes-gatec tbody td:nth-child(9)::before { content: 'TCH' !important; }
   #tabela-liberacoes-gatec tbody td:nth-child(5)::before,
   #tabela-liberacoes-gatec tbody td:nth-child(6)::before,
   #tabela-liberacoes-gatec tbody td:nth-child(7)::before,
-  #tabela-liberacoes-gatec tbody td:nth-child(8)::before {
+  #tabela-liberacoes-gatec tbody td:nth-child(8)::before,
+  #tabela-liberacoes-gatec tbody td:nth-child(9)::before { white-space: nowrap !important; }
+  /* Frente e Fazenda alinhadas pelo topo (Fazenda pode ocupar 2 linhas) */
+  #tabela-liberacoes-gatec tbody td:nth-child(2),
+  #tabela-liberacoes-gatec tbody td:nth-child(3) { align-self: start; }
+  #tabela-liberacoes-gatec tbody td:nth-child(3) { line-height: 1.3; }
+  #tabela-liberacoes-gatec tbody td:nth-child(6) { grid-area: est; }
+  #tabela-liberacoes-gatec tbody td:nth-child(7) { grid-area: real; }
+  #tabela-liberacoes-gatec tbody td:nth-child(8) { grid-area: dif; }
+  #tabela-liberacoes-gatec tbody td:nth-child(9) { grid-area: tch; }
+  #tabela-liberacoes-gatec tbody td:nth-child(6)::before,
+  #tabela-liberacoes-gatec tbody td:nth-child(7)::before,
+  #tabela-liberacoes-gatec tbody td:nth-child(8)::before,
+  #tabela-liberacoes-gatec tbody td:nth-child(9)::before {
     content: attr(data-label); display: block;
     font-size: 8.5px !important; font-weight: 700 !important;
     text-transform: uppercase !important; letter-spacing: .3px;
@@ -4135,12 +4205,20 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   /* Modo compacto no celular: mesma disposição, só mais enxuta */
   .compact-mode #tabela-liberacoes-gatec tbody tr { padding: 8px 12px 7px !important; margin-bottom: 6px !important; }
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(1) { font-size: 13px !important; }
+  /* Telas muito estreitas (≤360px): rótulos um pouco menores para caberem em 1 linha */
+  @media (max-width: 360px) {
+    #tabela-liberacoes-gatec tbody td:nth-child(5)::before,
+    #tabela-liberacoes-gatec tbody td:nth-child(6)::before,
+    #tabela-liberacoes-gatec tbody td:nth-child(7)::before,
+    #tabela-liberacoes-gatec tbody td:nth-child(8)::before,
+    #tabela-liberacoes-gatec tbody td:nth-child(9)::before { font-size: 7.5px !important; letter-spacing: 0 !important; }
+  }
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(3) { font-size: 11px !important; }
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(4) { margin-bottom: 4px; }
-  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(5),
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(6),
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(7),
-  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(8) {
+  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(8),
+  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(9) {
     font-size: 11.5px !important; padding-top: 5px !important;
   }
 }
@@ -4182,8 +4260,14 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   100% { transform: translateY(0); opacity: 1; }
 }
 
+/* Ícone ▲/▼ + número da Dif. Prod. nunca se separam em linhas */
+.dif-wrap { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; white-space: nowrap; }
+.dif-wrap .dif-icon { margin-right: 0; }
+
 /* ── DESKTOP: alinha triângulo + número na mesma linha ── */
 @media (min-width: 769px) {
+  /* Na tabela de Liberações a célula mantém o comportamento de célula (altura total da linha) */
+  #tabela-liberacoes-gatec td.cell-dif-prod { display: table-cell !important; vertical-align: middle; }
   .cell-dif-prod {
     display: flex !important;
     align-items: center;
