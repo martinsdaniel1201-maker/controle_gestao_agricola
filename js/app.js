@@ -892,6 +892,9 @@ function iniciarWelcomeBar(nomeUsuario) {
   // NOVA FUNCIONALIDADE 4: dispara a busca do clima de forma assíncrona
   // e automática, imediatamente após o boot/login — sem exigir clique.
   atualizarClimaHomeAutomatico();
+  cotAplicarVista();
+  carregarCotacoes();
+  iniciarAutoAtualizacaoCotacoes();
 
   // MELHORIA 3: Buscar dias sem chuva via Open-Meteo
   popularSeletorChuvaCidade();
@@ -974,6 +977,232 @@ async function atualizarClimaHomeAutomatico() {
     }
   } catch (err) {
     // silencioso se offline
+  }
+}
+
+/* ══════════════════════════════════════════════
+   COTAÇÕES DE MERCADO — Soja · Milho · Açúcar · Cana
+   Fonte: Edge Function "cotacoes" no Supabase (proxy de Yahoo Finance
+   ZS=F / ZC=F / SB=F + USDBRL=X, necessário porque o navegador não
+   consegue chamar essas fontes direto por causa de CORS).
+   - Atualiza ao abrir, a cada 5 min e ao voltar pro app (aba visível).
+   - Guarda o último resultado no localStorage → funciona offline.
+   - Cana: não existe API pública do Consecana; o card calcula
+     R$/t = ATR/t × R$/kg ATR, com os dois valores editáveis por você.
+══════════════════════════════════════════════ */
+const _COT_URL = _SB_URL + '/functions/v1/cotacoes';
+const _COT_CACHE_KEY = 'ctt_cotacoes_v1';
+const _COT_ATR_KEY = 'ctt_cana_atr_v1';
+const _COT_INTERVALO_MS = 5 * 60 * 1000;
+let _cotTimer = null;
+let _cotCarregando = false;
+let _cotUltimaBusca = 0;
+
+function _cotFmtBRL(v, casas = 2) {
+  if (v == null || isNaN(v)) return '—';
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+
+function _cotPintar(chave, item) {
+  const val = document.getElementById('cot-' + chave + '-val');
+  const vr = document.getElementById('cot-' + chave + '-var');
+  if (!val) return;
+  val.textContent = item ? _cotFmtBRL(item.brl) : '—';
+  if (!vr) return;
+  if (!item || item.var_pct == null) { vr.textContent = ''; vr.className = 'cot-var'; return; }
+  const p = item.var_pct;
+  const cls = p > 0.005 ? 'sobe' : (p < -0.005 ? 'desce' : 'neutro');
+  const seta = p > 0.005 ? '▲' : (p < -0.005 ? '▼' : '•');
+  vr.textContent = seta + ' ' + Math.abs(p).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  vr.className = 'cot-var ' + cls;
+}
+
+function _cotLerAtr() {
+  try {
+    const o = JSON.parse(localStorage.getItem(_COT_ATR_KEY) || 'null');
+    if (o && o.atrPorTon > 0 && o.precoAtr > 0) return o;
+  } catch (e) {}
+  return null;
+}
+
+function _cotPintarCana() {
+  const val = document.getElementById('cot-cana-val');
+  const sub = document.getElementById('cot-cana-sub');
+  if (!val || !sub) return;
+  const p = _cotLerAtr();
+  if (!p) { val.textContent = '—'; sub.textContent = 'toque p/ definir ATR'; return; }
+  const reaisTon = p.atrPorTon * p.precoAtr;
+  val.textContent = _cotFmtBRL(reaisTon);
+  sub.textContent = 'por t · ATR ' + p.atrPorTon.toLocaleString('pt-BR') + ' kg × R$ ' + p.precoAtr.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+
+function editarParametrosCana() {
+  const atual = _cotLerAtr() || {};
+  const a = prompt('ATR da cana (kg de ATR por tonelada):', atual.atrPorTon != null ? String(atual.atrPorTon).replace('.', ',') : '');
+  if (a === null) return;
+  const b = prompt('Preço do kg de ATR (R$/kg ATR — Consecana do mês):', atual.precoAtr != null ? String(atual.precoAtr).replace('.', ',') : '');
+  if (b === null) return;
+  const atrPorTon = parseFloat(String(a).replace(',', '.'));
+  const precoAtr = parseFloat(String(b).replace(',', '.'));
+  if (!(atrPorTon > 0) || !(precoAtr > 0)) { alert('Valores inválidos. Use números maiores que zero.'); return; }
+  try { localStorage.setItem(_COT_ATR_KEY, JSON.stringify({ atrPorTon, precoAtr })); } catch (e) {}
+  _cotPintarCana();
+}
+
+function _cotAplicar(d, deCache) {
+  _cotPintar('soja', d.soja);
+  _cotPintar('milho', d.milho);
+  _cotPintar('acucar', d.acucar);
+  document.querySelectorAll('#home-cotacoes .cot-card').forEach(c => c.classList.remove('skeleton'));
+  const st = document.getElementById('cot-status');
+  if (st) {
+    const dt = d.atualizado ? new Date(d.atualizado) : null;
+    const hora = dt ? dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const usd = d.usd_brl ? ' · US$ ' + Number(d.usd_brl).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
+    st.textContent = (deCache ? 'offline · ' : '') + (hora ? 'às ' + hora : '') + usd;
+    st.classList.toggle('erro', !!deCache);
+  }
+}
+
+async function carregarCotacoes(forcar) {
+  if (_cotCarregando) return;
+  if (!forcar && Date.now() - _cotUltimaBusca < 60 * 1000) return;
+  _cotCarregando = true;
+  const btn = document.getElementById('cot-refresh');
+  if (btn) btn.classList.add('girando');
+  _cotPintarCana();
+  if (forcar) { const t = document.getElementById('cot-tab-cepea'); if (t && t.classList.contains('ativa')) cotRenderizarCepea(true); }
+
+  // mostra o último valor salvo imediatamente (se houver) enquanto busca o novo
+  let cache = null;
+  try { cache = JSON.parse(localStorage.getItem(_COT_CACHE_KEY) || 'null'); } catch (e) {}
+  if (cache) _cotAplicar(cache, false);
+  else document.querySelectorAll('#cot-soja,#cot-milho,#cot-acucar').forEach(c => c.classList.add('skeleton'));
+
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch(_COT_URL, {
+      headers: { 'apikey': _SB_KEY, 'Authorization': 'Bearer ' + _SB_KEY },
+      signal: ctrl.signal
+    });
+    clearTimeout(to);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (!d || d.erro) throw new Error(d && d.erro ? d.erro : 'resposta inválida');
+    try { localStorage.setItem(_COT_CACHE_KEY, JSON.stringify(d)); } catch (e) {}
+    _cotAplicar(d, false);
+    _cotUltimaBusca = Date.now();
+  } catch (err) {
+    if (cache) _cotAplicar(cache, true);
+    else {
+      document.querySelectorAll('#home-cotacoes .cot-card').forEach(c => c.classList.remove('skeleton'));
+      const st = document.getElementById('cot-status');
+      if (st) { st.textContent = 'sem conexão com as cotações'; st.classList.add('erro'); }
+    }
+  } finally {
+    _cotCarregando = false;
+    if (btn) btn.classList.remove('girando');
+  }
+}
+
+/* ── CEPEA: widget oficial (cepea.org.br/br/widget.aspx) ──
+   O widget usa document.write, então roda dentro de um iframe com sandbox
+   (sem allow-same-origin): o script de terceiro NÃO enxerga o app, o
+   localStorage nem a sessão do Supabase. A altura volta por postMessage. */
+const _CEPEA_VISTA_KEY = 'ctt_cot_vista_v1';
+const _CEPEA_IDS = [53, 103, 77, 12];   // indicadores escolhidos no widget
+let _cepeaTimeout = null;
+
+function _cepeaSrc(escuro) {
+  const cores = escuro
+    ? { corfundo: '222222', cortexto: 'f1f1f1', corlinha: '3a3a3a' }
+    : { corfundo: 'f9faf9', cortexto: '1a1f1a', corlinha: 'e0e5e0' };
+  let u = 'https://cepea.org.br/br/widgetproduto.js.php?fonte=arial&tamanho=11&largura=100%25'
+        + '&corfundo=' + cores.corfundo + '&cortexto=' + cores.cortexto + '&corlinha=' + cores.corlinha;
+  _CEPEA_IDS.forEach(id => { u += '&id_indicador%5B%5D=' + id; });
+  return u;
+}
+
+function cotRenderizarCepea(forcar) {
+  const f = document.getElementById('cot-cepea-frame');
+  const fb = document.getElementById('cot-cepea-fallback');
+  if (!f) return;
+  if (fb) fb.style.display = 'none';
+  f.style.display = 'block';
+  const escuro = document.body.classList.contains('dark-mode');
+  const src = _cepeaSrc(escuro);
+  if (!forcar && f.dataset.src === src && f.dataset.ok === '1') return;
+  f.dataset.src = src;
+  f.dataset.ok = '';
+  f.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank">'
+    + '<style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}</style></head><body>'
+    + '<script src="' + src + '"><\/script>'
+    + '<script>(function(){function s(){var d=document.documentElement,b=document.body;'
+    + 'parent.postMessage({ctt:"cepea",h:Math.max(d.scrollHeight,b.scrollHeight),t:(b.innerText||"").trim().length},"*");}'
+    + 'window.addEventListener("load",function(){s();setTimeout(s,800);setTimeout(s,2500);});'
+    + 'if(window.ResizeObserver)new ResizeObserver(s).observe(document.body);})();<\/script>'
+    + '</body></html>';
+  clearTimeout(_cepeaTimeout);
+  _cepeaTimeout = setTimeout(() => {
+    if (f.dataset.ok !== '1') _cepeaFalhou();
+  }, 12000);
+}
+
+function _cepeaFalhou() {
+  const f = document.getElementById('cot-cepea-frame');
+  const fb = document.getElementById('cot-cepea-fallback');
+  if (f) f.style.display = 'none';
+  if (fb) fb.style.display = 'block';
+}
+
+window.addEventListener('message', ev => {
+  const f = document.getElementById('cot-cepea-frame');
+  if (!f || ev.source !== f.contentWindow) return;
+  const d = ev.data;
+  if (!d || d.ctt !== 'cepea') return;
+  if (d.t < 5) return;                       // ainda sem conteúdo; o timeout decide
+  clearTimeout(_cepeaTimeout);
+  f.dataset.ok = '1';
+  f.style.display = 'block';
+  const fb = document.getElementById('cot-cepea-fallback');
+  if (fb) fb.style.display = 'none';
+  f.style.height = Math.min(Math.max(Number(d.h) || 0, 60), 600) + 'px';
+});
+
+function cotTrocarVista(v) {
+  try { localStorage.setItem(_CEPEA_VISTA_KEY, v); } catch (e) {}
+  cotAplicarVista();
+}
+
+function cotAplicarVista() {
+  let v = 'cepea';
+  try { v = localStorage.getItem(_CEPEA_VISTA_KEY) || 'cepea'; } catch (e) {}
+  const c = document.getElementById('cot-vista-cepea');
+  const b = document.getElementById('cot-vista-bolsa');
+  if (!c || !b) return;
+  c.style.display = v === 'cepea' ? '' : 'none';
+  b.style.display = v === 'bolsa' ? '' : 'none';
+  document.getElementById('cot-tab-cepea').classList.toggle('ativa', v === 'cepea');
+  document.getElementById('cot-tab-bolsa').classList.toggle('ativa', v === 'bolsa');
+  if (v === 'cepea') cotRenderizarCepea(false);
+  if (!window._cepeaObs) {
+    window._cepeaObs = new MutationObserver(() => {
+      const ativa = document.getElementById('cot-tab-cepea');
+      if (ativa && ativa.classList.contains('ativa')) cotRenderizarCepea(false);
+    });
+    window._cepeaObs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
+}
+
+function iniciarAutoAtualizacaoCotacoes() {
+  if (_cotTimer) clearInterval(_cotTimer);
+  _cotTimer = setInterval(() => { if (!document.hidden) carregarCotacoes(true); }, _COT_INTERVALO_MS);
+  if (!window._cotVisHook) {
+    window._cotVisHook = true;
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && Date.now() - _cotUltimaBusca > _COT_INTERVALO_MS) carregarCotacoes(true);
+    });
   }
 }
 
