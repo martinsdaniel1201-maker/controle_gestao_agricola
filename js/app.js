@@ -47,7 +47,7 @@ async function carregarMetasFrentes() {
 /* ══════════════════════════════════════════════
    LOADING PADRÃO
    Componente único de carregamento (ícone + skeleton animado) usado em
-   todas as telas do app — Liberações, Conferências, Clima, Planejamento
+   todas as telas do app — Liberações, Clima, Planejamento
    de Safra, Plantio e Tratos Culturais. Antes cada tela tinha seu próprio
    spinnerzinho de texto isolado (ou nem tinha animação nenhuma); agora
    todo mundo chama a mesma função e usa a mesma cara.
@@ -141,7 +141,6 @@ function showTab(e, id) {
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
     'conf_menu':   { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-gauge-high' },
-    'conf_os_aba': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-clipboard-check' },
     'central_os_aging': { nome: 'O.S. EM ABERTO', icon: 'fa-hourglass-half' },
     'central_apontamentos': { nome: 'APONTAMENTO DE HORAS', icon: 'fa-users-gear' },
     'conf_novo_recurso': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-tools' },
@@ -166,9 +165,6 @@ function showTab(e, id) {
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
   }
-  if (id === 'conf_os_aba' && !window._confOsDados) {
-    carregarDadosConfOS();
-  }
   if (id === 'central_os_aging' && typeof cosaInit === 'function') {
     cosaInit();
   }
@@ -184,7 +180,7 @@ function showTab(e, id) {
   // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
   const containerPrincipal = document.querySelector('.container');
   if (containerPrincipal) {
-    if (id === 'liberacoes' || id === 'conf_os_aba') {
+    if (id === 'liberacoes') {
       containerPrincipal.classList.add('container-larga');
     } else {
       containerPrincipal.classList.remove('container-larga');
@@ -332,14 +328,6 @@ function atualizarKebabMenu() {
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
-  } else if (abaId === 'conf_os_aba') {
-    itens = [
-      { secao: 'Exportar' },
-      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
-      { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' },
-      { secao: 'App' },
-      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
-    ];
   } else if (abaId === 'tratos_aba') {
     itens = [
       { secao: 'Exportar' },
@@ -379,13 +367,12 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarPDFLiberacoes();
-      else if (sid === 'conf_os_aba') exportarPDFConfOS();
       else if (sid === 'tratos_aba') exportarPDFTratos();
       else if (sid === 'plantio_aba') {
         if (document.getElementById('plantio-comparar')?.style.display !== 'none') exportarPDFComparar();
         else exportarPDFMapaPlantio();
       }
-      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Conferências, Tratos e Plantio.', 'info', 3000);
+      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Tratos e Plantio.', 'info', 3000);
       break;
     }
     case 'excel': {
@@ -393,9 +380,8 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarExcelLiberacoes();
-      else if (sid === 'conf_os_aba') exportarConfOsExcel();
       else if (sid === 'tratos_aba') exportarTratosExcel();
-      else showToast('ℹ️ Exportação Excel disponível em Liberações, Conferências e Tratos Culturais.', 'info', 3000);
+      else showToast('ℹ️ Exportação Excel disponível em Liberações e Tratos Culturais.', 'info', 3000);
       break;
     }
     case 'atualizar':
@@ -2283,265 +2269,6 @@ const difIcon = isNaN(difNum)
       // MELHORIA 1+4+5: atualiza resumo executivo da home
       atualizarResumoExecutivo();
 }
-
-/* ══════════════════════════════════════════════
-   CONFERÊNCIA OPERADORES X O.S
-══════════════════════════════════════════════ */
-// Chaves fixas da tabela public.conf_os — a leitura vem de lá, não mais
-// do CSV público. O CSV só é usado pela sincronização manual (ícone nuvem).
-const URL_CONF = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=781227222&single=true&output=csv";
-
-function _confTxtOuNull(v) {
-  const s = (v ?? '').toString().trim();
-  return s === '' ? null : s;
-}
-async function _confSha256Hex(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-async function _confMontarRegistroSupabase(row, cols) {
-  const reg = {
-    nr_os             : _confTxtOuNull(row[cols.colOS]),
-    data_encerramento : _confTxtOuNull(row[cols.colData]),
-    desc_fazenda      : _confTxtOuNull(row[cols.colFazenda]),
-    desc_operacao     : _confTxtOuNull(row[cols.colOperacao]),
-    observacao        : _confTxtOuNull(row[cols.colObs]),
-  };
-  const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
-  reg.linha_hash = await _confSha256Hex(base);
-  return reg;
-}
-function _confDetectarColunas(fields) {
-  function findCol(keywords) {
-    return fields.find(c => keywords.some(k => c.toUpperCase().includes(k))) || '';
-  }
-  return {
-    colOS       : findCol(['Nº', 'N°', 'NO', 'OS', 'O.S', 'NUMERO', 'NÚMERO']),
-    colData     : findCol(['DATA', 'ENCERR', 'FECHA']),
-    colFazenda  : findCol(['FAZENDA', 'FARM', 'PROPRI']),
-    colOperacao : findCol(['OPERA', 'AGRICOLA', 'AGRÍCOLA', 'ATIVIDADE', 'SERVIÇO', 'SERVICO']),
-    colObs      : findCol(['OBS', 'OBSERV']),
-  };
-}
-function _confCarregarCSVFonte() {
-  return new Promise((resolve, reject) => {
-    Papa.parse(URL_CONF, {
-      download: true, header: true, skipEmptyLines: true,
-      complete: (results) => {
-        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
-        resolve({ dados: results.data, cols: _confDetectarColunas(results.meta.fields || []) });
-      },
-      error: reject,
-    });
-  });
-}
-async function _confBuscarSupabasePaginado() {
-  const PAGINA = 1000;
-  let de = 0, todas = [];
-  while (true) {
-    const { data, error } = await _sbClient.from('conf_os').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1);
-    if (error) throw error;
-    if (!data || !data.length) break;
-    todas.push(...data);
-    if (data.length < PAGINA) break;
-    de += PAGINA;
-  }
-  return todas;
-}
-async function sincronizarConfOsSupabase() {
-  if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
-  const btn = document.getElementById('btn-conf-os-sync-supabase');
-  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
-  try {
-    const { dados, cols } = await _confCarregarCSVFonte();
-    const registros = await Promise.all(dados.map(row => _confMontarRegistroSupabase(row, cols)));
-    const LOTE = 300;
-    let erros = 0;
-    for (let i = 0; i < registros.length; i += LOTE) {
-      const lote = registros.slice(i, i + LOTE);
-      const { error } = await _sbClient.from('conf_os').upsert(lote, { onConflict: 'linha_hash' });
-      if (error) { erros++; console.error('[Conf O.S.→Supabase] erro no lote', i, error); }
-    }
-    if (typeof showToast === 'function') showToast(erros === 0 ? `✅ Supabase sincronizado: ${registros.length} linhas.` : `⚠️ ${erros} lote(s) com erro — veja o console.`, erros === 0 ? 'success' : 'error', 4000);
-    await carregarDadosConfOS();
-  } catch (e) {
-    console.error('[Conf O.S.→Supabase] erro geral', e);
-    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar — veja o console (F12).', 'error', 5000);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
-  }
-}
-window.sincronizarConfOsSupabase = sincronizarConfOsSupabase;
-
-async function carregarDadosConfOS() {
-  const corpo = document.getElementById('corpo-tabela-conf-os');
-  const contador = document.getElementById('conf-os-contador');
-  if (!corpo) return;
-  corpo.innerHTML = `<tr><td colspan="5">${cttLoadingHTML('Carregando Conferências...', { icone: 'fa-clipboard-check' })}</td></tr>`;
-  if (contador) contador.textContent = 'Carregando...';
-
-  if (typeof _sbClient === 'undefined') {
-    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Cliente Supabase não encontrado.</td></tr>`;
-    return;
-  }
-  try {
-    const brutos = await _confBuscarSupabasePaginado();
-    const dados = brutos.map(r => ({
-      NR_OS: r.nr_os || '', DATA_ENCERRAMENTO: r.data_encerramento || '',
-      DESC_FAZENDA: r.desc_fazenda || '', DESC_OPERACAO: r.desc_operacao || '', OBSERVACAO: r.observacao || '',
-    }));
-    window._confOsDados = dados;
-    window._confOsCols  = { colOS: 'NR_OS', colData: 'DATA_ENCERRAMENTO', colFazenda: 'DESC_FAZENDA', colOperacao: 'DESC_OPERACAO', colObs: 'OBSERVACAO' };
-    if (!dados.length) {
-      corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
-      if (contador) contador.textContent = '0 registros';
-      return;
-    }
-    renderTabelaConfOS(dados);
-  } catch (err) {
-    console.error('[Conf O.S.] Erro Supabase:', err);
-    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Erro ao carregar dados do Supabase. Verifique se está logado.</td></tr>`;
-    if (contador) contador.textContent = 'Erro';
-  }
-}
-
-function renderTabelaConfOS(dados) {
-  const corpo = document.getElementById('corpo-tabela-conf-os');
-  const contador = document.getElementById('conf-os-contador');
-  if (!corpo) return;
-  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
-
-  if (!dados || dados.length === 0) {
-    corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-filter-circle-xmark', title:'Nenhum registro encontrado', msg:'Ajuste os filtros aplicados e tente novamente.'});
-    if (contador) contador.textContent = '0 registros';
-    return;
-  }
-
-  corpo.innerHTML = dados.map(row => {
-    const os       = escapeHtml(row[colOS]       || '—');
-    const data     = escapeHtml(row[colData]     || '—');
-    const fazenda  = escapeHtml(row[colFazenda]  || '—');
-    const operacao = escapeHtml(row[colOperacao] || '—');
-    const obs      = escapeHtml(row[colObs]      || '');
-
-    return `<tr>
-      <td data-label="Nº da O.S:" style="font-weight:700; color:var(--green-900);">${os}</td>
-      <td data-label="Data Encerramento:">${data}</td>
-      <td data-label="Fazenda:">${fazenda}</td>
-      <td data-label="Operação Agrícola:">${operacao}</td>
-      <td data-label="OBS:" style="color:var(--text-3); font-size:11px;">${obs}</td>
-    </tr>`;
-  }).join('');
-
-  if (contador) contador.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
-}
-
-function filtrarTabelaConf() {
-  const bFazenda   = (document.getElementById('filtroConfFazenda')?.value   || '').toLowerCase();
-  const bOperacao  = (document.getElementById('filtroConfOperacao')?.value  || '').toLowerCase();
-  const bObs       = (document.getElementById('filtroConfObs')?.value       || '').toLowerCase();
-  if (!window._confOsDados) return;
-
-  const filtrados = window._confOsDados.filter(row => {
-    const { colFazenda, colOperacao, colObs } = window._confOsCols || {};
-    const fazenda  = (row[colFazenda]  || '').toLowerCase();
-    const operacao = (row[colOperacao] || '').toLowerCase();
-    const obs      = (row[colObs]      || '').toLowerCase();
-    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
-  });
-
-  renderTabelaConfOS(filtrados);
-}
-
-function exportarConfOsExcel() {
-  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
-
-  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
-  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
-  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
-  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
-
-  const filtrados = window._confOsDados.filter(row => {
-    const fazenda  = (row[colFazenda]  || '').toLowerCase();
-    const operacao = (row[colOperacao] || '').toLowerCase();
-    const obs      = (row[colObs]      || '').toLowerCase();
-    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
-  });
-
-  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
-
-  // Montar CSV com BOM para Excel reconhecer UTF-8
-  const cabecalho = ['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS'];
-  const linhas = filtrados.map(row => [
-    row[colOS]       || '',
-    row[colData]     || '',
-    row[colFazenda]  || '',
-    row[colOperacao] || '',
-    row[colObs]      || ''
-  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
-
-  const csv = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `conf_os_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast(`✅ ${filtrados.length} registros exportados!`, 'success', 2500);
-}
-
-function exportarPDFConfOS() {
-  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
-
-  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
-  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
-  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
-  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
-
-  const filtrados = window._confOsDados.filter(row => {
-    const fazenda  = (row[colFazenda]  || '').toLowerCase();
-    const operacao = (row[colOperacao] || '').toLowerCase();
-    const obs      = (row[colObs]      || '').toLowerCase();
-    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
-  });
-
-  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
-
-  const filtrosTxt = [
-    bFazenda  ? 'Fazenda: "' + bFazenda + '"' : null,
-    bOperacao ? 'Operação: "' + bOperacao + '"' : null,
-    bObs      ? 'OBS: "' + bObs + '"' : null,
-  ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
-
-  const { pdf, y } = _novoPDFRelatorio('Conferência Operadores × O.S.', `${filtrados.length} registros   ·   ${filtrosTxt}`, 'portrait');
-
-  pdf.autoTable({
-    ...(_PDF_TABLE_ESTILO),
-    startY: y,
-    head: [['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS']],
-    body: filtrados.map(row => [
-      row[colOS]       || '—',
-      row[colData]     || '—',
-      row[colFazenda]  || '—',
-      row[colOperacao] || '—',
-      row[colObs]      || '—',
-    ]),
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 4) {
-        const raw = String(data.cell.raw || '').toUpperCase();
-        if (raw.includes('SEM APONTAMENTO')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
-        else if (raw === 'OK') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
-      }
-    },
-  });
-
-  const nomeArq = `Conferencia_OS_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
-  _finalizarPDFRelatorio(pdf, nomeArq);
-}
-
 
 function exportarExcelLiberacoes() {
   if (!window._gatecDados || window._gatecDados.length === 0) {
@@ -4942,7 +4669,6 @@ setInterval(async () => {
   // Só sincroniza se online — evita tentativas desnecessárias offline
   if (!navigator.onLine) return;
   await carregarDadosGATEC();
-  await carregarDadosConfOS();
 }, GATEC_POLL_INTERVAL);
 
 // Verificar conexão ao iniciar
