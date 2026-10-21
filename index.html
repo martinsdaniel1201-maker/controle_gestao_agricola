@@ -1422,14 +1422,6 @@
         </div>
       </div>
       <div class="hub-grid">
-        <button class="hub-card" onclick="showTab(event,'conf_os_aba')">
-          <div class="hub-card-icon"><i class="fas fa-clipboard-check"></i></div>
-          <div class="hub-card-text">
-            <span class="hub-card-label">Conferência Operadores × O.S</span>
-            <span class="hub-card-sub">O.S encerradas, fazenda e observações</span>
-          </div>
-          <i class="fas fa-chevron-right hub-card-chevron"></i>
-        </button>
         <button class="hub-card" onclick="showTab(event,'central_os_aging')">
           <div class="hub-card-icon"><i class="fas fa-hourglass-half"></i></div>
           <div class="hub-card-text">
@@ -1580,88 +1572,6 @@
         Espaço reservado para uma nova função dentro de Conferências. Assim que o nome e o conteúdo forem definidos, esta tela é preenchida.
       </p>
     </div>
-  </section>
-
- <!-- ══ ABA CONFERÊNCIAS ══ -->
-  <section id="conf_os_aba" class="section">
-
-    <div class="card">
-      <div class="card-title">
-        <i class="fas fa-clipboard-check"></i> CONFERÊNCIA OPERADORES × O.S
-      </div>
-      <p style="font-size:11px; color:var(--text-3); margin-bottom:14px; line-height:1.6;">
-        Listagem das O.S encerradas com data de encerramento, fazenda, operação agrícola e observações.
-      </p>
-
-      <!-- Barra de filtros -->
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
-        <div class="field" style="flex:1; min-width:140px;">
-          <label>Buscar Fazenda</label>
-          <input type="text" id="filtroConfFazenda" placeholder="Digite a fazenda..." oninput="filtrarTabelaConf()"
-            style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
-        </div>
-        <div class="field" style="flex:1; min-width:140px;">
-          <label>Operação Agrícola</label>
-          <input type="text" id="filtroConfOperacao" placeholder="Digite a operação..." oninput="filtrarTabelaConf()"
-            style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
-        </div>
-        <div class="field" style="flex:1; min-width:140px;">
-          <label>OBS</label>
-          <select id="filtroConfObs" class="app-select" onchange="filtrarTabelaConf()"
-            style="width:100%; padding:9px 12px; border-radius:var(--radius-sm); border:1.5px solid var(--border); background:var(--surface2); color:var(--text); font-size:12px; font-weight:600; outline:none;">
-            <option value="">— Todas —</option>
-            <option value="ok">OK</option>
-            <option value="operação sem apontamento">OPERAÇÃO SEM APONTAMENTO</option>
-          </select>
-        </div>
-        <div class="field" style="min-width:120px;">
-          <label>&nbsp;</label>
-          <button class="btn-clima" onclick="carregarDadosConfOS()" style="width:100%; padding:9px 14px;">
-            <i class="fas fa-sync-alt"></i> Atualizar
-          </button>
-        </div>
-      </div>
-
-      <!-- Contador + Exportar -->
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-        <div id="conf-os-contador" style="font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px;">
-          Carregando...
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button class="tratos-header-icon-btn" id="btn-conf-os-sync-supabase" title="Sincronizar planilha → Supabase" onclick="sincronizarConfOsSupabase()"><i class="fas fa-cloud-arrow-up"></i></button>
-          <button onclick="exportarConfOsExcel()" style="background:var(--green-700); color:white; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-            <i class="fas fa-file-excel"></i> Exportar Excel
-          </button>
-        </div>
-      </div>
-
-      <!-- Tabela -->
-      <div style="overflow-x:auto;">
-        <table id="tabela-conf-os">
-          <thead>
-            <tr>
-              <th>Nº da O.S</th>
-              <th>Data Encerramento</th>
-              <th>Fazenda</th>
-              <th>Operação Agrícola</th>
-              <th>OBS</th>
-            </tr>
-          </thead>
-          <tbody id="corpo-tabela-conf-os">
-            <tr>
-              <td colspan="5" style="text-align:center; color:var(--text-3); padding:24px; font-size:12px;">
-                <i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Carregando dados...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <button class="btn-pdf-contextual" onclick="exportarPDFConfOS()">
-      <i class="fas fa-file-pdf"></i> Exportar PDF da Tabela
-    </button>
-
   </section>
 
   <!-- ══ ABA PLANTIO ══ -->
