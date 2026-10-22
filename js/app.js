@@ -14,40 +14,9 @@ const _sbClient = supabase.createClient(_SB_URL, _SB_KEY, {
 });
 
 /* ══════════════════════════════════════════════
-   METAS DAS FRENTES
-   Fonte única: tabela public.metas_frentes (frente, meta), editada pelo
-   Sincronizador Python (botão "Metas das frentes"). Os valores abaixo são
-   só o plano B caso o Supabase não responda — ninguém fica sem meta na tela.
-   Usada em: Resumo de Produção por Frente, Resumo Executivo (aderência
-   geral) e Resumo Semanal (WhatsApp).
-══════════════════════════════════════════════ */
-const METAS_FRENTES_PADRAO = { "401": 360491, "402": 310186, "403": 294189, "404": 307888, "451": 310133 };
-window._metasFrentes = { ...METAS_FRENTES_PADRAO };
-
-function getMetasFrentes() {
-  return window._metasFrentes || METAS_FRENTES_PADRAO;
-}
-
-async function carregarMetasFrentes() {
-  try {
-    const { data, error } = await _sbClient.from('metas_frentes').select('frente, meta');
-    if (error) throw error;
-    const novas = {};
-    (data || []).forEach(r => {
-      const m = parseFloat(r.meta);
-      const f = String(r.frente || '').trim();
-      if (f && !isNaN(m) && m >= 0) novas[f] = m;
-    });
-    if (Object.keys(novas).length) window._metasFrentes = { ...METAS_FRENTES_PADRAO, ...novas };
-  } catch (e) {
-    console.warn('[Metas] Não consegui ler metas_frentes — usando as últimas metas conhecidas.', e);
-  }
-}
-
-/* ══════════════════════════════════════════════
    LOADING PADRÃO
    Componente único de carregamento (ícone + skeleton animado) usado em
-   todas as telas do app — Liberações, Clima, Planejamento
+   todas as telas do app — Liberações, Conferências, Clima, Planejamento
    de Safra, Plantio e Tratos Culturais. Antes cada tela tinha seu próprio
    spinnerzinho de texto isolado (ou nem tinha animação nenhuma); agora
    todo mundo chama a mesma função e usa a mesma cara.
@@ -141,6 +110,7 @@ function showTab(e, id) {
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
     'conf_menu':   { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-gauge-high' },
+    'conf_os_aba': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-clipboard-check' },
     'central_os_aging': { nome: 'O.S. EM ABERTO', icon: 'fa-hourglass-half' },
     'central_apontamentos': { nome: 'APONTAMENTO DE HORAS', icon: 'fa-users-gear' },
     'conf_novo_recurso': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-tools' },
@@ -165,6 +135,9 @@ function showTab(e, id) {
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
   }
+  if (id === 'conf_os_aba' && !window._confOsDados) {
+    carregarDadosConfOS();
+  }
   if (id === 'central_os_aging' && typeof cosaInit === 'function') {
     cosaInit();
   }
@@ -180,7 +153,7 @@ function showTab(e, id) {
   // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
   const containerPrincipal = document.querySelector('.container');
   if (containerPrincipal) {
-    if (id === 'liberacoes') {
+    if (id === 'liberacoes' || id === 'conf_os_aba') {
       containerPrincipal.classList.add('container-larga');
     } else {
       containerPrincipal.classList.remove('container-larga');
@@ -328,6 +301,14 @@ function atualizarKebabMenu() {
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
+  } else if (abaId === 'conf_os_aba') {
+    itens = [
+      { secao: 'Exportar' },
+      { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
+      { label: 'Exportar Excel', icon: 'fas fa-file-excel', acao: 'excel' },
+      { secao: 'App' },
+      { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
+    ];
   } else if (abaId === 'tratos_aba') {
     itens = [
       { secao: 'Exportar' },
@@ -367,12 +348,13 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarPDFLiberacoes();
+      else if (sid === 'conf_os_aba') exportarPDFConfOS();
       else if (sid === 'tratos_aba') exportarPDFTratos();
       else if (sid === 'plantio_aba') {
         if (document.getElementById('plantio-comparar')?.style.display !== 'none') exportarPDFComparar();
         else exportarPDFMapaPlantio();
       }
-      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Tratos e Plantio.', 'info', 3000);
+      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Conferências, Tratos e Plantio.', 'info', 3000);
       break;
     }
     case 'excel': {
@@ -380,8 +362,9 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarExcelLiberacoes();
+      else if (sid === 'conf_os_aba') exportarConfOsExcel();
       else if (sid === 'tratos_aba') exportarTratosExcel();
-      else showToast('ℹ️ Exportação Excel disponível em Liberações e Tratos Culturais.', 'info', 3000);
+      else showToast('ℹ️ Exportação Excel disponível em Liberações, Conferências e Tratos Culturais.', 'info', 3000);
       break;
     }
     case 'atualizar':
@@ -755,7 +738,7 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
   const pgW = pdf.internal.pageSize.getWidth();
 
   // Faixa verde de cabeçalho
-  pdf.setFillColor(56, 72, 122); // azul-marinho Ipiranga
+  pdf.setFillColor(27, 94, 32); // --green-900
   pdf.rect(0, 0, pgW, 20, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
@@ -770,7 +753,7 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
 
   let y = 27;
   if (subtitulo) {
-    pdf.setTextColor(71, 81, 112);
+    pdf.setTextColor(74, 85, 74);
     pdf.setFontSize(9.5);
     pdf.setFont('helvetica', 'normal');
     const linhas = pdf.splitTextToSize(subtitulo, pgW - 24);
@@ -829,9 +812,9 @@ async function _finalizarPDFRelatorio(pdf, nomeArquivo) {
 // Estilo padrão de tabela, reaproveitado em todos os relatórios
 const _PDF_TABLE_ESTILO = {
   theme: 'striped',
-  headStyles: { fillColor: [56, 72, 122], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+  headStyles: { fillColor: [27, 94, 32], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
   bodyStyles: { fontSize: 8, textColor: [34, 40, 31] },
-  alternateRowStyles: { fillColor: [247, 248, 252] },
+  alternateRowStyles: { fillColor: [249, 250, 249] },
   margin: { left: 12, right: 12 },
 };
 
@@ -1123,7 +1106,7 @@ function atualizarResumoExecutivo() {
   if (!window._gatecDados || window._gatecDados.length === 0) return;
 
   const frentesPermitidas = ["401", "402", "403", "404", "451"];
-  const metasSafra = getMetasFrentes();
+  const metasSafra = { "401": 368491, "402": 310186, "403": 294189, "404": 307888, "451": 310433 };
   const metaTotal = Object.values(metasSafra).reduce((a, b) => a + b, 0);
 
   let totalProd = 0;
@@ -1264,7 +1247,7 @@ function copiarResumoSemanal() {
   }
 
   const frentesPermitidas = ["401", "402", "403", "404", "451"];
-  const metasSafra = getMetasFrentes();
+  const metasSafra = { "401": 330490.62, "402": 280186.42, "403": 258189.22, "404": 277888.36, "451": 280133.10 };
 
   const resumo = {};
   let totalGeral = 0;
@@ -1617,8 +1600,8 @@ function renderChart() {
           const r = (f.vel * f.larg * (f.efc / 100)) / 10;
           return Math.round(r * f.tch * f.horas * f.maquinas);
         }),
-        backgroundColor: '#38487A',
-        hoverBackgroundColor: '#1E2A4F',
+        backgroundColor: '#2E7D32',
+        hoverBackgroundColor: '#1B5E20',
         borderRadius: 6,
         borderSkipped: false
       }]
@@ -1635,10 +1618,10 @@ function renderChart() {
         }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#475170' } },
+        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#4A554A' } },
         y: {
-          grid: { color: '#E2E6F0' },
-          ticks: { font: { size: 10 }, color: '#7480A0', callback: v => v.toLocaleString('pt-BR') + ' t' }
+          grid: { color: '#E0E5E0' },
+          ticks: { font: { size: 10 }, color: '#7A8A7A', callback: v => v.toLocaleString('pt-BR') + ' t' }
         }
       }
     }
@@ -2069,8 +2052,6 @@ async function carregarDadosGATEC() {
     return;
   }
 
-  await carregarMetasFrentes();
-
   let dados;
   try {
     const brutos = await _gatecBuscarSupabasePaginado();
@@ -2165,7 +2146,13 @@ if (resumoCards) {
             }
 
 			 // Metas de safra por frente
-            const metasSafra = getMetasFrentes();
+            const metasSafra = {
+                "401": 360491,
+                "402": 310186,
+                "403": 294189,
+                "404": 307888,
+                "451": 310133
+            };
 
             const meta = metasSafra[frente] || null;
             const aderencia = meta ? Math.min((valor / meta) * 100, 999) : null;
@@ -2269,6 +2256,265 @@ const difIcon = isNaN(difNum)
       // MELHORIA 1+4+5: atualiza resumo executivo da home
       atualizarResumoExecutivo();
 }
+
+/* ══════════════════════════════════════════════
+   CONFERÊNCIA OPERADORES X O.S
+══════════════════════════════════════════════ */
+// Chaves fixas da tabela public.conf_os — a leitura vem de lá, não mais
+// do CSV público. O CSV só é usado pela sincronização manual (ícone nuvem).
+const URL_CONF = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=781227222&single=true&output=csv";
+
+function _confTxtOuNull(v) {
+  const s = (v ?? '').toString().trim();
+  return s === '' ? null : s;
+}
+async function _confSha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function _confMontarRegistroSupabase(row, cols) {
+  const reg = {
+    nr_os             : _confTxtOuNull(row[cols.colOS]),
+    data_encerramento : _confTxtOuNull(row[cols.colData]),
+    desc_fazenda      : _confTxtOuNull(row[cols.colFazenda]),
+    desc_operacao     : _confTxtOuNull(row[cols.colOperacao]),
+    observacao        : _confTxtOuNull(row[cols.colObs]),
+  };
+  const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
+  reg.linha_hash = await _confSha256Hex(base);
+  return reg;
+}
+function _confDetectarColunas(fields) {
+  function findCol(keywords) {
+    return fields.find(c => keywords.some(k => c.toUpperCase().includes(k))) || '';
+  }
+  return {
+    colOS       : findCol(['Nº', 'N°', 'NO', 'OS', 'O.S', 'NUMERO', 'NÚMERO']),
+    colData     : findCol(['DATA', 'ENCERR', 'FECHA']),
+    colFazenda  : findCol(['FAZENDA', 'FARM', 'PROPRI']),
+    colOperacao : findCol(['OPERA', 'AGRICOLA', 'AGRÍCOLA', 'ATIVIDADE', 'SERVIÇO', 'SERVICO']),
+    colObs      : findCol(['OBS', 'OBSERV']),
+  };
+}
+function _confCarregarCSVFonte() {
+  return new Promise((resolve, reject) => {
+    Papa.parse(URL_CONF, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
+        resolve({ dados: results.data, cols: _confDetectarColunas(results.meta.fields || []) });
+      },
+      error: reject,
+    });
+  });
+}
+async function _confBuscarSupabasePaginado() {
+  const PAGINA = 1000;
+  let de = 0, todas = [];
+  while (true) {
+    const { data, error } = await _sbClient.from('conf_os').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todas.push(...data);
+    if (data.length < PAGINA) break;
+    de += PAGINA;
+  }
+  return todas;
+}
+async function sincronizarConfOsSupabase() {
+  if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
+  const btn = document.getElementById('btn-conf-os-sync-supabase');
+  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const { dados, cols } = await _confCarregarCSVFonte();
+    const registros = await Promise.all(dados.map(row => _confMontarRegistroSupabase(row, cols)));
+    const LOTE = 300;
+    let erros = 0;
+    for (let i = 0; i < registros.length; i += LOTE) {
+      const lote = registros.slice(i, i + LOTE);
+      const { error } = await _sbClient.from('conf_os').upsert(lote, { onConflict: 'linha_hash' });
+      if (error) { erros++; console.error('[Conf O.S.→Supabase] erro no lote', i, error); }
+    }
+    if (typeof showToast === 'function') showToast(erros === 0 ? `✅ Supabase sincronizado: ${registros.length} linhas.` : `⚠️ ${erros} lote(s) com erro — veja o console.`, erros === 0 ? 'success' : 'error', 4000);
+    await carregarDadosConfOS();
+  } catch (e) {
+    console.error('[Conf O.S.→Supabase] erro geral', e);
+    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar — veja o console (F12).', 'error', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
+  }
+}
+window.sincronizarConfOsSupabase = sincronizarConfOsSupabase;
+
+async function carregarDadosConfOS() {
+  const corpo = document.getElementById('corpo-tabela-conf-os');
+  const contador = document.getElementById('conf-os-contador');
+  if (!corpo) return;
+  corpo.innerHTML = `<tr><td colspan="5">${cttLoadingHTML('Carregando Conferências...', { icone: 'fa-clipboard-check' })}</td></tr>`;
+  if (contador) contador.textContent = 'Carregando...';
+
+  if (typeof _sbClient === 'undefined') {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Cliente Supabase não encontrado.</td></tr>`;
+    return;
+  }
+  try {
+    const brutos = await _confBuscarSupabasePaginado();
+    const dados = brutos.map(r => ({
+      NR_OS: r.nr_os || '', DATA_ENCERRAMENTO: r.data_encerramento || '',
+      DESC_FAZENDA: r.desc_fazenda || '', DESC_OPERACAO: r.desc_operacao || '', OBSERVACAO: r.observacao || '',
+    }));
+    window._confOsDados = dados;
+    window._confOsCols  = { colOS: 'NR_OS', colData: 'DATA_ENCERRAMENTO', colFazenda: 'DESC_FAZENDA', colOperacao: 'DESC_OPERACAO', colObs: 'OBSERVACAO' };
+    if (!dados.length) {
+      corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
+      if (contador) contador.textContent = '0 registros';
+      return;
+    }
+    renderTabelaConfOS(dados);
+  } catch (err) {
+    console.error('[Conf O.S.] Erro Supabase:', err);
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Erro ao carregar dados do Supabase. Verifique se está logado.</td></tr>`;
+    if (contador) contador.textContent = 'Erro';
+  }
+}
+
+function renderTabelaConfOS(dados) {
+  const corpo = document.getElementById('corpo-tabela-conf-os');
+  const contador = document.getElementById('conf-os-contador');
+  if (!corpo) return;
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  if (!dados || dados.length === 0) {
+    corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-filter-circle-xmark', title:'Nenhum registro encontrado', msg:'Ajuste os filtros aplicados e tente novamente.'});
+    if (contador) contador.textContent = '0 registros';
+    return;
+  }
+
+  corpo.innerHTML = dados.map(row => {
+    const os       = escapeHtml(row[colOS]       || '—');
+    const data     = escapeHtml(row[colData]     || '—');
+    const fazenda  = escapeHtml(row[colFazenda]  || '—');
+    const operacao = escapeHtml(row[colOperacao] || '—');
+    const obs      = escapeHtml(row[colObs]      || '');
+
+    return `<tr>
+      <td data-label="Nº da O.S:" style="font-weight:700; color:var(--green-900);">${os}</td>
+      <td data-label="Data Encerramento:">${data}</td>
+      <td data-label="Fazenda:">${fazenda}</td>
+      <td data-label="Operação Agrícola:">${operacao}</td>
+      <td data-label="OBS:" style="color:var(--text-3); font-size:11px;">${obs}</td>
+    </tr>`;
+  }).join('');
+
+  if (contador) contador.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+}
+
+function filtrarTabelaConf() {
+  const bFazenda   = (document.getElementById('filtroConfFazenda')?.value   || '').toLowerCase();
+  const bOperacao  = (document.getElementById('filtroConfOperacao')?.value  || '').toLowerCase();
+  const bObs       = (document.getElementById('filtroConfObs')?.value       || '').toLowerCase();
+  if (!window._confOsDados) return;
+
+  const filtrados = window._confOsDados.filter(row => {
+    const { colFazenda, colOperacao, colObs } = window._confOsCols || {};
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  renderTabelaConfOS(filtrados);
+}
+
+function exportarConfOsExcel() {
+  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+
+  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
+  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
+  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  const filtrados = window._confOsDados.filter(row => {
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  // Montar CSV com BOM para Excel reconhecer UTF-8
+  const cabecalho = ['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS'];
+  const linhas = filtrados.map(row => [
+    row[colOS]       || '',
+    row[colData]     || '',
+    row[colFazenda]  || '',
+    row[colOperacao] || '',
+    row[colObs]      || ''
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+
+  const csv = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `conf_os_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`✅ ${filtrados.length} registros exportados!`, 'success', 2500);
+}
+
+function exportarPDFConfOS() {
+  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+
+  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
+  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
+  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  const filtrados = window._confOsDados.filter(row => {
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  const filtrosTxt = [
+    bFazenda  ? 'Fazenda: "' + bFazenda + '"' : null,
+    bOperacao ? 'Operação: "' + bOperacao + '"' : null,
+    bObs      ? 'OBS: "' + bObs + '"' : null,
+  ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
+
+  const { pdf, y } = _novoPDFRelatorio('Conferência Operadores × O.S.', `${filtrados.length} registros   ·   ${filtrosTxt}`, 'portrait');
+
+  pdf.autoTable({
+    ...(_PDF_TABLE_ESTILO),
+    startY: y,
+    head: [['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS']],
+    body: filtrados.map(row => [
+      row[colOS]       || '—',
+      row[colData]     || '—',
+      row[colFazenda]  || '—',
+      row[colOperacao] || '—',
+      row[colObs]      || '—',
+    ]),
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 4) {
+        const raw = String(data.cell.raw || '').toUpperCase();
+        if (raw.includes('SEM APONTAMENTO')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
+        else if (raw === 'OK') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
+      }
+    },
+  });
+
+  const nomeArq = `Conferencia_OS_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
+  _finalizarPDFRelatorio(pdf, nomeArq);
+}
+
 
 function exportarExcelLiberacoes() {
   if (!window._gatecDados || window._gatecDados.length === 0) {
@@ -2717,7 +2963,7 @@ function renderPrevisao5(data, nomeCidade) {
     const hoje = isToday(dt);
     const chuva = (precipitation_sum[i] || 0).toFixed(1);
     const tempatualHtml = (hoje && tempAtual !== null)
-      ? `<div style="margin-top:6px;padding:4px 8px;background:linear-gradient(135deg,#1E2A4F,#38487A);border-radius:6px;color:white;font-size:11px;font-weight:800;letter-spacing:0.3px;"><i class="fas fa-thermometer-half" style="margin-right:3px;font-size:9px;"></i>AGORA: ${tempAtual}°C</div>`
+      ? `<div style="margin-top:6px;padding:4px 8px;background:linear-gradient(135deg,#1B5E20,#388E3C);border-radius:6px;color:white;font-size:11px;font-weight:800;letter-spacing:0.3px;"><i class="fas fa-thermometer-half" style="margin-right:3px;font-size:9px;"></i>AGORA: ${tempAtual}°C</div>`
       : '';
     html += `
       <div class="forecast-card ${hoje ? 'today' : ''}">
@@ -2838,7 +3084,7 @@ async function buscarHistorico() {
             <span style="color:#0D47A1;">Dias com chuva</span>
             <b style="color:var(--blue)">${diasChuva.length}</b>
           </div>
-          <div class="res-box" style="background:linear-gradient(135deg,#1E2A4F,#38487A); border-color:var(--green-700);">
+          <div class="res-box" style="background:linear-gradient(135deg,#1B5E20,#388E3C); border-color:var(--green-700);">
             <span style="color:rgba(255,255,255,0.8);">Total acumulado</span>
             <b style="color:white; font-size:20px;">${totalMm.toFixed(1)} mm</b>
           </div>
@@ -3766,7 +4012,7 @@ function capoRenderChart(filtrados) {
   const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
 
   const cVerde = _cosaCorTema('--green-500');
-  const cAmarelo = _cosaCorTema('--ok');
+  const cAmarelo = _cosaCorTema('--amber');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
   const cLabel = _cosaCorTema('--text');
@@ -3861,101 +4107,6 @@ function _capoTaxaPorEquipamento(escopoBase) {
     taxas[cod] = melhorValor;
   });
   return taxas;
-}
-
-// ── DIAS SEM APONTAR POR EQUIPAMENTO ─────────────────────────────────────
-// Lista cada dia do período (mesma janela que _capoDiasNoPeriodo usa pra
-// calcular a Planejada, então os números sempre fecham com o card).
-function _capoListaDatasPeriodo(dadosBase, dataDe, dataAte) {
-  let de, ate;
-  if (dataDe && dataAte) { de = dataDe; ate = dataAte; }
-  else {
-    const datas = dadosBase.map(r => r.data_inicio).filter(Boolean).sort();
-    if (!datas.length) return [];
-    de = datas[0]; ate = datas[datas.length - 1];
-  }
-  const lista = [];
-  const d = new Date(de + 'T00:00:00');
-  const fim = new Date(ate + 'T00:00:00');
-  for (let i = 0; d <= fim && i < 1000; i++) {
-    lista.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-    d.setDate(d.getDate() + 1);
-  }
-  return lista;
-}
-
-// Dias em que o equipamento ficou abaixo da taxa diária dele. "vazio" = nenhum
-// lançamento no dia; senão é parcial (lançou, mas menos que a taxa).
-function _capoDiasFaltantes(cod) {
-  const ctx = window._capoDiasCtx;
-  if (!ctx) return [];
-  const taxa = ctx.taxasEquip[cod] || 0;
-  const mapa = ctx.apontPorDia[cod] || {};
-  const saida = [];
-  ctx.datasPeriodo.forEach(iso => {
-    const feito = mapa[iso] || 0;
-    const falta = Math.round((taxa - feito) * 100) / 100;
-    if (falta > 0.001) saida.push({ iso, falta, vazio: feito <= 0 });
-  });
-  return saida;
-}
-
-const _CAPO_MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-const _CAPO_SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
-const _CAPO_SEMANA_LONGA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
-
-// Monta os "chips" de dia só quando o card é aberto (a lista pode ter dezenas
-// de equipamentos × dezenas de dias — não precisa pintar tudo de uma vez).
-function capoDiasToggle(el) {
-  if (!el.open || el.dataset.pronto) return;
-  const body = el.querySelector('.capo-dias-body');
-  if (!body) return;
-  const faltantes = _capoDiasFaltantes(el.dataset.equip);
-  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  let html = `<div class="capo-dias-legenda">
-      <span><i style="background:var(--red)"></i>Sem lançamento</span>
-      <span><i style="background:var(--amber)"></i>Lançamento parcial</span>
-    </div>`;
-  let mesAtual = '';
-  let aberto = false;
-  faltantes.forEach(f => {
-    const [a, m, d] = f.iso.split('-').map(Number);
-    const dt = new Date(a, m - 1, d);
-    const rotuloMes = `${_CAPO_MESES[m - 1]} ${a}`;
-    if (rotuloMes !== mesAtual) {
-      if (aberto) html += '</div>';
-      html += `<div class="capo-dias-mes">${rotuloMes}</div><div class="capo-dias-grid">`;
-      mesAtual = rotuloMes; aberto = true;
-    }
-    const dd = String(d).padStart(2, '0'), mm = String(m).padStart(2, '0');
-    const dica = `${_CAPO_SEMANA_LONGA[dt.getDay()]}, ${dd}/${mm} — ${f.vazio ? 'sem nenhum apontamento' : 'apontamento parcial'} (faltam ${fmtH(f.falta)}h)`;
-    html += `<span class="capo-dia ${f.vazio ? 'capo-dia-vazio' : 'capo-dia-parcial'}" title="${dica}">
-        <small>${_CAPO_SEMANA[dt.getDay()]}</small><b>${dd}</b><em>-${fmtH(f.falta)}h</em>
-      </span>`;
-  });
-  if (aberto) html += '</div>';
-  html += `<div class="capo-dias-acoes"><button type="button" class="capo-dias-copiar" onclick="capoCopiarDias(this)"><i class="fas fa-copy"></i> Copiar lista</button></div>`;
-  body.innerHTML = html;
-  el.dataset.pronto = '1';
-}
-
-// Texto pronto pra colar no WhatsApp cobrando o apontamento.
-function capoCopiarDias(btn) {
-  const el = btn.closest('.capo-dias');
-  if (!el) return;
-  const cod = el.dataset.equip;
-  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  const dias = _capoDiasFaltantes(cod).map(f => {
-    const [, m, d] = f.iso.split('-');
-    return `${d}/${m}${f.vazio ? '' : ` (parcial, faltam ${fmtH(f.falta)}h)`}`;
-  });
-  const texto = `*Apontamento pendente* — equipamento ${cod}${el.dataset.cc ? ' · ' + el.dataset.cc : ''}\nDias sem apontar (${dias.length}): ${dias.join(', ')}`;
-  const ok = () => { if (typeof showToast === 'function') showToast('📋 Lista de dias copiada!', 'success', 2000); };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(texto).then(ok).catch(() => { window.prompt('Copie a lista:', texto); });
-  } else {
-    window.prompt('Copie a lista:', texto);
-  }
 }
 
 function capoRender() {
@@ -4058,15 +4209,6 @@ function capoRender() {
   });
   const listaEquip = Object.values(porEquip).sort((a,b) => (b.planejada - b.apontadas) - (a.planejada - a.apontadas));
 
-  // Horas apontadas por equipamento em CADA dia — base do detalhe "dias sem apontar".
-  const apontPorDia = {};
-  filtrados.forEach(r => {
-    if (!r.cod_equip || !r.data_inicio) return;
-    if (!apontPorDia[r.cod_equip]) apontPorDia[r.cod_equip] = {};
-    apontPorDia[r.cod_equip][r.data_inicio] = (apontPorDia[r.cod_equip][r.data_inicio] || 0) + (r.horas_apontadas || 0);
-  });
-  window._capoDiasCtx = { apontPorDia, taxasEquip, datasPeriodo: _capoListaDatasPeriodo(porEmpresa, dataDe, dataAte) };
-
   const listaEl = document.getElementById('capo-lista');
   if (!listaEl) return;
   if (!listaEquip.length) {
@@ -4075,28 +4217,6 @@ function capoRender() {
   }
   listaEl.innerHTML = listaEquip.map(e => {
     const dif = e.planejada - e.apontadas;
-    // Equipamento negativo: mostra QUAIS dias faltam (recolhido por padrão, não
-    // muda a altura do card até a pessoa abrir).
-    let blocoDias = '';
-    if (dif > 0) {
-      const falt = _capoDiasFaltantes(e.equip);
-      if (falt.length) {
-        const vazios = falt.filter(f => f.vazio).length;
-        const parciais = falt.length - vazios;
-        const partes = [];
-        if (vazios) partes.push(`${vazios} sem lançamento`);
-        if (parciais) partes.push(`${parciais} parcia${parciais === 1 ? 'l' : 'is'}`);
-        blocoDias = `
-        <details class="capo-dias" data-equip="${String(e.equip).replace(/"/g, '&quot;')}" data-cc="${String(e.cc || '').replace(/"/g, '&quot;')}" ontoggle="capoDiasToggle(this)">
-          <summary>
-            <span class="capo-dias-ico"><i class="fas fa-calendar-xmark"></i></span>
-            <span class="capo-dias-resumo"><b>${falt.length} ${falt.length === 1 ? 'dia' : 'dias'}</b> sem apontar<small>${partes.join(' · ')}</small></span>
-            <i class="fas fa-chevron-down capo-dias-chevron"></i>
-          </summary>
-          <div class="capo-dias-body"></div>
-        </details>`;
-      }
-    }
     return `
       <div class="cosa-card">
         <div class="cosa-card-top">
@@ -4107,7 +4227,7 @@ function capoRender() {
         <div class="cosa-card-meta">
           <span><i class="fas fa-calendar-check"></i> Planejada: ${fmtH(e.planejada)}h</span>
           <span><i class="fas fa-circle-check"></i> Apontada: ${fmtH(e.apontadas)}h</span>
-        </div>${blocoDias}
+        </div>
       </div>
     `;
   }).join('');
@@ -4587,7 +4707,7 @@ async function buscarGDA() {
           <span style="font-size:10px; font-weight:800; color:var(--green-900);">${pctGDA.toFixed(1)}%</span>
         </div>
         <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width:${pctGDA}%; background: var(--grad-accent);"></div>
+          <div class="progress-bar-fill" style="width:${pctGDA}%; background: linear-gradient(90deg, #43A047, #1B5E20);"></div>
         </div>
         <div class="gda-progress-labels">
           <span>0 GDA</span><span>900</span><span>1400</span><span>1800 GDA</span>
@@ -4795,6 +4915,7 @@ setInterval(async () => {
   // Só sincroniza se online — evita tentativas desnecessárias offline
   if (!navigator.onLine) return;
   await carregarDadosGATEC();
+  await carregarDadosConfOS();
 }, GATEC_POLL_INTERVAL);
 
 // Verificar conexão ao iniciar
