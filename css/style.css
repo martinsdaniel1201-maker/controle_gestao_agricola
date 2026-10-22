@@ -3453,9 +3453,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Coluna Status (9ª): nunca corta o texto do badge (ENCERRADA/ABERTA) */
-  #liberacoes #tabela-liberacoes-gatec th:nth-child(9),
-  #liberacoes #tabela-liberacoes-gatec td:nth-child(9) {
+  /* Coluna Status (10ª): nunca corta o texto do badge (ENCERRADA/ABERTA) */
+  #liberacoes #tabela-liberacoes-gatec th:nth-child(10),
+  #liberacoes #tabela-liberacoes-gatec td:nth-child(10) {
     overflow: visible;
     text-overflow: clip;
   }
@@ -4291,12 +4291,12 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
 @media screen and (max-width: 768px) {
   #tabela-liberacoes-gatec tbody tr {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-columns: repeat(5, 1fr);
     grid-template-areas:
-      "lib     lib     status  status"
-      "frente  faz     faz     faz"
-      "talh    talh    talh    talh"
-      "est     real    dif     tch";
+      "lib     lib     lib     status  status"
+      "frente  faz     faz     faz     faz"
+      "talh    talh    talh    talh    talh"
+      "area    est     real    dif     tch";
     column-gap: 4px;
     row-gap: 2px;
     padding: 12px 14px 10px !important;
@@ -4313,12 +4313,12 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   }
   #tabela-liberacoes-gatec tbody td:nth-child(1)::before { content: none !important; }
 
-  #tabela-liberacoes-gatec tbody td:nth-child(9) {
+  #tabela-liberacoes-gatec tbody td:nth-child(10) {
     grid-area: status; display: flex !important;
     justify-content: flex-end; align-items: center;
   }
-  #tabela-liberacoes-gatec tbody td:nth-child(9)::before { content: none !important; }
-  #tabela-liberacoes-gatec tbody td:nth-child(9) .badge {
+  #tabela-liberacoes-gatec tbody td:nth-child(10)::before { content: none !important; }
+  #tabela-liberacoes-gatec tbody td:nth-child(10) .badge {
     white-space: nowrap !important; font-size: 9.5px !important; padding: 4px 9px !important;
   }
 
@@ -4350,21 +4350,24 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   #tabela-liberacoes-gatec tbody td:nth-child(5),
   #tabela-liberacoes-gatec tbody td:nth-child(6),
   #tabela-liberacoes-gatec tbody td:nth-child(7),
-  #tabela-liberacoes-gatec tbody td:nth-child(8) {
+  #tabela-liberacoes-gatec tbody td:nth-child(8),
+  #tabela-liberacoes-gatec tbody td:nth-child(9) {
     display: flex !important; flex-direction: column !important;
     align-items: center !important; justify-content: center !important;
     text-align: center !important; padding: 8px 2px 0 !important;
     border-top: 1px solid var(--border) !important;
     font-size: 13px !important; font-weight: 800 !important;
   }
-  #tabela-liberacoes-gatec tbody td:nth-child(5) { grid-area: est; }
-  #tabela-liberacoes-gatec tbody td:nth-child(6) { grid-area: real; }
-  #tabela-liberacoes-gatec tbody td:nth-child(7) { grid-area: dif; }
-  #tabela-liberacoes-gatec tbody td:nth-child(8) { grid-area: tch; }
+  #tabela-liberacoes-gatec tbody td:nth-child(5) { grid-area: area; }
+  #tabela-liberacoes-gatec tbody td:nth-child(6) { grid-area: est; }
+  #tabela-liberacoes-gatec tbody td:nth-child(7) { grid-area: real; }
+  #tabela-liberacoes-gatec tbody td:nth-child(8) { grid-area: dif; }
+  #tabela-liberacoes-gatec tbody td:nth-child(9) { grid-area: tch; }
   #tabela-liberacoes-gatec tbody td:nth-child(5)::before,
   #tabela-liberacoes-gatec tbody td:nth-child(6)::before,
   #tabela-liberacoes-gatec tbody td:nth-child(7)::before,
-  #tabela-liberacoes-gatec tbody td:nth-child(8)::before {
+  #tabela-liberacoes-gatec tbody td:nth-child(8)::before,
+  #tabela-liberacoes-gatec tbody td:nth-child(9)::before {
     content: attr(data-label); display: block;
     font-size: 8.5px !important; font-weight: 700 !important;
     text-transform: uppercase !important; letter-spacing: .3px;
@@ -4379,7 +4382,8 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(5),
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(6),
   .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(7),
-  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(8) {
+  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(8),
+  .compact-mode #tabela-liberacoes-gatec tbody td:nth-child(9) {
     font-size: 11.5px !important; padding-top: 5px !important;
   }
 }
