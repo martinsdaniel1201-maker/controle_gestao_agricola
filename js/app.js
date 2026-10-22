@@ -14,41 +14,10 @@ const _sbClient = supabase.createClient(_SB_URL, _SB_KEY, {
 });
 
 /* ══════════════════════════════════════════════
-   METAS DAS FRENTES
-   Fonte única: tabela public.metas_frentes (frente, meta), editada pelo
-   Sincronizador Python (botão "Metas das frentes"). Os valores abaixo são
-   só o plano B caso o Supabase não responda — ninguém fica sem meta na tela.
-   Usada em: Resumo de Produção por Frente, Resumo Executivo (aderência
-   geral) e Resumo Semanal (WhatsApp).
-══════════════════════════════════════════════ */
-const METAS_FRENTES_PADRAO = { "401": 360491, "402": 310186, "403": 294189, "404": 307888, "451": 310133 };
-window._metasFrentes = { ...METAS_FRENTES_PADRAO };
-
-function getMetasFrentes() {
-  return window._metasFrentes || METAS_FRENTES_PADRAO;
-}
-
-async function carregarMetasFrentes() {
-  try {
-    const { data, error } = await _sbClient.from('metas_frentes').select('frente, meta');
-    if (error) throw error;
-    const novas = {};
-    (data || []).forEach(r => {
-      const m = parseFloat(r.meta);
-      const f = String(r.frente || '').trim();
-      if (f && !isNaN(m) && m >= 0) novas[f] = m;
-    });
-    if (Object.keys(novas).length) window._metasFrentes = { ...METAS_FRENTES_PADRAO, ...novas };
-  } catch (e) {
-    console.warn('[Metas] Não consegui ler metas_frentes — usando as últimas metas conhecidas.', e);
-  }
-}
-
-/* ══════════════════════════════════════════════
    LOADING PADRÃO
    Componente único de carregamento (ícone + skeleton animado) usado em
-   todas as telas do app — Liberações, Clima, Planejamento
-   de Safra, Plantio e Tratos Culturais. Antes cada tela tinha seu próprio
+   todas as telas do app — Liberações, Conferências, Clima, Planejamento
+   de Safra e Plantio. Antes cada tela tinha seu próprio
    spinnerzinho de texto isolado (ou nem tinha animação nenhuma); agora
    todo mundo chama a mesma função e usa a mesma cara.
    CSS injetado via JS (não depende de mexer no style.css/index.html).
@@ -141,12 +110,10 @@ function showTab(e, id) {
     'liberacoes':  { nome: 'LIBERAÇÕES',   icon: 'fa-table' },
     'clima_aba':   { nome: 'CLIMA & AGRO', icon: 'fa-cloud-sun' },
     'conf_menu':   { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-gauge-high' },
+    'conf_os_aba': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-clipboard-check' },
     'central_os_aging': { nome: 'O.S. EM ABERTO', icon: 'fa-hourglass-half' },
     'central_apontamentos': { nome: 'APONTAMENTO DE HORAS', icon: 'fa-users-gear' },
     'conf_novo_recurso': { nome: 'CENTRAL AGRÍCOLA', icon: 'fa-tools' },
-    'tratos_menu': { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
-    'tratos_aba':  { nome: 'TRATOS CULTURAIS', icon: 'fa-spray-can' },
-    'tratos_novo_recurso': { nome: 'TRATOS CULTURAIS', icon: 'fa-tools' },
     'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
     'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' },
     'plantio_aba': { nome: 'PLANTIO',      icon: 'fa-seedling' },
@@ -165,6 +132,9 @@ function showTab(e, id) {
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
   }
+  if (id === 'conf_os_aba' && !window._confOsDados) {
+    carregarDadosConfOS();
+  }
   if (id === 'central_os_aging' && typeof cosaInit === 'function') {
     cosaInit();
   }
@@ -180,7 +150,7 @@ function showTab(e, id) {
   // ── ALTERAÇÃO AQUI: Aumenta o container APENAS na aba de liberações ──
   const containerPrincipal = document.querySelector('.container');
   if (containerPrincipal) {
-    if (id === 'liberacoes') {
+    if (id === 'liberacoes' || id === 'conf_os_aba') {
       containerPrincipal.classList.add('container-larga');
     } else {
       containerPrincipal.classList.remove('container-larga');
@@ -191,25 +161,78 @@ function showTab(e, id) {
 }
 
 /* Destaca o item correspondente na barra de navegação inferior. Seções sem
-   ícone próprio na barra (Conferências, Simulador, Clima, Calculadora)
-   destacam o botão "Mais", já que vivem dentro daquele sheet. */
+   ícone próprio na barra (Simulador, Clima, Calculadora) destacam o botão
+   "Mais", já que vivem dentro daquele sheet. A Central Agrícola tem botão
+   fixo próprio na barra. */
+// Seções que vivem dentro do "Mais": o botão passa a mostrar a seção
+// atual (ícone + rótulo curto) em vez de um "Mais" genérico.
+const _BN_SECOES_MAIS = {
+  'simulador':            { label: 'Simulador', icon: 'fa-tractor' },
+  'clima_aba':            { label: 'Clima',     icon: 'fa-cloud-sun' },
+  'calc_aba':             { label: 'Calc.',     icon: 'fa-calculator' },
+  'planejamento_safra':   { label: 'Safra',     icon: 'fa-route' },
+};
+const _BN_GRUPO_SHEET = {};
+let _bnMaisOriginal = null;
+let _bnSecaoAtual = null;
+
+function _bnRestaurarMais() {
+  const el = document.getElementById('bn-mais');
+  if (!el) return;
+  if (_bnMaisOriginal != null) el.innerHTML = _bnMaisOriginal;
+  el.classList.remove('bn-dinamico');
+}
+
+function _bnAplicarMaisDinamico(cfg) {
+  const el = document.getElementById('bn-mais');
+  if (!el) return;
+  if (_bnMaisOriginal == null) _bnMaisOriginal = el.innerHTML; // guarda o "Mais" original 1x
+  const iconWrap = el.querySelector('.bn-icon');
+  const labelEl = el.querySelector('.bn-label');
+  if (!iconWrap || !labelEl) return; // estrutura inesperada: não mexe
+  iconWrap.innerHTML = `<i class="fas ${cfg.icon}"></i><span class="bn-mais-badge" aria-hidden="true"><i class="fas fa-ellipsis"></i></span>`;
+  labelEl.textContent = cfg.label;
+  el.classList.add('bn-dinamico');
+  el.setAttribute('aria-label', `${cfg.label} — toque para ver mais seções`);
+}
+
+/* Destaca o item correspondente na barra de navegação inferior. Seções sem
+   ícone próprio na barra passam a aparecer NO próprio botão "Mais" (ícone e
+   nome da seção atual), pra barra sempre dizer onde você está. */
 function atualizarBottomNavAtivo(id) {
   const mapa = {
     'liberacoes_menu':     'bn-liberacoes',
     'liberacoes':          'bn-liberacoes',
-    'tratos_menu':         'bn-tratos',
-    'tratos_aba':          'bn-tratos',
-    'tratos_novo_recurso': 'bn-tratos',
+    'conf_menu':           'bn-central',
+    'conf_os_aba':         'bn-central',
+    'central_os_aging':    'bn-central',
+    'central_apontamentos':'bn-central',
+    'conf_novo_recurso':   'bn-central',
     'plantio_aba':         'bn-plantio',
     'mapas_aba':           'bn-mapas'
   };
+  _bnSecaoAtual = id;
   const alvoId = mapa[id] || 'bn-mais';
+  const cfgMais = _BN_SECOES_MAIS[id];
+  if (alvoId === 'bn-mais' && cfgMais) _bnAplicarMaisDinamico(cfgMais);
+  else _bnRestaurarMais();
   document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
   const alvo = document.getElementById(alvoId);
   if (alvo) alvo.classList.add('active');
 }
 
+// Marca no sheet "Mais" a seção em que você está ("Você está aqui").
+function _bnMarcarSheetAtual() {
+  const alvoId = _BN_GRUPO_SHEET[_bnSecaoAtual] || _bnSecaoAtual;
+  document.querySelectorAll('#mais-sheet-overlay .mais-sheet-item').forEach(item => {
+    const oc = item.getAttribute('onclick') || '';
+    const ids = [...oc.matchAll(/['"]([a-z0-9_]+)['"]/gi)].map(m => m[1]);
+    item.classList.toggle('atual', !!alvoId && ids.includes(alvoId));
+  });
+}
+
 function abrirMaisSheet() {
+  _bnMarcarSheetAtual();
   document.getElementById('mais-sheet-overlay').classList.add('open');
 }
 
@@ -257,6 +280,8 @@ function voltarParaHome() {
   document.getElementById('btn-voltar-menu').style.display = 'none';
   document.getElementById('btn-atualizar-global').style.display = 'none';
   document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  _bnRestaurarMais();
+  _bnSecaoAtual = null;
   document.getElementById('mais-sheet-overlay').classList.remove('open');
 
   // Reexibe a Sabedoria de Campo
@@ -328,7 +353,7 @@ function atualizarKebabMenu() {
       { secao: 'App' },
       { label: 'Sincronizar atualização', icon: 'fas fa-sync-alt', acao: 'atualizar' },
     ];
-  } else if (abaId === 'tratos_aba') {
+  } else if (abaId === 'conf_os_aba') {
     itens = [
       { secao: 'Exportar' },
       { label: 'Exportar PDF', icon: 'fas fa-file-pdf', acao: 'pdf' },
@@ -367,12 +392,12 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarPDFLiberacoes();
-      else if (sid === 'tratos_aba') exportarPDFTratos();
+      else if (sid === 'conf_os_aba') exportarPDFConfOS();
       else if (sid === 'plantio_aba') {
         if (document.getElementById('plantio-comparar')?.style.display !== 'none') exportarPDFComparar();
         else exportarPDFMapaPlantio();
       }
-      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Tratos e Plantio.', 'info', 3000);
+      else showToast('ℹ️ Exportação em PDF disponível em Liberações, Conferências e Plantio.', 'info', 3000);
       break;
     }
     case 'excel': {
@@ -380,8 +405,8 @@ function kebabAcao(acao) {
       if (!secAtiva) { showToast('⚠️ Abra uma aba primeiro.', 'error'); return; }
       const sid = secAtiva.id;
       if (sid === 'liberacoes') exportarExcelLiberacoes();
-      else if (sid === 'tratos_aba') exportarTratosExcel();
-      else showToast('ℹ️ Exportação Excel disponível em Liberações e Tratos Culturais.', 'info', 3000);
+      else if (sid === 'conf_os_aba') exportarConfOsExcel();
+      else showToast('ℹ️ Exportação Excel disponível em Liberações e Conferências.', 'info', 3000);
       break;
     }
     case 'atualizar':
@@ -755,7 +780,7 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
   const pgW = pdf.internal.pageSize.getWidth();
 
   // Faixa verde de cabeçalho
-  pdf.setFillColor(56, 72, 122); // azul-marinho Ipiranga
+  pdf.setFillColor(27, 94, 32); // --green-900
   pdf.rect(0, 0, pgW, 20, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
@@ -770,7 +795,7 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
 
   let y = 27;
   if (subtitulo) {
-    pdf.setTextColor(71, 81, 112);
+    pdf.setTextColor(74, 85, 74);
     pdf.setFontSize(9.5);
     pdf.setFont('helvetica', 'normal');
     const linhas = pdf.splitTextToSize(subtitulo, pgW - 24);
@@ -829,9 +854,9 @@ async function _finalizarPDFRelatorio(pdf, nomeArquivo) {
 // Estilo padrão de tabela, reaproveitado em todos os relatórios
 const _PDF_TABLE_ESTILO = {
   theme: 'striped',
-  headStyles: { fillColor: [56, 72, 122], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+  headStyles: { fillColor: [27, 94, 32], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
   bodyStyles: { fontSize: 8, textColor: [34, 40, 31] },
-  alternateRowStyles: { fillColor: [247, 248, 252] },
+  alternateRowStyles: { fillColor: [249, 250, 249] },
   margin: { left: 12, right: 12 },
 };
 
@@ -1053,8 +1078,10 @@ async function atualizarSyncLabelReal() {
     console.error('[SyncStatusReal]', e);
   }
 }
+// home-sync-bar removido da Home a pedido do usuário (ficou ruim visualmente).
+// Mantida só a função pra não quebrar quem ainda chamar window.atualizarSyncLabelReal
+// em outro lugar — ela já sai de imediato se os elementos não existirem no DOM.
 window.atualizarSyncLabelReal = atualizarSyncLabelReal;
-window.addEventListener('load', () => { atualizarSyncLabelReal(); });
 
 function registrarSync(status, fonte) {
   const agora = new Date();
@@ -1123,7 +1150,7 @@ function atualizarResumoExecutivo() {
   if (!window._gatecDados || window._gatecDados.length === 0) return;
 
   const frentesPermitidas = ["401", "402", "403", "404", "451"];
-  const metasSafra = getMetasFrentes();
+  const metasSafra = { "401": 368491, "402": 310186, "403": 294189, "404": 307888, "451": 310433 };
   const metaTotal = Object.values(metasSafra).reduce((a, b) => a + b, 0);
 
   let totalProd = 0;
@@ -1264,7 +1291,7 @@ function copiarResumoSemanal() {
   }
 
   const frentesPermitidas = ["401", "402", "403", "404", "451"];
-  const metasSafra = getMetasFrentes();
+  const metasSafra = { "401": 330490.62, "402": 280186.42, "403": 258189.22, "404": 277888.36, "451": 280133.10 };
 
   const resumo = {};
   let totalGeral = 0;
@@ -1617,8 +1644,8 @@ function renderChart() {
           const r = (f.vel * f.larg * (f.efc / 100)) / 10;
           return Math.round(r * f.tch * f.horas * f.maquinas);
         }),
-        backgroundColor: '#38487A',
-        hoverBackgroundColor: '#1E2A4F',
+        backgroundColor: '#2E7D32',
+        hoverBackgroundColor: '#1B5E20',
         borderRadius: 6,
         borderSkipped: false
       }]
@@ -1635,10 +1662,10 @@ function renderChart() {
         }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#475170' } },
+        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#4A554A' } },
         y: {
-          grid: { color: '#E2E6F0' },
-          ticks: { font: { size: 10 }, color: '#7480A0', callback: v => v.toLocaleString('pt-BR') + ' t' }
+          grid: { color: '#E0E5E0' },
+          ticks: { font: { size: 10 }, color: '#7A8A7A', callback: v => v.toLocaleString('pt-BR') + ' t' }
         }
       }
     }
@@ -1875,7 +1902,7 @@ function calcularVariedade() {
 ══════════════════════════════════════════════ */
 const URL_GATEC_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=0&single=true&output=csv";
 
-// ── Helpers próprios do módulo (mesmo padrão usado em Tratos) ──────────────
+// ── Helpers próprios do módulo (padrão próprio do módulo) ──────────────
 function _gatecTxtOuNull(v) {
   const s = (v ?? '').toString().trim();
   return s === '' ? null : s;
@@ -1901,6 +1928,22 @@ function _gatecArredondaBR(v) {
   const n = _gatecParseNumBR(v);
   if (isNaN(n)) return String(v ?? '');
   return Math.round(n).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+}
+// Normaliza nome de coluna (sem acento, caixa ou pontuação) p/ achar "AREA LIBERADA (HA)"
+function _gatecNormCab(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+// Talhões: padroniza "5,6,7" / "5 , 6" para "5, 6, 7" — assim a quebra de linha
+// acontece só entre os números (nas vírgulas), nunca no meio de um número.
+function _libFmtTalhoes(v) {
+  return String(v ?? '').trim().replace(/\s*,\s*/g, ', ');
+}
+// Formata hectares no padrão BR com 2 casas (alinha a vírgula na coluna): 12,50 · 1.234,56 · "—" quando vazio
+function _gatecFmtHa(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+  if (isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 async function _gatecSha256Hex(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -1938,6 +1981,10 @@ async function _gatecMontarRegistroSupabase(row) {
     tch             : _gatecNumOuNull(row['TCH']),
     status_os       : _gatecTxtOuNull(row['STATUS OS']),
   };
+  // Área liberada (ha): só entra no envio se a coluna existir na planilha —
+  // assim uma sincronização por aqui nunca zera o valor que veio do Excel.
+  const _chaveArea = Object.keys(row).find(k => _gatecNormCab(k) === 'AREALIBERADAHA');
+  if (_chaveArea !== undefined) reg.area_liberada_ha = _gatecNumOuNull(row[_chaveArea]);
   // Chave de identidade da liberação — estável ao longo de toda a colheita
   const identidade = {
     cod_liberacao  : reg.cod_liberacao,
@@ -2062,14 +2109,12 @@ async function sincronizarGatecSupabase() {
 async function carregarDadosGATEC() {
   const corpoPrevia = document.getElementById('corpo-tabela-gatec');
   if (corpoPrevia) corpoPrevia.innerHTML =
-    `<tr><td colspan="9">${cttLoadingHTML('Carregando Liberações...', { icone: 'fa-table' })}</td></tr>`;
+    `<tr><td colspan="10">${cttLoadingHTML('Carregando Liberações...', { icone: 'fa-table' })}</td></tr>`;
 
   if (typeof _sbClient === 'undefined') {
     if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
     return;
   }
-
-  await carregarMetasFrentes();
 
   let dados;
   try {
@@ -2082,6 +2127,7 @@ async function carregarDadosGATEC() {
       'FRENTE'         : r.frente || '',
       'DESC.FAZENDA'   : r.desc_fazenda || '',
       'LISTAGEM TALHAO': r.listagem_talhao || '',
+      'AREA LIBERADA (HA)': r.area_liberada_ha ?? '',
       'PROD. ESTIMADA' : _gatecNumParaBR(r.prod_estimada),
       'PROD. REAL'     : _gatecNumParaBR(r.prod_real),
       'DIF PROD.'      : _gatecNumParaBR(r.dif_prod),
@@ -2091,7 +2137,7 @@ async function carregarDadosGATEC() {
   } catch (err) {
     console.error('[Liberações] Erro Supabase:', err);
     if (corpoPrevia) corpoPrevia.innerHTML =
-      `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
+      `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">
         <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
         Erro ao carregar dados do Supabase. Verifique se está logado e tente de novo.
       </td></tr>`;
@@ -2099,7 +2145,7 @@ async function carregarDadosGATEC() {
   }
 
   if (!dados.length) {
-    if (corpoPrevia) corpoPrevia.innerHTML = emptyStateTableRow(9, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
+    if (corpoPrevia) corpoPrevia.innerHTML = emptyStateTableRow(10, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
     return;
   }
 
@@ -2165,7 +2211,13 @@ if (resumoCards) {
             }
 
 			 // Metas de safra por frente
-            const metasSafra = getMetasFrentes();
+            const metasSafra = {
+                "401": 360491,
+                "402": 310186,
+                "403": 294189,
+                "404": 307888,
+                "451": 310133
+            };
 
             const meta = metasSafra[frente] || null;
             const aderencia = meta ? Math.min((valor / meta) * 100, 999) : null;
@@ -2235,11 +2287,12 @@ const difIcon = isNaN(difNum)
         return `<tr class="linha-tabela">
           <td data-label="Liberação:">${row["LIBERAÇÃO"] || ""}</td>
           <td data-label="Frente:">${row["FRENTE"] || ""}</td>
-          <td data-label="Fazenda:">${row["DESC.FAZENDA"] || ""}</td>
-          <td data-label="Talhões:" style="word-break:break-all;">${row["LISTAGEM TALHAO"] || ""}</td>
+          <td data-label="Fazenda:" class="cell-fazenda" title="${escapeHtml(row["DESC.FAZENDA"] || "")}">${row["DESC.FAZENDA"] || ""}</td>
+          <td data-label="Talhões:" class="cell-talhoes">${_libFmtTalhoes(row["LISTAGEM TALHAO"])}</td>
+          <td data-label="Área (ha):" class="cell-area-lib" style="text-align:right;">${_gatecFmtHa(row["AREA LIBERADA (HA)"])}</td>
           <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
           <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
-           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};">${difIcon}${difProd}</td>
+           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};"><span class="dif-wrap">${difIcon}<span class="dif-num">${difProd}</span></span></td>
           <td data-label="TCH:" style="text-align:right;">${tch}</td>
           <td data-label="Status:" style="text-align:center;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
@@ -2270,6 +2323,265 @@ const difIcon = isNaN(difNum)
       atualizarResumoExecutivo();
 }
 
+/* ══════════════════════════════════════════════
+   CONFERÊNCIA OPERADORES X O.S
+══════════════════════════════════════════════ */
+// Chaves fixas da tabela public.conf_os — a leitura vem de lá, não mais
+// do CSV público. O CSV só é usado pela sincronização manual (ícone nuvem).
+const URL_CONF = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=781227222&single=true&output=csv";
+
+function _confTxtOuNull(v) {
+  const s = (v ?? '').toString().trim();
+  return s === '' ? null : s;
+}
+async function _confSha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function _confMontarRegistroSupabase(row, cols) {
+  const reg = {
+    nr_os             : _confTxtOuNull(row[cols.colOS]),
+    data_encerramento : _confTxtOuNull(row[cols.colData]),
+    desc_fazenda      : _confTxtOuNull(row[cols.colFazenda]),
+    desc_operacao     : _confTxtOuNull(row[cols.colOperacao]),
+    observacao        : _confTxtOuNull(row[cols.colObs]),
+  };
+  const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
+  reg.linha_hash = await _confSha256Hex(base);
+  return reg;
+}
+function _confDetectarColunas(fields) {
+  function findCol(keywords) {
+    return fields.find(c => keywords.some(k => c.toUpperCase().includes(k))) || '';
+  }
+  return {
+    colOS       : findCol(['Nº', 'N°', 'NO', 'OS', 'O.S', 'NUMERO', 'NÚMERO']),
+    colData     : findCol(['DATA', 'ENCERR', 'FECHA']),
+    colFazenda  : findCol(['FAZENDA', 'FARM', 'PROPRI']),
+    colOperacao : findCol(['OPERA', 'AGRICOLA', 'AGRÍCOLA', 'ATIVIDADE', 'SERVIÇO', 'SERVICO']),
+    colObs      : findCol(['OBS', 'OBSERV']),
+  };
+}
+function _confCarregarCSVFonte() {
+  return new Promise((resolve, reject) => {
+    Papa.parse(URL_CONF, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data || !results.data.length) { reject(new Error('Nenhum dado encontrado.')); return; }
+        resolve({ dados: results.data, cols: _confDetectarColunas(results.meta.fields || []) });
+      },
+      error: reject,
+    });
+  });
+}
+async function _confBuscarSupabasePaginado() {
+  const PAGINA = 1000;
+  let de = 0, todas = [];
+  while (true) {
+    const { data, error } = await _sbClient.from('conf_os').select('*').order('id', { ascending: true }).range(de, de + PAGINA - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    todas.push(...data);
+    if (data.length < PAGINA) break;
+    de += PAGINA;
+  }
+  return todas;
+}
+async function sincronizarConfOsSupabase() {
+  if (typeof _sbClient === 'undefined') { if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000); return; }
+  const btn = document.getElementById('btn-conf-os-sync-supabase');
+  if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+  try {
+    const { dados, cols } = await _confCarregarCSVFonte();
+    const registros = await Promise.all(dados.map(row => _confMontarRegistroSupabase(row, cols)));
+    const LOTE = 300;
+    let erros = 0;
+    for (let i = 0; i < registros.length; i += LOTE) {
+      const lote = registros.slice(i, i + LOTE);
+      const { error } = await _sbClient.from('conf_os').upsert(lote, { onConflict: 'linha_hash' });
+      if (error) { erros++; console.error('[Conf O.S.→Supabase] erro no lote', i, error); }
+    }
+    if (typeof showToast === 'function') showToast(erros === 0 ? `✅ Supabase sincronizado: ${registros.length} linhas.` : `⚠️ ${erros} lote(s) com erro — veja o console.`, erros === 0 ? 'success' : 'error', 4000);
+    await carregarDadosConfOS();
+  } catch (e) {
+    console.error('[Conf O.S.→Supabase] erro geral', e);
+    if (typeof showToast === 'function') showToast('❌ Erro ao sincronizar — veja o console (F12).', 'error', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
+  }
+}
+window.sincronizarConfOsSupabase = sincronizarConfOsSupabase;
+
+async function carregarDadosConfOS() {
+  const corpo = document.getElementById('corpo-tabela-conf-os');
+  const contador = document.getElementById('conf-os-contador');
+  if (!corpo) return;
+  corpo.innerHTML = `<tr><td colspan="5">${cttLoadingHTML('Carregando Conferências...', { icone: 'fa-clipboard-check' })}</td></tr>`;
+  if (contador) contador.textContent = 'Carregando...';
+
+  if (typeof _sbClient === 'undefined') {
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Cliente Supabase não encontrado.</td></tr>`;
+    return;
+  }
+  try {
+    const brutos = await _confBuscarSupabasePaginado();
+    const dados = brutos.map(r => ({
+      NR_OS: r.nr_os || '', DATA_ENCERRAMENTO: r.data_encerramento || '',
+      DESC_FAZENDA: r.desc_fazenda || '', DESC_OPERACAO: r.desc_operacao || '', OBSERVACAO: r.observacao || '',
+    }));
+    window._confOsDados = dados;
+    window._confOsCols  = { colOS: 'NR_OS', colData: 'DATA_ENCERRAMENTO', colFazenda: 'DESC_FAZENDA', colOperacao: 'DESC_OPERACAO', colObs: 'OBSERVACAO' };
+    if (!dados.length) {
+      corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-cloud-arrow-down', title:'Nenhum dado sincronizado', msg:'Use o ícone de nuvem para sincronizar os dados.'});
+      if (contador) contador.textContent = '0 registros';
+      return;
+    }
+    renderTabelaConfOS(dados);
+  } catch (err) {
+    console.error('[Conf O.S.] Erro Supabase:', err);
+    corpo.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;font-size:12px;">Erro ao carregar dados do Supabase. Verifique se está logado.</td></tr>`;
+    if (contador) contador.textContent = 'Erro';
+  }
+}
+
+function renderTabelaConfOS(dados) {
+  const corpo = document.getElementById('corpo-tabela-conf-os');
+  const contador = document.getElementById('conf-os-contador');
+  if (!corpo) return;
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  if (!dados || dados.length === 0) {
+    corpo.innerHTML = emptyStateTableRow(5, {icon:'fa-filter-circle-xmark', title:'Nenhum registro encontrado', msg:'Ajuste os filtros aplicados e tente novamente.'});
+    if (contador) contador.textContent = '0 registros';
+    return;
+  }
+
+  corpo.innerHTML = dados.map(row => {
+    const os       = escapeHtml(row[colOS]       || '—');
+    const data     = escapeHtml(row[colData]     || '—');
+    const fazenda  = escapeHtml(row[colFazenda]  || '—');
+    const operacao = escapeHtml(row[colOperacao] || '—');
+    const obs      = escapeHtml(row[colObs]      || '');
+
+    return `<tr>
+      <td data-label="Nº da O.S:" style="font-weight:700; color:var(--green-900);">${os}</td>
+      <td data-label="Data Encerramento:">${data}</td>
+      <td data-label="Fazenda:">${fazenda}</td>
+      <td data-label="Operação Agrícola:">${operacao}</td>
+      <td data-label="OBS:" style="color:var(--text-3); font-size:11px;">${obs}</td>
+    </tr>`;
+  }).join('');
+
+  if (contador) contador.textContent = `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
+}
+
+function filtrarTabelaConf() {
+  const bFazenda   = (document.getElementById('filtroConfFazenda')?.value   || '').toLowerCase();
+  const bOperacao  = (document.getElementById('filtroConfOperacao')?.value  || '').toLowerCase();
+  const bObs       = (document.getElementById('filtroConfObs')?.value       || '').toLowerCase();
+  if (!window._confOsDados) return;
+
+  const filtrados = window._confOsDados.filter(row => {
+    const { colFazenda, colOperacao, colObs } = window._confOsCols || {};
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  renderTabelaConfOS(filtrados);
+}
+
+function exportarConfOsExcel() {
+  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+
+  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
+  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
+  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  const filtrados = window._confOsDados.filter(row => {
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  // Montar CSV com BOM para Excel reconhecer UTF-8
+  const cabecalho = ['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS'];
+  const linhas = filtrados.map(row => [
+    row[colOS]       || '',
+    row[colData]     || '',
+    row[colFazenda]  || '',
+    row[colOperacao] || '',
+    row[colObs]      || ''
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+
+  const csv = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `conf_os_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`✅ ${filtrados.length} registros exportados!`, 'success', 2500);
+}
+
+function exportarPDFConfOS() {
+  if (!window._confOsDados) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
+
+  const bFazenda  = (document.getElementById('filtroConfFazenda')?.value  || '').toLowerCase();
+  const bOperacao = (document.getElementById('filtroConfOperacao')?.value || '').toLowerCase();
+  const bObs      = (document.getElementById('filtroConfObs')?.value      || '').toLowerCase();
+  const { colOS, colData, colFazenda, colOperacao, colObs } = window._confOsCols || {};
+
+  const filtrados = window._confOsDados.filter(row => {
+    const fazenda  = (row[colFazenda]  || '').toLowerCase();
+    const operacao = (row[colOperacao] || '').toLowerCase();
+    const obs      = (row[colObs]      || '').toLowerCase();
+    return fazenda.includes(bFazenda) && operacao.includes(bOperacao) && obs.includes(bObs);
+  });
+
+  if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
+
+  const filtrosTxt = [
+    bFazenda  ? 'Fazenda: "' + bFazenda + '"' : null,
+    bOperacao ? 'Operação: "' + bOperacao + '"' : null,
+    bObs      ? 'OBS: "' + bObs + '"' : null,
+  ].filter(Boolean).join('   ·   ') || 'Sem filtros aplicados — todos os registros';
+
+  const { pdf, y } = _novoPDFRelatorio('Conferência Operadores × O.S.', `${filtrados.length} registros   ·   ${filtrosTxt}`, 'portrait');
+
+  pdf.autoTable({
+    ...(_PDF_TABLE_ESTILO),
+    startY: y,
+    head: [['Nº da O.S', 'Data Encerramento', 'Fazenda', 'Operação Agrícola', 'OBS']],
+    body: filtrados.map(row => [
+      row[colOS]       || '—',
+      row[colData]     || '—',
+      row[colFazenda]  || '—',
+      row[colOperacao] || '—',
+      row[colObs]      || '—',
+    ]),
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 4) {
+        const raw = String(data.cell.raw || '').toUpperCase();
+        if (raw.includes('SEM APONTAMENTO')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
+        else if (raw === 'OK') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
+      }
+    },
+  });
+
+  const nomeArq = `Conferencia_OS_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`;
+  _finalizarPDFRelatorio(pdf, nomeArq);
+}
+
+
 function exportarExcelLiberacoes() {
   if (!window._gatecDados || window._gatecDados.length === 0) {
     showToast('⚠️ Nenhum dado de Liberações carregado para exportar.', 'error', 2500);
@@ -2288,7 +2600,7 @@ function exportarExcelLiberacoes() {
 
   if (filtrados.length === 0) { showToast('⚠️ Nenhum registro para exportar.', 'error', 2500); return; }
 
-  const cabecalho = ['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Prod. Estimada', 'Prod. Real', 'TCH', 'Dif. Prod.', 'Status'];
+  const cabecalho = ['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Área Liberada (ha)', 'Prod. Estimada', 'Prod. Real', 'TCH', 'Dif. Prod.', 'Status'];
   const linhas = filtrados.map(row => {
     const status = (row['STATUS OS'] || '').toUpperCase();
     return [
@@ -2296,6 +2608,7 @@ function exportarExcelLiberacoes() {
       row['FRENTE']           || '',
       row['DESC.FAZENDA']     || '',
       row['LISTAGEM TALHAO']  || '',
+      _gatecFmtHa(row['AREA LIBERADA (HA)']).replace('—', ''),
       row['PROD. ESTIMADA']   || '',
       row['PROD. REAL']       || '',
       row['TCH']              || '',
@@ -2354,6 +2667,7 @@ function exportarPDFLiberacoes() {
       row['FRENTE']          || '—',
       row['DESC.FAZENDA']    || '—',
       row['LISTAGEM TALHAO'] || '—',
+      _gatecFmtHa(row['AREA LIBERADA (HA)']),
       row['PROD. ESTIMADA']  || '—',
       row['PROD. REAL']      || '—',
       row['DIF PROD.']       || '—',
@@ -2365,22 +2679,22 @@ function exportarPDFLiberacoes() {
   pdf.autoTable({
     ...(_PDF_TABLE_ESTILO),
     startY: y,
-    head: [['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Prod. Est.', 'Prod. Real', 'Dif. Prod.', 'TCH', 'Status']],
+    head: [['Liberação', 'Frente', 'Fazenda', 'Talhões', 'Área (ha)', 'Prod. Est.', 'Prod. Real', 'Dif. Prod.', 'TCH', 'Status']],
     body: linhas,
     columnStyles: {
-      3: { cellWidth: 55 },
-      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
-      8: { halign: 'center' },
+      3: { cellWidth: 50 },
+      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' },
+      9: { halign: 'center' },
     },
     didParseCell: (data) => {
       if (data.section === 'body') {
-        if (data.column.index === 6) { // Dif. Prod.
+        if (data.column.index === 7) { // Dif. Prod.
           const raw = String(data.cell.raw || '');
           if (raw.includes('-')) data.cell.styles.textColor = [198, 40, 40];
           else if (raw !== '—' && raw !== 'SEM PRODUÇÃO') data.cell.styles.textColor = [46, 125, 50];
           if (raw !== '—') data.cell.styles.fontStyle = 'bold';
         }
-        if (data.column.index === 8) { // Status
+        if (data.column.index === 9) { // Status
           const raw = String(data.cell.raw || '');
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = raw === 'ENCERRADA' ? [120, 120, 120] : [46, 125, 50];
@@ -2443,7 +2757,7 @@ function _atualizarContadorFrentesLib() {
 
 /* ══════════════════════════════════════════════
    APP-SS: Search-Select genérico reutilizável
-   (usa mesma lógica do tratos-ss, mas global)
+   (componente global)
 ══════════════════════════════════════════════ */
 function _appSSRefs(ssId) {
   const wrap  = document.getElementById('ss-' + ssId);
@@ -2566,8 +2880,8 @@ function toggleResumoMobile() {
   if (label) label.textContent = aberto ? 'Toque para recolher' : 'Toque para expandir';
 }
 
-/* Multi-seleção de Fazenda em Liberações — mesmo componente visual usado em
-   Tratos Culturais (window._tratosMultiSel.libFazenda) */
+/* Multi-seleção de Fazenda em Liberações (window._tratosMultiSel.libFazenda —
+   componente definido em "SELETOR MÚLTIPLO DE FAZENDA — LIBERAÇÕES") */
 function _libFazendaSelecionadas() {
   return window._tratosMultiSel?.libFazenda || new Set();
 }
@@ -2598,7 +2912,7 @@ function filtrarTabela() {
   document.querySelectorAll('#corpo-tabela-gatec tr').forEach(linha => {
     const frente  = (linha.cells[1]?.textContent || '').trim();
     const fazenda = (linha.cells[2]?.textContent || '').trim();
-    const status  = (linha.cells[8]?.textContent || '').toUpperCase().trim();
+    const status  = (linha.cells[9]?.textContent || '').toUpperCase().trim();
     const okFrente  = frentesSel.size === 0 || frentesSel.has(frente);
     const okFazenda = _libFazendaOk(fazenda);
     const okStatus  = !bStatus  || status.includes(bStatus);
@@ -2717,7 +3031,7 @@ function renderPrevisao5(data, nomeCidade) {
     const hoje = isToday(dt);
     const chuva = (precipitation_sum[i] || 0).toFixed(1);
     const tempatualHtml = (hoje && tempAtual !== null)
-      ? `<div style="margin-top:6px;padding:4px 8px;background:linear-gradient(135deg,#1E2A4F,#38487A);border-radius:6px;color:white;font-size:11px;font-weight:800;letter-spacing:0.3px;"><i class="fas fa-thermometer-half" style="margin-right:3px;font-size:9px;"></i>AGORA: ${tempAtual}°C</div>`
+      ? `<div style="margin-top:6px;padding:4px 8px;background:linear-gradient(135deg,#1B5E20,#388E3C);border-radius:6px;color:white;font-size:11px;font-weight:800;letter-spacing:0.3px;"><i class="fas fa-thermometer-half" style="margin-right:3px;font-size:9px;"></i>AGORA: ${tempAtual}°C</div>`
       : '';
     html += `
       <div class="forecast-card ${hoje ? 'today' : ''}">
@@ -2838,7 +3152,7 @@ async function buscarHistorico() {
             <span style="color:#0D47A1;">Dias com chuva</span>
             <b style="color:var(--blue)">${diasChuva.length}</b>
           </div>
-          <div class="res-box" style="background:linear-gradient(135deg,#1E2A4F,#38487A); border-color:var(--green-700);">
+          <div class="res-box" style="background:linear-gradient(135deg,#1B5E20,#388E3C); border-color:var(--green-700);">
             <span style="color:rgba(255,255,255,0.8);">Total acumulado</span>
             <b style="color:white; font-size:20px;">${totalMm.toFixed(1)} mm</b>
           </div>
@@ -3376,6 +3690,9 @@ function emptyStateTableRow(colspan, opts) {
    Aceita tanto o schema antigo (dt_abert/digitador/dsc_fzd) quanto o novo
    direto da planilha (data/responsavel/status já prontos) — mapeamento
    tolerante pros dois casos.
+   Coluna `operacoes` (texto, operações distintas separadas por ", ") é
+   opcional — vem do SQL combinado O.S. + Atividades (LISTAGG DISTINCT no
+   Oracle, já sem duplicar). Ausente = card não mostra a linha.
 ══════════════════════════════════════════════ */
 async function _centralOsBuscarSupabasePaginado() {
   const PAGINA = 1000;
@@ -3422,6 +3739,9 @@ async function cosaInit() {
           dsc: r.dsc_fzd || r.dsc || '',
           dias: r.dias,
           status: r.status || _cosaBucket(r.dias),
+          // Operações agrícolas ligadas à O.S. (texto já vindo separado por
+          // vírgula do SQL/Excel — ver nota no início deste bloco).
+          operacoes: r.operacoes || r.operacao || r.oper || '',
         }));
         _cosaFonte = 'supabase';
       }
@@ -3495,10 +3815,14 @@ function _cosaCorTema(nomeVar) {
   return getComputedStyle(document.documentElement).getPropertyValue(nomeVar).trim() || '#999';
 }
 
+let _cosaUltimaBase = null;
+let _cosaModoHorizontal = null;
+
 function cosaRenderChart(dadosBase) {
   const card = document.getElementById('cosa-chart-card');
   const canvas = document.getElementById('cosa-chart');
   if (!card || !canvas || typeof Chart === 'undefined') return;
+  _cosaUltimaBase = dadosBase;
 
   // Agrupa por responsável x bucket, ignorando o filtro de Situação (o
   // gráfico sempre mostra a composição completa) mas respeitando
@@ -3509,6 +3833,12 @@ function cosaRenderChart(dadosBase) {
     if (!porResp[nome]) porResp[nome] = { '< 7': 0, '> 7 e < 15': 0, '> 15': 0 };
     if (porResp[nome][r.status] != null) porResp[nome][r.status]++;
   });
+
+  // Mesmas pessoas e mesmos números em qualquer tela (top 10 por nº de
+  // O.S.). No celular/tablet em pé o gráfico vira horizontal — igual ao de
+  // Apontamento de Horas — em vez de esconder responsáveis.
+  const horizontal = window.innerWidth <= _CAPO_BP_MOBILE;
+  _cosaModoHorizontal = horizontal;
   const nomes = Object.keys(porResp)
     .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0))
     .slice(0, 10);
@@ -3521,6 +3851,7 @@ function cosaRenderChart(dadosBase) {
   const cCritico = _cosaCorTema('--red');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
+  const cLabel = _cosaCorTema('--text');
 
   const datasets = [
     { label: 'Até 7 dias', data: nomes.map(n => porResp[n]['< 7']), backgroundColor: cOk },
@@ -3528,22 +3859,150 @@ function cosaRenderChart(dadosBase) {
     { label: 'Mais de 15 dias', data: nomes.map(n => porResp[n]['> 15']), backgroundColor: cCritico },
   ];
 
+  const fonteRotulo = horizontal ? 10 : 9;
+
+  // Altura do card cresce com o nº de responsáveis no mobile (58px por
+  // pessoa + legenda/eixo); no desktop devolve o controle pro CSS.
+  const wrap = canvas.parentElement;
+  if (wrap) wrap.style.height = horizontal ? (nomes.length * 58 + 64) + 'px' : '';
+
+  // Reserva espaço à direita pro maior número caber ao lado da barra.
+  let paddingDireita = 12;
+  if (horizontal) {
+    const c2 = canvas.getContext('2d');
+    c2.save();
+    c2.font = `600 ${fonteRotulo}px Arial`;
+    const maior = Math.max(0, ...datasets.map(ds => Math.max(0, ...ds.data)));
+    paddingDireita = Math.ceil(c2.measureText(String(maior)).width) + 10;
+    c2.restore();
+  }
+
+  // Etiqueta de valor. Horizontal: à direita da barra, centralizada na
+  // altura dela. Vertical (desktop): em cima, só se couber.
+  const plugRotulos = {
+    id: 'rotulosValorOS',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = `600 ${fonteRotulo}px Arial`;
+      ctx.fillStyle = cLabel;
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar, i) => {
+          const valor = ds.data[i];
+          if (!valor) return;
+          const texto = String(valor);
+          if (horizontal) {
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texto, bar.x + 4, bar.y);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            if (ctx.measureText(texto).width > bar.width + 10) return;
+            ctx.fillText(texto, bar.x, bar.y - 4);
+          }
+        });
+      });
+      ctx.restore();
+    },
+  };
+
+  const escalaValores = { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0, maxTicksLimit: horizontal ? 5 : undefined }, grid: { color: cGrid } };
+  const escalaNomes = horizontal
+    ? { ticks: { color: cLabel, font: { size: 10, weight: '600' }, autoSkip: false, callback(v) { return _capoQuebrarNome(this.getLabelForValue(v), 11); } }, grid: { display: false } }
+    : { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } };
+
   if (_cosaChart) { _cosaChart.destroy(); }
   _cosaChart = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: { labels: nomes, datasets },
+    plugins: [plugRotulos],
     options: {
+      indexAxis: horizontal ? 'y' : 'x',
       responsive: true, maintainAspectRatio: false,
-      scales: {
-        x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
-      },
+      layout: { padding: horizontal ? { top: 4, right: paddingDireita } : { top: 16 } },
+      datasets: horizontal ? { bar: { categoryPercentage: 0.82, barPercentage: 0.95 } } : {},
+      interaction: horizontal ? { mode: 'index', axis: 'y', intersect: false } : undefined,
+      scales: horizontal ? { x: escalaValores, y: escalaNomes } : { x: escalaNomes, y: escalaValores },
       plugins: {
         legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
-        tooltip: { titleFont: { size: 11 }, bodyFont: { size: 11 } },
+        tooltip: {
+          titleFont: { size: 11 }, bodyFont: { size: 11 },
+          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed[horizontal ? 'x' : 'y']} O.S.` },
+        },
       },
     },
   });
+}
+
+// Girou o celular / redimensionou e cruzou o ponto de troca: redesenha.
+window.addEventListener('resize', () => {
+  clearTimeout(window._cosaResizeT);
+  window._cosaResizeT = setTimeout(() => {
+    if (!_cosaUltimaBase || !document.getElementById('cosa-chart')) return;
+    if ((window.innerWidth <= _CAPO_BP_MOBILE) !== _cosaModoHorizontal) cosaRenderChart(_cosaUltimaBase);
+  }, 200);
+});
+
+// Compartilhar o gráfico de O.S. como imagem — mesmo tratamento do gráfico
+// de Apontamento de Horas (_cnvBrancoParaExportar dá fundo branco, senão o
+// WhatsApp mostra o canvas transparente do Chart.js com fundo preto e o
+// texto some). Junto vai um resumo em texto por encarregado.
+async function cosaExportarGrafico() {
+  if (!_cosaChart) { if (typeof showToast === 'function') showToast('Gráfico ainda não carregado.', 'error', 2500); return; }
+
+  // _cosaUltimaBase é a mesma base já usada pelo gráfico (respeita Empresa,
+  // Encarregado e busca; ignora só o filtro de Situação).
+  const dadosBase = _cosaUltimaBase || [];
+  const porResp = {};
+  dadosBase.forEach(r => {
+    const nome = r.responsavel || 'Não informado';
+    if (!porResp[nome]) porResp[nome] = { total: 0, criticas: 0 };
+    porResp[nome].total++;
+    if (r.status === '> 15') porResp[nome].criticas++;
+  });
+  const linhas = Object.entries(porResp)
+    .map(([nome, v]) => ({ nome, ...v }))
+    .sort((a, b) => b.criticas - a.criticas || b.total - a.total);
+
+  const periodoTxt = document.getElementById('cosa-periodo')?.textContent || '';
+  let texto = `*O.S. em Aberto${_cosaFiltroEmpresa ? ' — ' + _cosaFiltroEmpresa : ''}*\nDatas de abertura entre ${periodoTxt}\n\n`;
+  linhas.forEach(l => {
+    texto += l.criticas > 0 ? `⚠️ ${l.nome}: ${l.total} O.S. (${l.criticas} com mais de 15 dias)\n` : `✅ ${l.nome}: ${l.total} O.S.\n`;
+  });
+
+  const canvas = _cnvBrancoParaExportar(
+    document.getElementById('cosa-chart'),
+    `O.S. em Aberto${_cosaFiltroEmpresa ? ' — ' + _cosaFiltroEmpresa : ''}`,
+    `${periodoTxt ? 'Abertura entre ' + periodoTxt + '   ·   ' : ''}Até 7 × 7 a 15 × Mais de 15 dias`
+  );
+  canvas.toBlob(async (blob) => {
+    if (!blob) { if (typeof showToast === 'function') showToast('Não consegui gerar a imagem do gráfico.', 'error', 3000); return; }
+    const arquivo = new File([blob], 'os-em-aberto.png', { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      try {
+        await navigator.share({ files: [arquivo], title: 'O.S. em Aberto', text: texto });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+      }
+    }
+
+    // Sem suporte a compartilhar arquivo: baixa a imagem e abre o WhatsApp
+    // já com o texto pronto — só falta anexar a imagem baixada.
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'os-em-aberto.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (typeof showToast === 'function') showToast('📥 Imagem baixada. Abrindo o WhatsApp com o texto — é só anexar a imagem.', 'success', 5000);
+    setTimeout(() => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    }, 600);
+  }, 'image/png');
 }
 
 function cosaRender() {
@@ -3556,7 +4015,7 @@ function cosaRender() {
     if (_cosaFiltroEmpresa && r.empresa !== _cosaFiltroEmpresa) return false;
     if (_cosaFiltroResp.length && !_cosaFiltroResp.includes(r.responsavel)) return false;
     if (busca) {
-      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd}`);
+      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd} ${r.operacoes || ''}`);
       if (!alvo.includes(busca)) return false;
     }
     return true;
@@ -3594,11 +4053,35 @@ function cosaRender() {
 
   const listaEl = document.getElementById('cosa-lista');
   if (!listaEl) return;
+  _cosaGarantirBarraExportar(listaEl);
   if (!filtrados.length) {
     listaEl.innerHTML = emptyStateHTML({icon:'fa-filter-circle-xmark', title:'Nenhuma O.S. encontrada', msg:'Ajuste os filtros ou o termo de busca.'});
     return;
   }
   const clsPorStatus = { '< 7':'cosa-ok', '> 7 e < 15':'cosa-atencao', '> 15':'cosa-critico', 'PLANEJADO':'cosa-neutro' };
+
+  // Uma O.S. pode ter várias operações agrícolas (ex.: "1078 - Transporte
+  // de Água"); vêm prontas e já sem duplicar do SQL/planilha, uma por
+  // linha, separadas por "; " — aceita também vírgula (formato antigo, só
+  // descrição, sem código) pra não quebrar em dados mais velhos.
+  const _COSA_RE_OPER = /^(\d+)\s*-\s*(.+)$/;
+  const _cosaChipsOperacoes = (txt) => {
+    const bruto = String(txt || '').trim();
+    if (!bruto) return '';
+    const partes = bruto.split(bruto.includes(';') ? ';' : ',').map(s => s.trim()).filter(Boolean);
+    if (!partes.length) return '';
+    const linhas = partes.map(p => {
+      const m = p.match(_COSA_RE_OPER);
+      return m
+        ? `<div class="cosa-oper-row"><span class="cosa-oper-codigo">${_cosaEsc(m[1])}</span><span class="cosa-oper-desc">${_cosaEsc(m[2])}</span></div>`
+        : `<div class="cosa-oper-row"><span class="cosa-oper-dot"></span><span class="cosa-oper-desc">${_cosaEsc(p)}</span></div>`;
+    }).join('');
+    return `<div class="cosa-card-oper">
+      <div class="cosa-oper-head"><i class="fas fa-wrench"></i> Operações <span class="cosa-oper-count">${partes.length}</span></div>
+      ${linhas}
+    </div>`;
+  };
+
   listaEl.innerHTML = filtrados
     .sort((a,b) => (b.dias||0) - (a.dias||0))
     .map(r => `
@@ -3608,6 +4091,7 @@ function cosaRender() {
           <span class="cosa-badge ${clsPorStatus[r.status]||'cosa-neutro'}">${r.status}</span>
         </div>
         <div class="cosa-card-fazenda">${r.dsc || '—'}${r.fzd ? ` <span class="cosa-card-fzd">#${r.fzd}</span>` : ''}</div>
+        ${_cosaChipsOperacoes(r.operacoes)}
         <div class="cosa-card-meta">
           <span><i class="fas fa-building"></i> ${r.empresa}</span>
           <span><i class="fas fa-handshake"></i> ${r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio'}</span>
@@ -3616,6 +4100,279 @@ function cosaRender() {
         </div>
       </div>
     `).join('');
+}
+
+/* ══════════════════════════════════════════════
+   O.S. EM ABERTO — Exportação (PDF / Excel)
+   Geral ou por encarregado(s), com ênfase nas O.S. com mais de 15 dias:
+   ficam no topo, em vermelho, e cada seção abre com um aviso destacado.
+══════════════════════════════════════════════ */
+const _COSA_SEM_NOME = 'Não informado';
+const _cosaExp = { escopo: 'geral', sel: new Set(), so15: false, lista: [] };
+
+const _cosaCritica = r => r.status === '> 15';
+const _cosaNomeResp = r => r.responsavel || _COSA_SEM_NOME;
+const _cosaEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const _cosaRotuloStatus = { '< 7': 'Até 7 dias', '> 7 e < 15': '7 a 15 dias', '> 15': 'Mais de 15 dias', 'PLANEJADO': 'Planejado' };
+const _cosaFmtData = d => { const s = String(d || '').slice(0, 10); const p = s.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : (s || '—'); };
+const _cosaSlug = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+const _cosaOrdenarDias = (a, b) => (Number(b.dias) || -1) - (Number(a.dias) || -1);
+
+// Botão fica logo acima da lista de O.S. (injetado aqui pra não depender do HTML).
+function _cosaGarantirBarraExportar(listaEl) {
+  if (document.getElementById('cosa-export-bar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'cosa-export-bar';
+  bar.className = 'cosa-exp-bar';
+  bar.innerHTML = `<button type="button" class="btn-secondary cosa-exp-btn" onclick="cosaAbrirExportar()"><i class="fas fa-file-export"></i> Exportar O.S.</button>`;
+  listaEl.parentNode.insertBefore(bar, listaEl);
+}
+
+// Base da exportação: respeita a Empresa escolhida nos chips; a escolha de
+// encarregado é feita dentro da própria janela de exportação.
+function _cosaBaseExport() {
+  return (window._centralOSDados || []).filter(r => !_cosaFiltroEmpresa || r.empresa === _cosaFiltroEmpresa);
+}
+
+function _cosaEncarregadosExport(base) {
+  const m = {};
+  base.forEach(r => {
+    const n = _cosaNomeResp(r);
+    if (!m[n]) m[n] = { nome: n, total: 0, criticas: 0 };
+    m[n].total++;
+    if (_cosaCritica(r)) m[n].criticas++;
+  });
+  return Object.values(m).sort((a, b) => b.criticas - a.criticas || b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function _cosaExpMontarSecoes() {
+  let base = _cosaBaseExport();
+  if (_cosaExp.so15) base = base.filter(_cosaCritica);
+  const geral = _cosaExp.escopo === 'geral';
+  let secoes;
+  if (geral) {
+    secoes = [{ nome: null, linhas: base.slice().sort(_cosaOrdenarDias) }];
+  } else {
+    secoes = _cosaExp.lista
+      .filter(e => _cosaExp.sel.has(e.nome))
+      .map(e => ({ nome: e.nome, linhas: base.filter(r => _cosaNomeResp(r) === e.nome).sort(_cosaOrdenarDias) }))
+      .filter(s => s.linhas.length);
+  }
+  const total = secoes.reduce((s, x) => s + x.linhas.length, 0);
+  const criticas = secoes.reduce((s, x) => s + x.linhas.filter(_cosaCritica).length, 0);
+  return { secoes, total, criticas, geral };
+}
+
+function cosaAbrirExportar() {
+  const base = _cosaBaseExport();
+  if (!base.length) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
+  _cosaExp.lista = _cosaEncarregadosExport(base);
+  const nomesValidos = new Set(_cosaExp.lista.map(e => e.nome));
+  // Se já tem encarregado filtrado na tela, abre direto nele.
+  const daTela = (_cosaFiltroResp || []).filter(n => nomesValidos.has(n));
+  _cosaExp.sel = new Set(daTela);
+  _cosaExp.escopo = daTela.length ? 'enc' : 'geral';
+  _cosaExp.so15 = false;
+
+  let ov = document.getElementById('cosa-exp-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'cosa-exp-overlay';
+    ov.className = 'mais-sheet-overlay';
+    ov.innerHTML = '<div class="mais-sheet-box cosa-exp-box" id="cosa-exp-box"></div>';
+    ov.addEventListener('click', (e) => { if (e.target === ov) cosaExpFechar(); });
+    document.body.appendChild(ov);
+  }
+  _cosaExpRender();
+  requestAnimationFrame(() => ov.classList.add('open'));
+}
+
+function cosaExpFechar() {
+  document.getElementById('cosa-exp-overlay')?.classList.remove('open');
+}
+
+function cosaExpEscopo(e) { _cosaExp.escopo = e; _cosaExpRender(); }
+function cosaExpSo15(v) { _cosaExp.so15 = !!v; _cosaExpRender(); }
+function cosaExpToggle(i) {
+  const nome = _cosaExp.lista[i]?.nome;
+  if (nome == null) return;
+  if (_cosaExp.sel.has(nome)) _cosaExp.sel.delete(nome); else _cosaExp.sel.add(nome);
+  _cosaExpRender();
+}
+function cosaExpTodos() {
+  const todos = _cosaExp.sel.size === _cosaExp.lista.length;
+  _cosaExp.sel = todos ? new Set() : new Set(_cosaExp.lista.map(e => e.nome));
+  _cosaExpRender();
+}
+
+function _cosaExpRender() {
+  const box = document.getElementById('cosa-exp-box');
+  if (!box) return;
+  const scrollAnterior = box.querySelector('.cosa-exp-lista')?.scrollTop || 0;
+  const { total, criticas, secoes } = _cosaExpMontarSecoes();
+  const enc = _cosaExp.escopo === 'enc';
+  const semSelecao = enc && !_cosaExp.sel.size;
+  const semDados = !total;
+  const desabilitar = (semSelecao || semDados) ? 'disabled' : '';
+
+  const listaHtml = enc ? `
+    <div class="cosa-exp-lista-head">
+      <span>Encarregados</span>
+      <button type="button" class="cosa-exp-link" onclick="cosaExpTodos()">${_cosaExp.sel.size === _cosaExp.lista.length ? 'Limpar' : 'Selecionar todos'}</button>
+    </div>
+    <div class="cosa-exp-lista">
+      ${_cosaExp.lista.map((e, i) => `
+        <label class="cosa-exp-item ${_cosaExp.sel.has(e.nome) ? 'on' : ''}">
+          <input type="checkbox" ${_cosaExp.sel.has(e.nome) ? 'checked' : ''} onchange="cosaExpToggle(${i})">
+          <span class="cosa-exp-nome">${_cosaEsc(e.nome)}</span>
+          <span class="cosa-exp-cont">${e.total} O.S.${e.criticas ? ` · <b class="cosa-exp-crit">${e.criticas} &gt;15d</b>` : ''}</span>
+        </label>`).join('')}
+    </div>` : '';
+
+  let resumo;
+  if (semSelecao) resumo = 'Selecione ao menos um encarregado.';
+  else if (semDados) resumo = 'Nenhuma O.S. neste filtro.';
+  else resumo = `<b>${total}</b> O.S. serão exportadas${enc && secoes.length > 1 ? ` em ${secoes.length} seções` : ''} · <b class="${criticas ? 'cosa-exp-crit' : ''}">${criticas}</b> com mais de 15 dias`;
+
+  box.innerHTML = `
+    <div class="mais-sheet-handle"></div>
+    <div class="mais-sheet-title">Exportar O.S. em aberto${_cosaFiltroEmpresa ? ` · ${_cosaEsc(_cosaFiltroEmpresa)}` : ''}</div>
+    <div class="cosa-exp-seg">
+      <button type="button" class="${!enc ? 'on' : ''}" onclick="cosaExpEscopo('geral')"><i class="fas fa-layer-group"></i> Geral</button>
+      <button type="button" class="${enc ? 'on' : ''}" onclick="cosaExpEscopo('enc')"><i class="fas fa-user-tie"></i> Por encarregado</button>
+    </div>
+    ${listaHtml}
+    <label class="cosa-exp-check">
+      <input type="checkbox" ${_cosaExp.so15 ? 'checked' : ''} onchange="cosaExpSo15(this.checked)">
+      <span>Somente O.S. com <b>mais de 15 dias</b></span>
+    </label>
+    <div class="cosa-exp-resumo">${resumo}</div>
+    <div class="cosa-exp-acoes">
+      <button type="button" class="btn-main" ${desabilitar} onclick="cosaExpGerar('pdf')"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
+      <button type="button" class="btn-secondary" ${desabilitar} onclick="cosaExpGerar('csv')"><i class="fas fa-file-excel"></i> Excel (CSV)</button>
+    </div>`;
+  const novaLista = box.querySelector('.cosa-exp-lista');
+  if (novaLista) novaLista.scrollTop = scrollAnterior;
+}
+
+function cosaExpGerar(formato) {
+  if (formato === 'csv') _cosaExpCSV(); else _cosaExpPDF();
+}
+
+function _cosaExpNomeArquivo(geral, secoes, ext) {
+  const dataTxt = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+  const alvo = geral ? 'Geral' : (secoes.length === 1 ? _cosaSlug(secoes[0].nome) : 'Por_encarregado');
+  return `OS_em_aberto_${alvo}_${dataTxt}.${ext}`;
+}
+
+function _cosaExpCSV() {
+  const { secoes, total, geral } = _cosaExpMontarSecoes();
+  if (!total) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
+  const cab = ['Encarregado', 'O.S.', 'Fazenda', 'Cód. Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias em aberto', 'Situação', 'Operações', 'Mais de 15 dias'];
+  const q = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const linhas = [];
+  secoes.forEach(s => s.linhas.forEach(r => linhas.push([
+    _cosaNomeResp(r), r.os, r.dsc, r.fzd, r.empresa, r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio',
+    _cosaFmtData(r.dt), r.dias != null ? r.dias : '', _cosaRotuloStatus[r.status] || r.status, r.operacoes || '', _cosaCritica(r) ? 'SIM' : '',
+  ].map(q).join(';'))));
+  const csv = '\uFEFF' + cab.map(q).join(';') + '\n' + linhas.join('\n');
+  _baixarArquivo(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), _cosaExpNomeArquivo(geral, secoes, 'csv'));
+  showToast(`✅ ${total} O.S. exportadas!`, 'success', 2500);
+  cosaExpFechar();
+}
+
+// Linha de contagem + faixa vermelha de alerta quando há O.S. > 15 dias.
+function _cosaExpResumoPDF(pdf, y, pgW, linhas) {
+  const c = k => linhas.filter(r => r.status === k).length;
+  const nCrit = c('> 15'), nPlan = c('PLANEJADO');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(34, 40, 31);
+  let txt = `${linhas.length} O.S. em aberto   |   Até 7 dias: ${c('< 7')}   |   7 a 15 dias: ${c('> 7 e < 15')}   |   Mais de 15 dias: ${nCrit}`;
+  if (nPlan) txt += `   |   Planejado: ${nPlan}`;
+  pdf.text(txt, 12, y + 3);
+  y += 7;
+  if (nCrit) {
+    pdf.setFillColor(198, 40, 40);
+    pdf.roundedRect(12, y, pgW - 24, 8, 1.5, 1.5, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(9.5);
+    pdf.text(`ATENÇÃO: ${nCrit} O.S. com mais de 15 dias em aberto — priorizar o encerramento`, 16, y + 5.4);
+    y += 12;
+  } else {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(46, 125, 50);
+    pdf.text('Nenhuma O.S. com mais de 15 dias em aberto.', 12, y + 3);
+    y += 8;
+  }
+  return y;
+}
+
+function _cosaExpPDF() {
+  const { secoes, total, geral } = _cosaExpMontarSecoes();
+  if (!total) { showToast('⚠️ Nenhuma O.S. para exportar.', 'error', 2500); return; }
+  if (!(window.jspdf && window.jspdf.jsPDF) && !window.jsPDF) { showToast('⚠️ Biblioteca de PDF não carregada.', 'error', 3000); return; }
+
+  const titulo = geral ? 'O.S. em Aberto — Geral' : (secoes.length === 1 ? `O.S. em Aberto — ${secoes[0].nome}` : 'O.S. em Aberto — Por Encarregado');
+  const subt = [
+    _cosaFiltroEmpresa ? `Empresa: ${_cosaFiltroEmpresa}` : 'Todas as empresas',
+    geral ? 'Todos os encarregados' : (secoes.length === 1 ? `Encarregado: ${secoes[0].nome}` : `${secoes.length} encarregados`),
+    _cosaExp.so15 ? 'Somente mais de 15 dias' : null,
+  ].filter(Boolean).join('   ·   ');
+
+  const { pdf, y: y0, pgW } = _novoPDFRelatorio(titulo, subt, geral ? 'landscape' : 'portrait');
+
+  const cabGeral = ['O.S.', 'Encarregado', 'Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias', 'Situação'];
+  const cabEnc = ['O.S.', 'Fazenda', 'Empresa', 'Tipo', 'Abertura', 'Dias', 'Situação'];
+  const colGeral = { 0:{cellWidth:22}, 1:{cellWidth:44}, 2:{cellWidth:84}, 3:{cellWidth:20}, 4:{cellWidth:22}, 5:{cellWidth:26}, 6:{cellWidth:16, halign:'center'}, 7:{cellWidth:30} };
+  const colEnc = { 0:{cellWidth:20}, 1:{cellWidth:62}, 2:{cellWidth:18}, 3:{cellWidth:20}, 4:{cellWidth:24}, 5:{cellWidth:16, halign:'center'}, 6:{cellWidth:26} };
+
+  secoes.forEach((sec, i) => {
+    let y = y0;
+    if (i > 0) { pdf.addPage(); y = 16; }
+    if (!geral) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(27, 94, 32);
+      pdf.text(sec.nome, 12, y + 4);
+      y += 9;
+    }
+    y = _cosaExpResumoPDF(pdf, y, pgW, sec.linhas);
+
+    const flags = sec.linhas.map(_cosaCritica);
+    const body = sec.linhas.map(r => {
+      // Operações entram como 2ª linha DENTRO da própria célula da Fazenda
+      // (autoTable quebra por \n sozinho) — evita adicionar coluna e
+      // reabrir a conta de largura da tabela.
+      let fazenda = (r.dsc || '—') + (r.fzd ? `  #${r.fzd}` : '');
+      if (r.operacoes) fazenda += `\nOperações: ${r.operacoes}`;
+      const dias = r.dias != null ? String(r.dias) : '—';
+      const tipo = r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio';
+      const st = _cosaRotuloStatus[r.status] || r.status || '—';
+      return geral
+        ? [r.os || '—', _cosaNomeResp(r), fazenda, r.empresa || '—', tipo, _cosaFmtData(r.dt), dias, st]
+        : [r.os || '—', fazenda, r.empresa || '—', tipo, _cosaFmtData(r.dt), dias, st];
+    });
+
+    pdf.autoTable({
+      ...(_PDF_TABLE_ESTILO),
+      startY: y,
+      head: [geral ? cabGeral : cabEnc],
+      body,
+      columnStyles: geral ? colGeral : colEnc,
+      didParseCell: (data) => {
+        if (data.section === 'body' && flags[data.row.index]) {
+          data.cell.styles.fillColor = [255, 235, 238];
+          data.cell.styles.textColor = [198, 40, 40];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+  });
+
+  _finalizarPDFRelatorio(pdf, _cosaExpNomeArquivo(geral, secoes, 'pdf'));
+  cosaExpFechar();
 }
 
 /* ══════════════════════════════════════════════
@@ -3752,56 +4509,125 @@ function capoFiltrar(tipo, valor) {
   capoRender();
 }
 
-function capoRenderChart(filtrados) {
+// Telas até 768px (celular e tablet em pé) usam o gráfico em barras
+// HORIZONTAIS: cada responsável ganha uma "linha" com 3 barras empilhadas
+// e o número escrito ao lado da barra — sem depender da largura da tela.
+// No desktop continua o gráfico vertical de sempre.
+const _CAPO_BP_MOBILE = 768;
+let _capoUltimosArgs = null;
+let _capoModoHorizontal = null;
+
+function _capoQuebrarNome(nome, max) {
+  // "JOSÉ RICARDO" -> ['JOSÉ', 'RICARDO']: o nome inteiro aparece, em
+  // duas linhas, em vez de comer a largura do gráfico.
+  const palavras = String(nome).split(/\s+/);
+  const linhas = [];
+  let atual = '';
+  palavras.forEach(p => {
+    if (atual && (atual + ' ' + p).length > max) { linhas.push(atual); atual = p; }
+    else atual = atual ? atual + ' ' + p : p;
+  });
+  if (atual) linhas.push(atual);
+  return linhas;
+}
+
+function capoRenderChart(filtrados, planejadaPorResp) {
   const canvas = document.getElementById('capo-chart');
   if (!canvas || typeof Chart === 'undefined') return;
+  _capoUltimosArgs = [filtrados, planejadaPorResp];
 
+  // Apontada: soma direta das linhas de cada pessoa (isso já bate com o
+  // BI). Planejada: vem pronta de planejadaPorResp (taxa do equipamento ×
+  // dias, dividida proporcionalmente entre quem apontou nele) — NUNCA
+  // soma horas_dia das linhas aqui, que é o cálculo que subcontava.
   const porResp = {};
   filtrados.forEach(r => {
     const nome = r.responsavel || 'Não informado';
-    if (!porResp[nome]) porResp[nome] = { planejada: 0, apontadas: 0 };
-    porResp[nome].planejada += r.horas_dia || 0;
+    if (!porResp[nome]) porResp[nome] = { planejada: planejadaPorResp[nome] || 0, apontadas: 0 };
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
+
+  // Mesmas pessoas e mesmos números em qualquer tela (top 12 por horas
+  // planejadas). O que muda no celular é só a orientação do gráfico.
+  const horizontal = window.innerWidth <= _CAPO_BP_MOBILE;
+  _capoModoHorizontal = horizontal;
   const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
 
+  const cAzul = _cosaCorTema('--blue');
   const cVerde = _cosaCorTema('--green-500');
-  const cAmarelo = _cosaCorTema('--ok');
+  const cVermelho = _cosaCorTema('--red');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
   const cLabel = _cosaCorTema('--text');
 
-  // Barras AGRUPADAS lado a lado (não empilhadas): cada série é uma barra
-  // própria por responsável, nunca dividindo cores dentro da mesma barra.
+  // 3 barras lado a lado por responsável — dá pra ver de cara quem está
+  // devendo (barra vermelha) sem comparar altura de planejada x apontada.
   const datasets = [
-    { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cVerde },
-    { label: 'Apontadas', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cAmarelo },
+    { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cAzul },
+    { label: 'Apontada', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cVerde },
+    { label: 'Falta apontar', data: nomes.map(n => Math.max(0, porResp[n].planejada - porResp[n].apontadas)), backgroundColor: cVermelho },
   ];
 
-  const fmtCompacto = n => Math.round(n).toLocaleString('pt-BR');
+  const fmtNum = n => Math.round(n).toLocaleString('pt-BR');
+  const fmtEixo = n => (n >= 1000 ? (n / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k' : String(n));
+  const fonteRotulo = horizontal ? 10 : 9;
 
-  // Etiquetinha com o valor em cima de cada barra — igual no BI, sem
-  // precisar passar o mouse pra ver o número. Plugin pequeno, embutido
-  // aqui mesmo, sem depender de nenhuma biblioteca extra.
+  // Altura do card: no mobile cresce conforme o nº de pessoas (58px por
+  // pessoa + legenda/eixo), então nada fica espremido e a página rola.
+  // No desktop devolve o controle pro CSS (.cosa-chart-wrap).
+  const wrap = canvas.parentElement;
+  if (wrap) wrap.style.height = horizontal ? (nomes.length * 58 + 64) + 'px' : '';
+
+  // Espaço reservado à direita pro maior número caber inteiro ao lado da
+  // barra, sem ser cortado na borda do gráfico.
+  let paddingDireita = 12;
+  if (horizontal) {
+    const c2 = canvas.getContext('2d');
+    c2.save();
+    c2.font = `600 ${fonteRotulo}px Arial`;
+    const maior = Math.max(0, ...datasets.map(ds => Math.max(0, ...ds.data)));
+    paddingDireita = Math.ceil(c2.measureText(fmtNum(maior)).width) + 10;
+    c2.restore();
+  }
+
+  // Etiqueta com o valor de cada barra. Horizontal: à direita da barra,
+  // centralizada na altura dela (cada barra tem ~15px, a fonte tem 10 —
+  // não há como sobrepor). Vertical (desktop): em cima, só se couber.
   const plugRotulos = {
     id: 'rotulosValor',
     afterDatasetsDraw(chart) {
       const { ctx } = chart;
       ctx.save();
-      ctx.font = '600 9px Arial';
+      ctx.font = `600 ${fonteRotulo}px Arial`;
       ctx.fillStyle = cLabel;
-      ctx.textAlign = 'center';
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((bar, i) => {
           const valor = ds.data[i];
           if (!valor) return;
-          ctx.fillText(fmtCompacto(valor), bar.x, bar.y - 4);
+          const texto = fmtNum(valor);
+          if (horizontal) {
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(texto, bar.x + 4, bar.y);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            if (ctx.measureText(texto).width > bar.width + 10) return; // não cabe — melhor omitir que embolar
+            ctx.fillText(texto, bar.x, bar.y - 4);
+          }
         });
       });
       ctx.restore();
     },
   };
+
+  const escalaValores = horizontal
+    ? { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, maxTicksLimit: 5, callback: v => fmtEixo(v) }, grid: { color: cGrid } }
+    : { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } };
+  const escalaNomes = horizontal
+    ? { ticks: { color: cLabel, font: { size: 10, weight: '600' }, autoSkip: false, callback(v) { return _capoQuebrarNome(this.getLabelForValue(v), 11); } }, grid: { display: false } }
+    : { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } };
 
   if (_capoChart) { _capoChart.destroy(); }
   _capoChart = new Chart(canvas.getContext('2d'), {
@@ -3809,19 +4635,33 @@ function capoRenderChart(filtrados) {
     data: { labels: nomes, datasets },
     plugins: [plugRotulos],
     options: {
+      indexAxis: horizontal ? 'y' : 'x',
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 16 } },
-      scales: {
-        x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
-      },
+      layout: { padding: horizontal ? { top: 4, right: paddingDireita } : { top: 16 } },
+      datasets: horizontal ? { bar: { categoryPercentage: 0.82, barPercentage: 0.95 } } : {},
+      interaction: horizontal ? { mode: 'index', axis: 'y', intersect: false } : undefined,
+      scales: horizontal ? { x: escalaValores, y: escalaNomes } : { x: escalaNomes, y: escalaValores },
       plugins: {
         legend: { position: 'bottom', labels: { color: cTexto, font: { size: 10 }, boxWidth: 10, padding: 12 } },
-        tooltip: { titleFont: { size: 11 }, bodyFont: { size: 11 } },
+        tooltip: {
+          titleFont: { size: 11 }, bodyFont: { size: 11 },
+          callbacks: { label: c => ` ${c.dataset.label}: ${fmtNum(c.parsed[horizontal ? 'x' : 'y'])} h` },
+        },
       },
     },
   });
 }
+
+// Girou o celular / redimensionou a janela e cruzou o ponto de troca
+// (vertical <-> horizontal): redesenha com o layout certo.
+window.addEventListener('resize', () => {
+  clearTimeout(window._capoResizeT);
+  window._capoResizeT = setTimeout(() => {
+    if (!_capoUltimosArgs || !document.getElementById('capo-chart')) return;
+    const deveSerHorizontal = window.innerWidth <= _CAPO_BP_MOBILE;
+    if (deveSerHorizontal !== _capoModoHorizontal) capoRenderChart(..._capoUltimosArgs);
+  }, 200);
+});
 
 // Quantos dias tem o período — usa o filtro De/Até quando preenchido,
 // senão o intervalo real dos dados disponíveis (nunca conta a mais).
@@ -3863,99 +4703,37 @@ function _capoTaxaPorEquipamento(escopoBase) {
   return taxas;
 }
 
-// ── DIAS SEM APONTAR POR EQUIPAMENTO ─────────────────────────────────────
-// Lista cada dia do período (mesma janela que _capoDiasNoPeriodo usa pra
-// calcular a Planejada, então os números sempre fecham com o card).
-function _capoListaDatasPeriodo(dadosBase, dataDe, dataAte) {
-  let de, ate;
-  if (dataDe && dataAte) { de = dataDe; ate = dataAte; }
-  else {
-    const datas = dadosBase.map(r => r.data_inicio).filter(Boolean).sort();
-    if (!datas.length) return [];
-    de = datas[0]; ate = datas[datas.length - 1];
-  }
-  const lista = [];
-  const d = new Date(de + 'T00:00:00');
-  const fim = new Date(ate + 'T00:00:00');
-  for (let i = 0; d <= fim && i < 1000; i++) {
-    lista.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-    d.setDate(d.getDate() + 1);
-  }
-  return lista;
-}
-
-// Dias em que o equipamento ficou abaixo da taxa diária dele. "vazio" = nenhum
-// lançamento no dia; senão é parcial (lançou, mas menos que a taxa).
-function _capoDiasFaltantes(cod) {
-  const ctx = window._capoDiasCtx;
-  if (!ctx) return [];
-  const taxa = ctx.taxasEquip[cod] || 0;
-  const mapa = ctx.apontPorDia[cod] || {};
-  const saida = [];
-  ctx.datasPeriodo.forEach(iso => {
-    const feito = mapa[iso] || 0;
-    const falta = Math.round((taxa - feito) * 100) / 100;
-    if (falta > 0.001) saida.push({ iso, falta, vazio: feito <= 0 });
+// Divide a Planejada de cada EQUIPAMENTO (taxa × dias) entre os
+// responsáveis que de fato apontaram horas nele dentro do período — na
+// mesma proporção das horas apontadas de cada um. Um equipamento sem
+// nenhum apontamento no período (ninguém tocou nele) não entra aqui —
+// ele ainda conta no total geral da empresa, só não é "culpa" de ninguém
+// específico. Isso substitui a soma direta de horas_dia por pessoa, que
+// tinha o mesmo problema do total antigo: só contava dias com linha na
+// planilha, então ficava bem abaixo do BI.
+function _capoPlanejadaPorResponsavel(escopoData, taxas, dias) {
+  const porEquipResp = {};
+  escopoData.forEach(r => {
+    if (!r.cod_equip) return;
+    if (!porEquipResp[r.cod_equip]) porEquipResp[r.cod_equip] = {};
+    const nome = r.responsavel || 'Não informado';
+    porEquipResp[r.cod_equip][nome] = (porEquipResp[r.cod_equip][nome] || 0) + (r.horas_apontadas || 0);
   });
-  return saida;
-}
-
-const _CAPO_MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-const _CAPO_SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
-const _CAPO_SEMANA_LONGA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
-
-// Monta os "chips" de dia só quando o card é aberto (a lista pode ter dezenas
-// de equipamentos × dezenas de dias — não precisa pintar tudo de uma vez).
-function capoDiasToggle(el) {
-  if (!el.open || el.dataset.pronto) return;
-  const body = el.querySelector('.capo-dias-body');
-  if (!body) return;
-  const faltantes = _capoDiasFaltantes(el.dataset.equip);
-  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  let html = `<div class="capo-dias-legenda">
-      <span><i style="background:var(--red)"></i>Sem lançamento</span>
-      <span><i style="background:var(--amber)"></i>Lançamento parcial</span>
-    </div>`;
-  let mesAtual = '';
-  let aberto = false;
-  faltantes.forEach(f => {
-    const [a, m, d] = f.iso.split('-').map(Number);
-    const dt = new Date(a, m - 1, d);
-    const rotuloMes = `${_CAPO_MESES[m - 1]} ${a}`;
-    if (rotuloMes !== mesAtual) {
-      if (aberto) html += '</div>';
-      html += `<div class="capo-dias-mes">${rotuloMes}</div><div class="capo-dias-grid">`;
-      mesAtual = rotuloMes; aberto = true;
-    }
-    const dd = String(d).padStart(2, '0'), mm = String(m).padStart(2, '0');
-    const dica = `${_CAPO_SEMANA_LONGA[dt.getDay()]}, ${dd}/${mm} — ${f.vazio ? 'sem nenhum apontamento' : 'apontamento parcial'} (faltam ${fmtH(f.falta)}h)`;
-    html += `<span class="capo-dia ${f.vazio ? 'capo-dia-vazio' : 'capo-dia-parcial'}" title="${dica}">
-        <small>${_CAPO_SEMANA[dt.getDay()]}</small><b>${dd}</b><em>-${fmtH(f.falta)}h</em>
-      </span>`;
+  const planejadaPorResp = {};
+  Object.keys(porEquipResp).forEach(equip => {
+    const planejadaEquip = (taxas[equip] || 0) * dias;
+    if (!planejadaEquip) return;
+    const porResp = porEquipResp[equip];
+    const nomes = Object.keys(porResp);
+    const totalApontadoEquip = nomes.reduce((s, n) => s + porResp[n], 0);
+    nomes.forEach(nome => {
+      // Se ninguém apontou nada nesse equipamento (só apareceu com 0h por
+      // algum motivo), divide igual entre quem aparece — melhor que travar.
+      const fracao = totalApontadoEquip > 0 ? (porResp[nome] / totalApontadoEquip) : (1 / nomes.length);
+      planejadaPorResp[nome] = (planejadaPorResp[nome] || 0) + planejadaEquip * fracao;
+    });
   });
-  if (aberto) html += '</div>';
-  html += `<div class="capo-dias-acoes"><button type="button" class="capo-dias-copiar" onclick="capoCopiarDias(this)"><i class="fas fa-copy"></i> Copiar lista</button></div>`;
-  body.innerHTML = html;
-  el.dataset.pronto = '1';
-}
-
-// Texto pronto pra colar no WhatsApp cobrando o apontamento.
-function capoCopiarDias(btn) {
-  const el = btn.closest('.capo-dias');
-  if (!el) return;
-  const cod = el.dataset.equip;
-  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  const dias = _capoDiasFaltantes(cod).map(f => {
-    const [, m, d] = f.iso.split('-');
-    return `${d}/${m}${f.vazio ? '' : ` (parcial, faltam ${fmtH(f.falta)}h)`}`;
-  });
-  const texto = `*Apontamento pendente* — equipamento ${cod}${el.dataset.cc ? ' · ' + el.dataset.cc : ''}\nDias sem apontar (${dias.length}): ${dias.join(', ')}`;
-  const ok = () => { if (typeof showToast === 'function') showToast('📋 Lista de dias copiada!', 'success', 2000); };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(texto).then(ok).catch(() => { window.prompt('Copie a lista:', texto); });
-  } else {
-    window.prompt('Copie a lista:', texto);
-  }
+  return planejadaPorResp;
 }
 
 function capoRender() {
@@ -3969,34 +4747,52 @@ function capoRender() {
   // filtrados, senão a taxa fica incompleta também).
   const porEmpresa = dados.filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
 
-  const filtrados = porEmpresa.filter(r => {
-    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
-    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+  // Mesmo escopo, mas já com o filtro de DATA (sem ainda o de pessoa) —
+  // é o que a atribuição por responsável precisa: saber quem mexeu em
+  // cada equipamento DENTRO do período escolhido, antes de decidir quais
+  // pessoas mostrar.
+  const porEmpresaData = porEmpresa.filter(r => {
     if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
     if (dataAte && (!r.data_inicio || r.data_inicio > dataAte)) return false;
     return true;
   });
 
-  let totalPlanejada, totalApontadas;
+  const filtrados = porEmpresaData.filter(r => {
+    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
+    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+    return true;
+  });
+
+  // Taxa diária por equipamento + dias do período — a base de TUDO que é
+  // "Planejada" nesta tela, sempre calculada igual ao BI (taxa × dias,
+  // contando também dias sem apontamento nenhum lançado).
+  const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+  const taxas = _capoTaxaPorEquipamento(porEmpresa);
+
+  // Planejada de CADA responsável: a hora planejada de um equipamento é
+  // dividida entre quem apontou horas nele DENTRO do período, na mesma
+  // proporção de cada um (quem apontou 80% das horas leva 80% da
+  // planejada daquele equipamento). Sem isso, somar horas_dia das linhas
+  // existentes subcontava exatamente como o total geral subcontava antes.
+  const planejadaPorResp = _capoPlanejadaPorResponsavel(porEmpresaData, taxas, dias);
+
   const semFiltroPessoa = !_capoFiltroResp.length && !_capoFiltroSuperv.length;
-  if (semFiltroPessoa) {
-    // Sem filtrar por pessoa: dá pra calcular igual o BI (taxa do
-    // equipamento × dias do período), porque o total pertence à empresa
-    // inteira, sem ambiguidade de "de quem" é a hora planejada.
-    const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
-    const taxas = _capoTaxaPorEquipamento(porEmpresa);
-    totalPlanejada = Object.values(taxas).reduce((s, t) => s + t * dias, 0);
-    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
-  } else {
-    // Filtrando por responsável/supervisor: um mesmo equipamento pode ter
-    // mais de um operador no período, então não dá pra atribuir a taxa
-    // cheia do equipamento a uma pessoa só sem risco de contar horas de
-    // outra pessoa também. Aqui mantemos a soma direta dos apontamentos
-    // dessa pessoa como aproximação — mais conservadora, mas pode ficar
-    // abaixo do "correto" em dias que essa pessoa não lançou nada.
-    totalPlanejada = filtrados.reduce((s, r) => s + (r.horas_dia || 0), 0);
-    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
-  }
+  const totalPlanejada = semFiltroPessoa
+    ? Object.values(taxas).reduce((s, t) => s + t * dias, 0)
+    : Object.keys(planejadaPorResp)
+        .filter(nome => (!_capoFiltroResp.length || _capoFiltroResp.includes(nome)) && true)
+        .reduce((s, nome) => {
+          // Só soma quem também passa no filtro de supervisor — precisa
+          // checar pelas linhas de fato, já que planejadaPorResp não
+          // carrega supervisor (uma pessoa só tem 1 supervisor, então dá
+          // pra pegar de qualquer linha dela em porEmpresaData).
+          if (_capoFiltroSuperv.length) {
+            const temSuperv = porEmpresaData.some(r => r.responsavel === nome && _capoFiltroSuperv.includes(r.supervisor));
+            if (!temSuperv) return s;
+          }
+          return s + planejadaPorResp[nome];
+        }, 0);
+  const totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
   const totalNaoApontadas = totalPlanejada - totalApontadas;
   const pctCobertura = totalPlanejada > 0 ? Math.round((totalApontadas / totalPlanejada) * 100) : 0;
 
@@ -4045,7 +4841,7 @@ function capoRender() {
     `;
   }
 
-  capoRenderChart(filtrados);
+  capoRenderChart(filtrados, planejadaPorResp);
 
   const diasEquip = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
   const taxasEquip = _capoTaxaPorEquipamento(porEmpresa);
@@ -4053,19 +4849,10 @@ function capoRender() {
   filtrados.forEach(r => {
     if (!r.cod_equip) return;
     const chave = r.cod_equip;
-    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: (taxasEquip[chave] || 0) * diasEquip, apontadas: 0 };
+    if (!porEquip[chave]) porEquip[chave] = { equip: r.cod_equip, cc: r.cc_equipamento || '', planejada: (taxasEquip[chave] || 0) * diasEquip, apontadas: 0, taxa: taxasEquip[chave] || 0 };
     porEquip[chave].apontadas += r.horas_apontadas || 0;
   });
   const listaEquip = Object.values(porEquip).sort((a,b) => (b.planejada - b.apontadas) - (a.planejada - a.apontadas));
-
-  // Horas apontadas por equipamento em CADA dia — base do detalhe "dias sem apontar".
-  const apontPorDia = {};
-  filtrados.forEach(r => {
-    if (!r.cod_equip || !r.data_inicio) return;
-    if (!apontPorDia[r.cod_equip]) apontPorDia[r.cod_equip] = {};
-    apontPorDia[r.cod_equip][r.data_inicio] = (apontPorDia[r.cod_equip][r.data_inicio] || 0) + (r.horas_apontadas || 0);
-  });
-  window._capoDiasCtx = { apontPorDia, taxasEquip, datasPeriodo: _capoListaDatasPeriodo(porEmpresa, dataDe, dataAte) };
 
   const listaEl = document.getElementById('capo-lista');
   if (!listaEl) return;
@@ -4075,28 +4862,12 @@ function capoRender() {
   }
   listaEl.innerHTML = listaEquip.map(e => {
     const dif = e.planejada - e.apontadas;
-    // Equipamento negativo: mostra QUAIS dias faltam (recolhido por padrão, não
-    // muda a altura do card até a pessoa abrir).
-    let blocoDias = '';
-    if (dif > 0) {
-      const falt = _capoDiasFaltantes(e.equip);
-      if (falt.length) {
-        const vazios = falt.filter(f => f.vazio).length;
-        const parciais = falt.length - vazios;
-        const partes = [];
-        if (vazios) partes.push(`${vazios} sem lançamento`);
-        if (parciais) partes.push(`${parciais} parcia${parciais === 1 ? 'l' : 'is'}`);
-        blocoDias = `
-        <details class="capo-dias" data-equip="${String(e.equip).replace(/"/g, '&quot;')}" data-cc="${String(e.cc || '').replace(/"/g, '&quot;')}" ontoggle="capoDiasToggle(this)">
-          <summary>
-            <span class="capo-dias-ico"><i class="fas fa-calendar-xmark"></i></span>
-            <span class="capo-dias-resumo"><b>${falt.length} ${falt.length === 1 ? 'dia' : 'dias'}</b> sem apontar<small>${partes.join(' · ')}</small></span>
-            <i class="fas fa-chevron-down capo-dias-chevron"></i>
-          </summary>
-          <div class="capo-dias-body"></div>
-        </details>`;
-      }
-    }
+    // Converte a diferença em DIAS usando a taxa própria do equipamento —
+    // mais fácil de bater o olho do que só a quantidade de horas.
+    const diasPendentes = (dif > 0 && e.taxa > 0) ? (dif / e.taxa) : 0;
+    const diasTxt = diasPendentes > 0
+      ? ` <span class="cosa-card-fzd">(${diasPendentes.toLocaleString('pt-BR', {maximumFractionDigits: 1})} dia${diasPendentes >= 1.05 ? 's' : ''})</span>`
+      : '';
     return `
       <div class="cosa-card">
         <div class="cosa-card-top">
@@ -4107,10 +4878,119 @@ function capoRender() {
         <div class="cosa-card-meta">
           <span><i class="fas fa-calendar-check"></i> Planejada: ${fmtH(e.planejada)}h</span>
           <span><i class="fas fa-circle-check"></i> Apontada: ${fmtH(e.apontadas)}h</span>
-        </div>${blocoDias}
+          ${dif > 0 ? `<span><i class="fas fa-triangle-exclamation"></i> Pendente: ${fmtH(dif)}h${diasTxt}</span>` : ''}
+        </div>
       </div>
     `;
   }).join('');
+}
+
+/* Imagem do gráfico pra compartilhar: o canvas do Chart.js é TRANSPARENTE,
+   e o WhatsApp mostra PNG transparente com fundo preto (texto escuro some).
+   Aqui montamos um canvas novo com fundo BRANCO sólido, título e subtítulo,
+   e o gráfico por cima — legível em qualquer app, tema claro ou escuro. */
+function _cnvBrancoParaExportar(canvasGrafico, titulo, subtitulo) {
+  const escala = canvasGrafico.width / (canvasGrafico.clientWidth || canvasGrafico.width || 1);
+  const pad = Math.round(16 * escala);
+  const fTit = Math.round(15 * escala), fSub = Math.round(11 * escala);
+  const altCab = Math.round((subtitulo ? 46 : 30) * escala);
+  const out = document.createElement('canvas');
+  out.width = canvasGrafico.width + pad * 2;
+  out.height = canvasGrafico.height + altCab + pad * 2;
+  const c = out.getContext('2d');
+  c.fillStyle = '#FFFFFF';
+  c.fillRect(0, 0, out.width, out.height);
+  c.textBaseline = 'alphabetic';
+  c.fillStyle = '#1B5E20';
+  c.font = `800 ${fTit}px Arial, sans-serif`;
+  c.fillText(titulo, pad, pad + fTit);
+  if (subtitulo) {
+    c.fillStyle = '#4A554A';
+    c.font = `500 ${fSub}px Arial, sans-serif`;
+    c.fillText(subtitulo, pad, pad + fTit + Math.round(8 * escala) + fSub);
+  }
+  c.strokeStyle = '#E0E5E0';
+  c.lineWidth = Math.max(1, Math.round(escala));
+  c.beginPath();
+  c.moveTo(pad, pad + altCab - Math.round(6 * escala));
+  c.lineTo(out.width - pad, pad + altCab - Math.round(6 * escala));
+  c.stroke();
+  c.drawImage(canvasGrafico, pad, pad + altCab);
+  return out;
+}
+
+async function capoExportarGrafico() {
+  if (!_capoChart) { if (typeof showToast === 'function') showToast('Gráfico ainda não carregado.', 'error', 2500); return; }
+
+  // Monta um texto de cobrança pronto — quem está devendo horas aparece
+  // primeiro, quem já concluiu aparece marcado como em dia.
+  const dados = window._centralApontDados || [];
+  const dataDe = document.getElementById('capo-data-de')?.value || '';
+  const dataAte = document.getElementById('capo-data-ate')?.value || '';
+  const porEmpresa = dados.filter(r => !_capoFiltroEmpresa || r.empresa === _capoFiltroEmpresa);
+  const porEmpresaData = porEmpresa.filter(r => {
+    if (dataDe && (!r.data_inicio || r.data_inicio < dataDe)) return false;
+    if (dataAte && (!r.data_inicio || r.data_inicio > dataAte)) return false;
+    return true;
+  });
+  const filtrados = porEmpresaData.filter(r => {
+    if (_capoFiltroResp.length && !_capoFiltroResp.includes(r.responsavel)) return false;
+    if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(r.supervisor)) return false;
+    return true;
+  });
+  const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+  const taxas = _capoTaxaPorEquipamento(porEmpresa);
+  const planejadaPorResp = _capoPlanejadaPorResponsavel(porEmpresaData, taxas, dias);
+  const porResp = {};
+  filtrados.forEach(r => {
+    const nome = r.responsavel || 'Não informado';
+    if (!porResp[nome]) porResp[nome] = { planejada: planejadaPorResp[nome] || 0, apontadas: 0 };
+    porResp[nome].apontadas += r.horas_apontadas || 0;
+  });
+  const linhas = Object.entries(porResp)
+    .map(([nome, v]) => ({ nome, falta: Math.max(0, v.planejada - v.apontadas) }))
+    .sort((a, b) => b.falta - a.falta);
+  const fmtH = n => Math.round(n).toLocaleString('pt-BR');
+  const periodoTxt = document.getElementById('capo-periodo')?.textContent || '';
+  let texto = `*Apontamento de Horas${_capoFiltroEmpresa ? ' — ' + _capoFiltroEmpresa : ''}*\nPeríodo: ${periodoTxt}\n\n`;
+  linhas.forEach(l => {
+    texto += l.falta > 0 ? `⚠️ ${l.nome}: faltam ${fmtH(l.falta)}h\n` : `✅ ${l.nome}: em dia\n`;
+  });
+
+  const canvas = _cnvBrancoParaExportar(
+    document.getElementById('capo-chart'),
+    `Apontamento de Horas${_capoFiltroEmpresa ? ' — ' + _capoFiltroEmpresa : ''}`,
+    `${periodoTxt ? 'Período: ' + periodoTxt + '   ·   ' : ''}Planejada × Apontada × Falta apontar (h)`
+  );
+  canvas.toBlob(async (blob) => {
+    if (!blob) { if (typeof showToast === 'function') showToast('Não consegui gerar a imagem do gráfico.', 'error', 3000); return; }
+    const arquivo = new File([blob], 'apontamento-de-horas.png', { type: 'image/png' });
+
+    // Onde o navegador suporta (a maioria dos celulares), abre direto o
+    // menu de compartilhar do sistema com a imagem — WhatsApp é uma das
+    // opções ali, sem precisar baixar nada antes.
+    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      try {
+        await navigator.share({ files: [arquivo], title: 'Apontamento de Horas', text: texto });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+      }
+    }
+
+    // Sem suporte a compartilhar arquivo: baixa a imagem e abre o WhatsApp
+    // já com o texto de cobrança pronto — só falta anexar a imagem baixada.
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'apontamento-de-horas.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (typeof showToast === 'function') showToast('📥 Imagem baixada. Abrindo o WhatsApp com o texto — é só anexar a imagem.', 'success', 5000);
+    setTimeout(() => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    }, 600);
+  }, 'image/png');
 }
 
 // Hookar confirmarSalvar para mostrar toast
@@ -4587,7 +5467,7 @@ async function buscarGDA() {
           <span style="font-size:10px; font-weight:800; color:var(--green-900);">${pctGDA.toFixed(1)}%</span>
         </div>
         <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width:${pctGDA}%; background: var(--grad-accent);"></div>
+          <div class="progress-bar-fill" style="width:${pctGDA}%; background: linear-gradient(90deg, #43A047, #1B5E20);"></div>
         </div>
         <div class="gda-progress-labels">
           <span>0 GDA</span><span>900</span><span>1400</span><span>1800 GDA</span>
@@ -4765,13 +5645,6 @@ setTimeout(() => {
   if (typeof carregarPlanejamentoSafra === 'function') carregarPlanejamentoSafra();
 }, 2000);
 
-// Pré-carregar Tratos Culturais em background foi REMOVIDO — mesmo só a
-// safra atual já é gente demais (dezenas/centenas de milhares de linhas),
-// e o carregamento ficava "preso" bem na hora que o usuário abria a aba,
-// travando a tela de loading sem deixar nem usar o atalho rápido. Agora
-// a aba de Tratos abre direto no resumo rápido por Fazenda (via RPC,
-// calculado no servidor) assim que é aberta — ver _tratosAutoAbrirRapido.
-
 // Dark mode
 restaurarDarkMode();
 
@@ -4795,6 +5668,7 @@ setInterval(async () => {
   // Só sincroniza se online — evita tentativas desnecessárias offline
   if (!navigator.onLine) return;
   await carregarDadosGATEC();
+  await carregarDadosConfOS();
 }, GATEC_POLL_INTERVAL);
 
 // Verificar conexão ao iniciar
@@ -4807,12 +5681,6 @@ function toggleCard(id) {
   card.classList.toggle('open');
 }
 
-// Colapsável para cards de Tratos Culturais — acionado pelo header clicável
-function toggleTratosCard(headerEl) {
-  const card = headerEl.closest('.tratos-card-collapsible');
-  if (!card) return;
-  card.classList.toggle('open');
-}
   /* ══════════════════════════════════════════════
    SERVICE WORKER — SUPORTE OFFLINE / PWA
 ══════════════════════════════════════════════ */
@@ -4960,862 +5828,18 @@ iniciarSabedoria();
   if (inpFim) { inpFim.max = ontemStr; inpFim.min = '1940-01-01'; inpFim.value = ontemStr; }
 })();
 
-/* ══════════════════════════════════════════════
-   MÓDULO TRATOS CULTURAIS
-   Fonte: aba PCP — terceira aba da planilha (gid=724202507)
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   SELETOR MÚLTIPLO DE FAZENDA — LIBERAÇÕES
+   Dropdown com busca e seleção múltipla do filtro "Fazenda" da tela
+   Liberações (mesmo visual .tratos-ms-*).
+   — window._tratosMultiSel.libFazenda     = Set de fazendas marcadas
+   — window._tratosMultiOpcoes.libFazenda  = lista {value,label} disponível
+══════════════════════════════════════════════════════════════ */
 (function() {
   'use strict';
 
-  // ── URL da aba PCP (3ª aba da planilha) ──────────────────────────────────
-  // Se não carregar, confirme o gid em: Arquivo → Publicar na web → selecione "PCP" → copie o link CSV.
-  const URL_TRATOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQTIIUGH-g6vlowVBAAkgoPwZd1EPJPJS8PzgOEWyDPito38Ii8qzOHaSh1PioGGMLNbwFJPDMzwsA7/pub?gid=724202507&single=true&output=csv';
-
-  const ALERTA_DOSE_PCT = 10;
-
-  window._tratosDados     = null;
-  window._tratosFiltrados = null;
-  let   _tratosIniciado   = false;
-
-  window.iniciarModuloTratos     = iniciarModuloTratos;
-  window.carregarDadosTratos     = carregarDadosTratos;
-  window.filtrarTratos           = filtrarTratos;
-  window.exportarTratosExcel     = exportarTratosExcel;
-  window.gerarRelatorioTratos    = gerarRelatorioTratos;
-  window.exportarPDFRelatorioAgrupado = exportarPDFRelatorioAgrupado;
-  window.sincronizarTratosSupabase    = sincronizarTratosSupabase;
-
-  // Ao abrir a aba de Tratos, já cai direto na tela de filtros (Período +
-  // Fazenda/Produto/Operação/Grupo) — sem baixar nenhuma linha ainda e sem
-  // nenhuma consulta prévia de safra (isso agora é derivado da data). O
-  // usuário define o que quer ver e só busca os dados quando clicar em
-  // "Filtrar".
-  function _tratosAutoAbrirRapido() {
-    if (_tratosIniciado) return; // já foi aberto nesta sessão — não repete
-    _tratosIniciado = true;
-    _tratosMostrarTelaFiltros();
-  }
-  window._tratosAutoAbrirRapido = _tratosAutoAbrirRapido;
-
-  /* ══════════════════════════════════════════════════════════════
-     SINCRONIZAÇÃO COM SUPABASE (public.tratos_pcp)
-     — Tabela no schema "public" (evita o erro 406 do schema "ctt"
-       não exposto na Data API — ver /sql/01_criar_tabela_tratos_pcp.sql)
-     — Busca a planilha PCP direto do Google Sheets (fonte da verdade
-       pra sincronizar) via _tratosCarregarCSVFonte() — não usa
-       window._tratosDados, que a partir de agora vem do Supabase
-       (é o que a TELA usa pra exibir, não pra sincronizar)
-     — Monta 1 registro por linha, com um hash SHA-256 de TODO o
-       conteúdo relevante da linha como chave de upsert idempotente.
-       Isso é o que garante "não duplicar": resincronizar a mesma
-       planilha nunca cria linha nova, e uma linha genuinamente
-       diferente (mesmo que só a área mude, por fracionamento) sempre
-       vira um registro à parte — nunca sobrescreve outra por engano.
-     — Nro. Lançamento sozinho NÃO é chave (pode cobrir vários
-       produtos da mesma O.S.), por isso não é usado como PK.
-  ══════════════════════════════════════════════════════════════ */
-  function _txtOuNull(v) {
-    const s = (v == null ? '' : String(v)).trim();
-    return s === '' ? null : s;
-  }
-  function _numOuNull(v) {
-    const n = parseNum(v);
-    return isNaN(n) ? null : n;
-  }
-  function _dataISOOuNull(v) {
-    const d = parseData(v);
-    if (!d) return null;
-    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-  async function _sha256Hex(str) {
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  async function _montarRegistroTratosSupabase(row, cols) {
-    const reg = {
-      data_aplicacao   : _dataISOOuNull(row[cols.colData]),
-      nr_os            : _txtOuNull(row[cols.colOS]),
-      cod_produto      : _txtOuNull(row[cols.colCodProd]),
-      desc_produto     : _txtOuNull(row[cols.colDescProd]),
-      cod_operacao     : _txtOuNull(row[cols.colCodOp]),
-      desc_operacao    : _txtOuNull(row[cols.colDescOp]),
-      cod_fazenda      : _txtOuNull(row[cols.colCodFazenda]),
-      desc_fazenda     : _txtOuNull(row[cols.colFazenda]),
-      cod_empresa      : _txtOuNull(row[cols.colCodEmpresa]),
-      abv_empresa      : _txtOuNull(row[cols.colAbvEmpresa]),
-      nro_lancamento   : _txtOuNull(row[cols.colLancamento]),
-      safra            : _txtOuNull(row[cols.colSafra]),
-      cod_funcionario  : _txtOuNull(row[cols.colCodFuncionario]),
-      nome_funcionario : _txtOuNull(row[cols.colFuncionario]),
-      cod_processo     : _txtOuNull(row[cols.colCodProcesso]),
-      desc_processo    : _txtOuNull(row[cols.colDescProcesso]),
-      cod_subprocesso  : _txtOuNull(row[cols.colCodSubprocesso]),
-      desc_subprocesso : _txtOuNull(row[cols.colDescSubprocesso]),
-      cod_grupo_op     : _txtOuNull(row[cols.colCodGrupoOp]),
-      desc_grupo_op    : _txtOuNull(row[cols.colDescGrupoOp]),
-      unidade          : _txtOuNull(row[cols.colUnidade]),
-      cod_setor        : _txtOuNull(row[cols.colCodSetor]),
-      desc_setor       : _txtOuNull(row[cols.colDescSetor]),
-      cod_bloco        : _txtOuNull(row[cols.colCodBloco]),
-      desc_bloco       : _txtOuNull(row[cols.colDescBloco]),
-      cod_talhao       : _txtOuNull(row[cols.colCodTalhao]),
-      municipio        : _txtOuNull(row[cols.colMunicipio]),
-      variedade        : _txtOuNull(row[cols.colVariedade]),
-      situacao_talhao  : _txtOuNull(row[cols.colSituacaoTalhao]),
-      area_aplicada    : _numOuNull(row[cols.colArea]),
-      dose_recomendada : _numOuNull(row[cols.colDoseRec]),
-      dose_aplicada    : _numOuNull(row[cols.colDoseAplic]),
-    };
-    // Chave canônica: todas as colunas em ordem fixa (alfabética) — não importa
-    // a ordem em que a planilha manda as colunas, o hash sai sempre igual
-    // pro mesmo conteúdo.
-    const base = Object.keys(reg).sort().map(k => `${k}=${reg[k] ?? ''}`).join('|');
-    reg.linha_hash = await _sha256Hex(base);
-    return reg;
-  }
-
-  // ⚠️ MUDANÇA DE ARQUITETURA: quem alimenta public.tratos_pcp agora é o
-  // script Python (sync_excel_supabase.py), rodando fora do navegador, lendo
-  // o Excel/SQL Oracle direto (325 mil linhas — inviável montar hash de cada
-  // linha e fazer upsert pelo navegador, era isso que o código antigo fazia
-  // lendo do Google Sheets). Esse botão deixou de "sincronizar a fonte" e
-  // virou só "recarregar do Supabase agora", ignorando o cache de 5 min.
-  // As funções antigas de leitura do CSV/hash (_tratosCarregarCSVFonte,
-  // _montarRegistroTratosSupabase) ficaram no arquivo sem uso, caso um dia
-  // precisem de novo — não fazem mal ficarem paradas.
-  async function sincronizarTratosSupabase() {
-    if (typeof _sbClient === 'undefined') {
-      if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3000);
-      return;
-    }
-    const btn = document.getElementById('btn-tratos-sync-supabase');
-    if (btn) { btn.disabled = true; btn.dataset.textoOriginal = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recarregando...'; }
-    try {
-      // forcar=true: ignora qualquer cache antigo e busca de novo no Supabase
-      await carregarDadosTratos(true);
-      if (typeof showToast === 'function') showToast('✅ Dados recarregados do Supabase.', 'success', 3000);
-    } catch (e) {
-      console.error('[Tratos→Supabase] erro ao recarregar', e);
-      if (typeof showToast === 'function') showToast('❌ Erro ao recarregar do Supabase — veja o console (F12).', 'error', 5000);
-    } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.textoOriginal || '<i class="fas fa-cloud-arrow-up"></i>'; }
-    }
-  }
-
-
-  // ── Definição dos NÍVEIS de agrupamento por dimensão de relatório ───────
-  //   Cada nível tem uma chave de agrupamento (key) e um texto de exibição
-  //   (label) — às vezes iguais, às vezes o label combina código+descrição.
-  function _tratosNiveisDisponiveis() {
-    const c = window._tratosCols || {};
-    return {
-      produto: {
-        key:   r => (r[c.colDescProd] || r[c.colCodProd] || '').trim(),
-        label: r => [r[c.colCodProd], r[c.colDescProd]].filter(Boolean).join(' · ') || 'Sem produto',
-      },
-      fazenda: {
-        key:   r => (r[c.colFazenda] || r[c.colCodFazenda] || '').trim(),
-        label: r => [r[c.colCodFazenda], r[c.colFazenda]].filter(Boolean).join(' · ') || 'Sem fazenda',
-      },
-      setor: {
-        key:   r => (r[c.colDescSetor] || r[c.colCodSetor] || '').trim(),
-        label: r => (r[c.colDescSetor] || r[c.colCodSetor] || 'Sem setor').trim(),
-      },
-      talhao: {
-        key:   r => (r[c.colCodTalhao] || '').trim(),
-        label: r => (r[c.colCodTalhao] || 'Sem talhão').trim(),
-      },
-      grupoOp: {
-        key:   r => (r[c.colCodGrupoOp] || r[c.colDescGrupoOp] || '').trim(),
-        label: r => [r[c.colCodGrupoOp], r[c.colDescGrupoOp]].filter(Boolean).join(' - ') || 'Sem grupo',
-      },
-      subgrupo: {
-        key:   r => (r[c.colCodSubprocesso] || r[c.colDescSubprocesso] || '').trim(),
-        label: r => [r[c.colCodSubprocesso], r[c.colDescSubprocesso]].filter(Boolean).join(' - ') || 'Sem subprocesso',
-      },
-      operacao: {
-        key:   r => (r[c.colDescOp] || r[c.colCodOp] || '').trim(),
-        label: r => [r[c.colCodOp], r[c.colDescOp]].filter(Boolean).join(' · ') || 'Sem operação',
-      },
-    };
-  }
-
-  // ── Quais níveis (em ordem) cada botão de relatório usa ─────────────────
-  //   "fazenda" e "talhao" mudam de comportamento conforme o filtro de
-  //   Produto já estar ativo ou não (ver pedido do usuário).
-  const TRATOS_RELATORIO_TITULOS = {
-    fazenda : 'Aplicação por Fazenda',
-    setor   : 'Aplicação por Setor',
-    talhao  : 'Aplicação por Talhão',
-    produto : 'Aplicação por Produto',
-    operacao: 'Aplicação por Operação',
-  };
-  function _tratosNiveisRelatorio(tipo) {
-    // Só pula o nível "produto" quando exatamente 1 produto está selecionado no filtro
-    // (com vários selecionados, o agrupamento por produto ainda ajuda a distinguir)
-    const filtroProdutoUnico = (window._tratosMultiSel?.produto?.size || 0) === 1;
-    switch (tipo) {
-      case 'fazenda':  return filtroProdutoUnico ? ['fazenda'] : ['produto', 'fazenda'];
-      case 'setor':    return ['setor'];
-      case 'talhao':   return ['fazenda', 'talhao'];
-      case 'produto':  return ['produto'];
-      // Subprocesso ainda não vem do Supabase (cod_subprocesso/desc_subprocesso
-      // seguem comentados em TRATOS_SUPABASE_COLS — não tem esse dado
-      // disponível no SQL atual). Enquanto isso, pula direto pra Grupo de
-      // Operação → Operação; incluir o nível "subgrupo" sem o dado por trás
-      // só juntava TUDO num único grupo fake "Sem subprocesso" com o total
-      // geral disfarçado de subtotal.
-      case 'operacao': return ['grupoOp', 'operacao'];
-      default:         return null;
-    }
-  }
-
-  // ── Gera o relatório hierárquico respeitando os filtros já aplicados ────
-  function gerarRelatorioTratos(tipo, btnEl) {
-    if (!window._tratosDados || !window._tratosDados.length) {
-      if (typeof showToast === 'function') showToast('⚠️ Aguarde os dados carregarem e tente novamente.', 'error', 2500);
-      return;
-    }
-    const niveis = _tratosNiveisRelatorio(tipo);
-    if (!niveis) return;
-    const dados = window._tratosFiltrados && window._tratosFiltrados.length ? window._tratosFiltrados : window._tratosDados;
-    // Marca visualmente qual relatório está sendo mostrado agora.
-    document.querySelectorAll('.report-btn').forEach(b => b.classList.remove('active'));
-    const btn = btnEl || document.querySelector(`.report-btn[data-tipo="${tipo}"]`);
-    if (btn) btn.classList.add('active');
-    _mostrarResultadoHierarquico(tipo, niveis, dados);
-  }
-
-  // ── Texto-resumo dos filtros atualmente aplicados (reaproveitado no card e no PDF) ──
-  function _tratosFiltrosAtivosTexto() {
-    const pares = [
-      ['Aplicador', 'tratos-filtro-aplicador'], ['Empresa', 'tratos-filtro-empresa'],
-    ];
-    const ativos = pares.map(([lbl, id]) => {
-      const v = selectVal(id);
-      return v ? `${lbl}: ${v}` : null;
-    }).filter(Boolean);
-    // Multi-select (Safra / Produto / Fazenda / Operação / Subprocesso / Grupo de Operação) — lista os valores marcados
-    const selSafra = window._tratosMultiSel?.safra       || new Set();
-    const selProd  = window._tratosMultiSel?.produto     || new Set();
-    const selFaz   = window._tratosMultiSel?.fazenda     || new Set();
-    const selOp    = window._tratosMultiSel?.operacao    || new Set();
-    const selSub   = window._tratosMultiSel?.subprocesso || new Set();
-    const selGrOp  = window._tratosMultiSel?.grupoOp     || new Set();
-    if (selSafra.size) ativos.unshift(`Safra: ${[...selSafra].join(', ')}`);
-    if (selProd.size) ativos.unshift(`Produto: ${[...selProd].join(', ')}`);
-    if (selFaz.size)  ativos.unshift(`Fazenda: ${[...selFaz].join(', ')}`);
-    if (selSub.size)  ativos.push(`Subprocesso: ${[...selSub].join(', ')}`);
-    if (selGrOp.size) ativos.push(`Grupo de Operação: ${[...selGrOp].join(', ')}`);
-    if (selOp.size)   ativos.push(`Operação: ${[...selOp].join(', ')}`);
-    const bIni = document.getElementById('tratos-filtro-data-ini')?.value || '';
-    const bFim = document.getElementById('tratos-filtro-data-fim')?.value || '';
-    if (bIni || bFim) ativos.push('Período: ' + (bIni || '…') + ' a ' + (bFim || '…'));
-    return ativos.length ? ativos.join('   ·   ') : 'Sem filtros aplicados — todos os registros';
-  }
-
-  // ── Linha de UM produto aplicado, dentro do card da O.S. — comparação de
-  //    dose em formato compacto (pill "Rec" → pill "Real" + selo de %),
-  //    em vez da frase longa "Recomendada: X   Aplicada: Y" de antes ────────
-  function _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem) {
-    const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-    const dr = parseNum(row[colDoseRec]);
-    const da = parseNum(row[colDoseAplic]);
-    let alerta = false;
-    let difStr = '';
-    if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
-      const pct = ((da - dr) / dr) * 100;
-      alerta = Math.abs(pct) > ALERTA_DOSE_PCT;
-      // Só mostra a diferença quando ela é grande o bastante pra importar —
-      // menos números na linha quando tá tudo dentro do esperado.
-      if (alerta) difStr = ` <span class="tpl-dose-dif-inline">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>`;
-    }
-    const produto = [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
-    const talhaoHtml = (mostrarTalhao && colCodTalhao)
-      ? `<span class="tpl-talhao">T${esc((row[colCodTalhao] || '—').trim() || '—')}</span>` : '';
-    const contagemHtml = (contagem && contagem > 1)
-      ? `<span class="tpl-talhao">× ${contagem}</span>` : '';
-    // 1 linha só: nome do produto (corta com "..." se for longo) + dose
-    // aplicada em destaque, dose recomendada pequena do lado — em vez de
-    // duas pílulas + seta + selo que antes ocupavam a linha toda.
-    return `<div class="tratos-produto-linha">
-      <span class="tpl-produto" title="${esc(produto)}">${esc(produto)}</span>
-      ${talhaoHtml}${contagemHtml}
-      <span class="tpl-dose-compacta${alerta ? ' alerta' : ''}" title="Aplicada / Recomendada">${esc(row[colDoseAplic] || '—')} <small>/ ${esc(row[colDoseRec] || '—')}</small>${difStr}</span>
-    </div>`;
-  }
-
-
-  // ── Colapsa linhas de produto repetidas dentro da MESMA O.S. — a planilha
-  //    PCP traz uma linha por talhão, então um produto com a mesma dose
-  //    aparecia repetido N vezes (uma por talhão) no card. Quando o relatório
-  //    não mostra o talhão (ex.: "Aplicação por Fazenda"), agrupa por
-  //    (produto + dose recomendada + dose aplicada) e mostra 1 linha só,
-  //    com "× N talhões" quando fizer sentido. Quando o relatório é por
-  //    Talhão, mantém o comportamento anterior (1 linha por talhão) ────────
-  function _tratosProdutoLinhasDedup(osRows, mostrarTalhao) {
-    const { colCodProd, colDescProd, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-    const grupos = new Map(); // chave -> { row, contagem }
-    osRows.forEach(row => {
-      const chave = mostrarTalhao
-        ? [row[colCodProd], row[colDescProd], row[colDoseRec], row[colDoseAplic], row[colCodTalhao]].join('§')
-        : [row[colCodProd], row[colDescProd], row[colDoseRec], row[colDoseAplic]].join('§');
-      if (!grupos.has(chave)) grupos.set(chave, { row, contagem: 0 });
-      grupos.get(chave).contagem++;
-    });
-    return [...grupos.values()]
-      .map(({ row, contagem }) => _tratosProdutoLinhaHTML(row, mostrarTalhao, contagem))
-      .join('');
-  }
-
-  // ── Card de UMA Ordem de Serviço, com todos os produtos aplicados nela
-  //    juntos — é o nível de detalhe (folha) de qualquer relatório. Assim
-  //    a O.S. aparece UMA vez só (com a área certa, sem duplicar) e não fica
-  //    uma área solta por produto/talhão espalhada pela tela ───────────────
-  function _tratosOSCardHTML(osRows, colOS, colArea, colCodTalhao, mostrarTalhao) {
-    const { colData } = window._tratosCols || {};
-    const os = (osRows[0][colOS] || '—').trim() || '—';
-    const dataLinha = osRows.find(r => (r[colData] || '').trim())?.[colData] || '—';
-    const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
-    const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-    const linhas = _tratosProdutoLinhasDedup(osRows, mostrarTalhao);
-    return `<div class="tratos-os-card">
-      <div class="toc-topo">
-        <span class="toc-os">O.S. ${esc(os)}</span>
-        <span class="toc-data">${esc(dataLinha)}</span>
-        <span class="toc-area">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</span>
-      </div>
-      <div class="toc-produtos">${linhas}</div>
-    </div>`;
-  }
-
-  // ── Renderiza recursivamente os níveis de agrupamento; no nível final,
-  //    agrupa por O.S. (nunca por produto/talhão solto) e mostra um card por
-  //    O.S. — código de talhão só aparece nesse card quando o relatório
-  //    escolhido for justamente o "Aplicação por Talhão" ───────────────────
-  function _tratosRenderNivel(rows, niveisDefs, niveisChaves, idx, colOS, colArea, colCodTalhao) {
-    if (idx >= niveisChaves.length) {
-      const mostrarTalhao = niveisChaves.includes('talhao');
-      const { colData } = window._tratosCols || {};
-      const porOS = new Map(); // O.S. -> linhas daquela O.S.
-      rows.forEach(row => {
-        const chave = (row[colOS] || '').trim() || '—';
-        if (!porOS.has(chave)) porOS.set(chave, []);
-        porOS.get(chave).push(row);
-      });
-      const cardsHtml = [...porOS.values()]
-        .sort((a, b) => (a[0][colData] || '').localeCompare(b[0][colData] || '', 'pt-BR'))
-        .map(osRows => _tratosOSCardHTML(osRows, colOS, colArea, colCodTalhao, mostrarTalhao))
-        .join('');
-      // Detalhe (cards de O.S.) fica minimizado por padrão — o grupo acima já
-      // mostra o total consolidado; o usuário expande só se quiser ver as O.S. ─
-      const totalOS = porOS.size;
-      const uid = 'osdet-' + Math.random().toString(36).slice(2, 10);
-      return `<div class="tratos-os-detalhe-toggle" onclick="_tratosToggleDetalheOS('${uid}', this)" data-total="${totalOS}">
-          <i class="fas fa-chevron-right toggle-chevron"></i>
-          <span>Ver ${totalOS} O.S.</span>
-        </div>
-        <div class="tratos-os-detalhe-corpo" id="${uid}" style="display:none;">${cardsHtml}</div>`;
-    }
-    const nivelDef = niveisDefs[niveisChaves[idx]];
-    const grupos = new Map(); // key -> { label, rows }
-    [...rows]
-      .sort((a, b) => nivelDef.key(a).localeCompare(nivelDef.key(b), 'pt-BR', { numeric: true }))
-      .forEach(row => {
-        const key = nivelDef.key(row) || '—';
-        if (!grupos.has(key)) grupos.set(key, { label: nivelDef.label(row), rows: [] });
-        grupos.get(key).rows.push(row);
-      });
-
-    let html = '';
-    grupos.forEach(({ label, rows: gRows }) => {
-      const areaMap = _calcAreaOS(gRows, colOS, colArea, colCodTalhao);
-      const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-      const statsExtra = _tratosStatsDoseGrupo(gRows);
-      html += `<div class="tratos-grupo-bar nivel-${idx}">
-        <span class="tgb-label">${esc(label)}</span>
-        <span class="tgb-stats">${area.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha${statsExtra}</span>
-      </div>
-      <div class="tratos-grupo-corpo nivel-${idx}">
-        ${_tratosRenderNivel(gRows, niveisDefs, niveisChaves, idx + 1, colOS, colArea, colCodTalhao)}
-      </div>`;
-    });
-    return html;
-  }
-
-  // ── Estatística de dose exibida na barra de cada grupo do relatório.
-  //    Só faz sentido calcular a MÉDIA de dose quando o grupo tem UM produto
-  //    só (produtos diferentes têm doses/unidades diferentes, misturar não
-  //    ajuda). Sempre rotulado ("aplicada" / "recomendada") pra não ficar
-  //    ambíguo pra quem não conhece a planilha. Quando o grupo mistura mais
-  //    de um produto, não mostra nada extra além da área ────────────────────
-  function _tratosStatsDoseGrupo(gRows) {
-    const { colCodProd, colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    const produtos = new Set(gRows.map(r => [r[colCodProd], r[colDescProd]].filter(Boolean).join('§')));
-    if (produtos.size !== 1) return '';
-    let somaRec = 0, nRec = 0, somaApl = 0, nApl = 0;
-    gRows.forEach(r => {
-      const dr = parseNum(r[colDoseRec]);
-      const da = parseNum(r[colDoseAplic]);
-      if (!isNaN(dr)) { somaRec += dr; nRec++; }
-      if (!isNaN(da)) { somaApl += da; nApl++; }
-    });
-    if (!nRec && !nApl) return '';
-    const fmt = v => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
-    const partes = [];
-    if (nApl) partes.push(`dose média aplicada: <b>${fmt(somaApl / nApl)}</b>`);
-    if (nRec) partes.push(`dose média recomendada: <b>${fmt(somaRec / nRec)}</b>`);
-    return partes.length ? ` · ${partes.join(' × ')}` : '';
-  }
-
-  // Expande/colapsa o bloco de cards de O.S. dentro de um grupo do relatório
-  function _tratosToggleDetalheOS(uid, btnEl) {
-    const corpo = document.getElementById(uid);
-    if (!corpo) return;
-    const abrindo = corpo.style.display === 'none';
-    corpo.style.display = abrindo ? 'block' : 'none';
-    btnEl.classList.toggle('open', abrindo);
-    const label = btnEl.querySelector('span');
-    if (label) {
-      const totalOS = btnEl.dataset.total || '';
-      label.textContent = abrindo ? 'Ocultar O.S.' : `Ver ${totalOS} O.S.`;
-    }
-  }
-  window._tratosToggleDetalheOS = _tratosToggleDetalheOS;
-
-  const TRATOS_LIMITE_REGISTROS = 800; // limite de linhas processadas por relatório (performance no celular)
-
-  function _mostrarResultadoHierarquico(tipo, niveisChaves, dadosFiltrados) {
-    const card = document.getElementById('card-tratos-relatorio-resultado');
-    const titulo = document.getElementById('tr-resultado-titulo');
-    const filtrosEl = document.getElementById('tr-resultado-filtros');
-    const corpo = document.getElementById('tr-resultado-corpo');
-    if (!card || !corpo) return;
-
-    const { colOS, colArea, colCodTalhao } = window._tratosCols || {};
-    const excedeu = dadosFiltrados.length > TRATOS_LIMITE_REGISTROS;
-    const base = excedeu ? dadosFiltrados.slice(0, TRATOS_LIMITE_REGISTROS) : dadosFiltrados;
-
-    titulo.textContent = TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório';
-    const areaGeralMap = _calcAreaOS(dadosFiltrados, colOS, colArea, colCodTalhao);
-    const areaGeral = Object.values(areaGeralMap).reduce((s, v) => s + v, 0);
-    filtrosEl.textContent = `${dadosFiltrados.length} registro${dadosFiltrados.length !== 1 ? 's' : ''} no filtro`
-      + (excedeu ? ` — processando os primeiros ${TRATOS_LIMITE_REGISTROS} (refine os filtros pra ver o restante)` : '')
-      + `   ·   ${_tratosFiltrosAtivosTexto()}`;
-
-    const niveisDefs = _tratosNiveisDisponiveis();
-    const pillArea = `<div class="tratos-area-pill"><i class="fas fa-ruler-combined"></i> Área total aplicada: <b>${areaGeral.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha</b></div>`;
-    corpo.innerHTML = pillArea + `<div class="tratos-hierarquia">${_tratosRenderNivel(base, niveisDefs, niveisChaves, 0, colOS, colArea, colCodTalhao)}</div>`;
-
-    window._tratosRelatorioAtual = { tipo, niveisChaves, dados: dadosFiltrados };
-    card.style.display = 'block';
-    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  // ── Exporta em PDF o relatório hierárquico que está na tela (formato plano,
-  //    uma coluna por nível + os dados de cada aplicação) ──────────────────
-  function exportarPDFRelatorioAgrupado() {
-    const atual = window._tratosRelatorioAtual;
-    if (!atual) { if (typeof showToast === 'function') showToast('⚠️ Gere um relatório primeiro.', 'error', 2500); return; }
-
-    const { tipo, niveisChaves, dados } = atual;
-    const { colData, colOS, colArea, colCodTalhao, colCodProd, colDescProd, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    const niveisDefs = _tratosNiveisDisponiveis();
-
-    const ordenado = [...dados].sort((a, b) => {
-      for (const nk of niveisChaves) {
-        const cmp = niveisDefs[nk].key(a).localeCompare(niveisDefs[nk].key(b), 'pt-BR', { numeric: true });
-        if (cmp !== 0) return cmp;
-      }
-      return (a[colOS] || '').localeCompare(b[colOS] || '', 'pt-BR');
-    });
-
-    // Agrupa por (níveis do relatório + O.S.) — cada O.S. vira UMA linha na
-    // tabela, com todos os produtos aplicados nela juntos numa célula só,
-    // em vez de 1 linha solta por produto/talhão (o que espalhava a mesma
-    // O.S. em várias linhas com pedaços de área que pareciam de talhão).
-    const grupos = new Map();
-    ordenado.forEach(row => {
-      const chaveNiveis = niveisChaves.map(nk => niveisDefs[nk].key(row)).join('§');
-      const os = (row[colOS] || '').trim() || '—';
-      const chave = chaveNiveis + '§§' + os;
-      if (!grupos.has(chave)) grupos.set(chave, []);
-      grupos.get(chave).push(row);
-    });
-
-    const nomesNiveis = { produto: 'Produto', fazenda: 'Fazenda', setor: 'Setor', talhao: 'Talhão', grupoOp: 'Grupo de Operação', subgrupo: 'Subprocesso', operacao: 'Operação' };
-    const head = [[...niveisChaves.map(nk => nomesNiveis[nk] || nk), 'Data', 'Nº O.S.', 'Área (ha)', 'Produtos aplicados — dose recomendada → dose aplicada']];
-    const body = [...grupos.values()].map(osRows => {
-      const first = osRows[0];
-      const areaMap = _calcAreaOS(osRows, colOS, colArea, colCodTalhao);
-      const area = Object.values(areaMap).reduce((s, v) => s + v, 0);
-      const produtosTxt = osRows.map(r => {
-        const dr = parseNum(r[colDoseRec]);
-        const da = parseNum(r[colDoseAplic]);
-        const difStr = (!isNaN(dr) && dr > 0 && !isNaN(da))
-          ? ' (' + (((da - dr) / dr) * 100 >= 0 ? '+' : '') + (((da - dr) / dr) * 100).toFixed(1) + '%)' : '';
-        const nome = [r[colCodProd], r[colDescProd]].filter(Boolean).join(' · ') || 'Produto não identificado';
-        return `${nome}: ${r[colDoseRec] || '—'} → ${r[colDoseAplic] || '—'}${difStr}`;
-      }).join('\n');
-      return [
-        ...niveisChaves.map(nk => niveisDefs[nk].label(first)),
-        first[colData] || '—', first[colOS] || '—',
-        area.toLocaleString('pt-BR', { maximumFractionDigits: 1 }),
-        produtosTxt,
-      ];
-    });
-
-    // Área total sem duplicar (ver _calcAreaOS) — em destaque no cabeçalho do PDF
-    const areaTotalMap = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-    const areaTotalPDF = Object.values(areaTotalMap).reduce((s, v) => s + v, 0);
-    const { pdf, y } = _novoPDFRelatorio(
-      `Tratos Culturais — ${TRATOS_RELATORIO_TITULOS[tipo] || 'Relatório'}`,
-      `Área total aplicada: ${areaTotalPDF.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} ha   ·   ${_tratosFiltrosAtivosTexto()}`,
-      'landscape'
-    );
-    pdf.autoTable({ ...(_PDF_TABLE_ESTILO), startY: y, head, body, bodyStyles: { ...(_PDF_TABLE_ESTILO.bodyStyles || {}), valign: 'top' } });
-    _finalizarPDFRelatorio(pdf, `Tratos_${(TRATOS_RELATORIO_TITULOS[tipo] || 'relatorio').replace(/\s+/g, '_')}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
-  }
-  window.tratosSSAbrir       = tratosSSAbrir;
-  window.tratosSSFiltrar     = tratosSSFiltrar;
-  window.tratosSSLimpar      = tratosSSLimpar;
-
-  // ── HELPER: Calcula mapa OS → área SEM duplicar ─────────────────────────
-  //   A planilha PCP traz o Cód. Talhão explícito, então a regra é exata:
-  //     · Agrupa cada linha por (O.S. + Talhão)
-  //     · Dentro do mesmo (O.S. + Talhão): se as áreas registradas forem
-  //       todas IGUAIS → conta uma vez só (linhas repetidas por produto
-  //       aplicado na mesma passada, ex.: 2 produtos na mesma aplicação)
-  //     · Se forem DIFERENTES → soma (fracionamento dentro do próprio talhão)
-  //     · Talhões DIFERENTES dentro da mesma O.S. são SEMPRE somados —
-  //       nunca deduplicados entre si, pois são áreas fisicamente distintas
-  //   Se colTalhao não for informado, cai de volta na heurística por O.S. isolada.
-  function _calcAreaOS(dados, colOS, colArea, colTalhao) {
-    const osGrupos = {}; // os -> { talhaoKey -> [areas] }
-    dados.forEach(row => {
-      const os = (row[colOS] || '').trim();
-      if (!os) return;
-      const talhaoKey = colTalhao ? ((row[colTalhao] || '').trim() || '__semtalhao__') : '__semtalhao__';
-      const area = parseNum(row[colArea]) || 0;
-      if (!osGrupos[os]) osGrupos[os] = {};
-      if (!osGrupos[os][talhaoKey]) osGrupos[os][talhaoKey] = [];
-      osGrupos[os][talhaoKey].push(area);
-    });
-    const areaOS = {};
-    Object.entries(osGrupos).forEach(([os, porTalhao]) => {
-      let total = 0;
-      Object.values(porTalhao).forEach(areas => {
-        const unicas = new Set(areas.map(a => Math.round(a * 10000)));
-        total += unicas.size === 1 ? areas[0] : areas.reduce((s, v) => s + v, 0);
-      });
-      areaOS[os] = total;
-    });
-    return areaOS;
-  }
-
-  // ── Lazy init — abre já no resumo rápido (sem baixar linha nenhuma) ────────
-  function iniciarModuloTratos() {
-    _tratosAutoAbrirRapido();
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  function parseData(str) {
-    if (!str) return null;
-    str = str.trim();
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-      const [d, m, y] = str.split('/');
-      return new Date(+y, +m - 1, +d);
-    }
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.substring(0, 10));
-    return null;
-  }
-
-  function parseNum(v) {
-    if (v === null || v === undefined || v === '') return NaN;
-    return parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
-  }
-
-  function esc(v) {
-    return String(v == null ? '—' : v)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // ── Detecção robusta de colunas ──────────────────────────────────────────
-  // Remove acentos e caracteres especiais, compara por inclusão
-  function detectarColunas(fields) {
-    const norm = s => String(s).toUpperCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^A-Z0-9]/g,'');
-
-    function findCol(candidates) {
-      // 1) match exato
-      for (const kw of candidates) {
-        const kwn = norm(kw);
-        const f = fields.find(c => norm(c) === kwn);
-        if (f) return f;
-      }
-      // 2) match parcial
-      for (const kw of candidates) {
-        const kwn = norm(kw);
-        const f = fields.find(c => norm(c).includes(kwn));
-        if (f) return f;
-      }
-      return '';
-    }
-
-    // Candidatos ordenados por especificidade (mais específico primeiro)
-    return {
-      colData      : findCol(['DATA APLICACAO','DATAAPLIC','DT APLIC','DATA']),
-      colOS        : findCol(['NR OS','NROS','NR. O.S.','N OS','NUMEROOS','OS']),
-      colCodProd   : findCol(['COD PRODUTO','CODPROD','CODIGO PRODUTO','COD PROD']),
-      colDescProd  : findCol(['DESC PRODUTO','DESCPROD','DESCRICAO PRODUTO','NOME PRODUTO','PRODUTO']),
-      colCodOp     : findCol(['COD OPERACAO','CODOP','CODIGO OPERACAO','COD OP']),
-      colDescOp    : findCol(['DESC OPERACAO AGR','DESCOPERACAOAGR','OPERACAO AGR','DESCOPERACAO','OPERACAO AGRICOLA','OPERACAO']),
-      colCodFazenda: findCol(['COD FAZENDA','CODFAZENDA','CODIGO FAZENDA','COD FAZ','CODFAZ']),
-      colFazenda   : findCol(['DESCRICAO FAZENDA','DESCRICAOFAZENDA','DESCRICAO FAZ','DESC FAZENDA','DESCFAZENDA','NOME FAZENDA','NOMEFAZENDA','FAZENDA','FARM','PROPRIEDADE']),
-      colArea      : findCol(['AREA APLICADA','AREAAPLIC','AREA APLIC','AREA','HA']),
-      colDoseRec   : findCol(['DOSE RECOMENDADA','DOSEREC','DOSE REC','RECOMENDADA']),
-      colDoseAplic : findCol(['DOSE APLICADA','DOSEAPLIC','DOSE APLIC','APLICADA']),
-
-      // ── Colunas adicionadas com a nova estrutura da planilha PCP ──────────
-      colCodEmpresa   : findCol(['COD EMPRESA','CODIGO EMPRESA']),
-      colAbvEmpresa   : findCol(['ABV EMPRESA','ABREVIACAO EMPRESA']),
-      colLancamento   : findCol(['NRO LANCAMENTO','NUMERO LANCAMENTO','LANCAMENTO']),
-      colSafra        : findCol(['SAFRA']),
-      colCodFuncionario: findCol(['COD FUNCIONARIO','CODIGO FUNCIONARIO']),
-      colFuncionario  : findCol(['NOME FUNCIONARIO','FUNCIONARIO','APLICADOR']), // = Aplicador
-      colCodProcesso  : findCol(['COD PROCESSO','CODIGO PROCESSO']),
-      colDescProcesso : findCol(['DESC PROCESSO','PROCESSO']),
-      colCodSubprocesso : findCol(['COD SUBPROCESSO','CODIGO SUBPROCESSO']),
-      colDescSubprocesso: findCol(['DESC SUBPROCESSO','SUBPROCESSO']),
-      colCodGrupoOp   : findCol(['COD GRUPO OP','CODIGO GRUPO OPERACAO']),
-      colDescGrupoOp  : findCol(['DESC GRUPO OP','GRUPO OPERACAO']),
-      colUnidade      : findCol(['UNIDADE']),
-      colCodSetor     : findCol(['COD SETOR','CODIGO SETOR']),
-      colDescSetor    : findCol(['DESC SETOR','SETOR']),
-      colCodBloco     : findCol(['COD BLOCO','CODIGO BLOCO']),
-      colDescBloco    : findCol(['DESC BLOCO','BLOCO']),
-      colCodTalhao    : findCol(['COD TALHAO','CODIGO TALHAO','TALHAO']),
-      colMunicipio    : findCol(['MUNICIPIO']),
-      colVariedade    : findCol(['VARIEDADE']),
-      colPrimeiraEntradaCana: findCol(['PRIMEIRA ENTRADA CANA']),
-      colUltimaEntradaCana  : findCol(['ULTIMA ENTRADA CANA']),
-      colAbvEstagioCorte    : findCol(['ABV ESTAGIO CORTE']),
-      colCodEstagioCorte    : findCol(['COD ESTAGIO CORTE','CODIGO ESTAGIO CORTE']),
-      colDtCorteAtual : findCol(['DT CORTE ATUAL']),
-      colDtPlantio    : findCol(['DT PLANTIO']),
-      colDtPrimCorte  : findCol(['DT PRIM CORTE']),
-      colDtUltCorte   : findCol(['DT ULT CORTE']),
-      colMesAplic     : findCol(['MES APLIC']),
-      colMesAnoAplic  : findCol(['MES ANO APLIC']),
-      colSituacaoTalhao: findCol(['SITUACAO TALHAO']),
-    };
-  }
-
-  // ── Popula <select> com valores únicos ordenados ─────────────────────────
-  function popularSelect(id, dados, col, defaultLabel) {
-    const sel = document.getElementById(id);
-    if (!sel || !col) return;
-    const anterior = sel.value;
-    const unicos = [...new Set(dados.map(r => (r[col] || '').trim()))].filter(Boolean).sort();
-    sel.innerHTML = `<option value="">${defaultLabel}</option>`;
-    unicos.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v;
-      o.textContent = v;
-      if (v === anterior) o.selected = true;
-      sel.appendChild(o);
-    });
-  }
-
-  // ── Popula <select> com "Cód · Desc" como label e value = valor exato da coluna ──
-  // Se colDesc não detectada, usa colCod como fallback.
-  // value sempre = o valor RAW da coluna usada — filtrarTratos compara direto com o mesmo campo.
-  function popularSelectCodDesc(id, dados, colCod, colDesc, defaultLabel) {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    const colValor = colDesc || colCod; // coluna cujo valor vai para o filtro
-    if (!colValor) return;
-    const anterior = sel.value;
-    // mapa: valorFiltro → cod (para montar label visual)
-    const mapa = {};
-    dados.forEach(r => {
-      const val = (r[colValor] || '').trim();
-      const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
-      if (val && !mapa[val]) mapa[val] = cod;
-    });
-    const vals = Object.keys(mapa).sort((a, b) => {
-      const codA = parseInt(mapa[a], 10);
-      const codB = parseInt(mapa[b], 10);
-      if (!isNaN(codA) && !isNaN(codB) && codA !== codB) return codA - codB;
-      if (!isNaN(codA) && isNaN(codB)) return -1;
-      if (isNaN(codA) && !isNaN(codB)) return 1;
-      return a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true });
-    });
-    sel.innerHTML = `<option value="">${defaultLabel}</option>`;
-    vals.forEach(val => {
-      const o = document.createElement('option');
-      o.value = val;                              // value = valor exato da linha — sem transformação
-      const cod = mapa[val];
-      o.textContent = cod ? `${cod} · ${val}` : val;
-      if (val === anterior) o.selected = true;
-      sel.appendChild(o);
-    });
-    // Garante que o select não fique em estado inconsistente após repopular
-    if (anterior && !vals.includes(anterior)) sel.value = '';
-  }
-
-  // Lê o value de um select de forma segura (sem depender de comportamento nativo variável)
-  function selectVal(id) {
-    const el = document.getElementById(id);
-    if (!el) return '';
-    return (el.options[el.selectedIndex]?.value || '').trim();
-  }
-
-  /* ══════════════════════════════════════════════════════════════
-     SEARCH-SELECT CUSTOMIZADO (Produto / Grupo de Operação / Aplicador)
-     — O <select> real fica oculto e é a única fonte de verdade.
-     — Ao escolher, apenas seta sel.value (dispara 'change' por
-       compatibilidade, mas nada mais ouve esse evento) — o filtro só
-       é aplicado quando o usuário clica no botão "Filtrar".
-  ══════════════════════════════════════════════════════════════ */
-  function _tratosSSRefs(selectId) {
-    const sel    = document.getElementById(selectId);
-    const wrap   = document.getElementById('ss-' + selectId);
-    if (!sel || !wrap) return null;
-    const input  = wrap.querySelector('.tratos-ss-input');
-    const lista  = wrap.querySelector('.tratos-ss-lista');
-    const clearBtn = wrap.querySelector('.tratos-ss-clear');
-    return { sel, wrap, input, lista, clearBtn };
-  }
-
-  // Monta a lista de opções (a partir do <select> real) e aplica filtro de texto opcional
-  function _tratosSSRenderLista(selectId, termo) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    const { sel, lista } = r;
-    const termoNorm = (termo || '').trim().toLowerCase();
-    const opts = Array.from(sel.options).filter(o => o.value !== ''); // ignora "— Todos —"
-
-    const filtradas = !termoNorm
-      ? opts
-      : opts.filter(o => o.textContent.toLowerCase().includes(termoNorm));
-
-    if (filtradas.length === 0) {
-      lista.innerHTML = `<div class="tratos-ss-opt ss-empty">Nenhum resultado</div>`;
-      return;
-    }
-
-    lista.innerHTML = filtradas.map(o => {
-      const selecionado = o.value === sel.value && sel.value !== '';
-      return `<div class="tratos-ss-opt${selecionado ? ' selected' : ''}" data-val="${esc(o.value)}">${o.innerHTML}</div>`;
-    }).join('');
-
-    // Liga clique em cada opção
-    lista.querySelectorAll('.tratos-ss-opt[data-val]').forEach(div => {
-      div.addEventListener('mousedown', (ev) => {
-        ev.preventDefault(); // evita perder o foco antes do click
-        _tratosSSEscolher(selectId, div.dataset.val);
-      });
-    });
-  }
-
-  // Abre a lista (chamado no focus do input)
-  function tratosSSAbrir(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    document.querySelectorAll('.tratos-ss.open').forEach(el => {
-      if (el.id !== 'ss-' + selectId) el.classList.remove('open');
-    });
-    r.wrap.classList.add('open');
-    // Seleciona todo o texto do campo ao abrir, para que a digitação substitua imediatamente
-    r.input.select();
-    _tratosSSRenderLista(selectId, '');
-  }
-
-  // Filtra conforme o usuário digita
-  function tratosSSFiltrar(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    r.wrap.classList.add('open');
-    if (r.clearBtn) r.clearBtn.style.display = r.input.value ? 'block' : 'none';
-    _tratosSSRenderLista(selectId, r.input.value);
-  }
-
-  // Usuário clicou numa opção da lista
-  function _tratosSSEscolher(selectId, val) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    r.sel.value = val;
-    if (val) {
-      const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-      r.input.value = optLabel ? optLabel.textContent : val;
-      r.clearBtn.style.display = 'block';
-    } else {
-      r.input.value = '';
-      r.clearBtn.style.display = 'none';
-    }
-    r.wrap.classList.remove('open');
-    r.sel.dispatchEvent(new Event('change'));
-  }
-
-  // Botão "x" — limpa o filtro
-  function tratosSSLimpar(selectId) {
-    _tratosSSEscolher(selectId, '');
-  }
-
-  // Sincroniza o texto exibido no input com o valor atual do select (chamado após popular os selects)
-  function _tratosSSSync(selectId) {
-    const r = _tratosSSRefs(selectId);
-    if (!r) return;
-    const val = r.sel.value;
-    const optLabel = Array.from(r.sel.options).find(o => o.value === val);
-    r.input.value = (val && optLabel) ? optLabel.textContent : '';
-    if (r.clearBtn) r.clearBtn.style.display = val ? 'block' : 'none';
-  }
-
-  // Fecha qualquer lista aberta ao clicar fora do componente
-  document.addEventListener('click', (ev) => {
-    document.querySelectorAll('.tratos-ss.open').forEach(wrap => {
-      if (!wrap.contains(ev.target)) wrap.classList.remove('open');
-    });
-  });
-
-  /* ══════════════════════════════════════════════════════════════
-     MULTI-SELECT CUSTOMIZADO (Fazenda / Operação Agrícola)
-     — window._tratosMultiSel[campo] guarda o Set de valores marcados
-     — window._tratosMultiOpcoes[campo] guarda a lista {value,label}
-       disponível (repopulada a cada carga de dados)
-  ══════════════════════════════════════════════════════════════ */
-  window._tratosMultiSel    = { fazenda: new Set(), operacao: new Set(), produto: new Set(), grupoOp: new Set(), subprocesso: new Set(), libFazenda: new Set(), safra: new Set() };
-  window._tratosMultiOpcoes = { fazenda: [], operacao: [], produto: [], grupoOp: [], subprocesso: [], libFazenda: [], safra: [] };
-
-  function _tratosMSPopular(campo, dados, colCod, colDesc) {
-    const colValor = colDesc || colCod;
-    if (!colValor) { window._tratosMultiOpcoes[campo] = []; return; }
-    const mapa = {};
-    dados.forEach(r => {
-      const val = (r[colValor] || '').trim();
-      const cod = (colCod && colCod !== colValor) ? (r[colCod] || '').trim() : '';
-      if (val && !mapa[val]) mapa[val] = cod;
-    });
-    const vals = Object.keys(mapa).sort((a, b) => {
-      const codA = parseInt(mapa[a], 10);
-      const codB = parseInt(mapa[b], 10);
-      if (!isNaN(codA) && !isNaN(codB) && codA !== codB) return codA - codB;
-      if (!isNaN(codA) && isNaN(codB)) return -1;
-      if (isNaN(codA) && !isNaN(codB)) return 1;
-      return a.localeCompare(b, 'pt-BR', { sensitivity: 'base', numeric: true });
-    });
-    window._tratosMultiOpcoes[campo] = vals.map(v => ({ value: v, label: mapa[v] ? `${mapa[v]} · ${v}` : v }));
-    // Remove da seleção valores que sumiram do dataset atual
-    const validos = new Set(vals);
-    [...window._tratosMultiSel[campo]].forEach(v => { if (!validos.has(v)) window._tratosMultiSel[campo].delete(v); });
-    _tratosMSSyncDisplay(campo);
-  }
+  window._tratosMultiSel    = { libFazenda: new Set() };
+  window._tratosMultiOpcoes = { libFazenda: [] };
 
   function _tratosMSRenderLista(campo, termo) {
     const cont = document.getElementById('ms-opcoes-' + campo);
@@ -5830,45 +5854,10 @@ iniciarSabedoria();
     const sel = window._tratosMultiSel[campo];
     cont.innerHTML = filtradas.map(o => `
       <label class="tratos-ms-opt">
-        <input type="checkbox" value="${esc(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="tratosMSToggle('${campo}', this.value, this.checked)">
-        <span>${esc(o.label)}</span>
+        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="tratosMSToggle('${campo}', this.value, this.checked)">
+        <span>${escapeHtml(o.label)}</span>
       </label>`).join('');
   }
-
-  function tratosMSAbrir(campo) {
-    const wrap = document.getElementById('ms-tratos-filtro-' + campo);
-    if (!wrap) return;
-    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
-    document.querySelectorAll('.tratos-ss.open').forEach(el => el.classList.remove('open'));
-    const abrindo = !wrap.classList.contains('open');
-    wrap.classList.toggle('open', abrindo);
-    if (abrindo) _tratosMSRenderLista(campo, '');
-  }
-
-  function tratosMSFiltrarTexto(campo, termo) {
-    _tratosMSRenderLista(campo, termo);
-  }
-
-  function tratosMSToggle(campo, val, marcado) {
-    const sel = window._tratosMultiSel[campo];
-    if (marcado) sel.add(val); else sel.delete(val);
-    _tratosMSSyncDisplay(campo);
-    // Nos filtros de Tratos, a seleção só vale quando o usuário clica em "Filtrar".
-    // Já em Liberações não existe botão "Filtrar" — a tabela reage na hora.
-    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
-  }
-
-  function tratosMSLimpar(campo) {
-    window._tratosMultiSel[campo].clear();
-    _tratosMSRenderLista(campo, '');
-    _tratosMSSyncDisplay(campo);
-    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
-  }
-  window.tratosMSAbrir = tratosMSAbrir;
-  window.tratosMSFiltrarTexto = tratosMSFiltrarTexto;
-  window.tratosMSToggle = tratosMSToggle;
-  window.tratosMSLimpar = tratosMSLimpar;
-  window._tratosMSSyncDisplay = _tratosMSSyncDisplay;
 
   function _tratosMSSyncDisplay(campo) {
     const disp = document.getElementById('ms-display-' + campo);
@@ -5893,777 +5882,47 @@ iniciarSabedoria();
     }
   }
 
+  function tratosMSAbrir(campo) {
+    const wrap = document.getElementById('ms-tratos-filtro-' + campo);
+    if (!wrap) return;
+    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
+    const abrindo = !wrap.classList.contains('open');
+    wrap.classList.toggle('open', abrindo);
+    if (abrindo) _tratosMSRenderLista(campo, '');
+  }
+
+  function tratosMSFiltrarTexto(campo, termo) {
+    _tratosMSRenderLista(campo, termo);
+  }
+
+  // Em Liberações não existe botão "Filtrar" — a tabela reage na hora.
+  function tratosMSToggle(campo, val, marcado) {
+    const sel = window._tratosMultiSel[campo];
+    if (marcado) sel.add(val); else sel.delete(val);
+    _tratosMSSyncDisplay(campo);
+    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
+  }
+
+  function tratosMSLimpar(campo) {
+    window._tratosMultiSel[campo].clear();
+    _tratosMSRenderLista(campo, '');
+    _tratosMSSyncDisplay(campo);
+    if (campo === 'libFazenda' && typeof filtrarTabela === 'function') filtrarTabela();
+  }
+
+  window.tratosMSAbrir        = tratosMSAbrir;
+  window.tratosMSFiltrarTexto = tratosMSFiltrarTexto;
+  window.tratosMSToggle       = tratosMSToggle;
+  window.tratosMSLimpar       = tratosMSLimpar;
+  window._tratosMSSyncDisplay = _tratosMSSyncDisplay;
+
   // Fecha qualquer lista multi-select aberta ao clicar fora
   document.addEventListener('click', (ev) => {
     document.querySelectorAll('.tratos-ms.open').forEach(wrap => {
       if (!wrap.contains(ev.target)) wrap.classList.remove('open');
     });
   });
-
-  // ── Carrega a planilha PCP direto do Google Sheets (uso interno) ──────────
-  // Usada SÓ pela sincronização (sincronizarTratosSupabase) — não alimenta
-  // mais a tela diretamente. A leitura que a tela usa é carregarDadosTratos(),
-  // que lê do Supabase (ver mais abaixo).
-  function _tratosCarregarCSVFonte() {
-    return new Promise((resolve, reject) => {
-      Papa.parse(URL_TRATOS, {
-        download     : true,
-        header       : true,
-        skipEmptyLines: true,
-        complete: function(results) {
-          if (!results.data || results.data.length === 0) {
-            reject(new Error('Nenhum dado encontrado na aba PCP.'));
-            return;
-          }
-          const cols = detectarColunas(results.meta.fields || []);
-          resolve({ dados: results.data, cols });
-        },
-        error: function(err) { reject(err); }
-      });
-    });
-  }
-
-  // Mapeamento fixo das colunas da tabela public.tratos_pcp (Supabase).
-  // ⚠️ Fonte mudou: antes era alimentada pelo botão de sync dentro do app,
-  // lendo a planilha do Google Sheets. Agora quem alimenta é o script Python
-  // (sync_excel_supabase.py / função sincronizar_pcp()), lendo a aba
-  // "AutoPCP_app" do Excel (que é só o nome da ABA — a tabela no Supabase
-  // continua se chamando tratos_pcp). O app só LÊ essa tabela.
-  // Nomes de coluna aqui precisam bater exatamente com o COLUMN_MAP_PCP do
-  // script Python.
-  const TRATOS_SUPABASE_TABLE = 'tratos_pcp';
-  const TRATOS_SUPABASE_COLS = {
-    colData: 'data_aplicacao', colOS: 'nr_os',
-    colCodProd: 'cod_produto', colDescProd: 'desc_produto',
-    colCodOp: 'cod_operacao', colDescOp: 'desc_operacao',
-    colCodFazenda: 'cod_fazenda', colFazenda: 'desc_fazenda',
-    colArea: 'area_aplicada', colDoseRec: 'dose_recomendada', colDoseAplic: 'dose_aplicada',
-    colCodEmpresa: 'cod_empresa',
-    colSafra: 'safra',
-    colCodFuncionario: 'cod_funcionario',
-    colCodGrupoOp: 'cod_grupo_op', colDescGrupoOp: 'desc_grupo_op',
-    colCodSetor: 'cod_setor', colCodBloco: 'cod_bloco', colCodTalhao: 'cod_talhao',
-    colSituacaoTalhao: 'situacao_talhao',
-    // Novos campos vindos do SQL Oracle (ainda não usados em nenhum relatório,
-    // mas já ficam disponíveis pra quando precisar)
-    colDtPlantio: 'dt_plantio', colDtCorteAtual: 'dt_corte_atual',
-    colDtPrimCorte: 'dt_prim_corte', colDtUltCorte: 'dt_ult_corte',
-    colMesAplic: 'mes_aplic', colMesAnoAplic: 'mes_ano_aplic',
-    // ── Ainda não disponíveis no SQL atual (ver observações da última vez) —
-    // deixe comentado até confirmarmos as tabelas de origem:
-    // colAbvEmpresa: 'abv_empresa', colLancamento: 'nro_lancamento',
-    // colFuncionario: 'nome_funcionario', colCodProcesso: 'cod_processo',
-    // colDescProcesso: 'desc_processo', colCodSubprocesso: 'cod_subprocesso',
-    // colDescSubprocesso: 'desc_subprocesso', colUnidade: 'unidade',
-    // colDescSetor: 'desc_setor', colDescBloco: 'desc_bloco',
-    // colMunicipio: 'municipio', colVariedade: 'variedade',
-  };
-
-  // É estático (não depende de dado carregado) — já deixa disponível desde
-  // já, pra o resumo rápido por Fazenda (via RPC) conseguir montar o card
-  // de O.S. no drill-down sem precisar de um carregamento completo antes.
-  window._tratosCols = TRATOS_SUPABASE_COLS;
-
-  // Converte number/string numérica (Postgres numeric, decimal com ponto)
-  // para o formato BR com vírgula, igual ao que a planilha sempre mostrou.
-  function _numParaBR(v) {
-    if (v === null || v === undefined || v === '') return '';
-    const n = typeof v === 'number' ? v : parseFloat(v);
-    return isNaN(n) ? '' : String(n).replace('.', ',');
-  }
-
-  // Busca TODAS as linhas de public.tratos_pcp (todas as safras), em páginas
-  // de 1000. ⚠️ IMPORTANTE (325 mil linhas na tabela): disparar TODAS as
-  // páginas em paralelo (como era antes) significa ~325 requisições
-  // simultâneas de uma vez — é isso que pesa. A otimização aqui é buscar em
-  // lotes de CONCORRENCIA páginas por vez (em vez de todas de uma só vez),
-  // sem cortar nenhum dado — o app continua mostrando qualquer safra que
-  // exista na tabela. `safras`/`todasSafras` ficam como parâmetros opcionais
-  // (não usados hoje) caso algum dia se queira filtrar direto no Supabase.
-  // Tenta de novo (com um pequeno intervalo) antes de desistir de uma
-  // página — com conexão de campo instável e ~55 rodadas de busca agora
-  // (325 mil linhas), uma falha passageira numa única página não deveria
-  // derrubar o carregamento inteiro.
-  async function _tratosComRetry(query, tentativas = 2) {
-    let ultimoErro = null;
-    for (let i = 0; i <= tentativas; i++) {
-      const resp = await query;
-      if (!resp.error) return resp;
-      ultimoErro = resp.error;
-      if (i < tentativas) await new Promise(r => setTimeout(r, 800 * (i + 1)));
-    }
-    return { data: null, error: ultimoErro };
-  }
-
-  async function _tratosBuscarSupabasePaginado(safras, todasSafras, onProgresso) {
-    const PAGINA = 1000;
-    const SELECT_COLS = 'id,' + Object.values(TRATOS_SUPABASE_COLS).join(',');
-    const temFiltro = !todasSafras && Array.isArray(safras) && safras.length > 0;
-
-    // Pré-filtros escolhidos ANTES de carregar (Fazenda/Produto/Operação/
-    // Grupo de Operação) — cada um vira um .in() na query, então o
-    // Supabase já devolve só o que interessa, em vez do app baixar a
-    // safra inteira pra filtrar depois na tela.
-    const pre = window._tratosPreFiltros || {};
-    const PRE_COL = { fazenda: TRATOS_SUPABASE_COLS.colCodFazenda, produto: TRATOS_SUPABASE_COLS.colCodProd, operacao: TRATOS_SUPABASE_COLS.colCodOp, grupoOp: TRATOS_SUPABASE_COLS.colCodGrupoOp };
-
-    function baseQuery() {
-      let q = _sbClient.from(TRATOS_SUPABASE_TABLE).select(SELECT_COLS);
-      if (temFiltro) q = q.in(TRATOS_SUPABASE_COLS.colSafra, safras);
-      Object.keys(PRE_COL).forEach(campo => {
-        const sel = pre[campo];
-        if (sel && sel.size > 0) q = q.in(PRE_COL[campo], [...sel]);
-      });
-      // O período (Data de Aplicação) escolhido na tela de filtro NÃO vira
-      // um corte exato aqui — só é usado lá na tela pra descobrir quais
-      // safras buscar (_tratosAnosEntreDatas). A busca em si filtra por
-      // SAFRA (campo confiável, sem nulos). Aplicar o intervalo de data
-      // direto na query excluiria silenciosamente qualquer O.S. sem
-      // data_aplicacao preenchida no Oracle — e isso acontece, segundo o
-      // usuário. Refinar por data exata, se quiser, é feito depois em
-      // cima dos dados já carregados (client-side), nunca cortando o que
-      // vem do servidor.
-      return q;
-    }
-
-    // OTIMIZADO: pagina por CURSOR (id > último id já lido) em vez de
-    // OFFSET/range. Com OFFSET, cada página precisa que o Postgres processe
-    // todas as linhas das páginas anteriores pra "pular" até o ponto certo —
-    // numa tabela de ~325 mil linhas, a página 300 já está pagando o custo
-    // de 300 mil linhas puladas, e isso ACUMULA a cada página seguinte. É a
-    // causa mais provável tanto da demora quanto dos erros/timeout nas
-    // páginas mais fundas. Cursor por id usa o índice direto: toda página
-    // custa praticamente o mesmo, não importa a profundidade — muito mais
-    // rápido E muito mais confiável (sem penalidade que cresce com o tempo).
-    const todas = [];
-    let cursor = -1; // menor que qualquer id real (bigserial começa em 1)
-    let acabou = false;
-    let erroFinal = null;
-
-    while (!acabou) {
-      const resp = await _tratosComRetry(
-        baseQuery().order('id', { ascending: true }).gt('id', cursor).limit(PAGINA)
-      );
-      if (resp.error) {
-        // Não descarta o que já foi carregado até aqui — devolve parcial
-        // em vez de jogar fora tudo por causa de 1 página que falhou (ex.:
-        // internet cair no meio do carregamento no campo).
-        erroFinal = resp.error;
-        break;
-      }
-      const data = resp.data || [];
-      if (!data.length) break;
-      todas.push(...data);
-      cursor = data[data.length - 1].id;
-      if (typeof onProgresso === 'function') onProgresso(todas.length);
-      if (data.length < PAGINA) acabou = true;
-    }
-    return { dados: todas, erro: erroFinal };
-  }
-
-  // ── Cache em sessionStorage — evita refazer a busca pesada toda vez que o
-  // usuário só troca de aba e volta. Válido por 5 minutos; o botão "Atualizar"
-  // (ícone de sync) sempre ignora o cache e busca na hora.
-  const TRATOS_CACHE_TTL_MS = 5 * 60 * 1000;
-
-  const TRATOS_CACHE_KEY = 'tratos_cache_v2';
-
-  function _tratosLerCache(chave) {
-    try {
-      const raw = sessionStorage.getItem(TRATOS_CACHE_KEY + ':' + chave);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      if (!obj || !obj.ts || (Date.now() - obj.ts) > TRATOS_CACHE_TTL_MS || !Array.isArray(obj.dados)) return null;
-      return obj.dados;
-    } catch (e) { return null; }
-  }
-
-  function _tratosGravarCache(dados, chave) {
-    try {
-      // Com muitas safras marcadas de uma vez isso pode estourar a cota do
-      // sessionStorage (uns 5-10 MB). Nesse caso o catch abaixo só desiste
-      // do cache silenciosamente; a tela funciona normalmente, só não fica
-      // em cache pra próxima troca de aba (recarrega do zero).
-      sessionStorage.setItem(TRATOS_CACHE_KEY + ':' + chave, JSON.stringify({ ts: Date.now(), dados }));
-    } catch (e) { /* sessionStorage indisponível/cheio — segue sem cache, não é crítico */ }
-  }
-
-  // Mostra/esconde o card de carregamento animado, escondendo o resto do
-  // conteúdo da aba enquanto os dados não chegam — pra ficar bem visível
-  // que está carregando (em vez do textinho pequeno de antes).
-  // `null` = ainda não escolheu nenhuma safra (1ª vez); array = safras
-  // escolhidas; 'todas' = optou por carregar o histórico completo mesmo assim.
-  let _tratosSafrasAtivas = null;
-
-  function _tratosMostrarLoading(mostrar) {
-    const loadingCard = document.getElementById('tratos-loading-card');
-    const filtrosCard = document.getElementById('tratos-filtros-card');
-    const relatorioCard = document.getElementById('tratos-relatorio-card');
-    // Padroniza o conteúdo do card (o card em si já existe fixo no
-    // index.html) com o mesmo componente animado usado no resto do app.
-    if (mostrar && loadingCard && typeof cttLoadingHTML === 'function') {
-      loadingCard.innerHTML = cttLoadingHTML('Carregando Tratos Culturais...', { icone: 'fa-spray-can' });
-    }
-    if (loadingCard) loadingCard.style.display = mostrar ? 'block' : 'none';
-    if (filtrosCard) filtrosCard.style.display = mostrar ? 'none' : '';
-    if (relatorioCard) relatorioCard.style.display = mostrar ? 'none' : '';
-    const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
-    if (btnTrocarFiltro) btnTrocarFiltro.style.display = mostrar ? 'none' : '';
-  }
-
-  // Garante que a animação de carregamento fique visível por pelo menos
-  // alguns instantes, mesmo quando os dados vêm rapidinho do cache —
-  // assim o usuário sempre percebe que algo está acontecendo.
-  function _tratosEsperarMin(promessa, msMin) {
-    const espera = new Promise(resolve => setTimeout(resolve, msMin));
-    return Promise.all([promessa, espera]).then(([resultado]) => resultado);
-  }
-
-  // ── Seletor de safra — carrega só o que o usuário escolher ────────────────
-  // Em vez de sempre buscar as 325 mil linhas da tabela toda, mostra
-  // primeiro uma lista (bem barata: só o DISTINCT de safra, via RPC) e deixa
-  // o usuário escolher quais safras quer ver antes de buscar os dados de
-  // verdade.
-  function _tratosCriarPickerDom() {
-    const loadingCard = document.getElementById('tratos-loading-card');
-    if (!loadingCard || !loadingCard.parentNode) return null;
-    let picker = document.getElementById('tratos-safra-picker');
-    if (picker) return picker;
-    // Reaproveita a classe "card" (mesma dos outros cards da aba) — sem
-    // estilo inline nosso, herda a aparência real do app.
-    picker = document.createElement('div');
-    picker.className = 'card';
-    picker.id = 'tratos-safra-picker';
-    loadingCard.parentNode.insertBefore(picker, loadingCard);
-
-    const btnTrocarFiltro = document.createElement('button');
-    btnTrocarFiltro.id = 'tratos-btn-trocar-prefiltro';
-    btnTrocarFiltro.type = 'button';
-    btnTrocarFiltro.className = 'btn-secondary';
-    btnTrocarFiltro.style.cssText = 'display:none;margin-bottom:10px;';
-    btnTrocarFiltro.innerHTML = '<i class="fas fa-filter"></i> Trocar filtros';
-    btnTrocarFiltro.onclick = () => _tratosMostrarTelaFiltros();
-    loadingCard.parentNode.insertBefore(btnTrocarFiltro, loadingCard);
-
-    return picker;
-  }
-
-  // Converte o período escolhido em quais safras (anos) buscar — o usuário
-  // não escolhe mais a safra numa lista separada, é derivado direto da data.
-  // Ex.: 15/12/2025 até 10/03/2026 → ['2025','2026'].
-  function _tratosAnosEntreDatas(dataIniStr, dataFimStr) {
-    if (!dataIniStr && !dataFimStr) return null; // nenhum período definido
-    const anoAtual = new Date().getFullYear();
-    const anoIni = dataIniStr ? parseInt(dataIniStr.slice(0, 4), 10) : anoAtual;
-    const anoFim = dataFimStr ? parseInt(dataFimStr.slice(0, 4), 10) : anoAtual;
-    const de = Math.min(anoIni, anoFim), ate = Math.max(anoIni, anoFim);
-    const anos = [];
-    for (let a = de; a <= ate; a++) anos.push(String(a));
-    return anos;
-  }
-
-  // ── Pré-filtro (Fazenda/Produto/Operação/Grupo de Operação) ANTES de
-  // carregar os dados — reduz o quanto precisa vir do Supabase quando o
-  // usuário já sabe o que quer ver (ex.: só 1 fazenda).
-  window._tratosPreFiltros = window._tratosPreFiltros || { fazenda: new Set(), produto: new Set(), operacao: new Set(), grupoOp: new Set() };
-  window._tratosPreFiltroOpcoes = window._tratosPreFiltroOpcoes || { fazenda: [], produto: [], operacao: [], grupoOp: [] };
-
-  const PLS_PREFILTRO_LABEL = { fazenda: 'Fazenda', produto: 'Produto', operacao: 'Operação Agrícola', grupoOp: 'Grupo de Operação' };
-
-  // ── TELA ÚNICA DE FILTROS — Período (Data) é o filtro PRINCIPAL, em
-  // destaque no topo; os outros (Fazenda/Produto/Operação/Grupo) vêm
-  // depois, opcionais. Só busca dado nenhum quando o usuário clica em
-  // "Filtrar" — nada acontece sozinho antes disso.
-  async function _tratosMostrarTelaFiltros() {
-    _tratosMostrarLoading(false);
-    const filtrosCard = document.getElementById('tratos-filtros-card');
-    const relatorioCard = document.getElementById('tratos-relatorio-card');
-    if (filtrosCard) filtrosCard.style.display = 'none';
-    if (relatorioCard) relatorioCard.style.display = 'none';
-    const btnTrocarFiltro = document.getElementById('tratos-btn-trocar-prefiltro');
-    if (btnTrocarFiltro) btnTrocarFiltro.style.display = 'none';
-
-    const picker = _tratosCriarPickerDom();
-    if (!picker) { carregarDadosTratos(true); return; } // sem onde encaixar — não trava o fluxo
-
-    picker.style.display = 'block';
-    picker.innerHTML = '<div class="card-title" style="margin:0;"><i class="fas fa-spinner fa-spin"></i> Preparando filtros...</div>';
-
-    // Opções de Fazenda/Produto/Operação/Grupo — busca pro universo todo
-    // (sem travar numa safra específica ainda); só popula a lista de
-    // escolhas, quem restringe de verdade é o clique em "Filtrar".
-    let opcoes = { fazenda: [], produto: [], operacao: [], grupoOp: [] };
-    let opcoesDisponiveis = true;
-    try {
-      const { data, error } = await _sbClient.rpc('listar_opcoes_tratos', { p_safras: null });
-      if (error) throw error;
-      const CAMPO_MAP = { fazenda: 'fazenda', produto: 'produto', operacao: 'operacao', grupo_op: 'grupoOp' };
-      (data || []).forEach(r => {
-        const campo = CAMPO_MAP[r.campo];
-        if (!campo || (!r.cod && !r.descricao)) return;
-        opcoes[campo].push({
-          value: String(r.cod ?? r.descricao),
-          label: [r.cod, r.descricao].filter(Boolean).join(' · ') || String(r.cod ?? r.descricao),
-        });
-      });
-      Object.keys(opcoes).forEach(campo => opcoes[campo].sort((a,b) => a.label.localeCompare(b.label, 'pt-BR')));
-    } catch (e) {
-      console.error('[Tratos] Erro ao listar opções de filtro (RPC listar_opcoes_tratos)', e);
-      // NUNCA cai sozinho pra carregar tudo — sem essa function (SQL ainda
-      // não rodado, ou deu erro), só os 4 filtros de refino ficam
-      // indisponíveis; filtrar por período continua funcionando normal.
-      opcoesDisponiveis = false;
-    }
-    window._tratosPreFiltroOpcoes = opcoes;
-
-    const campos = ['fazenda', 'produto', 'operacao', 'grupoOp'];
-    const blocoFiltrosFinos = opcoesDisponiveis
-      ? campos.map(campo => `
-        <div style="margin-bottom:12px;">
-          <label style="font-size:11px;font-weight:800;color:var(--text-2);display:block;margin-bottom:4px;">${PLS_PREFILTRO_LABEL[campo]}</label>
-          <div class="tratos-ms" id="ms-tratos-filtro-pre${campo}">
-            <div class="tratos-ms-input-wrap" onclick="_tratosPreMSAbrir('${campo}')">
-              <i class="fas fa-search tratos-ms-icon"></i>
-              <span class="tratos-ms-display" id="ms-display-pre${campo}">— Todas —</span>
-              <i class="fas fa-times tratos-ms-clear" id="ms-clear-pre${campo}" style="display:none;" onclick="event.stopPropagation(); _tratosPreMSLimpar('${campo}')"></i>
-              <i class="fas fa-chevron-down tratos-ms-chevron"></i>
-            </div>
-            <div class="tratos-ms-lista">
-              <div class="tratos-ms-search"><input type="text" placeholder="Buscar..." oninput="_tratosPreMSFiltrarTexto('${campo}', this.value)" onclick="event.stopPropagation()"></div>
-              <div class="tratos-ms-opcoes" id="ms-opcoes-pre${campo}"></div>
-            </div>
-          </div>
-        </div>`).join('')
-      : `<div style="font-size:11px;color:var(--text-3);background:var(--surface2);border-radius:var(--radius-sm);padding:9px 11px;margin-bottom:12px;">
-          <i class="fas fa-circle-info"></i> Filtro fino por Fazenda/Produto/Operação/Grupo ainda não disponível (rode <code>listar_opcoes_tratos.sql</code> no Supabase). Dá pra filtrar só por período mesmo assim.
-        </div>`;
-
-    const dataAtual = window._tratosPreFiltroDatas || { ini: '', fim: '' };
-    const anoAtual = String(new Date().getFullYear());
-
-    picker.innerHTML = `
-      <div class="card-title" style="margin:0 0 4px;"><i class="fas fa-filter"></i> O que você quer ver?</div>
-
-      <div style="background:var(--green-50);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin:10px 0 16px;">
-        <label style="font-size:12px;font-weight:800;color:var(--green-700);display:block;margin-bottom:6px;"><i class="fas fa-calendar-alt"></i> Período (filtro principal)</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="date" id="tratos-prefiltro-data-ini" value="${dataAtual.ini}" style="flex:1;min-width:0;">
-          <span style="color:var(--text-3);font-size:11px;">até</span>
-          <input type="date" id="tratos-prefiltro-data-fim" value="${dataAtual.fim}" style="flex:1;min-width:0;">
-        </div>
-        <div style="font-size:10.5px;color:var(--text-3);margin-top:6px;">Em branco = ano atual (${anoAtual}). Um período que atravessa mais de um ano (ex.: 12/2025 até 03/2026) já traz as duas safras juntas, automaticamente. Obs.: isso escolhe a(s) safra(s) certa(s) pra buscar — não corta por dia exato, porque nem toda O.S. tem a data preenchida no Oracle.</div>
-      </div>
-
-      <div style="font-size:11px;font-weight:800;color:var(--text-2);margin-bottom:6px;">Filtros adicionais (opcionais)</div>
-      ${blocoFiltrosFinos}
-
-      <button type="button" id="tratos-prefiltro-ok" class="btn-main" style="width:100%;justify-content:center;margin-top:4px;">
-        <i class="fas fa-magnifying-glass"></i> Filtrar
-      </button>
-      <div style="font-size:10.5px;color:var(--text-3);margin-top:8px;text-align:center;">Só busca os dados quando você tocar aqui.</div>`;
-
-    if (opcoesDisponiveis) campos.forEach(campo => _tratosPreMSSyncDisplay(campo));
-
-    picker.querySelector('#tratos-prefiltro-ok').onclick = () => {
-      const ini = document.getElementById('tratos-prefiltro-data-ini')?.value || '';
-      const fim = document.getElementById('tratos-prefiltro-data-fim')?.value || '';
-      window._tratosPreFiltroDatas = { ini, fim };
-      const anos = _tratosAnosEntreDatas(ini, fim);
-      _tratosSafrasAtivas = (anos && anos.length) ? anos : [anoAtual];
-      picker.style.display = 'none';
-      carregarDadosTratos(true);
-    };
-  }
-  window._tratosMostrarTelaFiltros = _tratosMostrarTelaFiltros;
-
-  function _tratosPreMSRenderLista(campo, termo) {
-    const cont = document.getElementById('ms-opcoes-pre' + campo);
-    if (!cont) return;
-    const termoNorm = (termo || '').trim().toLowerCase();
-    const opcoes = window._tratosPreFiltroOpcoes[campo] || [];
-    const filtradas = !termoNorm ? opcoes : opcoes.filter(o => o.label.toLowerCase().includes(termoNorm));
-    if (!filtradas.length) {
-      cont.innerHTML = `<div class="tratos-ms-opt ss-empty">Nenhum resultado</div>`;
-      return;
-    }
-    const sel = window._tratosPreFiltros[campo];
-    cont.innerHTML = filtradas.map(o => `
-      <label class="tratos-ms-opt">
-        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="_tratosPreMSToggle('${campo}', this.value, this.checked)">
-        <span>${escapeHtml(o.label)}</span>
-      </label>`).join('');
-  }
-
-  function _tratosPreMSAbrir(campo) {
-    const wrap = document.getElementById('ms-tratos-filtro-pre' + campo);
-    if (!wrap) return;
-    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
-    const abrindo = !wrap.classList.contains('open');
-    wrap.classList.toggle('open', abrindo);
-    if (abrindo) _tratosPreMSRenderLista(campo, '');
-  }
-
-  function _tratosPreMSFiltrarTexto(campo, termo) { _tratosPreMSRenderLista(campo, termo); }
-
-  function _tratosPreMSToggle(campo, val, marcado) {
-    if (marcado) window._tratosPreFiltros[campo].add(val); else window._tratosPreFiltros[campo].delete(val);
-    _tratosPreMSSyncDisplay(campo);
-  }
-
-  function _tratosPreMSLimpar(campo) {
-    window._tratosPreFiltros[campo].clear();
-    _tratosPreMSRenderLista(campo, '');
-    _tratosPreMSSyncDisplay(campo);
-  }
-  window._tratosPreMSAbrir = _tratosPreMSAbrir;
-  window._tratosPreMSFiltrarTexto = _tratosPreMSFiltrarTexto;
-  window._tratosPreMSToggle = _tratosPreMSToggle;
-  window._tratosPreMSLimpar = _tratosPreMSLimpar;
-
-  function _tratosPreMSSyncDisplay(campo) {
-    const disp = document.getElementById('ms-display-pre' + campo);
-    const clearBtn = document.getElementById('ms-clear-pre' + campo);
-    if (!disp) return;
-    const sel = window._tratosPreFiltros[campo];
-    const opcoes = window._tratosPreFiltroOpcoes[campo] || [];
-    if (sel.size === 0) {
-      disp.textContent = '— Todas —';
-      disp.classList.remove('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'none';
-    } else if (sel.size === 1) {
-      const [v] = sel;
-      const opt = opcoes.find(o => o.value === v);
-      disp.textContent = opt ? opt.label : v;
-      disp.classList.add('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'block';
-    } else {
-      disp.textContent = `${sel.size} selecionados`;
-      disp.classList.add('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'block';
-    }
-  }
-
-  // ── Carrega os dados de Tratos — leitura principal da tela, vem do Supabase ──
-  // Passe forcar=true (botão "Atualizar"/troca de safra) pra ignorar o cache.
-  // Usa _tratosSafrasAtivas (definido pelo seletor de safra) pra saber o que buscar.
-  async function carregarDadosTratos(forcar, silencioso) {
-    _tratosIniciado = true;
-    const contador = document.getElementById('tratos-contador');
-    if (contador) contador.textContent = 'Carregando...';
-    _tratosMostrarLoading(true);
-
-    if (typeof _sbClient === 'undefined') {
-      _tratosMostrarLoading(false);
-      if (contador) contador.textContent = 'Erro ao carregar';
-      if (typeof showToast === 'function') showToast('⚠️ Cliente Supabase não encontrado.', 'error', 3500);
-      return;
-    }
-
-    // Ainda não definiu filtro nenhum (1ª vez abrindo a tela) — mostra a
-    // tela de filtros em vez de sair buscando tudo.
-    if (_tratosSafrasAtivas === null) {
-      _tratosMostrarTelaFiltros();
-      return;
-    }
-
-    const todasSafras = _tratosSafrasAtivas === 'todas';
-    const safrasFiltro = todasSafras ? [] : _tratosSafrasAtivas;
-
-    try {
-      // Só busca as safras escolhidas no seletor — não a tabela toda. Isso é
-      // o que realmente resolve o peso: menos páginas, menos linhas na
-      // memória do navegador, carregamento bem mais rápido.
-      // A chave do cache precisa refletir também os pré-filtros escolhidos
-      // (Fazenda/Produto/Operação/Grupo de Operação) — senão trocar de
-      // filtro e voltar poderia reaproveitar por engano o cache de uma
-      // combinação diferente. A data não entra aqui: ela só decide QUAIS
-      // safras buscar (já refletido na 1ª parte da chave), não filtra a
-      // query em si, então duas datas que caem na mesma safra usam o
-      // mesmo cache normalmente.
-      const pre = window._tratosPreFiltros || {};
-      const prefixoPre = ['fazenda','produto','operacao','grupoOp']
-        .map(c => (pre[c] && pre[c].size) ? `${c}:${[...pre[c]].sort().join('|')}` : '')
-        .filter(Boolean).join(';');
-      const chaveCache = (todasSafras ? 'todas' : [...safrasFiltro].sort().join(',')) + (prefixoPre ? '__' + prefixoPre : '');
-      const cache = !forcar ? _tratosLerCache(chaveCache) : null;
-      const resultado = cache
-        ? { dados: cache, erro: null }
-        : await _tratosEsperarMin(
-            _tratosBuscarSupabasePaginado(safrasFiltro, todasSafras, (n) => {
-              // Contador ao vivo — mostra que tá andando em vez de parecer
-              // travado enquanto as páginas vão chegando.
-              const loadingCard = document.getElementById('tratos-loading-card');
-              const texto = loadingCard ? loadingCard.querySelector('.ctt-loader-texto') : null;
-              if (texto) texto.textContent = `Carregando Tratos Culturais... (${n.toLocaleString('pt-BR')} registros)`;
-            }),
-            550
-          );
-      const brutos = resultado.dados;
-      // Se deu erro no meio do carregamento mas já tinha juntado alguma
-      // coisa, mostra o que já tem em vez de descartar tudo — só avisa
-      // que ficou incompleto, pra poder tentar de novo depois.
-      if (resultado.erro && brutos.length > 0 && !silencioso && typeof showToast === 'function') {
-        showToast(`⚠️ Carregamento incompleto (${brutos.length.toLocaleString('pt-BR')} registros carregados) — a conexão caiu no meio. Toque em "Atualizar" pra tentar completar.`, 'error', 5500);
-      } else if (resultado.erro && brutos.length === 0) {
-        throw resultado.erro;
-      }
-      if (!cache && brutos.length > 0 && !resultado.erro) _tratosGravarCache(brutos, chaveCache);
-
-      _tratosMostrarLoading(false);
-
-      if (!brutos.length) {
-        if (contador) contador.textContent = '0 registros';
-        if (typeof showToast === 'function') showToast('ℹ️ Nenhum dado sincronizado ainda. Use o ícone de nuvem para sincronizar.', 'info', 3000);
-        return;
-      }
-
-      // Normaliza os 3 campos numéricos pro formato BR (vírgula), igual à
-      // planilha original — o resto das linhas já vem com os nomes certos.
-      const dados = brutos.map(r => ({
-        ...r,
-        area_aplicada   : _numParaBR(r.area_aplicada),
-        dose_recomendada: _numParaBR(r.dose_recomendada),
-        dose_aplicada   : _numParaBR(r.dose_aplicada),
-      }));
-
-      const cols = TRATOS_SUPABASE_COLS;
-      window._tratosDados     = dados;
-      window._tratosFiltrados = dados;
-
-      // Popula os filtros de seleção múltipla (Produto / Fazenda / Operação Agrícola /
-      // Subprocesso / Grupo de Operação) — todos permitem marcar mais de um valor
-      _tratosMSPopular('produto',     dados, cols.colCodProd,       cols.colDescProd);
-      _tratosMSPopular('fazenda',     dados, cols.colCodFazenda,    cols.colFazenda);
-      _tratosMSPopular('operacao',    dados, cols.colCodOp,         cols.colDescOp);
-      _tratosMSPopular('subprocesso', dados, cols.colCodSubprocesso, cols.colDescSubprocesso);
-      _tratosMSPopular('grupoOp',     dados, cols.colCodGrupoOp,    cols.colDescGrupoOp);
-
-      // Filtro principal (Safra) — multi-seleção, permite escolher 1 ou 2 safras
-      _tratosMSPopular('safra', dados, null, cols.colSafra);
-
-      // Filtros restantes em "Mais filtros" (Aplicador / Empresa)
-      popularSelectCodDesc('tratos-filtro-aplicador', dados, cols.colCodFuncionario, cols.colFuncionario,     '— Todos —');
-      popularSelectCodDesc('tratos-filtro-empresa',   dados, cols.colCodEmpresa,     cols.colAbvEmpresa,      '— Todas —');
-      _tratosSSSync('tratos-filtro-aplicador');
-
-      renderizarTratos(dados);
-      if (!silencioso && !resultado.erro && typeof showToast === 'function') showToast('✅ Tratos Culturais carregados!', 'success', 2000);
-    } catch (err) {
-      console.error('[Tratos] Erro Supabase:', err);
-      _tratosMostrarLoading(false);
-      if (contador) contador.textContent = 'Erro ao carregar';
-      // Preload em segundo plano que falhou (ex.: sem internet no boot)
-      // não deve travar a tela achando que "já carregou" — libera pra
-      // tentar de novo (picker normal) quando o usuário realmente abrir
-      // a aba, em vez de ficar preso num erro que ele nem viu.
-      if (silencioso) { _tratosIniciado = false; _tratosSafrasAtivas = null; return; }
-      // Só fala de "login" quando o erro realmente indica sessão/token —
-      // qualquer outro erro (rede, timeout etc.) tem uma causa bem diferente
-      // e dizer "verifique se está logado" só confundiria quem tá com
-      // conexão ruim no campo.
-      const msgErro = String(err?.message || '').toLowerCase();
-      const codErro = String(err?.code || '');
-      const pareceAuth = msgErro.includes('jwt') || msgErro.includes('token') || msgErro.includes('auth')
-        || codErro === 'PGRST301' || codErro === '401' || err?.status === 401;
-      const msg = pareceAuth
-        ? '⚠️ Sessão expirada — saia e entre de novo pra atualizar o login.'
-        : '⚠️ Erro de conexão ao carregar dados do Supabase. Verifique sua internet e tente de novo.';
-      if (typeof showToast === 'function') showToast(msg, 'error', 4500);
-    }
-  }
-
-
-  // ── Exporta PDF da tabela filtrada ──────────────────────────────────────
-  function exportarPDFTratos() {
-    const dados = window._tratosFiltrados || window._tratosDados;
-    if (!dados || !dados.length) { showToast('⚠️ Nenhum dado carregado para exportar.', 'error', 2500); return; }
-    const { colData, colOS, colCodProd, colDescProd, colCodOp,
-            colDescOp, colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic, colCodTalhao } = window._tratosCols || {};
-
-    const filtrosTxt = _tratosFiltrosAtivosTexto();
-
-    // Área total sem duplicar (ver _calcAreaOS)
-    const areaOSMap = _calcAreaOS(dados, colOS, colArea, colCodTalhao);
-    const somaArea = Object.values(areaOSMap).reduce((s, v) => s + v, 0);
-
-    const { pdf, y } = _novoPDFRelatorio('Tratos Culturais', `${dados.length} registros   ·   ${filtrosTxt}   ·   Área total: ${somaArea.toFixed(1)} ha`, 'landscape');
-
-    pdf.autoTable({
-      ...(_PDF_TABLE_ESTILO),
-      startY: y,
-      head: [['Data', 'Nº O.S.', 'Fazenda', 'Talhão', 'Produto', 'Operação', 'Área (ha)', 'Dose Rec.', 'Dose Aplic.', 'Dif. (%)']],
-      body: dados.map(row => {
-        const dr = parseNum(row[colDoseRec]);
-        const da = parseNum(row[colDoseAplic]);
-        let difPct = '—';
-        if (!isNaN(dr) && dr > 0 && !isNaN(da)) {
-          const pct = ((da - dr) / dr) * 100;
-          difPct = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
-        }
-        return [
-          row[colData]        || '—',
-          row[colOS]          || '—',
-          [row[colCodFazenda], row[colFazenda]].filter(Boolean).join(' · ') || row[colFazenda] || row[colCodFazenda] || '—',
-          row[colCodTalhao]   || '—',
-          [row[colCodProd], row[colDescProd]].filter(Boolean).join(' · ') || '—',
-          [row[colCodOp], row[colDescOp]].filter(Boolean).join(' · ') || '—',
-          row[colArea]        || '—',
-          row[colDoseRec]     || '—',
-          row[colDoseAplic]   || '—',
-          difPct,
-        ];
-      }),
-      columnStyles: { 6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' }, 9: { halign: 'right' } },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 9) {
-          const raw = String(data.cell.raw || '');
-          if (raw.includes('-')) { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
-          else if (raw !== '—') { data.cell.styles.textColor = [46, 125, 50]; data.cell.styles.fontStyle = 'bold'; }
-        }
-      },
-    });
-
-    _finalizarPDFRelatorio(pdf, `Tratos_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
-  }
-  window.exportarPDFTratos = exportarPDFTratos;
-
-  // ── Aplica filtros ───────────────────────────────────────────────────────
-  function filtrarTratos() {
-    if (!window._tratosDados) return;
-    const { colData, colDescProd, colCodProd, colFazenda, colCodFazenda, colDescOp,
-            colFuncionario, colCodFuncionario, colDescGrupoOp, colCodGrupoOp,
-            colDescSubprocesso, colCodSubprocesso,
-            colAbvEmpresa, colCodEmpresa, colSafra } = window._tratosCols || {};
-    // Mesma coluna usada pelo _tratosMSPopular para montar os values
-    const colProdEfetivo   = colDescProd        || colCodProd;
-    const colFazEfetiva    = colFazenda         || colCodFazenda;
-    const colAplicEfetivo  = colFuncionario     || colCodFuncionario;
-    const colEmpresaEfetiva= colAbvEmpresa      || colCodEmpresa;
-    const colGrupoOpEfetivo= colDescGrupoOp     || colCodGrupoOp;
-    const colSubprocEfetivo= colDescSubprocesso || colCodSubprocesso;
-
-    // selectVal lê o value real da option selecionada, evitando bugs em browsers mobile
-    const selProd    = window._tratosMultiSel?.produto     || new Set();
-    const selGrupoOp = window._tratosMultiSel?.grupoOp     || new Set();
-    const selSubproc = window._tratosMultiSel?.subprocesso || new Set();
-    const selFaz     = window._tratosMultiSel?.fazenda     || new Set();
-    const selOp      = window._tratosMultiSel?.operacao    || new Set();
-    const selSafra   = window._tratosMultiSel?.safra       || new Set();
-    const bAplicador = selectVal('tratos-filtro-aplicador');
-    const bEmpresa   = selectVal('tratos-filtro-empresa');
-    const bDataIni = (document.getElementById('tratos-filtro-data-ini')?.value || '').trim();
-    const bDataFim = (document.getElementById('tratos-filtro-data-fim')?.value || '').trim();
-    const dIni     = bDataIni ? new Date(bDataIni + 'T00:00:00') : null;
-    const dFim     = bDataFim ? new Date(bDataFim + 'T23:59:59') : null;
-
-    const filtrados = window._tratosDados.filter(row => {
-      if (selProd.size    && !selProd.has((row[colProdEfetivo]     || '').trim())) return false;
-      if (selGrupoOp.size && !selGrupoOp.has((row[colGrupoOpEfetivo] || '').trim())) return false;
-      if (selSubproc.size && !selSubproc.has((row[colSubprocEfetivo] || '').trim())) return false;
-      if (selFaz.size && !selFaz.has((row[colFazEfetiva] || '').trim()))    return false;
-      if (selOp.size  && !selOp.has((row[colDescOp]       || '').trim()))   return false;
-      if (selSafra.size && !selSafra.has((row[colSafra]   || '').trim()))  return false;
-      if (bAplicador && (row[colAplicEfetivo] || '').trim() !== bAplicador) return false;
-      if (bEmpresa   && (row[colEmpresaEfetiva] || '').trim() !== bEmpresa) return false;
-      if (dIni || dFim) {
-        const dRow = parseData(row[colData]);
-        if (dRow) {
-          if (dIni && dRow < dIni) return false;
-          if (dFim && dRow > dFim) return false;
-        }
-      }
-      return true;
-    });
-
-    window._tratosFiltrados = filtrados;
-    // Atualiza contador
-    const contador = document.getElementById('tratos-contador');
-    if (contador) {
-      const total = window._tratosDados.length;
-      contador.textContent = filtrados.length === total
-        ? `${total} registros`
-        : `${filtrados.length} de ${total} registros`;
-    }
-    renderizarTratos(filtrados);
-  }
-
-  // ── Mostra/oculta o bloco "Mais filtros" ────────────────────────────────
-  function toggleMaisFiltrosTratos(el) {
-    const bloco = document.getElementById('tratos-filtros-mais');
-    if (!bloco) return;
-    const aberto = bloco.style.display !== 'none';
-    bloco.style.display = aberto ? 'none' : 'grid';
-    el.classList.toggle('open', !aberto);
-  }
-  window.toggleMaisFiltrosTratos = toggleMaisFiltrosTratos;
-
-  // ── Orquestra renderização ───────────────────────────────────────────────
-  function renderizarTratos(dados) {
-    const contador = document.getElementById('tratos-contador');
-    if (contador)
-      contador.textContent =
-        `${dados.length} registro${dados.length !== 1 ? 's' : ''} encontrado${dados.length !== 1 ? 's' : ''}`;
-
-    // Já mostra o relatório "por Fazenda" na hora, sem precisar que o
-    // usuário descubra sozinho que precisa clicar em algum botão — ele
-    // pode trocar pra Setor/Talhão/Produto/Operação depois se quiser.
-    if (typeof gerarRelatorioTratos === 'function') gerarRelatorioTratos('fazenda');
-  }
-
-
-  // ── EXPORTAR EXCEL (CSV BOM UTF-8) ───────────────────────────────────────
-  function exportarTratosExcel() {
-    const dados = window._tratosFiltrados;
-    if (!dados || dados.length === 0) {
-      if (typeof showToast === 'function') showToast('⚠️ Nenhum dado para exportar.', 'error', 2500);
-      return;
-    }
-    const { colData, colOS, colCodProd, colDescProd, colCodOp, colDescOp,
-            colCodFazenda, colFazenda, colArea, colDoseRec, colDoseAplic } = window._tratosCols || {};
-    // Fallback: se não há coluna de descrição, usa o código como descrição também
-    const colFazDescExport = colFazenda || colCodFazenda;
-
-    const cab = ['Data Aplicação','Nº O.S.','Cód. Fazenda','Desc. Fazenda',
-                 'Cód. Produto','Desc. Produto',
-                 'Cód. Operação','Desc. Operação Agr.','Área Aplic. (ha)',
-                 'Dose Recomendada','Dose Aplicada','Diferença (%)'];
-
-    const linhas = dados.map(row => {
-      const dr  = parseNum(row[colDoseRec]);
-      const da  = parseNum(row[colDoseAplic]);
-      const dif = (!isNaN(dr) && dr > 0 && !isNaN(da))
-        ? (((da-dr)/dr)*100).toFixed(1)+'%' : '';
-      return [
-        row[colData]             || '',
-        row[colOS]               || '',
-        row[colCodFazenda]       || '',
-        row[colFazDescExport]    || '',
-        row[colCodProd]          || '',
-        row[colDescProd]         || '',
-        row[colCodOp]            || '',
-        row[colDescOp]           || '',
-        row[colArea]             || '',
-        row[colDoseRec]          || '',
-        row[colDoseAplic]        || '',
-        dif
-      ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(';');
-    });
-
-    const csv  = '\uFEFF' + cab.map(c=>`"${c}"`).join(';') + '\n' + linhas.join('\n');
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), {
-      href: url,
-      download: `tratos_culturais_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`
-    });
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    if (typeof showToast === 'function') showToast(`✅ ${dados.length} registros exportados!`, 'success', 2500);
-  }
-
-})(); /* fim IIFE TRATOS CULTURAIS */
+})(); /* fim SELETOR MÚLTIPLO DE FAZENDA — LIBERAÇÕES */
 
 
 
@@ -7381,9 +6640,8 @@ iniciarSabedoria();
   };
 
   // Estado do multi-select de fazendas do "Consultar Fazenda" — mesmo
-  // padrão visual/interativo do multi-select de Tratos (classes tratos-ms/
-  // tratos-ms-opt reaproveitadas), mas com estado próprio pra não mexer
-  // em nada do filtro de Tratos.
+  // padrão visual/interativo do multi-select de Liberações (classes
+  // tratos-ms/tratos-ms-opt reaproveitadas), com estado próprio.
   window._plsMultiSel    = window._plsMultiSel    || new Set();
   window._plsMultiOpcoes = window._plsMultiOpcoes || [];
 
@@ -7636,7 +6894,6 @@ iniciarSabedoria();
    MÓDULO PLANTIO
    26/27 Diário: gid=409434796  | Base: gid=1046721215
    25/26 Diário: gid=1655110352 | Base: gid=1840703975
-   PCP (tratos): gid=724202507
 ══════════════════════════════════════════════ */
 (function() {
   'use strict';
@@ -7653,7 +6910,6 @@ iniciarSabedoria();
       base:   BASE_URL + '?gid=1840703975&single=true&output=csv',
     },
   };
-  const URL_PCP = BASE_URL + '?gid=724202507&single=true&output=csv';
 
   const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -7746,6 +7002,10 @@ iniciarSabedoria();
     document.getElementById('plantio-safra-label').textContent     =
       safra === '26_27' ? 'Safra 26/27' : 'Safra 25/26';
 
+    // Entrou num nível interno: o gesto/botão de voltar agora retorna ao
+    // seletor de safra (e não direto pra Home).
+    _plantioEmpilharNivel();
+
     if (!_cache[safra].loaded) {
       carregarDadosPlantio();
     } else {
@@ -7753,11 +7013,22 @@ iniciarSabedoria();
     }
   }
 
+  // Nível interno do Plantio (seletor de safra → conteúdo/comparar) no histórico de voltar.
+  function _plantioEmpilharNivel() {
+    if (typeof window.cttEmpilharVoltar !== 'function') return;
+    window.cttEmpilharVoltar(
+      'plantio-nivel',
+      plantioVoltarSeletor,
+      () => document.getElementById('plantio-seletor-safra')?.style.display === 'none'
+    );
+  }
+
   function plantioVoltarSeletor() {
     document.getElementById('plantio-seletor-safra').style.display = 'flex';
     document.getElementById('plantio-conteudo').style.display      = 'none';
     document.getElementById('plantio-comparar').style.display      = 'none';
     _compararAberto = false;
+    if (typeof window.cttDesempilharVoltar === 'function') window.cttDesempilharVoltar('plantio-nivel');
   }
 
   function plantioAbrirComparar() {
@@ -7765,6 +7036,7 @@ iniciarSabedoria();
     document.getElementById('plantio-seletor-safra').style.display = 'none';
     document.getElementById('plantio-conteudo').style.display      = 'none';
     document.getElementById('plantio-comparar').style.display      = 'block';
+    _plantioEmpilharNivel();
     // Carrega ambas as safras se necessário
     _garantirSafraCarregada('25_26');
     _garantirSafraCarregada('26_27');
@@ -8227,29 +7499,6 @@ iniciarSabedoria();
         };
       })
       .filter(r => r !== null && r.fazenda);
-  }
-
-  /* ── normalização PCP (header:true normal) ───────────────────────── */
-  function _normalizarPcp(rows) {
-    if (!rows || !rows.length) return [];
-    const fields = Object.keys(rows[0]);
-    const cData    = _findCol(fields, ['DATA APLICACAO','DATA APLIC','DATA']);
-    const cCodOp   = _findCol(fields, ['COD OPERACAO','CODOP','COD OP','CODIGO OPERACAO','COD. OPERACAO']);
-    const cFazenda = _findCol(fields, ['DESCRICAO FAZENDA','DESC FAZENDA','DESCFAZENDA','FAZENDA']);
-    const cTalhao  = _findCol(fields, ['TALHAO','TALHÃO','TALHON']);
-
-    return rows
-      .map(r => {
-        const codOp = String(r[cCodOp] || '').trim();
-        if (!['1013','1014','1045'].includes(codOp)) return null;
-        return {
-          data:    _parseData(r[cData]),
-          codOp,
-          fazenda: String(r[cFazenda] || '').trim(),
-          talhao:  String(r[cTalhao]  || '').trim(),
-        };
-      })
-      .filter(r => r !== null && r.data);
   }
 
   /* ── renderização principal ──────────────────────────────────────── */
@@ -9180,90 +8429,168 @@ function _onLogout() {
  
 
 /* ══════════════════════════════════════════════════════════════════════════
-   BUGFIX ANDROID: botão/gesto físico de "voltar" saía direto do app (ou
-   fechava a aba) em vez de fechar um modal aberto ou voltar pro menu Home
-   de dentro de uma seção. Causa: o app não empilhava nenhum estado de
-   histórico (history.pushState/popstate) — pro navegador, cada "voltar"
-   contava como sair da página atual, já que não havia nenhum passo interno
-   registrado. Isso NÃO muda nenhuma função existente por dentro; só observa
-   as mesmas aberturas de aba/modal que já existiam e empilha/desempilha um
-   degrau de histórico em cima.
+   HISTÓRICO / GESTO DE VOLTAR (botão físico do Android, swipe da borda e
+   swipe nativo do iOS) — todos convergem em history.back() → popstate.
+
+   O app mantém um ESPELHO do histórico do navegador (_hist). Cada degrau
+   empilhado é um destes tipos:
+     • 'tab'  — uma seção aberta (showTab)
+     • 'view' — um NÍVEL INTERNO de uma seção (ex.: Plantio: seletor de
+                safra → conteúdo da safra). Registrado por quem abre o nível
+                via window.cttEmpilharVoltar / cttDesempilharVoltar
+     • 'ov'   — um modal/bottom-sheet aberto (qualquer .modal-overlay ou
+                .mais-sheet-overlay, inclusive os criados dinamicamente)
+   Cada "voltar" desfaz exatamente o degrau do topo:
+     modal aberto → fecha o modal | nível interno → volta ao nível anterior |
+     seção → volta pra seção ANTERIOR (só cai na Home quando não sobra nada).
+
+   Correções em relação à versão anterior:
+   1) Níveis internos (Plantio etc.) não existiam no histórico → "voltar"
+      saltava direto pra Home/seção anterior. Agora entram como degrau.
+   2) Modais fechados pelo botão da tela deixavam um degrau "fantasma" no
+      histórico, e o espelho saía de sincronia. Agora o degrau é removido
+      junto com o fechamento (ou descartado sem efeito, se estiver no meio).
+   3) Só os overlays que existiam no carregamento eram observados; os
+      criados depois (ex.: exportar O.S.) faziam o "voltar" pular de tela.
+   4) Tocar na seção em que você já está não empilha mais um degrau repetido.
 ══════════════════════════════════════════════════════════════════════════ */
 (function () {
-  // Pilha das abas abertas nesta "sessão" de navegação (zera ao voltar pra
-  // Home). Cada índice é um id de aba — o topo é a aba visível agora.
-  let _cttTabStack = [];
+  const _hist = [];          // espelho dos degraus empilhados (topo = último)
+  let _ignorar = 0;          // popstates provocados por nós mesmos (limpeza)
+  let _ignorarTimer = null;
 
-  function _cttPushState(marker) {
-    try { history.pushState({ ctt: true, marker: marker }, '', location.href); }
-    catch (err) { /* ambiente sem suporte a History API — ignora silenciosamente */ }
+  function _ignorarProximoPop() {
+    _ignorar++;
+    clearTimeout(_ignorarTimer);
+    // Rede de segurança: se o navegador não disparar o popstate esperado, não
+    // deixa o contador "engolir" um voltar legítimo do usuário depois.
+    _ignorarTimer = setTimeout(function () { _ignorar = 0; }, 700);
   }
 
-  // Cada troca de aba/seção conta como um passo de navegação E entra na
-  // pilha, pra "voltar" saber pra qual tela anterior (não só pra Home) ir.
+  function _estadoDoApp() { return !!(history.state && history.state.ctt); }
+
+  function _pushEntrada(item) {
+    try { history.pushState({ ctt: true, t: item.t }, '', location.href); }
+    catch (err) { return false; }  // ambiente sem History API — ignora
+    _hist.push(item);
+    return true;
+  }
+
+  // Remove do navegador degraus que já foram descartados no espelho, sem
+  // mexer na tela (o popstate resultante é ignorado).
+  function _limparDegraus(n) {
+    if (n <= 0 || !_estadoDoApp()) return;
+    _ignorarProximoPop();
+    try { history.go(-n); } catch (err) { /* ignora */ }
+  }
+
+  const _ultimoIndice = function (pred) {
+    for (let i = _hist.length - 1; i >= 0; i--) if (pred(_hist[i])) return i;
+    return -1;
+  };
+  const _topoTab = function () {
+    const i = _ultimoIndice(function (x) { return x.t === 'tab'; });
+    return i >= 0 ? _hist[i].id : null;
+  };
+  // Degrau que já não faz sentido desfazer (modal já fechado / nível já saído)
+  const _orfao = function (x) {
+    if (x.t === 'ov')   return !x.el.classList.contains('open');
+    if (x.t === 'view') return !!x.ativo && !x.ativo();
+    return false;
+  };
+
+  /* ── seções ─────────────────────────────────────────────────────────── */
   const _showTabOriginal = window.showTab;
   if (typeof _showTabOriginal === 'function') {
     window.showTab = function (e, id) {
       _showTabOriginal(e, id);
-      _cttTabStack.push(id);
-      _cttPushState('tab:' + id);
+      if (_topoTab() !== id) _pushEntrada({ t: 'tab', id: id });
     };
   }
 
-  // Ao voltar pro menu Home (pelo botão em tela, pelo bn-home, ou pelo
-  // próprio popstate abaixo quando a pilha esvazia), consome de uma vez
-  // TODOS os degraus de histórico acumulados na pilha atual — assim o
-  // navegador e o estado do app nunca ficam dessincronizados.
   const _voltarParaHomeOriginal = window.voltarParaHome;
   if (typeof _voltarParaHomeOriginal === 'function') {
     window.voltarParaHome = function () {
       _voltarParaHomeOriginal();
-      const passos = _cttTabStack.length;
-      _cttTabStack = [];
-      if (passos > 0 && history.state && history.state.ctt) {
-        try { history.go(-passos); } catch (err) { /* ignora */ }
-      }
+      const passos = _hist.length;
+      _hist.length = 0;
+      _limparDegraus(passos);  // consome todos os degraus de uma vez
     };
   }
 
-  // Qualquer modal/overlay que já existia no app (.modal-overlay,
-  // #mais-sheet-overlay) empilha um degrau quando ganha a classe "open" —
-  // sem precisar alterar cada função de abrir modal uma por uma.
-  document.querySelectorAll('.modal-overlay, .mais-sheet-overlay').forEach(function (overlay) {
-    let estavaAberto = overlay.classList.contains('open');
-    new MutationObserver(function () {
-      const abertoAgora = overlay.classList.contains('open');
-      if (abertoAgora && !estavaAberto) {
-        _cttPushState('overlay:' + (overlay.id || overlay.className));
-      }
-      estavaAberto = abertoAgora;
-    }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
-  });
+  /* ── níveis internos de uma seção ───────────────────────────────────────
+     window.cttEmpilharVoltar(id, aoVoltar, ativo)
+       id       identifica o nível (evita empilhar o mesmo duas vezes)
+       aoVoltar função que volta ao nível anterior (a mesma do botão da tela)
+       ativo    (opcional) devolve true enquanto o nível ainda está aberto
+     window.cttDesempilharVoltar(id): chame quando o app sair do nível por
+     conta própria (botão "voltar" da tela) pra manter o histórico em dia. */
+  window.cttEmpilharVoltar = function (id, aoVoltar, ativo) {
+    const topo = _hist[_hist.length - 1];
+    if (topo && topo.t === 'view' && topo.id === id) return;
+    _pushEntrada({ t: 'view', id: id, aoVoltar: aoVoltar, ativo: ativo });
+  };
+  window.cttDesempilharVoltar = function (id) {
+    const i = _ultimoIndice(function (x) { return x.t === 'view' && x.id === id; });
+    if (i < 0) return;
+    if (i === _hist.length - 1) { _hist.pop(); _limparDegraus(1); }
+    else { _hist[i].ativo = function () { return false; }; } // descartado no próximo voltar
+  };
 
+  /* ── modais / bottom-sheets ─────────────────────────────────────────────
+     Um observador único no <body> pega TODO overlay, inclusive os criados
+     depois do carregamento. */
+  const _SEL_OVERLAY = '.modal-overlay, .mais-sheet-overlay';
+  const _ovAberto = new WeakMap();
+
+  function _checarOverlay(el) {
+    const aberto = el.classList.contains('open');
+    if (aberto === (_ovAberto.get(el) === true)) return;
+    _ovAberto.set(el, aberto);
+    if (aberto) { _pushEntrada({ t: 'ov', el: el }); return; }
+    const i = _ultimoIndice(function (x) { return x.t === 'ov' && x.el === el; });
+    if (i < 0) return;                                   // já consumido pelo "voltar"
+    if (i === _hist.length - 1) { _hist.pop(); _limparDegraus(1); }
+    // se há degraus por cima (ex.: fechou o sheet e já navegou), o degrau fica
+    // no meio e é descartado sem efeito no próximo "voltar".
+  }
+
+  document.querySelectorAll(_SEL_OVERLAY).forEach(function (el) {
+    _ovAberto.set(el, el.classList.contains('open'));
+  });
+  new MutationObserver(function (muts) {
+    muts.forEach(function (m) {
+      const el = m.target;
+      if (el.nodeType === 1 && el.matches(_SEL_OVERLAY)) _checarOverlay(el);
+    });
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+  /* ── o "voltar" em si ───────────────────────────────────────────────── */
   window.addEventListener('popstate', function () {
-    // 1) Tem modal/overlay aberto? Fecha ele primeiro (em vez de sair do app).
-    const overlayAberto = document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open');
-    if (overlayAberto) {
-      overlayAberto.classList.remove('open');
+    if (_ignorar > 0) { _ignorar--; return; }
+
+    // Desfaz o degrau do topo; degraus "órfãos" no caminho são pulados.
+    let real = null, saltados = 0;
+    while (_hist.length) {
+      const it = _hist.pop();
+      if (_orfao(it)) { saltados++; continue; }
+      real = it;
+      break;
+    }
+    // O navegador já andou 1 degrau; anda o resto dos que descartamos.
+    _limparDegraus(saltados + (real ? 1 : 0) - 1);
+
+    if (!real) {
+      // Nada conhecido no espelho: se está numa seção, cai na Home (antes de sair do app).
+      if (document.body.classList.contains('tab-open') && _voltarParaHomeOriginal) _voltarParaHomeOriginal();
       return;
     }
-    // 2) Está dentro de uma seção? Volta pra tela ANTERIOR da pilha — igual
-    //    o botão "voltar" de qualquer app nativo — e só cai na Home quando
-    //    não sobra mais nada empilhado (era aqui que voltava direto pra
-    //    Home sempre, não importa quantos níveis o usuário tinha entrado).
-    if (document.body.classList.contains('tab-open')) {
-      _cttTabStack.pop(); // tira a aba atual, que é a que está saindo de cena
-      const anterior = _cttTabStack[_cttTabStack.length - 1];
-      if (anterior) {
-        _showTabOriginal(null, anterior);
-      } else if (_voltarParaHomeOriginal) {
-        _voltarParaHomeOriginal();
-      } else {
-        voltarParaHome();
-      }
-      return;
-    }
-    // 3) Já está na Home sem nada aberto: deixa o navegador seguir o
-    //    comportamento padrão (ex.: sair do app), que é o esperado aqui.
+    if (real.t === 'ov')   { real.el.classList.remove('open'); return; }
+    if (real.t === 'view') { try { real.aoVoltar(); } catch (err) { /* ignora */ } return; }
+
+    // Seção: volta pra ANTERIOR da pilha; só cai na Home se não sobrou nenhuma.
+    const anterior = _topoTab();
+    if (anterior) _showTabOriginal(null, anterior);
+    else if (_voltarParaHomeOriginal) _voltarParaHomeOriginal();
   });
 })();
