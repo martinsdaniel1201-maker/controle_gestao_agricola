@@ -17,20 +17,31 @@
     }
 
     :root {
-      --green-900: #1B5E20;
-      --green-700: #2E7D32;
-      --green-500: #43A047;
-      --green-100: #C8E6C9;
-      --green-50:  #F1F8E9;
-      --grad: linear-gradient(135deg, #1B5E20 0%, #388E3C 100%);
-      --bg: #F4F6F4;
+      /* ── PALETA IPIRANGA (extraída da logo) ──────────────────────────
+         Azul-marinho #38487A  ·  Verde #35B066
+         As variáveis seguem chamadas --green-* porque centenas de regras já
+         as usam; hoje elas carregam a escala AZUL-MARINHO da marca.
+         O verde da marca vive em --ok / --brand-green: estados "ok",
+         indicadores positivos e barras de progresso. */
+      --green-900: #1E2A4F;
+      --green-700: #38487A;
+      --green-500: #4F63A3;
+      --green-100: #D9DEEE;
+      --green-50:  #EEF1F9;
+      --brand-green: #35B066;
+      --ok: #35B066;
+      --ok-700: #1B7F45;
+      --ok-bg: #E7F6EE;
+      --grad: linear-gradient(135deg, #1E2A4F 0%, #38487A 100%);
+      --grad-accent: linear-gradient(90deg, #38487A 0%, #35B066 100%);
+      --bg: #F3F5FA;
       --surface: #FFFFFF;
-      --surface2: #F9FAF9;
-      --border: #E0E5E0;
-      --border-strong: #C5CEC5;
-      --text: #1A1F1A;
-      --text-2: #4A554A;
-      --text-3: #7A8A7A;
+      --surface2: #F8F9FD;
+      --border: #E2E6F0;
+      --border-strong: #C9D0E2;
+      --text: #161C30;
+      --text-2: #475170;
+      --text-3: #7480A0;
       --red: #C62828;
       --red-bg: #FFEBEE;
       --amber: #E65100;
@@ -144,7 +155,7 @@
       background: var(--surface);
       border-color: var(--green-500);
       color: var(--green-900);
-      box-shadow: 0 4px 14px rgba(27,94,32,0.18);
+      box-shadow: 0 4px 14px rgba(30,42,79,0.18);
     }
     .sub-tab-btn.active::before { transform: scaleX(1); }
     .sub-tab-btn.active i { color: var(--green-700); transform: scale(1.1); }
@@ -152,7 +163,7 @@
       background: var(--green-50);
       border-color: var(--green-100);
       color: var(--green-700);
-      box-shadow: 0 4px 12px rgba(27,94,32,0.10);
+      box-shadow: 0 4px 12px rgba(30,42,79,0.10);
     }
     .sub-section { display: none; animation: fadeSlide 0.25s ease-out; }
     .sub-section.active { display: block; }
@@ -362,7 +373,7 @@
       color: var(--text-3);
     }
     .tre-card.tre-alerta .tre-val { color: var(--red); }
-    .tre-card.tre-alerta.tre-ok .tre-val { color: var(--green-700); }
+    .tre-card.tre-alerta.tre-ok .tre-val { color: var(--ok-700); }
     body.dark-mode .tre-card { background: #1e1e1e; }
 
     /* ══════════════════════════════════════════════
@@ -455,7 +466,7 @@
       background: var(--surface2); border: 1px solid var(--border); border-radius: 50px;
     }
     .hub-status .hub-status-dot {
-      flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--green-500);
+      flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
     }
     .hub-grid {
       position: relative; z-index: 1;
@@ -780,7 +791,7 @@
 
     .pla-mapa-legenda { display: flex; gap: 10px; font-size: 10px; color: var(--text-3); font-weight: 600; margin: 10px 0; flex-wrap: wrap; }
     .pla-mapa-legenda-dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
-    .pla-mapa-legenda-dot.ok { background: var(--green-500); }
+    .pla-mapa-legenda-dot.ok { background: var(--ok); }
     .pla-mapa-legenda-dot.parcial { background: var(--amber); }
     .pla-mapa-legenda-dot.pendente { border: 1.5px dashed var(--border-strong); }
 
@@ -796,7 +807,7 @@
     .pla-mapa-tile.ok .pla-mapa-tile-ciclo, .pla-mapa-tile.parcial .pla-mapa-tile-ciclo { color: #fff; }
     .pla-mapa-tile.pendente .pla-mapa-tile-ciclo { color: var(--text-3); }
     .pla-mapa-tile:active { transform: scale(0.96); }
-    .pla-mapa-tile.ok { background: var(--green-500); }
+    .pla-mapa-tile.ok { background: var(--ok); }
     .pla-mapa-tile.parcial { background: var(--amber); }
     .pla-mapa-tile.pendente { background: var(--surface2); border: 1.5px dashed var(--border-strong); }
     .pla-mapa-tile-id { font-size: 11px; font-weight: 700; }
@@ -959,7 +970,7 @@
     .empty-state-action:active { transform: scale(0.97); }
     body.dark-mode .empty-state-icon, body.dark-mode .pla-empty i { background: #1e1e1e; }
     body.dark-mode .empty-state-action { background: #1e1e1e; }
-    body.dark-mode .empty-state-action:hover { background: rgba(67,160,71,0.14); color: #81C784; border-color: #2E7D32; }
+    body.dark-mode .empty-state-action:hover { background: rgba(125,145,230,0.14); color: #9DB0EE; border-color: #38487A; }
 
     /* ══════════════════════════════════════════════
        CENTRAL DE CONTROLE AGRÍCOLA — Painel de O.S. em Aberto
@@ -979,7 +990,7 @@
     .cosa-kpi i { font-size: 12px; color: var(--text-3); }
     .cosa-kpi-val { font-size: 19px; font-weight: 900; color: var(--text); line-height: 1.1; }
     .cosa-kpi-label { font-size: 9px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
-    .cosa-kpi.cosa-ok { border-left-color: var(--green-500); }
+    .cosa-kpi.cosa-ok { border-left-color: var(--ok); }
     .cosa-kpi.cosa-atencao { border-left-color: var(--amber); }
     .cosa-kpi.cosa-critico { border-left-color: var(--red); }
     .cosa-kpi.cosa-neutro { border-left-color: var(--blue); }
@@ -1006,7 +1017,7 @@
     .cosa-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 10.5px; color: var(--text-3); }
     .cosa-card-meta i { width: 12px; text-align: center; margin-right: 3px; }
     .cosa-badge { padding: 3px 9px; border-radius: 50px; font-weight: 700; font-size: 10px; }
-    .cosa-badge.cosa-ok { background: var(--green-50); color: var(--green-700); }
+    .cosa-badge.cosa-ok { background: var(--ok-bg); color: var(--ok-700); }
     .cosa-badge.cosa-atencao { background: var(--amber-bg); color: var(--amber); }
     .cosa-badge.cosa-critico { background: var(--red-bg); color: var(--red); }
     .cosa-badge.cosa-neutro { background: var(--blue-bg); color: var(--blue); }
@@ -1390,7 +1401,7 @@
     .lib-frente-chip:hover { border-color: var(--green-500); color: var(--green-900); }
     .lib-frente-chip.active {
       background: var(--green-900); color: #fff;
-      border-color: var(--green-900); box-shadow: 0 2px 6px rgba(27,142,27,0.25);
+      border-color: var(--green-900); box-shadow: 0 2px 6px rgba(56,72,122,0.25);
     }
     body.dark-mode .lib-frente-chip.active { background: var(--green-700); border-color: var(--green-700); }
     /* Variante "muda" — mesma linha de raciocínio dos chips normais, mas com o motivo
@@ -1581,7 +1592,7 @@
 
     /* ── PROGRESS BAR ── */
     .progress-bar-bg { background: var(--border); height: 10px; border-radius: 99px; margin: 10px 0; overflow: hidden; }
-    .progress-bar-fill { background: var(--grad); height: 100%; width: 0%; transition: width 0.9s cubic-bezier(.4,0,.2,1); border-radius: 99px; }
+    .progress-bar-fill { background: var(--grad-accent); height: 100%; width: 0%; transition: width 0.9s cubic-bezier(.4,0,.2,1); border-radius: 99px; }
 
     /* ── BUTTONS ── */
     .btn-main {
@@ -1661,15 +1672,13 @@
       #liberacoes td { white-space: normal !important; text-align: right !important; }
       #tabela-tratos { min-width: unset !important; }
       #tabela-tratos td { white-space: normal !important; text-align: right !important; }
-      /* Tabelas dinâmicas dos cards de Tratos Culturais e Conf. OS */
+      /* Tabelas dinâmicas dos cards de Tratos Culturais */
       #tratos-resumo-produto-op table,
       #tratos-comparativo-dose table,
-      #gatec-table-wrapper table,
-      #tabela-conf-os { min-width: unset !important; }
+      #gatec-table-wrapper table { min-width: unset !important; }
       #tratos-resumo-produto-op td,
       #tratos-comparativo-dose td,
-      #gatec-table-wrapper td,
-      #tabela-conf-os td { white-space: normal !important; text-align: right !important; }
+      #gatec-table-wrapper td { white-space: normal !important; text-align: right !important; }
       /* Remove overflow-x dos wrappers no mobile — não precisa mais */
       #tratos-resumo-produto-op > div,
       #tratos-comparativo-dose > div,
@@ -1757,12 +1766,12 @@
       font-size: 12px; font-weight: 700;
       cursor: pointer; letter-spacing: 0.3px;
       transition: all 0.18s;
-      box-shadow: 0 4px 14px rgba(27,94,32,0.25);
+      box-shadow: 0 4px 14px rgba(30,42,79,0.25);
     }
     .btn-pdf-contextual i { font-size: 14px; color: rgba(255,255,255,0.8); }
     .btn-pdf-contextual:hover {
       background: var(--green-700);
-      box-shadow: 0 6px 20px rgba(27,94,32,0.35);
+      box-shadow: 0 6px 20px rgba(30,42,79,0.35);
       transform: translateY(-1px);
     }
 
@@ -1787,7 +1796,7 @@
     }
     .calc-sub-btn.active {
       color: var(--green-900); border-color: var(--green-500);
-      box-shadow: 0 4px 14px rgba(27,94,32,0.14);
+      box-shadow: 0 4px 14px rgba(30,42,79,0.14);
     }
     .calc-sub-btn.active::before { transform: scaleX(1); }
     .calc-sub-btn:hover:not(.active) {
@@ -1812,7 +1821,8 @@
     body.tab-open .home-welcome-bar { display: none; }
     .home-welcome-avatar {
       width: 44px; height: 44px; border-radius: 14px;
-      background: var(--grad); color: white;
+      background: linear-gradient(135deg, #35B066 0%, #1F8F4E 100%); color: white;
+      box-shadow: 0 6px 14px -4px rgba(53,176,102,0.55);
       display: flex; align-items: center; justify-content: center;
       font-size: 20px; flex-shrink: 0;
     }
@@ -2003,7 +2013,7 @@
       background: var(--blue-bg); border-color: var(--blue); color: #0D2F5E;
     }
     .insight-item.ok {
-      background: var(--green-50); border-color: var(--green-500); color: #1A3A1A;
+      background: var(--ok-bg); border-color: var(--ok); color: #1A3A1A;
     }
     .insight-item i { margin-top: 2px; flex-shrink: 0; }
 
@@ -2042,7 +2052,7 @@
     .clima-sub-btn.active {
       background: var(--surface); color: var(--green-900);
       border-color: var(--green-500);
-      box-shadow: 0 4px 14px rgba(27,94,32,0.14);
+      box-shadow: 0 4px 14px rgba(30,42,79,0.14);
     }
     .clima-sub-btn.active::before { transform: scaleX(1); }
     .clima-sub-btn:hover:not(.active) {
@@ -2189,7 +2199,7 @@
       letter-spacing: 0.5px; text-transform: uppercase;
     }
     .gda-status-badge.carregando { background: var(--blue-bg); color: var(--blue); }
-    .gda-status-badge.ok { background: var(--green-50); color: var(--green-700); }
+    .gda-status-badge.ok { background: var(--ok-bg); color: var(--ok-700); }
     .gda-status-badge.erro { background: var(--red-bg); color: var(--red); }
     .gda-big-val {
       text-align: center; padding: 20px 0 10px;
@@ -2248,7 +2258,7 @@
 
     /* ── MÓDULO SABEDORIA DE CAMPO ── */
     .sabedoria-card {
-      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%);
+      background: linear-gradient(135deg, #1E2A4F 0%, #38487A 55%, #4A5E9E 100%);
       border-radius: var(--radius-lg); padding: 20px;
       margin-bottom: 14px; position: relative; overflow: hidden; color: white;
     }
@@ -2378,7 +2388,7 @@
     .mapas-sub-btn.active {
       background: var(--surface); color: var(--green-900);
       border-color: var(--green-500);
-      box-shadow: 0 4px 14px rgba(27,94,32,0.15);
+      box-shadow: 0 4px 14px rgba(30,42,79,0.15);
     }
     .mapas-sub-btn.active::before { transform: scaleX(1); }
     .mapas-sub-btn:hover:not(.active) {
@@ -2426,30 +2436,36 @@
 
     /* ── DARK MODE ── */
     body.dark-mode {
-      --bg: #0F1410;
-      --surface: #1A2018;
-      --surface2: #222C20;
-      --border: #2E3D2A;
-      --border-strong: #3A4E35;
-      --text: #E8F0E6;
-      --text-2: #B0C4AC;
-      --text-3: #6E8A68;
-      --green-50: #162015;
-      --green-100: #1E3A1A;
+      --bg: #0C1020;
+      --surface: #151B30;
+      --surface2: #1C2440;
+      --border: #2A3558;
+      --border-strong: #38457A;
+      --text: #E8ECF8;
+      --text-2: #B3BCDA;
+      --text-3: #7F8BB0;
+      --green-900: #5D73C4;
+      --green-700: #7389D6;
+      --green-500: #8DA1E4;
+      --green-50: #18203D;
+      --green-100: #222C55;
+      --ok: #3CC074;
+      --ok-700: #6FD39B;
+      --ok-bg: #11271C;
       --red-bg: #2A1010;
       --amber: #FFA733;
       --amber-bg: #2A1A08;
       --blue-bg: #0A1828;
-      --grad: linear-gradient(135deg, #1B5E20 0%, #2E7D32 100%);
+      --grad: linear-gradient(135deg, #1E2A4F 0%, #38487A 100%);
     }
-    body.dark-mode .app-header { background: linear-gradient(135deg,#0D3B10 0%,#1B5E20 100%); }
+    body.dark-mode .app-header { background: linear-gradient(135deg,#0F1733 0%,#2A3A6B 100%); }
     body.dark-mode .modal-box { background: var(--surface); }
     body.dark-mode input, body.dark-mode select, body.dark-mode textarea {
       background: var(--surface2) !important;
       color: var(--text) !important;
       border-color: var(--border) !important;
     }
-    body.dark-mode .res-highlight { background: linear-gradient(135deg,#1B5E20,#2E7D32); }
+    body.dark-mode .res-highlight { background: linear-gradient(135deg,#1E2A4F,#38487A); }
     body.dark-mode .home-welcome-bar {
       background: var(--surface);
       border-color: var(--border);
@@ -2472,7 +2488,7 @@
     }
     body.dark-mode .btn-pdf-contextual {
       background: var(--green-100);
-      color: #81C784;
+      color: #9DB0EE;
     }
 
     /* ══════════════════════════════════════════════
@@ -2714,7 +2730,7 @@
       color: #1B5E20;
     }
     #main-nav.home-mode .tab-btn.menu-c1:hover {
-      box-shadow: 0 10px 28px rgba(27,94,32,0.18);
+      box-shadow: 0 10px 28px rgba(30,42,79,0.18);
       border-color: #A5D6A7;
     }
     #main-nav.home-mode .tab-btn.menu-c1 .menu-tag {
@@ -2948,8 +2964,8 @@
       display: inline-flex; align-items: center; justify-content: center;
       font-size: 11px; color: var(--green-700); flex-shrink: 0;
     }
-    body.dark-mode #btn-voltar-menu .voltar-aba-nome { color: #EAF0EA; }
-    body.dark-mode #btn-voltar-menu .voltar-aba-nome .vab-icon { background: rgba(46,125,50,0.22); color: #81C784; }
+    body.dark-mode #btn-voltar-menu .voltar-aba-nome { color: #E8ECF8; }
+    body.dark-mode #btn-voltar-menu .voltar-aba-nome .vab-icon { background: rgba(125,145,230,0.20); color: #9DB0EE; }
 
     /* Lado direito: área para botões futuros */
     #btn-voltar-menu .voltar-right {
@@ -3021,7 +3037,7 @@
       background: var(--grad); border: none;
       color: #fff; font-size: 16px; cursor: pointer;
       display: none; align-items: center; justify-content: center;
-      box-shadow: var(--shadow-md, 0 4px 14px rgba(27,94,32,0.35));
+      box-shadow: var(--shadow-md, 0 4px 14px rgba(30,42,79,0.35));
       z-index: 9998; transition: all 0.25s var(--ease-premium, ease);
       opacity: 0; transform: translateY(8px) scale(0.9);
     }
@@ -3509,7 +3525,7 @@ body.dark-mode .resumo-cards .medal-text {
     font-size: 28px;
     color: white;
     margin-bottom: 12px;
-    box-shadow: 0 8px 24px rgba(27,94,32,0.35);
+    box-shadow: 0 8px 24px rgba(30,42,79,0.35);
   }
   .login-logo h1 {
     font-size: 16px;
@@ -3807,7 +3823,7 @@ body.dark-mode .resumo-cards .medal-text {
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .sync-hist-item .shi-dot.ok { background: var(--green-500); }
+  .sync-hist-item .shi-dot.ok { background: var(--ok); }
   .sync-hist-item .shi-dot.err { background: var(--red); }
   .sync-hist-item .shi-time { color: var(--text-3); flex-shrink: 0; }
 
@@ -3910,7 +3926,7 @@ body.dark-mode .resumo-cards .medal-text {
   --shadow-md: 0 6px 20px rgba(20,40,20,0.10), 0 2px 6px rgba(20,40,20,0.06);
   --shadow-lg: 0 12px 32px rgba(20,40,20,0.14), 0 4px 10px rgba(20,40,20,0.08);
   --shadow-xl: 0 20px 50px rgba(15,30,15,0.22), 0 8px 16px rgba(15,30,15,0.10);
-  --shadow-brand: 0 10px 28px -8px rgba(27,94,32,0.45);
+  --shadow-brand: 0 10px 28px -8px rgba(30,42,79,0.45);
 
   /* Easing "premium" (expo-out) — usado em apps de referência para
      transições que desaceleram suavemente, sem parecer mecânicas */
@@ -3925,9 +3941,9 @@ body.dark-mode .resumo-cards .medal-text {
 }
 
 /* Contraste — texto terciário mais escuro para atingir AA (4.5:1) em
-   rótulos pequenos (9–11px), mantendo a mesma paleta esverdeada */
-:root { --text-3: #64775F; }
-body.dark-mode { --text-3: #93AC8C; }
+   rótulos pequenos (9–11px), mantendo a mesma paleta (agora azulada) */
+:root { --text-3: #5F6B8A; }
+body.dark-mode { --text-3: #9AA6C8; }
 
 /* Acessibilidade de movimento — respeita preferência do usuário */
 @media (prefers-reduced-motion: reduce) {
@@ -4005,14 +4021,14 @@ button:not(:disabled):active,
   border-bottom: 1px solid var(--border);
 }
 .pls-header {
-  background: linear-gradient(135deg, rgba(27,94,32,0.97) 0%, rgba(56,142,60,0.97) 100%);
+  background: linear-gradient(135deg, rgba(30,42,79,0.97) 0%, rgba(56,72,122,0.97) 100%);
 }
 body.dark-mode #btn-voltar-menu {
   background: #161C16;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 body.dark-mode .pls-header {
-  background: linear-gradient(135deg, rgba(13,59,16,0.97) 0%, rgba(27,94,32,0.97) 100%);
+  background: linear-gradient(135deg, rgba(21,30,58,0.97) 0%, rgba(30,42,79,0.97) 100%);
 }
 
 /* ── MODAIS — overlay com blur e entrada mais suave ── */
@@ -4029,7 +4045,7 @@ body.dark-mode .pls-header {
 
 /* ── TOAST — vidro fosco + entrada com leve "spring" ── */
 .toast {
-  background: rgba(27,94,32,0.92);
+  background: rgba(30,42,79,0.92);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow-lg);
@@ -4159,9 +4175,9 @@ body.dark-mode .bottom-nav {
   border-top-color: rgba(255,255,255,0.08);
   box-shadow: 0 -2px 12px rgba(0,0,0,0.35);
 }
-body.dark-mode .bn-item { color: #8a998a; }
-body.dark-mode .bn-item.active { color: #81C784; }
-body.dark-mode .bn-item.active .bn-icon { color: #0F1410; box-shadow: 0 8px 20px rgba(129,199,132,0.35), 0 3px 8px rgba(0,0,0,0.3); }
+body.dark-mode .bn-item { color: #8C97B8; }
+body.dark-mode .bn-item.active { color: #9DB0EE; }
+body.dark-mode .bn-item.active .bn-icon { color: #0C1020; box-shadow: 0 8px 20px rgba(125,145,230,0.35), 0 3px 8px rgba(0,0,0,0.3); }
 
 /* ── Sheet "Mais" — desliza de baixo, mesma lógica de modal já usada no app ── */
 .mais-sheet-overlay {
@@ -4473,3 +4489,52 @@ body.dark-mode .mais-sheet-item:active { background: rgba(67,160,71,0.18); }
   .report-btn.is-soon:hover { transform: none; box-shadow: none; border-color: var(--border-strong); }
   .pls-talhao-chip:hover { transform: translateY(-1px); }
 }
+
+/* ══════════════════════════════════════════════
+   APONTAMENTO DE HORAS — dias sem apontar por equipamento
+   Bloco recolhível dentro do card; fechado, ocupa 1 linha.
+══════════════════════════════════════════════ */
+.capo-dias { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-strong); }
+.capo-dias > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  -webkit-tap-highlight-color: transparent; user-select: none;
+}
+.capo-dias > summary::-webkit-details-marker { display: none; }
+.capo-dias-ico {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 10px;
+  background: var(--red-bg); color: var(--red);
+  display: grid; place-items: center; font-size: 13px;
+}
+.capo-dias-resumo { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--text-2); line-height: 1.25; }
+.capo-dias-resumo b { color: var(--red); font-weight: 800; }
+.capo-dias-resumo small { display: block; margin-top: 1px; font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.capo-dias-chevron { flex: 0 0 auto; font-size: 11px; color: var(--text-3); transition: transform .25s ease; }
+.capo-dias[open] .capo-dias-chevron { transform: rotate(180deg); }
+.capo-dias-body { padding: 10px 0 2px; animation: capoDiasIn .25s ease; }
+@keyframes capoDiasIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.capo-dias-legenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.capo-dias-legenda i { display: inline-block; width: 8px; height: 8px; border-radius: 3px; margin-right: 5px; }
+.capo-dias-mes {
+  display: flex; align-items: center; gap: 8px; margin: 12px 0 7px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .9px; text-transform: uppercase; color: var(--green-700);
+}
+.capo-dias-mes::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.capo-dias-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 6px; }
+.capo-dia {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 6px 2px 5px; border-radius: 11px; border: 1px solid transparent; line-height: 1; text-align: center;
+}
+.capo-dia small { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; opacity: .8; }
+.capo-dia b { font-size: 15px; font-weight: 800; }
+.capo-dia em { font-style: normal; font-size: 9.5px; font-weight: 700; margin-top: 1px; }
+.capo-dia-vazio { background: var(--red-bg); border-color: rgba(198,40,40,.28); color: var(--red); }
+.capo-dia-parcial { background: var(--amber-bg); border-color: rgba(230,81,0,.30); color: var(--amber); }
+body.dark-mode .capo-dia-vazio { color: #FF8A80; border-color: rgba(255,138,128,.30); }
+body.dark-mode .capo-dias-resumo b, body.dark-mode .capo-dias-ico { color: #FF8A80; }
+.capo-dias-acoes { display: flex; justify-content: flex-end; margin-top: 12px; }
+.capo-dias-copiar {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 7px 12px; border-radius: 99px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--green-700); font-size: 11px; font-weight: 700;
+}
+.capo-dias-copiar:active { transform: scale(.97); }
