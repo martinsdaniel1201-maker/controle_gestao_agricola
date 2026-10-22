@@ -755,7 +755,7 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
   const pgW = pdf.internal.pageSize.getWidth();
 
   // Faixa verde de cabeçalho
-  pdf.setFillColor(27, 94, 32); // --green-900
+  pdf.setFillColor(56, 72, 122); // azul-marinho Ipiranga
   pdf.rect(0, 0, pgW, 20, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFont('helvetica', 'bold');
@@ -770,7 +770,7 @@ function _novoPDFRelatorio(titulo, subtitulo, orientacao) {
 
   let y = 27;
   if (subtitulo) {
-    pdf.setTextColor(74, 85, 74);
+    pdf.setTextColor(71, 81, 112);
     pdf.setFontSize(9.5);
     pdf.setFont('helvetica', 'normal');
     const linhas = pdf.splitTextToSize(subtitulo, pgW - 24);
@@ -829,9 +829,9 @@ async function _finalizarPDFRelatorio(pdf, nomeArquivo) {
 // Estilo padrão de tabela, reaproveitado em todos os relatórios
 const _PDF_TABLE_ESTILO = {
   theme: 'striped',
-  headStyles: { fillColor: [27, 94, 32], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+  headStyles: { fillColor: [56, 72, 122], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
   bodyStyles: { fontSize: 8, textColor: [34, 40, 31] },
-  alternateRowStyles: { fillColor: [249, 250, 249] },
+  alternateRowStyles: { fillColor: [247, 248, 252] },
   margin: { left: 12, right: 12 },
 };
 
@@ -1617,8 +1617,8 @@ function renderChart() {
           const r = (f.vel * f.larg * (f.efc / 100)) / 10;
           return Math.round(r * f.tch * f.horas * f.maquinas);
         }),
-        backgroundColor: '#2E7D32',
-        hoverBackgroundColor: '#1B5E20',
+        backgroundColor: '#38487A',
+        hoverBackgroundColor: '#1E2A4F',
         borderRadius: 6,
         borderSkipped: false
       }]
@@ -1635,10 +1635,10 @@ function renderChart() {
         }
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#4A554A' } },
+        x: { grid: { display: false }, ticks: { font: { size: 11, weight: '700' }, color: '#475170' } },
         y: {
-          grid: { color: '#E0E5E0' },
-          ticks: { font: { size: 10 }, color: '#7A8A7A', callback: v => v.toLocaleString('pt-BR') + ' t' }
+          grid: { color: '#E2E6F0' },
+          ticks: { font: { size: 10 }, color: '#7480A0', callback: v => v.toLocaleString('pt-BR') + ' t' }
         }
       }
     }
@@ -2717,7 +2717,7 @@ function renderPrevisao5(data, nomeCidade) {
     const hoje = isToday(dt);
     const chuva = (precipitation_sum[i] || 0).toFixed(1);
     const tempatualHtml = (hoje && tempAtual !== null)
-      ? `<div style="margin-top:6px;padding:4px 8px;background:linear-gradient(135deg,#1B5E20,#388E3C);border-radius:6px;color:white;font-size:11px;font-weight:800;letter-spacing:0.3px;"><i class="fas fa-thermometer-half" style="margin-right:3px;font-size:9px;"></i>AGORA: ${tempAtual}°C</div>`
+      ? `<div style="margin-top:6px;padding:4px 8px;background:linear-gradient(135deg,#1E2A4F,#38487A);border-radius:6px;color:white;font-size:11px;font-weight:800;letter-spacing:0.3px;"><i class="fas fa-thermometer-half" style="margin-right:3px;font-size:9px;"></i>AGORA: ${tempAtual}°C</div>`
       : '';
     html += `
       <div class="forecast-card ${hoje ? 'today' : ''}">
@@ -2838,7 +2838,7 @@ async function buscarHistorico() {
             <span style="color:#0D47A1;">Dias com chuva</span>
             <b style="color:var(--blue)">${diasChuva.length}</b>
           </div>
-          <div class="res-box" style="background:linear-gradient(135deg,#1B5E20,#388E3C); border-color:var(--green-700);">
+          <div class="res-box" style="background:linear-gradient(135deg,#1E2A4F,#38487A); border-color:var(--green-700);">
             <span style="color:rgba(255,255,255,0.8);">Total acumulado</span>
             <b style="color:white; font-size:20px;">${totalMm.toFixed(1)} mm</b>
           </div>
@@ -3766,7 +3766,7 @@ function capoRenderChart(filtrados) {
   const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
 
   const cVerde = _cosaCorTema('--green-500');
-  const cAmarelo = _cosaCorTema('--amber');
+  const cAmarelo = _cosaCorTema('--ok');
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
   const cLabel = _cosaCorTema('--text');
@@ -3861,6 +3861,101 @@ function _capoTaxaPorEquipamento(escopoBase) {
     taxas[cod] = melhorValor;
   });
   return taxas;
+}
+
+// ── DIAS SEM APONTAR POR EQUIPAMENTO ─────────────────────────────────────
+// Lista cada dia do período (mesma janela que _capoDiasNoPeriodo usa pra
+// calcular a Planejada, então os números sempre fecham com o card).
+function _capoListaDatasPeriodo(dadosBase, dataDe, dataAte) {
+  let de, ate;
+  if (dataDe && dataAte) { de = dataDe; ate = dataAte; }
+  else {
+    const datas = dadosBase.map(r => r.data_inicio).filter(Boolean).sort();
+    if (!datas.length) return [];
+    de = datas[0]; ate = datas[datas.length - 1];
+  }
+  const lista = [];
+  const d = new Date(de + 'T00:00:00');
+  const fim = new Date(ate + 'T00:00:00');
+  for (let i = 0; d <= fim && i < 1000; i++) {
+    lista.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    d.setDate(d.getDate() + 1);
+  }
+  return lista;
+}
+
+// Dias em que o equipamento ficou abaixo da taxa diária dele. "vazio" = nenhum
+// lançamento no dia; senão é parcial (lançou, mas menos que a taxa).
+function _capoDiasFaltantes(cod) {
+  const ctx = window._capoDiasCtx;
+  if (!ctx) return [];
+  const taxa = ctx.taxasEquip[cod] || 0;
+  const mapa = ctx.apontPorDia[cod] || {};
+  const saida = [];
+  ctx.datasPeriodo.forEach(iso => {
+    const feito = mapa[iso] || 0;
+    const falta = Math.round((taxa - feito) * 100) / 100;
+    if (falta > 0.001) saida.push({ iso, falta, vazio: feito <= 0 });
+  });
+  return saida;
+}
+
+const _CAPO_MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const _CAPO_SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
+const _CAPO_SEMANA_LONGA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+
+// Monta os "chips" de dia só quando o card é aberto (a lista pode ter dezenas
+// de equipamentos × dezenas de dias — não precisa pintar tudo de uma vez).
+function capoDiasToggle(el) {
+  if (!el.open || el.dataset.pronto) return;
+  const body = el.querySelector('.capo-dias-body');
+  if (!body) return;
+  const faltantes = _capoDiasFaltantes(el.dataset.equip);
+  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  let html = `<div class="capo-dias-legenda">
+      <span><i style="background:var(--red)"></i>Sem lançamento</span>
+      <span><i style="background:var(--amber)"></i>Lançamento parcial</span>
+    </div>`;
+  let mesAtual = '';
+  let aberto = false;
+  faltantes.forEach(f => {
+    const [a, m, d] = f.iso.split('-').map(Number);
+    const dt = new Date(a, m - 1, d);
+    const rotuloMes = `${_CAPO_MESES[m - 1]} ${a}`;
+    if (rotuloMes !== mesAtual) {
+      if (aberto) html += '</div>';
+      html += `<div class="capo-dias-mes">${rotuloMes}</div><div class="capo-dias-grid">`;
+      mesAtual = rotuloMes; aberto = true;
+    }
+    const dd = String(d).padStart(2, '0'), mm = String(m).padStart(2, '0');
+    const dica = `${_CAPO_SEMANA_LONGA[dt.getDay()]}, ${dd}/${mm} — ${f.vazio ? 'sem nenhum apontamento' : 'apontamento parcial'} (faltam ${fmtH(f.falta)}h)`;
+    html += `<span class="capo-dia ${f.vazio ? 'capo-dia-vazio' : 'capo-dia-parcial'}" title="${dica}">
+        <small>${_CAPO_SEMANA[dt.getDay()]}</small><b>${dd}</b><em>-${fmtH(f.falta)}h</em>
+      </span>`;
+  });
+  if (aberto) html += '</div>';
+  html += `<div class="capo-dias-acoes"><button type="button" class="capo-dias-copiar" onclick="capoCopiarDias(this)"><i class="fas fa-copy"></i> Copiar lista</button></div>`;
+  body.innerHTML = html;
+  el.dataset.pronto = '1';
+}
+
+// Texto pronto pra colar no WhatsApp cobrando o apontamento.
+function capoCopiarDias(btn) {
+  const el = btn.closest('.capo-dias');
+  if (!el) return;
+  const cod = el.dataset.equip;
+  const fmtH = n => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const dias = _capoDiasFaltantes(cod).map(f => {
+    const [, m, d] = f.iso.split('-');
+    return `${d}/${m}${f.vazio ? '' : ` (parcial, faltam ${fmtH(f.falta)}h)`}`;
+  });
+  const texto = `*Apontamento pendente* — equipamento ${cod}${el.dataset.cc ? ' · ' + el.dataset.cc : ''}\nDias sem apontar (${dias.length}): ${dias.join(', ')}`;
+  const ok = () => { if (typeof showToast === 'function') showToast('📋 Lista de dias copiada!', 'success', 2000); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(ok).catch(() => { window.prompt('Copie a lista:', texto); });
+  } else {
+    window.prompt('Copie a lista:', texto);
+  }
 }
 
 function capoRender() {
@@ -3963,6 +4058,15 @@ function capoRender() {
   });
   const listaEquip = Object.values(porEquip).sort((a,b) => (b.planejada - b.apontadas) - (a.planejada - a.apontadas));
 
+  // Horas apontadas por equipamento em CADA dia — base do detalhe "dias sem apontar".
+  const apontPorDia = {};
+  filtrados.forEach(r => {
+    if (!r.cod_equip || !r.data_inicio) return;
+    if (!apontPorDia[r.cod_equip]) apontPorDia[r.cod_equip] = {};
+    apontPorDia[r.cod_equip][r.data_inicio] = (apontPorDia[r.cod_equip][r.data_inicio] || 0) + (r.horas_apontadas || 0);
+  });
+  window._capoDiasCtx = { apontPorDia, taxasEquip, datasPeriodo: _capoListaDatasPeriodo(porEmpresa, dataDe, dataAte) };
+
   const listaEl = document.getElementById('capo-lista');
   if (!listaEl) return;
   if (!listaEquip.length) {
@@ -3971,6 +4075,28 @@ function capoRender() {
   }
   listaEl.innerHTML = listaEquip.map(e => {
     const dif = e.planejada - e.apontadas;
+    // Equipamento negativo: mostra QUAIS dias faltam (recolhido por padrão, não
+    // muda a altura do card até a pessoa abrir).
+    let blocoDias = '';
+    if (dif > 0) {
+      const falt = _capoDiasFaltantes(e.equip);
+      if (falt.length) {
+        const vazios = falt.filter(f => f.vazio).length;
+        const parciais = falt.length - vazios;
+        const partes = [];
+        if (vazios) partes.push(`${vazios} sem lançamento`);
+        if (parciais) partes.push(`${parciais} parcia${parciais === 1 ? 'l' : 'is'}`);
+        blocoDias = `
+        <details class="capo-dias" data-equip="${String(e.equip).replace(/"/g, '&quot;')}" data-cc="${String(e.cc || '').replace(/"/g, '&quot;')}" ontoggle="capoDiasToggle(this)">
+          <summary>
+            <span class="capo-dias-ico"><i class="fas fa-calendar-xmark"></i></span>
+            <span class="capo-dias-resumo"><b>${falt.length} ${falt.length === 1 ? 'dia' : 'dias'}</b> sem apontar<small>${partes.join(' · ')}</small></span>
+            <i class="fas fa-chevron-down capo-dias-chevron"></i>
+          </summary>
+          <div class="capo-dias-body"></div>
+        </details>`;
+      }
+    }
     return `
       <div class="cosa-card">
         <div class="cosa-card-top">
@@ -3981,7 +4107,7 @@ function capoRender() {
         <div class="cosa-card-meta">
           <span><i class="fas fa-calendar-check"></i> Planejada: ${fmtH(e.planejada)}h</span>
           <span><i class="fas fa-circle-check"></i> Apontada: ${fmtH(e.apontadas)}h</span>
-        </div>
+        </div>${blocoDias}
       </div>
     `;
   }).join('');
@@ -4461,7 +4587,7 @@ async function buscarGDA() {
           <span style="font-size:10px; font-weight:800; color:var(--green-900);">${pctGDA.toFixed(1)}%</span>
         </div>
         <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width:${pctGDA}%; background: linear-gradient(90deg, #43A047, #1B5E20);"></div>
+          <div class="progress-bar-fill" style="width:${pctGDA}%; background: var(--grad-accent);"></div>
         </div>
         <div class="gda-progress-labels">
           <span>0 GDA</span><span>900</span><span>1400</span><span>1800 GDA</span>
