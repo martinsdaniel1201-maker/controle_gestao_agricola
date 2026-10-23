@@ -3829,15 +3829,19 @@ function capoFiltrar(tipo, valor) {
   capoRender();
 }
 
-function capoRenderChart(filtrados) {
+function capoRenderChart(filtrados, planPorResp) {
   const canvas = document.getElementById('capo-chart');
   if (!canvas || typeof Chart === 'undefined') return;
 
+  // Planejado por responsável = taxa × dias dos equipamentos dele (planPorResp,
+  // calculado no capoRender). Apontado = soma dos lançamentos. Não apontado =
+  // o que falta pra fechar o planejado — inclui dias sem nenhuma linha.
   const porResp = {};
+  if (planPorResp) Object.keys(planPorResp).forEach(n => { porResp[n] = { planejada: planPorResp[n], apontadas: 0 }; });
   filtrados.forEach(r => {
     const nome = r.responsavel || 'Não informado';
     if (!porResp[nome]) porResp[nome] = { planejada: 0, apontadas: 0 };
-    porResp[nome].planejada += r.horas_dia || 0;
+    if (!planPorResp) porResp[nome].planejada += r.horas_dia || 0;
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
   const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
@@ -3859,9 +3863,15 @@ function capoRenderChart(filtrados) {
 
   const fmtCompacto = n => Math.round(n).toLocaleString('pt-BR');
 
-  // Etiquetinha com o valor em cima de cada barra — igual no BI, sem
-  // precisar passar o mouse pra ver o número. Plugin pequeno, embutido
-  // aqui mesmo, sem depender de nenhuma biblioteca extra.
+  // No celular, com muitos responsáveis, 3 barras por nome ficam ilegíveis
+  // lado a lado: vira barras HORIZONTAIS (nomes à esquerda, valor na ponta)
+  // e o gráfico cresce em altura conforme a quantidade de pessoas.
+  const horizontal = window.innerWidth < 640 && nomes.length > 4;
+  const wrap = canvas.parentElement;
+  if (wrap) wrap.style.height = horizontal ? `${Math.max(260, nomes.length * 62 + 70)}px` : '';
+
+  // Etiquetinha com o valor de cada barra — igual no BI, sem precisar passar
+  // o mouse pra ver o número. Plugin pequeno, embutido aqui mesmo.
   const plugRotulos = {
     id: 'rotulosValor',
     afterDatasetsDraw(chart) {
@@ -3869,13 +3879,18 @@ function capoRenderChart(filtrados) {
       ctx.save();
       ctx.font = '600 9px Arial';
       ctx.fillStyle = cLabel;
-      ctx.textAlign = 'center';
       chart.data.datasets.forEach((ds, di) => {
         const meta = chart.getDatasetMeta(di);
         meta.data.forEach((bar, i) => {
           const valor = ds.data[i];
           if (!valor) return;
-          ctx.fillText(fmtCompacto(valor), bar.x, bar.y - 4);
+          if (horizontal) {
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(fmtCompacto(valor), bar.x + 4, bar.y);
+          } else {
+            ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+            ctx.fillText(fmtCompacto(valor), bar.x, bar.y - 4);
+          }
         });
       });
       ctx.restore();
@@ -3888,9 +3903,13 @@ function capoRenderChart(filtrados) {
     data: { labels: nomes, datasets },
     plugins: [plugRotulos],
     options: {
+      indexAxis: horizontal ? 'y' : 'x',
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 16 } },
-      scales: {
+      layout: { padding: horizontal ? { top: 4, right: 46 } : { top: 16 } },
+      scales: horizontal ? {
+        x: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
+        y: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
+      } : {
         x: { ticks: { color: cTexto, font: { size: 10 } }, grid: { display: false } },
         y: { beginAtZero: true, ticks: { color: cTexto, font: { size: 10 }, precision: 0 }, grid: { color: cGrid } },
       },
@@ -3940,6 +3959,32 @@ function _capoTaxaPorEquipamento(escopoBase) {
     taxas[cod] = melhorValor;
   });
   return taxas;
+}
+
+// Dados fixos de cada equipamento: taxa diária + responsável/supervisor mais
+// frequentes no histórico. É a base do "planejado" por pessoa — cada
+// equipamento tem um responsável só, então a taxa × dias dele pertence a ele.
+function _capoInfoEquipamentos(escopoBase) {
+  const taxas = _capoTaxaPorEquipamento(escopoBase);
+  const cont = {};
+  escopoBase.forEach(r => {
+    if (!r.cod_equip || !taxas[r.cod_equip]) return;
+    const e = cont[r.cod_equip] || (cont[r.cod_equip] = { resp: {}, sup: {} });
+    const rs = r.responsavel || 'Não informado', sp = r.supervisor || '';
+    e.resp[rs] = (e.resp[rs] || 0) + 1;
+    e.sup[sp] = (e.sup[sp] || 0) + 1;
+  });
+  const maisFrequente = obj => {
+    let nome = '', max = -1;
+    Object.keys(obj).forEach(k => { if (obj[k] > max) { max = obj[k]; nome = k; } });
+    return nome;
+  };
+  const info = {};
+  Object.keys(taxas).forEach(cod => {
+    const e = cont[cod];
+    info[cod] = { taxa: taxas[cod], resp: e ? maisFrequente(e.resp) : 'Não informado', superv: e ? maisFrequente(e.sup) : '' };
+  });
+  return info;
 }
 
 // ── DIAS SEM APONTAR POR EQUIPAMENTO ─────────────────────────────────────
@@ -4056,26 +4101,30 @@ function capoRender() {
     return true;
   });
 
-  let totalPlanejada, totalApontadas;
-  const semFiltroPessoa = !_capoFiltroResp.length && !_capoFiltroSuperv.length;
-  if (semFiltroPessoa) {
-    // Sem filtrar por pessoa: dá pra calcular igual o BI (taxa do
-    // equipamento × dias do período), porque o total pertence à empresa
-    // inteira, sem ambiguidade de "de quem" é a hora planejada.
-    const dias = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
-    const taxas = _capoTaxaPorEquipamento(porEmpresa);
-    totalPlanejada = Object.values(taxas).reduce((s, t) => s + t * dias, 0);
-    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
+  // Planejado = taxa diária do equipamento × dias do período (igual ao BI),
+  // contando TAMBÉM os dias sem nenhum lançamento. Com filtro de responsável /
+  // supervisor, entram só os equipamentos daquela pessoa. O mesmo cálculo
+  // alimenta os KPIs e o gráfico, então a barra vermelha sempre bate com o
+  // card "Não apontada (h)".
+  const diasPeriodo = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
+  const infoEquip = _capoInfoEquipamentos(porEmpresa);
+  const temEquip = Object.keys(infoEquip).length > 0;
+  const planPorResp = {};
+  let totalPlanejada = 0;
+  if (temEquip) {
+    Object.keys(infoEquip).forEach(cod => {
+      const e = infoEquip[cod];
+      if (_capoFiltroResp.length && !_capoFiltroResp.includes(e.resp)) return;
+      if (_capoFiltroSuperv.length && !_capoFiltroSuperv.includes(e.superv)) return;
+      const h = e.taxa * diasPeriodo;
+      totalPlanejada += h;
+      planPorResp[e.resp] = (planPorResp[e.resp] || 0) + h;
+    });
   } else {
-    // Filtrando por responsável/supervisor: um mesmo equipamento pode ter
-    // mais de um operador no período, então não dá pra atribuir a taxa
-    // cheia do equipamento a uma pessoa só sem risco de contar horas de
-    // outra pessoa também. Aqui mantemos a soma direta dos apontamentos
-    // dessa pessoa como aproximação — mais conservadora, mas pode ficar
-    // abaixo do "correto" em dias que essa pessoa não lançou nada.
+    // Instantâneo antigo (sem código de equipamento): só dá pra somar as linhas.
     totalPlanejada = filtrados.reduce((s, r) => s + (r.horas_dia || 0), 0);
-    totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
   }
+  const totalApontadas = filtrados.reduce((s, r) => s + (r.horas_apontadas || 0), 0);
   const totalNaoApontadas = totalPlanejada - totalApontadas;
   const pctCobertura = totalPlanejada > 0 ? Math.round((totalApontadas / totalPlanejada) * 100) : 0;
 
@@ -4124,7 +4173,7 @@ function capoRender() {
     `;
   }
 
-  capoRenderChart(filtrados);
+  capoRenderChart(filtrados, temEquip ? planPorResp : null);
 
   const diasEquip = _capoDiasNoPeriodo(porEmpresa, dataDe, dataAte);
   const taxasEquip = _capoTaxaPorEquipamento(porEmpresa);
