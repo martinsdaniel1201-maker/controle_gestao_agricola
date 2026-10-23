@@ -1473,7 +1473,7 @@
             <span class="lib-filtros-label">Buscar</span>
             <div class="tratos-ms-input-wrap" style="cursor:text;">
               <i class="fas fa-search tratos-ms-icon"></i>
-              <input type="text" id="cosa-busca" placeholder="Nº da O.S., fazenda..." oninput="cosaRender()"
+              <input type="text" id="cosa-busca" placeholder="Nº da O.S., fazenda ou operação..." oninput="cosaRender()"
                      style="border:none;background:transparent;outline:none;font-size:12.5px;width:100%;color:var(--text);">
             </div>
           </div>
@@ -1514,14 +1514,23 @@
           <span class="lib-filtros-label">Empresa</span>
           <div class="lib-frentes-chips" id="capo-chips-empresa"></div>
         </div>
-        <div class="lib-filtros-row capo-filtro-datas">
-          <div class="lib-filtros-field">
-            <span class="lib-filtros-label">De</span>
-            <input type="date" id="capo-data-de" onchange="capoRender()" class="capo-data-input">
+        <div class="lib-filtros-section">
+          <span class="lib-filtros-label">Período</span>
+          <div class="lib-frentes-chips" id="capo-chips-periodo">
+            <button type="button" class="lib-frente-chip active" data-p="tudo" onclick="capoPeriodo('tudo')"><i class="fas fa-infinity"></i> Tudo</button>
+            <button type="button" class="lib-frente-chip" data-p="7" onclick="capoPeriodo('7')">7 dias</button>
+            <button type="button" class="lib-frente-chip" data-p="30" onclick="capoPeriodo('30')">30 dias</button>
+            <button type="button" class="lib-frente-chip" data-p="mes" onclick="capoPeriodo('mes')">Este mês</button>
           </div>
-          <div class="lib-filtros-field">
-            <span class="lib-filtros-label">Até</span>
-            <input type="date" id="capo-data-ate" onchange="capoRender()" class="capo-data-input">
+          <div class="capo-filtro-datas">
+            <label class="capo-date-field">
+              <span class="lib-filtros-label">De</span>
+              <span class="capo-date-wrap"><i class="fas fa-calendar-day"></i><input type="date" id="capo-data-de" onchange="capoDatasManual()" class="capo-data-input"></span>
+            </label>
+            <label class="capo-date-field">
+              <span class="lib-filtros-label">Até</span>
+              <span class="capo-date-wrap"><i class="fas fa-calendar-check"></i><input type="date" id="capo-data-ate" onchange="capoDatasManual()" class="capo-data-input"></span>
+            </label>
           </div>
         </div>
         <div class="lib-filtros-section" id="capo-resp-wrap">
