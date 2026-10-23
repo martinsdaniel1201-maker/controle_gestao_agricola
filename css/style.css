@@ -4542,3 +4542,86 @@ body.dark-mode .capo-dias-resumo b, body.dark-mode .capo-dias-ico { color: #FF8A
   background: var(--surface); color: var(--green-700); font-size: 11px; font-weight: 700;
 }
 .capo-dias-copiar:active { transform: scale(.97); }
+
+/* ══════════════════════════════════════════════
+   O.S. EM ABERTO — card premium (código da fazenda + operações)
+══════════════════════════════════════════════ */
+.cosa-card.cosa-os { padding: 14px 14px 13px; border-left: 4px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: 0 1px 2px rgba(30,42,79,.04); }
+.cosa-card.cosa-os-ok       { border-left-color: var(--ok); }
+.cosa-card.cosa-os-atencao  { border-left-color: var(--amber); }
+.cosa-card.cosa-os-critico  { border-left-color: var(--red); }
+.cosa-card.cosa-os-neutro   { border-left-color: var(--blue); }
+.cosa-os-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+.cosa-os-num { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .3px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+.cosa-os-num i { color: var(--green-700); font-size: 11px; }
+.cosa-os-num b { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: .2px; font-variant-numeric: tabular-nums; }
+.cosa-os .cosa-badge { padding: 4px 11px; font-size: 11px; white-space: nowrap; }
+.cosa-os-fazenda { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; min-width: 0; }
+.cosa-os-fzd {
+  flex: 0 0 auto; min-width: 34px; text-align: center; padding: 4px 8px; border-radius: 9px;
+  background: var(--green-700); color: #fff; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .3px;
+}
+.cosa-os-fnome { font-size: 14px; font-weight: 800; color: var(--text); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.cosa-os-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.cosa-os-meta span {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 99px;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text-2); font-size: 10.5px; font-weight: 600;
+}
+.cosa-os-meta i { font-size: 10px; color: var(--text-3); width: auto; margin: 0; }
+.cosa-os-ops { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-strong); }
+.cosa-os-ops-head {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+  font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: var(--green-700);
+}
+.cosa-os-ops-head em {
+  font-style: normal; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 99px;
+  background: var(--green-50); color: var(--green-700);
+}
+.cosa-os-ops-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 6px; }
+@media (min-width: 640px) { .cosa-os-ops-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cosa-os-ops-list li {
+  display: flex; align-items: center; gap: 9px; min-width: 0;
+  padding: 7px 10px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border);
+}
+.cosa-op-cod {
+  flex: 0 0 auto; padding: 2px 7px; border-radius: 6px; background: var(--green-50); color: var(--green-700);
+  font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .3px;
+}
+.cosa-op-nome { font-size: 11.5px; font-weight: 600; color: var(--text-2); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+body.dark-mode .cosa-card.cosa-os { box-shadow: none; }
+body.dark-mode .cosa-os-fzd { background: var(--green-900); }
+body.dark-mode .cosa-os-num i, body.dark-mode .cosa-os-ops-head { color: var(--green-500); }
+
+/* ══════════════════════════════════════════════
+   APONTAMENTO DE HORAS — filtro de período (mesmo padrão dos demais filtros)
+══════════════════════════════════════════════ */
+.capo-filtro-datas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.capo-date-field { display: block; min-width: 0; }
+.capo-date-wrap { position: relative; display: flex; align-items: center; }
+.capo-date-wrap > i { position: absolute; left: 12px; font-size: 12px; color: var(--text-3); pointer-events: none; z-index: 1; }
+.capo-data-input {
+  width: 100%; min-width: 0; box-sizing: border-box; min-height: 40px;
+  padding: 9px 8px 9px 33px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  transition: border-color .15s, box-shadow .15s;
+}
+.capo-data-input:focus { outline: none; border-color: var(--green-500); box-shadow: 0 0 0 3px rgba(79,99,163,.16); }
+.capo-data-input::-webkit-calendar-picker-indicator { opacity: .5; cursor: pointer; }
+body.dark-mode .capo-data-input { color-scheme: dark; }
+/* iOS dá zoom ao focar campo com fonte < 16px — mesmo cuidado do .app-ss-input */
+@media (max-width: 640px) { .capo-data-input { font-size: 16px; } }
+
+/* Quadro de aviso (fonte dos dados · período): ícone fixo à esquerda e o texto
+   ocupando o resto da linha, em vez de quebrar pra baixo do ícone. */
+.cosa-aviso { flex-wrap: nowrap; align-items: flex-start; }
+.cosa-aviso > span { flex: 1 1 auto; min-width: 0; }
+
+/* Campos de data no celular: o ícone do calendário nativo some (o da esquerda já
+   indica o campo e tocar em qualquer parte abre o seletor) pra sobrar espaço
+   pro texto da data; em telas muito estreitas os dois campos empilham. */
+@media (max-width: 640px) {
+  .capo-data-input { padding-right: 4px; }
+  .capo-data-input::-webkit-calendar-picker-indicator { display: none; }
+}
+@media (max-width: 360px) { .capo-filtro-datas { grid-template-columns: 1fr; } }
