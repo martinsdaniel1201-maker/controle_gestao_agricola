@@ -3397,6 +3397,28 @@ async function _centralOsBuscarSupabasePaginado() {
   return todas;
 }
 
+// Código da fazenda chega do Supabase como texto "12.0" — mostra só "12".
+function _cosaFzdLimpo(v) {
+  return String(v == null ? '' : v).trim().replace(/\.0+$/, '');
+}
+
+// "1004 - ALEIRAMENTO MEC; 1047 - DESAL.MEC." -> [{cod:'1004', nome:'ALEIRAMENTO MEC'}, ...]
+function _cosaParseOperacoes(txt) {
+  return String(txt || '')
+    .split(/;|\n/)
+    .map(p => p.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .map(p => {
+      const m = p.match(/^(\d+)\s*[-–]\s*(.+)$/);
+      return m ? { cod: m[1], nome: m[2].trim() } : { cod: '', nome: p };
+    });
+}
+
+function _cosaFmtData(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+
 function _cosaBucket(dias) {
   if (dias == null || isNaN(dias)) return 'PLANEJADO';
   if (dias < 7) return '< 7';
@@ -3424,8 +3446,9 @@ async function cosaInit() {
           tipo: r.tipo_os || r.tipo || '',
           dt: r.data || r.dt_abert || r.dt || '',
           responsavel: r.responsavel || r.digitador || '',
-          fzd: r.fzd || '',
+          fzd: _cosaFzdLimpo(r.fzd),
           dsc: r.dsc_fzd || r.dsc || '',
+          operacoes: r.operacoes || '',
           dias: r.dias,
           status: r.status || _cosaBucket(r.dias),
         }));
@@ -3562,7 +3585,7 @@ function cosaRender() {
     if (_cosaFiltroEmpresa && r.empresa !== _cosaFiltroEmpresa) return false;
     if (_cosaFiltroResp.length && !_cosaFiltroResp.includes(r.responsavel)) return false;
     if (busca) {
-      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${r.fzd}`);
+      const alvo = _cosaNorm(`${r.os} ${r.dsc} ${_cosaFzdLimpo(r.fzd)} ${r.operacoes || ''}`);
       if (!alvo.includes(busca)) return false;
     }
     return true;
@@ -3605,23 +3628,42 @@ function cosaRender() {
     return;
   }
   const clsPorStatus = { '< 7':'cosa-ok', '> 7 e < 15':'cosa-atencao', '> 15':'cosa-critico', 'PLANEJADO':'cosa-neutro' };
+  const sufixoPorStatus = { 'cosa-ok':'ok', 'cosa-atencao':'atencao', 'cosa-critico':'critico', 'cosa-neutro':'neutro' };
   listaEl.innerHTML = filtrados
     .sort((a,b) => (b.dias||0) - (a.dias||0))
-    .map(r => `
-      <div class="cosa-card">
-        <div class="cosa-card-top">
-          <span class="cosa-card-os">OS ${r.os}</span>
-          <span class="cosa-badge ${clsPorStatus[r.status]||'cosa-neutro'}">${r.status}</span>
+    .map(r => {
+      const cls = clsPorStatus[r.status] || 'cosa-neutro';
+      const diasNum = (r.dias != null && r.dias !== '' && !isNaN(Number(r.dias))) ? Math.round(Number(r.dias)) : null;
+      const diasTxt = r.status === 'PLANEJADO' ? 'Planejado'
+        : (diasNum != null ? `${diasNum} ${diasNum === 1 ? 'dia' : 'dias'}` : escapeHtml(r.status || '—'));
+      const fzd = _cosaFzdLimpo(r.fzd);
+      const ops = _cosaParseOperacoes(r.operacoes);
+      const dataAb = _cosaFmtData(r.dt);
+      const blocoOps = ops.length ? `
+        <div class="cosa-os-ops">
+          <div class="cosa-os-ops-head"><i class="fas fa-screwdriver-wrench"></i> Operações <em>${ops.length}</em></div>
+          <ul class="cosa-os-ops-list">
+            ${ops.map(o => `<li>${o.cod ? `<span class="cosa-op-cod">${escapeHtml(o.cod)}</span>` : ''}<span class="cosa-op-nome">${escapeHtml(o.nome)}</span></li>`).join('')}
+          </ul>
+        </div>` : '';
+      return `
+      <div class="cosa-card cosa-os cosa-os-${sufixoPorStatus[cls]}">
+        <div class="cosa-os-top">
+          <span class="cosa-os-num"><i class="fas fa-file-lines"></i> OS <b>${escapeHtml(String(r.os))}</b></span>
+          <span class="cosa-badge ${cls}" title="Situação: ${escapeHtml(r.status || '')}">${diasTxt}</span>
         </div>
-        <div class="cosa-card-fazenda">${r.dsc || '—'}${r.fzd ? ` <span class="cosa-card-fzd">#${r.fzd}</span>` : ''}</div>
-        <div class="cosa-card-meta">
-          <span><i class="fas fa-building"></i> ${r.empresa}</span>
+        <div class="cosa-os-fazenda">
+          ${fzd ? `<span class="cosa-os-fzd">${escapeHtml(fzd)}</span>` : ''}
+          <span class="cosa-os-fnome">${escapeHtml(r.dsc || '—')}</span>
+        </div>
+        <div class="cosa-os-meta">
+          <span><i class="fas fa-building"></i> ${escapeHtml(r.empresa || '—')}</span>
           <span><i class="fas fa-handshake"></i> ${r.tipo === 'TERCEIRO' ? 'Terceiro' : 'Próprio'}</span>
-          <span><i class="fas fa-user"></i> ${r.responsavel || '—'}</span>
-          <span><i class="fas fa-clock"></i> ${r.dias != null ? r.dias + ' dias' : '—'}</span>
-        </div>
-      </div>
-    `).join('');
+          <span><i class="fas fa-user"></i> ${escapeHtml(r.responsavel || '—')}</span>
+          ${dataAb ? `<span><i class="fas fa-calendar-day"></i> Aberta em ${dataAb}</span>` : ''}
+        </div>${blocoOps}
+      </div>`;
+    }).join('');
 }
 
 /* ══════════════════════════════════════════════
@@ -3747,6 +3789,35 @@ function _capoAtualizarChipsSuperv() {
   msInit('capo-superv', supervisores, (selecionados) => { _capoFiltroSuperv = selecionados; capoRender(); }, _capoFiltroSuperv);
 }
 
+// ── Período: atalhos (Tudo / 7 dias / 30 dias / Este mês) + datas manuais ──
+// Os atalhos contam a partir do ÚLTIMO dia que existe nos dados (não de "hoje"),
+// pra nunca planejar horas de dias que ainda não chegaram no apontamento.
+function _capoMarcarPeriodo(p) {
+  document.querySelectorAll('#capo-chips-periodo .lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.p === p));
+}
+function capoPeriodo(tipo) {
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const datas = (window._centralApontDados || []).map(r => r.data_inicio).filter(Boolean).sort();
+  let de = '', ate = '';
+  if (tipo !== 'tudo' && datas.length) {
+    const fim = new Date(datas[datas.length - 1] + 'T00:00:00');
+    ate = iso(fim);
+    if (tipo === 'mes') de = iso(new Date(fim.getFullYear(), fim.getMonth(), 1));
+    else { const ini = new Date(fim); ini.setDate(ini.getDate() - (parseInt(tipo, 10) - 1)); de = iso(ini); }
+  }
+  const elDe = document.getElementById('capo-data-de'), elAte = document.getElementById('capo-data-ate');
+  if (elDe) elDe.value = de;
+  if (elAte) elAte.value = ate;
+  _capoMarcarPeriodo(tipo);
+  capoRender();
+}
+function capoDatasManual() {
+  const de = document.getElementById('capo-data-de')?.value || '';
+  const ate = document.getElementById('capo-data-ate')?.value || '';
+  _capoMarcarPeriodo(!de && !ate ? 'tudo' : '');
+  capoRender();
+}
+
 function capoFiltrar(tipo, valor) {
   if (tipo === 'empresa') _capoFiltroEmpresa = valor;
   const mapaId = { empresa: 'capo-chips-empresa' };
@@ -3773,6 +3844,7 @@ function capoRenderChart(filtrados) {
 
   const cVerde = _cosaCorTema('--green-500');
   const cAmarelo = _cosaCorTema('--ok');
+  const cVermelho = document.body.classList.contains('dark-mode') ? '#FF6B6B' : '#E53935';
   const cTexto = _cosaCorTema('--text-3');
   const cGrid = _cosaCorTema('--border');
   const cLabel = _cosaCorTema('--text');
@@ -3782,6 +3854,7 @@ function capoRenderChart(filtrados) {
   const datasets = [
     { label: 'Planejada', data: nomes.map(n => porResp[n].planejada), backgroundColor: cVerde },
     { label: 'Apontadas', data: nomes.map(n => porResp[n].apontadas), backgroundColor: cAmarelo },
+    { label: 'Não apontadas', data: nomes.map(n => Math.max(0, Math.round((porResp[n].planejada - porResp[n].apontadas) * 100) / 100)), backgroundColor: cVermelho },
   ];
 
   const fmtCompacto = n => Math.round(n).toLocaleString('pt-BR');
