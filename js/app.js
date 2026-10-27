@@ -119,7 +119,10 @@ let dadosSimulado = null;   // estado persistente do modo simulado entre altern�
 /* ══════════════════════════════════════════════
    NAVEGAÇÃO
 ══════════════════════════════════════════════ */
-function showTab(e, id) {
+function showTab(e, id, opts) {
+  // opts.restaurar = true quando o usuário está VOLTANDO (botão/gesto): reexibe a
+  // seção como ela estava, sem refazer carga de dados nem resetar filtros.
+  const restaurando = !!(opts && opts.restaurar);
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -165,13 +168,13 @@ function showTab(e, id) {
   if (id === 'simulador') {
     if (document.getElementById('sub_dash').classList.contains('active')) renderChart();
   }
-  if (id === 'central_os_aging' && typeof cosaInit === 'function') {
+  if (id === 'central_os_aging' && typeof cosaInit === 'function' && !restaurando) {
     cosaInit();
   }
-  if (id === 'central_apontamentos' && typeof capoInit === 'function') {
+  if (id === 'central_apontamentos' && typeof capoInit === 'function' && !restaurando) {
     capoInit();
   }
-  if (id === 'planejamento_safra' && typeof window.plsAoAbrirSecao === 'function') {
+  if (id === 'planejamento_safra' && typeof window.plsAoAbrirSecao === 'function' && !restaurando) {
     window.plsAoAbrirSecao();
   }
 
@@ -1189,7 +1192,7 @@ async function buscarDiasSemChuva() {
     inicio30.setDate(hoje.getDate() - 30);
     const inicioBusca = inicioMes.getTime() < inicio30.getTime() ? inicioMes : inicio30;
 
-    const fmt = d => d.toISOString().slice(0, 10);
+    const fmt = d => _dataLocalISO(d);
     const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${cidade.lat}&longitude=${cidade.lon}&start_date=${fmt(inicioBusca)}&end_date=${fmt(ontem)}&daily=precipitation_sum&timezone=America%2FSao_Paulo`;
     const resp = await fetch(url);
     const data = await resp.json();
@@ -3748,7 +3751,7 @@ async function capoInit() {
   const chipsEmpresa = document.getElementById('capo-chips-empresa');
   if (chipsEmpresa) {
     chipsEmpresa.innerHTML = `<button class="lib-frente-chip active" data-v="" onclick="capoFiltrar('empresa','')"><i class="fas fa-layer-group"></i> Todas</button>` +
-      empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="capoFiltrar('empresa','${e}')">${e}</button>`).join('');
+      empresas.map(e => `<button class="lib-frente-chip" data-v="${escapeHtml(e)}" onclick="capoFiltrar('empresa', this.dataset.v)">${escapeHtml(e)}</button>`).join('');
   }
 
   // Responsável e Supervisor: dropdown com busca e seleção múltipla (uma
@@ -4313,6 +4316,12 @@ window.addEventListener('offline', atualizarStatusConexao);
 /* ══════════════════════════════════════════════
    UTILIDADES
 ══════════════════════════════════════════════ */
+function _dataLocalISO(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+window._dataLocalISO = _dataLocalISO;
+
 function escapeHtml(str) {
   if (typeof str !== 'string') return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -4918,10 +4927,10 @@ const _removeFrenteOrig = removeFrente;
 removeFrente = function(id) { _removeFrenteOrig(id); if (!modoSimulacao) salvarEstadoReal(); };
 
 // Polling automático: re-carrega planilha GATEC a cada 5 minutos
-const GATEC_POLL_INTERVAL = 3 * 60 * 1000; // 1 minutos em ms
+const GATEC_POLL_INTERVAL = 3 * 60 * 1000; // 3 minutos em ms
 setInterval(async () => {
   // Só sincroniza se online — evita tentativas desnecessárias offline
-  if (!navigator.onLine) return;
+  if (!navigator.onLine || document.hidden) return;
   await carregarDadosGATEC();
 }, GATEC_POLL_INTERVAL);
 
@@ -5081,7 +5090,7 @@ iniciarSabedoria();
 (function() {
   const ontem = new Date();
   ontem.setDate(ontem.getDate() - 1);
-  const ontemStr = ontem.toISOString().split('T')[0];
+  const ontemStr = _dataLocalISO(ontem);
   const inpIni = document.getElementById('historico-data-ini');
   const inpFim = document.getElementById('historico-data-fim');
   if (inpIni) { inpIni.max = ontemStr; inpIni.min = '1940-01-01'; }
@@ -7873,6 +7882,7 @@ iniciarSabedoria();
     document.getElementById('plantio-conteudo').style.display      = 'block';
     document.getElementById('plantio-safra-label').textContent     =
       safra === '26_27' ? 'Safra 26/27' : 'Safra 25/26';
+    if (window.cttNavNivel) window.cttNavNivel('plantio', plantioVoltarSeletor);
 
     if (!_cache[safra].loaded) {
       carregarDadosPlantio();
@@ -7886,6 +7896,7 @@ iniciarSabedoria();
     document.getElementById('plantio-conteudo').style.display      = 'none';
     document.getElementById('plantio-comparar').style.display      = 'none';
     _compararAberto = false;
+    if (window.cttNavNivelFechado) window.cttNavNivelFechado('plantio'); // tela saiu do nível sozinha → consome o degrau
   }
 
   function plantioAbrirComparar() {
@@ -7893,6 +7904,7 @@ iniciarSabedoria();
     document.getElementById('plantio-seletor-safra').style.display = 'none';
     document.getElementById('plantio-conteudo').style.display      = 'none';
     document.getElementById('plantio-comparar').style.display      = 'block';
+    if (window.cttNavNivel) window.cttNavNivel('plantio', plantioVoltarSeletor);
     // Carrega ambas as safras se necessário
     _garantirSafraCarregada('25_26');
     _garantirSafraCarregada('26_27');
@@ -9149,7 +9161,7 @@ function _onLoginSuccess(user) {
   iniciarWelcomeBar(nomeUsuario);
 
   // Toast de boas-vindas — exibe apenas 1x por dia
-  const _hoje = new Date().toISOString().slice(0, 10);
+  const _hoje = _dataLocalISO(new Date());
   const _chave = 'ctt_toast_bv_' + (user.id || nomeUsuario);
   if (localStorage.getItem(_chave) !== _hoje) {
     localStorage.setItem(_chave, _hoje);
@@ -9216,78 +9228,249 @@ function _onLogout() {
 })();
 
 /* ══════════════════════════════════════════════════════════════════════════
-   GESTO EDGE-SWIPE (estilo iOS) — arrastar da borda esquerda para a direita
-   volta para o menu Home. Só ativa dentro de uma seção (body.tab-open) e só
-   quando o toque começa perto da borda esquerda da tela.
+   NAVEGAÇÃO / HISTÓRICO / GESTO DE VOLTAR — camada única
+   Substitui os dois blocos antigos (gesto de arrastar + pushState/popstate),
+   que eram independentes e se atrapalhavam.
+
+   Regra de ouro: CADA degrau da pilha (`pilha`) corresponde a EXATAMENTE
+   uma entrada real do history, e cada entrada guarda sua profundidade em
+   history.state.depth. No popstate o app se ajusta à profundidade da
+   entrada de destino — não conta eventos. Assim, qualquer combinação de
+   voltar (botão, gesto nativo, gesto próprio, history.go) acaba sempre na
+   tela certa, sem "pular" níveis nem cair na Home por descompasso.
+
+   Tipos de degrau:
+     aba     → seção aberta via showTab()
+     nivel   → sub-tela dentro de uma seção (ex.: Plantio → safra aberta),
+               registrada com cttNavNivel(chave, aoVoltar)
+     overlay → modal/sheet (.modal-overlay, .mais-sheet-overlay,
+               [data-nav-overlay]) detectado sozinho ao ganhar a classe "open"
 ══════════════════════════════════════════════════════════════════════════ */
 (function () {
-  const EDGE_ZONE     = 24;   // px a partir da borda esquerda que ativa o gesto
-  const MIN_DIST      = 90;   // distância mínima arrastada para confirmar "voltar"
-  const MAX_VERTICAL  = 60;   // tolerância vertical antes de cancelar o gesto
-  const MAX_DRAG       = 140; // limite visual de arrasto do conteúdo/hint
+  'use strict';
 
-  let startX = 0, startY = 0, tracking = false, activeSection = null;
-  const hint = () => document.getElementById('swipe-back-hint');
+  const OVERLAY_SEL = '.modal-overlay, .mais-sheet-overlay, [data-nav-overlay]';
+  const _showTabOriginal = window.showTab;
+  const _voltarHomeOriginal = window.voltarParaHome;
+  if (typeof _showTabOriginal !== 'function' || typeof _voltarHomeOriginal !== 'function') return;
 
-  // BUGFIX: esse gesto de arrastar da borda esquerda pode competir com o
-  // gesto NATIVO de "voltar" do próprio sistema — o swipe-back do Safari
-  // quando o app roda numa aba normal (não instalado), e a navegação por
-  // gestos do Android (borda esquerda/direita) quando o celular usa esse
-  // modo. Nos dois casos o SO pode "roubar" o toque antes do nosso JS, ou
-  // disparar os dois ao mesmo tempo. Como o app já tem tela de instalação
-  // PWA, deixamos o gesto customizado ativo só quando já está rodando
-  // instalado (standalone) — onde não existe gesto nativo de voltar pra
-  // competir; numa aba normal do navegador, deixamos o gesto nativo agir
-  // sozinho.
-  const _rodandoStandalone = window.matchMedia('(display-mode: standalone)').matches
+  let pilha = [];
+  let ownBackAt = 0;     // última vez que NÓS disparamos um history.back()/go()
+  let edgeTouchAt = 0;   // último toque que começou na borda esquerda
+  let gestoNativoDetectado = false;
+  try { gestoNativoDetectado = localStorage.getItem('ctt_swipe_nativo') === '1'; } catch (_) {}
+
+  const agora = () => Date.now();
+  const estado = d => ({ ctt: true, depth: d });
+  const profundidadeAtual = () =>
+    (history.state && typeof history.state.depth === 'number') ? history.state.depth : 0;
+
+  function abaAtual() {
+    for (let i = pilha.length - 1; i >= 0; i--) if (pilha[i].tipo === 'aba') return pilha[i];
+    return null;
+  }
+  function fecharOverlay(el) { if (el && el.classList) el.classList.remove('open'); }
+  function voltarSilencioso() { ownBackAt = agora(); try { history.back(); } catch (_) {} }
+
+  // Empilha um degrau (aba/nível). Se o topo for um modal/sheet (ex.: o
+  // "Mais" que acabou de ser usado pra navegar), fecha e REAPROVEITA o degrau
+  // dele em vez de deixar uma entrada órfã no history.
+  function empilhar(item) {
+    let fechados = 0;
+    while (pilha.length && pilha[pilha.length - 1].tipo === 'overlay') {
+      fecharOverlay(pilha.pop().el);
+      fechados++;
+    }
+    pilha.push(item);
+    try {
+      if (fechados === 0) {
+        history.pushState(estado(pilha.length), '', location.href);
+      } else {
+        history.replaceState(estado(pilha.length), '', location.href);
+        if (fechados > 1) { ownBackAt = agora(); history.go(-(fechados - 1)); }
+      }
+    } catch (_) { /* sem History API — segue sem histórico */ }
+  }
+
+  function desfazer(item) {
+    if (item.tipo === 'overlay') fecharOverlay(item.el);
+    else if (item.tipo === 'nivel' && typeof item.onBack === 'function') {
+      try { item.onBack(); } catch (_) {}
+    }
+  }
+
+  // Reexibe a aba que ficou no topo (sem refazer carga de dados) e devolve a
+  // rolagem em que o usuário a deixou. Sem aba na pilha → Home.
+  function mostrarTopo() {
+    const a = abaAtual();
+    if (!a) { _voltarHomeOriginal(); return; }
+    _showTabOriginal(null, a.id, { restaurar: true });
+    const y = a.scroll || 0;
+    if (y > 0) {
+      requestAnimationFrame(() => window.scrollTo(0, y));
+      setTimeout(() => window.scrollTo(0, y), 160);
+    }
+  }
+
+  /* ── showTab: cada abertura de seção vira um degrau ── */
+  window.showTab = function (e, id, opts) {
+    if (opts && opts.restaurar) return _showTabOriginal(e, id, opts);
+    const atual = abaAtual();
+    if (atual) atual.scroll = window.scrollY;      // guarda onde estava
+    _showTabOriginal(e, id, opts);
+    if (atual && atual.id === id) return;          // tocar na aba atual de novo NÃO duplica degrau
+    empilhar({ tipo: 'aba', id: id, scroll: 0 });
+  };
+
+  /* ── Ir pra Home: desfaz tudo e consome de uma vez os degraus do history ── */
+  window.voltarParaHome = function () {
+    _voltarHomeOriginal();
+    const itens = pilha.splice(0);
+    for (let i = itens.length - 1; i >= 0; i--) desfazer(itens[i]);
+    const prof = Math.min(profundidadeAtual(), itens.length);
+    if (prof > 0) { ownBackAt = agora(); try { history.go(-prof); } catch (_) {} }
+  };
+
+  /* ── Sub-níveis dentro de uma seção (ex.: Plantio → safra → voltar ao seletor) ── */
+  window.cttNavNivel = function (chave, aoVoltar) {
+    const topo = pilha[pilha.length - 1];
+    if (topo && topo.tipo === 'nivel' && topo.id === chave) { topo.onBack = aoVoltar; return; }
+    empilhar({ tipo: 'nivel', id: chave, onBack: aoVoltar });
+  };
+  // A própria tela saiu do nível (ex.: botão "trocar safra"): consome o degrau.
+  window.cttNavNivelFechado = function (chave) {
+    const topo = pilha[pilha.length - 1];
+    if (topo && topo.tipo === 'nivel' && topo.id === chave) { pilha.pop(); voltarSilencioso(); }
+  };
+
+  /* ── Voltar programático (usado pelo gesto de arrastar) ── */
+  window.cttVoltar = function () {
+    if (pilha.length) voltarSilencioso();
+    else if (document.body.classList.contains('tab-open')) window.voltarParaHome();
+  };
+
+  /* ── Modais/sheets: detecta abrir/fechar sozinho, sem mexer em cada função ── */
+  new MutationObserver(function (registros) {
+    for (const r of registros) {
+      const el = r.target;
+      if (!el || el.nodeType !== 1 || !el.matches(OVERLAY_SEL)) continue;
+      const aberto = el.classList.contains('open');
+      const idx = pilha.findIndex(x => x.tipo === 'overlay' && x.el === el);
+      if (aberto && idx === -1) {
+        pilha.push({ tipo: 'overlay', el: el });
+        try { history.pushState(estado(pilha.length), '', location.href); } catch (_) {}
+      } else if (aberto && idx !== -1) {
+        pilha[idx].fechado = false;
+      } else if (!aberto && idx !== -1) {
+        // fechado pela própria tela (botão X, "Salvar", clique fora…): consome o degrau
+        if (idx === pilha.length - 1) { pilha.pop(); voltarSilencioso(); }
+        else pilha[idx].fechado = true;
+      }
+    }
+  }).observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+
+  /* ── popstate: ajusta o app à profundidade da entrada de destino ── */
+  window.addEventListener('popstate', function (ev) {
+    const t = agora();
+    // Um popstate logo após um toque na borda esquerda, que NÃO foi causado
+    // por nós, é o gesto nativo do sistema (iOS standalone / navegação por
+    // gestos do Android). Daí em diante o gesto próprio fica desligado.
+    if (!gestoNativoDetectado && t - edgeTouchAt < 1200 && t - ownBackAt > 1200) {
+      gestoNativoDetectado = true;
+      try { localStorage.setItem('ctt_swipe_nativo', '1'); } catch (_) {}
+    }
+
+    const alvo = (ev.state && typeof ev.state.depth === 'number') ? ev.state.depth : 0;
+    if (alvo > pilha.length) {
+      // Entrada "à frente" (botão avançar, ou resto de histórico de antes de
+      // um reload): ressincroniza a entrada atual e ignora.
+      try { history.replaceState(estado(pilha.length), '', location.href); } catch (_) {}
+      return;
+    }
+    let saiuAba = false;
+    while (pilha.length > alvo) {
+      const it = pilha.pop();
+      if (it.tipo === 'aba') saiuAba = true;
+      desfazer(it);
+    }
+    if (saiuAba) mostrarTopo();
+  });
+
+  // Estado inicial: Home = profundidade 0 (também limpa estado velho pós-reload)
+  try { history.replaceState(estado(0), '', location.href); } catch (_) {}
+
+  /* ══════════════════════════════════════════════════════════════════════
+     GESTO DE ARRASTAR DA BORDA ESQUERDA (estilo iOS) — só em PWA instalado
+     e só enquanto o sistema NÃO tiver gesto nativo próprio.
+     Correções em relação à versão anterior:
+       • só confirma em touchend — touchcancel (o sistema "roubou" o toque
+         pro gesto nativo) NÃO conta, senão voltava 2 telas de uma vez;
+       • se detectar o gesto nativo, desliga o próprio;
+       • usa a mesma pilha dos demais caminhos (cttVoltar).
+  ══════════════════════════════════════════════════════════════════════ */
+  const EDGE_ZONE    = 24;
+  const MIN_DIST     = 90;
+  const MAX_VERTICAL = 60;
+  const MAX_DRAG     = 140;
+  const MAX_TEMPO    = 900;   // ms — arrasto lento demais não é "voltar"
+
+  const _standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
     || window.navigator.standalone === true;
+  const hint = () => document.getElementById('swipe-back-hint');
+  let startX = 0, startY = 0, startT = 0, tracking = false, secao = null;
+
+  document.addEventListener('touchstart', function (ev) {
+    const t = ev.touches && ev.touches[0];
+    if (t && t.clientX <= EDGE_ZONE + 6) edgeTouchAt = agora();   // pra detectar gesto nativo
+  }, { passive: true, capture: true });
 
   function onStart(e) {
-    if (!_rodandoStandalone) return;
+    if (!_standalone || gestoNativoDetectado) return;
     if (!document.body.classList.contains('tab-open')) return;
-    // Ignora se o toque começou dentro de um modal/overlay aberto
     if (document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open')) return;
     const t = e.touches[0];
-    if (t.clientX > EDGE_ZONE) return;
-    startX = t.clientX;
-    startY = t.clientY;
+    if (!t || t.clientX > EDGE_ZONE) return;
+    startX = t.clientX; startY = t.clientY; startT = agora();
     tracking = true;
-    activeSection = document.querySelector('.section.active');
-    if (activeSection) activeSection.classList.add('swipe-tracking');
-    const h = hint();
-    if (h) h.classList.add('dragging');
+    secao = document.querySelector('.section.active');
+    if (secao) secao.classList.add('swipe-tracking');
+    const h = hint(); if (h) h.classList.add('dragging');
   }
 
   function onMove(e) {
     if (!tracking) return;
+    if (gestoNativoDetectado) { finalizar(null, true); return; }
     const t = e.touches[0];
     const dx = t.clientX - startX;
     const dy = Math.abs(t.clientY - startY);
-    if (dy > MAX_VERTICAL) { onEnd(); return; }
+    if (dy > MAX_VERTICAL) { finalizar(null, true); return; }
     if (dx <= 0) return;
     const drag = Math.min(dx, MAX_DRAG);
-    const progress = drag / MIN_DIST;
-    if (activeSection) activeSection.style.transform = `translateX(${drag}px)`;
+    const progresso = drag / MIN_DIST;
+    if (secao) secao.style.transform = `translateX(${drag}px)`;
     const h = hint();
     if (h) {
-      h.style.opacity = Math.min(progress, 1);
-      h.style.transform = `translate(${-100 + Math.min(progress, 1) * 160}%, -50%)`;
+      h.style.opacity = Math.min(progresso, 1);
+      h.style.transform = `translate(${-100 + Math.min(progresso, 1) * 160}%, -50%)`;
     }
   }
 
-  function onEnd(e) {
+  function finalizar(e, cancelado) {
     if (!tracking) return;
     tracking = false;
     const h = hint();
-    const dx = e && e.changedTouches ? (e.changedTouches[0].clientX - startX) : 0;
-    const dy = e && e.changedTouches ? Math.abs(e.changedTouches[0].clientY - startY) : 999;
-    const confirmou = dx > MIN_DIST && dy < MAX_VERTICAL;
+    const ct = e && e.changedTouches && e.changedTouches[0];
+    const dx = ct ? ct.clientX - startX : 0;
+    const dy = ct ? Math.abs(ct.clientY - startY) : 999;
+    const rapido = (agora() - startT) <= MAX_TEMPO;
+    const confirmou = !cancelado && dx > MIN_DIST && dy < MAX_VERTICAL && rapido;
 
-    if (activeSection) {
-      activeSection.classList.remove('swipe-tracking');
-      activeSection.classList.add('swipe-snapping');
-      activeSection.style.transform = '';
-      setTimeout(() => { if (activeSection) activeSection.classList.remove('swipe-snapping'); }, 260);
+    if (secao) {
+      const s = secao;
+      s.classList.remove('swipe-tracking');
+      s.classList.add('swipe-snapping');
+      s.style.transform = '';
+      setTimeout(() => s.classList.remove('swipe-snapping'), 260);
     }
     if (h) {
       h.classList.remove('dragging');
@@ -9296,102 +9479,16 @@ function _onLogout() {
       h.style.transform = 'translate(-100%, -50%)';
       setTimeout(() => h.classList.remove('snapping'), 260);
     }
-    if (confirmou) history.back(); // dispara o mesmo popstate do botão/gesto nativo de voltar — respeita a pilha de telas, não pula direto pra Home
-    activeSection = null;
+    secao = null;
+    if (confirmou) window.cttVoltar();
   }
 
   document.addEventListener('touchstart', onStart, { passive: true });
   document.addEventListener('touchmove', onMove, { passive: true });
-  document.addEventListener('touchend', onEnd, { passive: true });
-  document.addEventListener('touchcancel', onEnd, { passive: true });
-})();
- 
+  document.addEventListener('touchend', e => finalizar(e, false), { passive: true });
+  document.addEventListener('touchcancel', e => finalizar(e, true), { passive: true });
 
-/* ══════════════════════════════════════════════════════════════════════════
-   BUGFIX ANDROID: botão/gesto físico de "voltar" saía direto do app (ou
-   fechava a aba) em vez de fechar um modal aberto ou voltar pro menu Home
-   de dentro de uma seção. Causa: o app não empilhava nenhum estado de
-   histórico (history.pushState/popstate) — pro navegador, cada "voltar"
-   contava como sair da página atual, já que não havia nenhum passo interno
-   registrado. Isso NÃO muda nenhuma função existente por dentro; só observa
-   as mesmas aberturas de aba/modal que já existiam e empilha/desempilha um
-   degrau de histórico em cima.
-══════════════════════════════════════════════════════════════════════════ */
-(function () {
-  // Pilha das abas abertas nesta "sessão" de navegação (zera ao voltar pra
-  // Home). Cada índice é um id de aba — o topo é a aba visível agora.
-  let _cttTabStack = [];
-
-  function _cttPushState(marker) {
-    try { history.pushState({ ctt: true, marker: marker }, '', location.href); }
-    catch (err) { /* ambiente sem suporte a History API — ignora silenciosamente */ }
-  }
-
-  // Cada troca de aba/seção conta como um passo de navegação E entra na
-  // pilha, pra "voltar" saber pra qual tela anterior (não só pra Home) ir.
-  const _showTabOriginal = window.showTab;
-  if (typeof _showTabOriginal === 'function') {
-    window.showTab = function (e, id) {
-      _showTabOriginal(e, id);
-      _cttTabStack.push(id);
-      _cttPushState('tab:' + id);
-    };
-  }
-
-  // Ao voltar pro menu Home (pelo botão em tela, pelo bn-home, ou pelo
-  // próprio popstate abaixo quando a pilha esvazia), consome de uma vez
-  // TODOS os degraus de histórico acumulados na pilha atual — assim o
-  // navegador e o estado do app nunca ficam dessincronizados.
-  const _voltarParaHomeOriginal = window.voltarParaHome;
-  if (typeof _voltarParaHomeOriginal === 'function') {
-    window.voltarParaHome = function () {
-      _voltarParaHomeOriginal();
-      const passos = _cttTabStack.length;
-      _cttTabStack = [];
-      if (passos > 0 && history.state && history.state.ctt) {
-        try { history.go(-passos); } catch (err) { /* ignora */ }
-      }
-    };
-  }
-
-  // Qualquer modal/overlay que já existia no app (.modal-overlay,
-  // #mais-sheet-overlay) empilha um degrau quando ganha a classe "open" —
-  // sem precisar alterar cada função de abrir modal uma por uma.
-  document.querySelectorAll('.modal-overlay, .mais-sheet-overlay').forEach(function (overlay) {
-    let estavaAberto = overlay.classList.contains('open');
-    new MutationObserver(function () {
-      const abertoAgora = overlay.classList.contains('open');
-      if (abertoAgora && !estavaAberto) {
-        _cttPushState('overlay:' + (overlay.id || overlay.className));
-      }
-      estavaAberto = abertoAgora;
-    }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
-  });
-
-  window.addEventListener('popstate', function () {
-    // 1) Tem modal/overlay aberto? Fecha ele primeiro (em vez de sair do app).
-    const overlayAberto = document.querySelector('.modal-overlay.open, .mais-sheet-overlay.open');
-    if (overlayAberto) {
-      overlayAberto.classList.remove('open');
-      return;
-    }
-    // 2) Está dentro de uma seção? Volta pra tela ANTERIOR da pilha — igual
-    //    o botão "voltar" de qualquer app nativo — e só cai na Home quando
-    //    não sobra mais nada empilhado (era aqui que voltava direto pra
-    //    Home sempre, não importa quantos níveis o usuário tinha entrado).
-    if (document.body.classList.contains('tab-open')) {
-      _cttTabStack.pop(); // tira a aba atual, que é a que está saindo de cena
-      const anterior = _cttTabStack[_cttTabStack.length - 1];
-      if (anterior) {
-        _showTabOriginal(null, anterior);
-      } else if (_voltarParaHomeOriginal) {
-        _voltarParaHomeOriginal();
-      } else {
-        voltarParaHome();
-      }
-      return;
-    }
-    // 3) Já está na Home sem nada aberto: deixa o navegador seguir o
-    //    comportamento padrão (ex.: sair do app), que é o esperado aqui.
-  });
+  // utilitário de diagnóstico (console): cttNavDebug()
+  window.cttNavDebug = () => pilha.map(x => x.tipo + ':' + (x.id || (x.el && x.el.id) || '?')
+    + (x.fechado ? '(fechado)' : '')).join(' > ') + ' | depth=' + profundidadeAtual();
 })();
