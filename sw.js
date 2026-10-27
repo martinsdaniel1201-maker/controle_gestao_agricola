@@ -4,7 +4,7 @@
    Versão: incrementar CACHE_NAME sempre que publicar nova versão do app
 ══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'agro-v11.2';
+const CACHE_NAME = 'agro-v11.3';
 
 /* Assets do próprio repositório — sempre em cache */
 const ASSETS_LOCAIS = [
@@ -14,6 +14,7 @@ const ASSETS_LOCAIS = [
   './icone_agro.png',
   './css/style.css',
   './js/app.js',
+  './js/central_os_dados.js',
 ];
 
 /* CDNs externos — baixados e guardados no primeiro acesso */
