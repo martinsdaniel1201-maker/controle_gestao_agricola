@@ -9501,27 +9501,32 @@ function _onLogout() {
 
 /* ══════════════════════════════════════════════════════════════════════════
    VIAGENS DE CAMINHÕES  (Liberações → Viagens de Caminhões)
-   Fonte: tabela `central_viagens` no Supabase — JÁ AGREGADA pelo
-   Sincronizador (1 linha por dia × unidade × frente × empresa), vinda do SQL
-   da balança (GATEC_AGR.GA_VAR_CONTAINER). "Empresa" = proprietário da frota
-   motriz (ex.: IPIRANGA AGROINDUSTRIAL S.A., EXPRESSO DESCALVADO);
-   "Unidade" = Descalvado / Mococa / Iacanga / Passos.
-   Módulo isolado (IIFE): só expõe no window o que o HTML chama por onclick.
-   Reaproveita componentes existentes: chips lib-frente-chip, multi-select
-   (msInit/_msMontarHtml), KPIs cosa-kpi, cards cosa-chart-card, emptyStateHTML.
+   Fonte: tabela `central_viagens` (já agregada pelo Sincronizador: 1 linha por
+   dia × unidade × frente × empresa). "Empresa" = proprietário da frota motriz.
+   Tela pensada para celular (iPhone 13 / 390px): tudo em HTML/CSS — sem
+   canvas, sem rótulo cortado. Só o "compartilhar" desenha uma imagem.
+   Módulo isolado (IIFE): expõe no window só o que o HTML chama por onclick.
 ══════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
   const TABELA = 'central_viagens';
   const CACHE_MS = 10 * 60 * 1000;   // reabrir a tela não rebusca antes disso (economiza egress)
-  const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+  // Abreviação + cor por unidade (a chave é o NOME normalizado, não o código)
+  const UNID = {
+    DESCALVADO: { ab: 'DESC', n: 1, cor: '#38487A' },
+    MOCOCA:     { ab: 'MOC',  n: 2, cor: '#F2A33A' },
+    IACANGA:    { ab: 'IAC',  n: 3, cor: '#8E6BBF' },
+    PASSOS:     { ab: 'PAS',  n: 4, cor: '#35B066' },
+  };
+  const semAcento = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+  const infoUnid = nome => UNID[semAcento(nome)] || { ab: semAcento(nome).slice(0, 3) || '—', n: 0, cor: '#9AA5C4' };
 
   const S = {
     dados: [], carregadoEm: 0, carregando: false,
-    unidade: '', frentes: [], periodo: '30', de: '', ate: '', gran: 'dia',
-    abertos: new Set(), lista: [], resumo: null,
-    chartEmp: null, chartTempo: null,
+    unidade: '', frentes: [], periodo: '30', de: '', ate: '',
+    umaUnidade: true, abertos: new Set(), lista: [], resumo: null,
   };
 
   /* ── utilitários ── */
@@ -9530,10 +9535,11 @@ function _onLogout() {
   const fmtPct = n => (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
   const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const dataBR = s => (s ? s.split('-').reverse().join('/') : '');
-  const dataCurta = s => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}` : '');
   const ordNum = (a, b) => String(a).localeCompare(String(b), 'pt-BR', { numeric: true });
   const esc = s => (typeof escapeHtml === 'function' ? escapeHtml(s) : String(s));
   const cortar = (t, n) => (String(t).length > n ? String(t).slice(0, n - 1) + '…' : String(t));
+  const tag = (nome, valor) =>
+    `<span class="vc-tag vc-u${infoUnid(nome).n}">${esc(infoUnid(nome).ab)}${valor == null ? '' : `<b>${fmtN(valor)}</b>`}</span>`;
 
   /* ── busca no Supabase (paginada, só as colunas usadas) ── */
   async function buscar() {
@@ -9554,7 +9560,7 @@ function _onLogout() {
       const frente = r.frente == null ? '' : String(r.frente).trim();
       return {
         cod: Number(r.cod_empr) || 0,
-        unidade: (r.unidade && String(r.unidade).trim()) || `Unidade ${r.cod_empr}`,
+        unidade: (r.unidade && String(r.unidade).trim()) || 'Geral',
         dia: String(r.dia).slice(0, 10),
         frente: frente || 'Sem frente',
         empresa: (r.proprietario && String(r.proprietario).trim()) || 'Não informado',
@@ -9567,22 +9573,8 @@ function _onLogout() {
   /* ── período ── */
   function ultimoDia() { let m = ''; S.dados.forEach(r => { if (r.dia > m) m = r.dia; }); return m; }
   function primeiroDia() { let m = ''; S.dados.forEach(r => { if (!m || r.dia < m) m = r.dia; }); return m; }
-
   function marcarPeriodo(p) {
     document.querySelectorAll('#vc-chips-periodo .lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.p === p));
-  }
-  function marcarGran() {
-    document.querySelectorAll('#vc-chips-gran .lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.g === S.gran));
-  }
-  function diasJanela() {
-    const a = S.de || primeiroDia(), b = S.ate || ultimoDia();
-    if (!a || !b) return 0;
-    return Math.max(1, Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000) + 1);
-  }
-  // Granularidade sugerida pelo tamanho da janela (o usuário pode trocar nos chips)
-  function autoGran() {
-    const n = diasJanela();
-    S.gran = n <= 45 ? 'dia' : (n <= 180 ? 'semana' : 'mes');
   }
   // Atalhos contam a partir do ÚLTIMO dia com dado (não de "hoje"), igual ao Apontamento.
   function aplicarPeriodo(tipo) {
@@ -9599,7 +9591,6 @@ function _onLogout() {
     if (elDe) elDe.value = de;
     if (elAte) elAte.value = ate;
     marcarPeriodo(tipo);
-    autoGran();
   }
 
   /* ── filtros (chips de unidade + multi-select de frente) ── */
@@ -9607,10 +9598,10 @@ function _onLogout() {
     const box = $('vc-chips-unidade');
     if (!box) return;
     const mapa = new Map();
-    S.dados.forEach(r => { if (!mapa.has(r.unidade)) mapa.set(r.unidade, r.cod); });
+    S.dados.forEach(r => { if (!mapa.has(r.unidade)) mapa.set(r.unidade, infoUnid(r.unidade).n); });
     const unidades = [...mapa.entries()].sort((a, b) => (a[1] - b[1]) || a[0].localeCompare(b[0], 'pt-BR'));
-    S.umaUnidade = unidades.length <= 1;                      // dados sem unidade: esconde o filtro
-    const secU = $('vc-sec-unidade'); if (secU) secU.style.display = S.umaUnidade ? 'none' : '';
+    S.umaUnidade = unidades.length <= 1;                      // dados sem unidade: esconde o filtro e as tags
+    const sec = $('vc-sec-unidade'); if (sec) sec.style.display = S.umaUnidade ? 'none' : '';
     if (S.umaUnidade) S.unidade = '';
     box.innerHTML =
       `<button type="button" class="lib-frente-chip ${S.unidade ? '' : 'active'}" data-v="" onclick="vcUnidade(this.dataset.v)"><i class="fas fa-layer-group"></i> Todas</button>` +
@@ -9639,193 +9630,29 @@ function _onLogout() {
       (!de || r.dia >= de) && (!ate || r.dia <= ate));
   }
 
-  /* ── agregação ── */
+  /* ── agregação: por empresa, com quebra por unidade e por frente ── */
   function agregar(rows) {
     const porEmp = new Map();
     const dias = new Set();
+    const unidades = new Map();
     let viagens = 0, t = 0;
     rows.forEach(r => {
       viagens += r.viagens; t += r.t; dias.add(r.dia);
+      unidades.set(r.unidade, (unidades.get(r.unidade) || 0) + r.viagens);
       let e = porEmp.get(r.empresa);
-      if (!e) { e = { nome: r.empresa, viagens: 0, t: 0, dias: new Set(), frentes: new Set(), det: new Map() }; porEmp.set(r.empresa, e); }
-      e.viagens += r.viagens; e.t += r.t; e.dias.add(r.dia); e.frentes.add(r.unidade + '|' + r.frente);
+      if (!e) { e = { nome: r.empresa, viagens: 0, t: 0, dias: new Set(), uni: new Map(), det: new Map() }; porEmp.set(r.empresa, e); }
+      e.viagens += r.viagens; e.t += r.t; e.dias.add(r.dia);
+      e.uni.set(r.unidade, (e.uni.get(r.unidade) || 0) + r.viagens);
       const k = r.unidade + '||' + r.frente;
       let d = e.det.get(k);
       if (!d) { d = { unidade: r.unidade, frente: r.frente, viagens: 0 }; e.det.set(k, d); }
       d.viagens += r.viagens;
     });
+    const ordUni = (a, b) => (infoUnid(a).n - infoUnid(b).n) || a.localeCompare(b, 'pt-BR');
     const lista = [...porEmp.values()].filter(e => e.viagens > 0)
       .sort((a, b) => (b.viagens - a.viagens) || a.nome.localeCompare(b.nome, 'pt-BR'));
-    return { lista, viagens, t, dias: dias.size };
-  }
-
-  /* ── cores (tema claro/escuro; exportação sempre usa o claro) ── */
-  function paleta(forcarClaro) {
-    const escuro = !forcarClaro && document.body.classList.contains('dark-mode');
-    return escuro
-      ? { barra: '#7389D6', destaque: '#3CC074', demais: '#7F8BB0', texto: '#B3BCDA', rotulo: '#E8ECF8', grid: '#2A3558',
-          series: ['#7389D6', '#3CC074', '#A9B8F0', '#FFA733'] }
-      : { barra: '#38487A', destaque: '#35B066', demais: '#9AA5C4', texto: '#475170', rotulo: '#161C30', grid: '#E2E6F0',
-          series: ['#38487A', '#35B066', '#7C8FD0', '#F2A33A'] };
-  }
-
-  /* ── gráfico 1: viagens por empresa (barras horizontais) ── */
-  function itensEmpresa(lista) {
-    const TOP = 8;
-    if (lista.length <= TOP + 1) return lista.map(e => ({ nome: e.nome, viagens: e.viagens }));
-    const itens = lista.slice(0, TOP).map(e => ({ nome: e.nome, viagens: e.viagens }));
-    const resto = lista.slice(TOP);
-    itens.push({ nome: `Demais (${resto.length})`, viagens: resto.reduce((s, e) => s + e.viagens, 0), demais: true });
-    return itens;
-  }
-
-  function desenharEmpresa(canvas, itens, total, pal, opcoes) {
-    const o = opcoes || {};
-    const cores = itens.map((it, i) => it.demais ? pal.demais : (i === 0 ? pal.destaque : pal.barra));
-    const maxChars = o.maxChars || (window.innerWidth < 640 ? 18 : 30);
-    const plugRotulos = {
-      id: 'vcRotulos',
-      afterDatasetsDraw(chart) {
-        const { ctx } = chart;
-        ctx.save();
-        ctx.font = `700 ${o.fonteRotulo || 10}px Arial`;
-        ctx.fillStyle = pal.rotulo; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        chart.getDatasetMeta(0).data.forEach((bar, i) => {
-          const v = itens[i].viagens;
-          const pct = total ? (v / total) * 100 : 0;
-          ctx.fillText(`${fmtN(v)}  ·  ${fmtPct(pct)}`, bar.x + 5, bar.y);
-        });
-        ctx.restore();
-      },
-    };
-    return new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: itens.map(i => i.nome), datasets: [{ data: itens.map(i => i.viagens), backgroundColor: cores, borderRadius: 4, barThickness: o.espessura || 20 }] },
-      plugins: [plugRotulos],
-      options: {
-        indexAxis: 'y',
-        responsive: !o.fixo, maintainAspectRatio: false,
-        animation: o.fixo ? false : undefined,
-        devicePixelRatio: o.fixo ? 2 : undefined,
-        layout: { padding: { right: o.padDireita || 96, top: 2, bottom: 2 } },
-        scales: {
-          x: { beginAtZero: true, ticks: { color: pal.texto, font: { size: o.fonteEixo || 10 }, precision: 0 }, grid: { color: pal.grid } },
-          y: { ticks: { color: pal.rotulo, font: { size: o.fonteEixo || 10, weight: '600' },
-                 callback(val) { return cortar(this.getLabelForValue(val), maxChars); } }, grid: { display: false } },
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: items => itens[items[0].dataIndex].nome,
-              label: item => `${fmtN(item.raw)} viagens · ${fmtPct(total ? (item.raw / total) * 100 : 0)}`,
-            },
-          },
-        },
-      },
-    });
-  }
-
-  function renderChartEmpresa(res) {
-    const canvas = $('vc-chart-emp'), wrap = $('vc-wrap-emp');
-    if (!canvas || typeof Chart === 'undefined') return;
-    const itens = itensEmpresa(res.lista);
-    if (wrap) wrap.style.height = `${Math.max(140, itens.length * 36 + 44)}px`;
-    if (S.chartEmp) S.chartEmp.destroy();
-    S.chartEmp = desenharEmpresa(canvas, itens, res.viagens, paleta(false));
-  }
-
-  /* ── gráfico 2: evolução (barras empilhadas: 4 maiores empresas + demais) ── */
-  function chaveBucket(dia, gran) {
-    if (gran === 'dia') return dia;
-    if (gran === 'mes') return dia.slice(0, 7);
-    const d = new Date(dia + 'T00:00:00');
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));     // segunda-feira da semana
-    return iso(d);
-  }
-  function rotuloBucket(k, gran) {
-    if (gran === 'mes') { const [a, m] = k.split('-'); return `${MESES[parseInt(m, 10) - 1]}/${a.slice(2)}`; }
-    return dataCurta(k);
-  }
-  function tituloBucket(k, gran) {
-    if (gran === 'mes') { const [a, m] = k.split('-'); return `${MESES[parseInt(m, 10) - 1]}/${a}`; }
-    if (gran === 'semana') return `Semana de ${dataBR(k)}`;
-    return dataBR(k);
-  }
-
-  function renderChartTempo(rows, res) {
-    const canvas = $('vc-chart-tempo'), wrap = $('vc-wrap-tempo');
-    if (!canvas || typeof Chart === 'undefined') return;
-    const pal = paleta(false);
-    const TOPS = 4;
-    const nTop = res.lista.length <= TOPS + 1 ? res.lista.length : TOPS;
-    const nomes = res.lista.slice(0, nTop).map(e => e.nome);
-    const setTop = new Set(nomes);
-    const temDemais = res.lista.length > TOPS + 1;
-    const series = temDemais ? [...nomes, 'Demais'] : nomes;
-
-    const buckets = new Map();
-    rows.forEach(r => {
-      const k = chaveBucket(r.dia, S.gran);
-      const s = setTop.has(r.empresa) ? r.empresa : 'Demais';
-      let b = buckets.get(k);
-      if (!b) { b = {}; buckets.set(k, b); }
-      b[s] = (b[s] || 0) + r.viagens;
-    });
-    let chaves = [...buckets.keys()].sort();
-    if (S.gran === 'dia' && chaves.length > 1) {          // mostra os dias SEM viagem como vazio
-      const todos = []; const f = new Date(chaves[0] + 'T00:00:00'); const l = new Date(chaves[chaves.length - 1] + 'T00:00:00');
-      for (const d = new Date(f); d <= l; d.setDate(d.getDate() + 1)) todos.push(iso(d));
-      chaves = todos;
-    }
-
-    const datasets = series.map((nome, i) => ({
-      label: nome,
-      data: chaves.map(k => (buckets.get(k) || {})[nome] || 0),
-      backgroundColor: nome === 'Demais' ? pal.demais : pal.series[i % pal.series.length],
-      borderRadius: 2,
-    }));
-    const totais = chaves.map((k, idx) => datasets.reduce((s, d) => s + d.data[idx], 0));
-
-    const plugTotais = {
-      id: 'vcTotais',
-      afterDatasetsDraw(chart) {
-        const meta = chart.getDatasetMeta(0);
-        if (!meta || !meta.data.length) return;
-        const larg = meta.data[0].width || 0;
-        if (larg < 15) return;                              // barra estreita demais: sem número (evita embolar)
-        const { ctx, scales } = chart;
-        ctx.save(); ctx.font = '700 9px Arial'; ctx.fillStyle = pal.rotulo; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        totais.forEach((t, i) => { if (t) ctx.fillText(fmtN(t), meta.data[i].x, scales.y.getPixelForValue(t) - 4); });
-        ctx.restore();
-      },
-    };
-
-    if (wrap) wrap.style.height = window.innerWidth < 640 ? '260px' : '300px';
-    if (S.chartTempo) S.chartTempo.destroy();
-    S.chartTempo = new Chart(canvas.getContext('2d'), {
-      type: 'bar',
-      data: { labels: chaves.map(k => rotuloBucket(k, S.gran)), datasets },
-      plugins: [plugTotais],
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        layout: { padding: { top: 16 } },
-        scales: {
-          x: { stacked: true, ticks: { color: pal.texto, font: { size: 10 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 8 }, grid: { display: false } },
-          y: { stacked: true, beginAtZero: true, ticks: { color: pal.texto, font: { size: 10 }, precision: 0 }, grid: { color: pal.grid } },
-        },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: pal.texto, font: { size: 10 }, boxWidth: 10, padding: 10,
-            generateLabels: ch => Chart.defaults.plugins.legend.labels.generateLabels(ch).map(l => ({ ...l, text: cortar(l.text, 26) })) } },
-          tooltip: {
-            callbacks: {
-              title: items => tituloBucket(chaves[items[0].dataIndex], S.gran),
-              footer: items => `Total: ${fmtN(totais[items[0].dataIndex])} viagens`,
-            },
-          },
-        },
-      },
-    });
+    lista.forEach(e => { e.unis = [...e.uni.entries()].sort((a, b) => ordUni(a[0], b[0])); });
+    return { lista, viagens, t, dias: dias.size, unidades: [...unidades.keys()].sort(ordUni) };
   }
 
   /* ── KPIs ── */
@@ -9837,10 +9664,17 @@ function _onLogout() {
       <div class="cosa-kpi cosa-total"><i class="fas fa-truck-moving"></i><span class="cosa-kpi-val">${fmtN(res.viagens)}</span><span class="cosa-kpi-label">Viagens</span></div>
       <div class="cosa-kpi cosa-ok"><i class="fas fa-calendar-day"></i><span class="cosa-kpi-val">${fmtN(media)}</span><span class="cosa-kpi-label">Média por dia</span></div>
       <div class="cosa-kpi cosa-neutro"><i class="fas fa-building"></i><span class="cosa-kpi-val">${fmtN(res.lista.length)}</span><span class="cosa-kpi-label">Empresas</span></div>
-      <div class="cosa-kpi cosa-neutro"><i class="fas fa-weight-hanging"></i><span class="cosa-kpi-val">${fmtN(res.t)}</span><span class="cosa-kpi-label">Toneladas</span></div>`;
+      <div class="cosa-kpi cosa-neutro"><i class="fas fa-weight-hanging"></i><span class="cosa-kpi-val">${fmtN(res.t)}<small> t</small></span><span class="cosa-kpi-label">Toneladas</span></div>`;
   }
 
-  /* ── lista "Detalhe por empresa" (card por empresa, expansível por unidade/frente) ── */
+  /* ── comparativo: 1 linha por empresa, barra empilhada por unidade ── */
+  function renderLegenda(res) {
+    const el = $('vc-legenda');
+    if (!el) return;
+    el.style.display = S.umaUnidade ? 'none' : '';
+    el.innerHTML = S.umaUnidade ? '' : res.unidades.map(u => `<span class="vc-leg">${tag(u)}<em>${esc(u)}</em></span>`).join('');
+  }
+
   function renderLista(res) {
     const el = $('vc-lista');
     if (!el) return;
@@ -9849,30 +9683,36 @@ function _onLogout() {
     el.innerHTML = res.lista.map((e, i) => {
       const aberto = S.abertos.has(e.nome);
       const pct = res.viagens ? (e.viagens / res.viagens) * 100 : 0;
-      const larg = max ? Math.max(2, (e.viagens / max) * 100) : 0;
+      const larg = max ? Math.max(3, (e.viagens / max) * 100) : 0;
       const porDia = e.dias.size ? e.viagens / e.dias.size : 0;
-      const det = [...e.det.values()].sort((a, b) => b.viagens - a.viagens);
-      const MAXDET = 12;
-      const linhas = det.slice(0, MAXDET).map(d => `
-        <div class="vc-det-row">
-          <span class="vc-det-nome">${(S.unidade || S.umaUnidade) ? '' : `<em>${esc(d.unidade)}</em>`}Frente ${esc(d.frente)}</span>
-          <b>${fmtN(d.viagens)}</b>
-        </div>`).join('') + (det.length > MAXDET ? `<div class="vc-det-mais">+ ${det.length - MAXDET} outras combinações</div>` : '');
+      const segs = e.unis.map(([u, n]) => `<span class="vc-seg vc-u${infoUnid(u).n}" style="flex:${n}"></span>`).join('');
+      const tags = S.umaUnidade ? '' : `<div class="vc-tags">${e.unis.map(([u, n]) => tag(u, n)).join('')}</div>`;
+
+      // detalhe: por unidade (com tag), frentes em ordem de viagens
+      const grupos = new Map();
+      [...e.det.values()].sort((a, b) => b.viagens - a.viagens).forEach(d => {
+        if (!grupos.has(d.unidade)) grupos.set(d.unidade, []);
+        grupos.get(d.unidade).push(d);
+      });
+      const det = [...grupos.entries()].sort((a, b) => infoUnid(a[0]).n - infoUnid(b[0]).n).map(([u, fr]) => {
+        const MAX = 10;
+        const linhas = fr.slice(0, MAX).map(d => `<div class="vc-det-row"><span>Frente ${esc(d.frente)}</span><b>${fmtN(d.viagens)}</b></div>`).join('') +
+          (fr.length > MAX ? `<div class="vc-det-mais">+ ${fr.length - MAX} frentes</div>` : '');
+        return `<div class="vc-det-grupo">${S.umaUnidade ? '' : `<div class="vc-det-titulo">${tag(u)}<span>${esc(u)}</span></div>`}${linhas}</div>`;
+      }).join('');
+
       return `
         <div class="vc-emp ${aberto ? 'open' : ''}">
           <button type="button" class="vc-emp-head" onclick="vcToggleEmpresa(${i})">
-            <span class="vc-emp-rank ${i === 0 ? 'top' : ''}">${i + 1}</span>
-            <span class="vc-emp-nome">${esc(e.nome)}</span>
-            <span class="vc-emp-val">${fmtN(e.viagens)}<small>viagens</small></span>
-            <i class="fas fa-chevron-down vc-emp-chev"></i>
+            <span class="vc-pos ${i === 0 ? 'top' : ''}">${i + 1}</span>
+            <span class="vc-nome">${esc(e.nome)}</span>
+            <span class="vc-total">${fmtN(e.viagens)}</span>
+            <i class="fas fa-chevron-down vc-chev"></i>
           </button>
-          <div class="vc-emp-bar"><span style="width:${larg.toFixed(1)}%"></span></div>
-          <div class="vc-emp-meta">
-            <span><i class="fas fa-percent"></i> ${fmtPct(pct)} do total</span>
-            <span><i class="fas fa-weight-hanging"></i> ${fmtN(e.t)} t</span>
-            <span><i class="fas fa-calendar-day"></i> ${fmtN(porDia)}/dia</span>
-          </div>
-          <div class="vc-emp-det">${linhas}</div>
+          <div class="vc-track"><div class="vc-bar" style="width:${larg.toFixed(1)}%">${segs}</div></div>
+          ${tags}
+          <div class="vc-meta"><span>${fmtPct(pct)} do total</span><span>${fmtN(e.t)} t</span><span>${fmtN(porDia)}/dia</span></div>
+          <div class="vc-det">${det}</div>
         </div>`;
     }).join('');
   }
@@ -9881,7 +9721,7 @@ function _onLogout() {
   function renderFonte() {
     const fonte = $('vc-fonte'), per = $('vc-periodo');
     const ult = ultimoDia();
-    if (fonte) fonte.innerHTML = `<i class="fas fa-satellite-dish"></i> Dados do Supabase · balança até ${dataBR(ult)}`;
+    if (fonte) fonte.textContent = `Balança até ${dataBR(ult)}`;
     if (per) {
       const de = S.de || primeiroDia(), ate = S.ate || ult;
       per.textContent = de && ate ? `${dataBR(de)} a ${dataBR(ate)}` : '—';
@@ -9889,39 +9729,34 @@ function _onLogout() {
   }
 
   /* ── estados de tela ── */
-  function escondeCards(sim) {
-    ['vc-card-emp', 'vc-card-tempo'].forEach(id => { const c = $(id); if (c) c.style.display = sim ? 'none' : ''; });
-  }
+  function escondeCard(sim) { const c = $('vc-card-emp'); if (c) c.style.display = sim ? 'none' : ''; }
   function mostrarCarregando() {
-    escondeCards(true);
+    escondeCard(true);
     const k = $('vc-kpis'); if (k) k.innerHTML = '';
-    const l = $('vc-lista');
+    const l = $('vc-estado');
     if (l) l.innerHTML = emptyStateHTML({ icon: 'fa-spinner fa-spin', title: 'Carregando...', msg: 'Buscando as viagens no Supabase.' });
   }
-  function mostrarVazio(msg) {
-    escondeCards(true);
+  function mostrarVazio(msg, extra) {
+    escondeCard(true);
     const k = $('vc-kpis'); if (k) k.innerHTML = '';
-    const l = $('vc-lista');
-    if (l) l.innerHTML = emptyStateHTML({ icon: 'fa-truck', title: 'Sem viagens para mostrar', msg: msg });
+    const l = $('vc-estado');
+    if (l) l.innerHTML = emptyStateHTML(Object.assign({ icon: 'fa-truck', title: 'Sem viagens para mostrar', msg }, extra || {}));
   }
 
   /* ── render principal ── */
   function render() {
-    marcarGran();
     const rows = filtrar();
     const res = agregar(rows);
     S.resumo = res;
     renderFonte();
+    const est = $('vc-estado'); if (est) est.innerHTML = '';
     if (!res.lista.length) {
-      if (S.chartEmp) { S.chartEmp.destroy(); S.chartEmp = null; }
-      if (S.chartTempo) { S.chartTempo.destroy(); S.chartTempo = null; }
       mostrarVazio('Nenhuma viagem com esses filtros. Troque a unidade, a frente ou o período.');
       return;
     }
-    escondeCards(false);
+    escondeCard(false);
     renderKpis(res);
-    renderChartEmpresa(res);
-    renderChartTempo(rows, res);
+    renderLegenda(res);
     renderLista(res);
   }
 
@@ -9938,15 +9773,13 @@ function _onLogout() {
     } catch (e) {
       console.warn('[Viagens] Falha ao buscar no Supabase', e);
       S.carregando = false;
-      escondeCards(true);
-      const l = $('vc-lista');
-      if (l) l.innerHTML = emptyStateHTML({ icon: 'fa-triangle-exclamation', title: 'Não consegui carregar',
-        msg: 'Verifique a conexão e se a tabela central_viagens existe no Supabase.', actionLabel: 'Tentar de novo', actionOnclick: 'vcAtualizar()' });
+      mostrarVazio('Verifique a conexão e se a tabela central_viagens existe no Supabase.',
+        { icon: 'fa-triangle-exclamation', title: 'Não consegui carregar', actionLabel: 'Tentar de novo', actionOnclick: 'vcAtualizar()' });
       return;
     }
     S.carregando = false;
     if (!S.dados.length) {
-      mostrarVazio('A tabela central_viagens ainda está vazia. Rode "Viagens de Caminhões" no Sincronizador ou importe o CSV no Supabase.');
+      mostrarVazio('A tabela central_viagens ainda está vazia. Rode "Viagens de Caminhões" no Sincronizador.');
       return;
     }
     if (S.unidade && !S.dados.some(r => r.unidade === S.unidade)) S.unidade = '';
@@ -9968,10 +9801,8 @@ function _onLogout() {
     S.ate = $('vc-data-ate')?.value || '';
     S.periodo = (!S.de && !S.ate) ? 'tudo' : '';
     marcarPeriodo(S.periodo);
-    autoGran();
     render();
   };
-  window.vcGranularidade = function (g) { S.gran = g; render(); };
   window.vcToggleEmpresa = function (i) {
     const e = S.lista[i];
     if (!e) return;
@@ -9980,57 +9811,83 @@ function _onLogout() {
     if (cards[i]) cards[i].classList.toggle('open', S.abertos.has(e.nome));
   };
 
-  /* ── compartilhar: imagem do ranking (fundo branco, tema claro) + texto pronto ── */
+  /* ── compartilhar: imagem do comparativo (fundo branco) + texto pronto ── */
   function descFiltros() {
-    const partes = S.umaUnidade ? [] : [S.unidade || 'Todas as unidades'];
+    const partes = [];
+    if (!S.umaUnidade) partes.push(S.unidade || 'Todas as unidades');
     partes.push(S.frentes.length ? `Frente ${S.frentes.join(', ')}` : 'Todas as frentes');
     const de = S.de || primeiroDia(), ate = S.ate || ultimoDia();
     if (de && ate) partes.push(`${dataBR(de)} a ${dataBR(ate)}`);
     return partes.join(' · ');
   }
 
-  window.vcExportarGrafico = async function () {
+  window.vcExportarGrafico = function () {
     const res = S.resumo;
-    if (!res || !res.lista.length || typeof Chart === 'undefined') { showToast('⚠️ Nada para compartilhar com o filtro atual.', 'error', 2500); return; }
-    const itens = itensEmpresa(res.lista);
-    const W = 900, CAB = 130, ALT = Math.max(260, itens.length * 58 + 70);
-    const pal = paleta(true);
-
+    if (!res || !res.lista.length) { showToast('⚠️ Nada para compartilhar com o filtro atual.', 'error', 2500); return; }
+    const MAXL = 12;
+    const linhas = res.lista.slice(0, MAXL);
+    const resto = res.lista.length - linhas.length;
+    const W = 900, CAB = 132, LH = 66, RODAPE = 78;
+    const H = CAB + linhas.length * LH + (resto > 0 ? 34 : 0) + RODAPE;
     const cv = document.createElement('canvas');
-    cv.width = W; cv.height = ALT;
-    const chart = desenharEmpresa(cv, itens, res.viagens, pal, { fixo: true, maxChars: 34, fonteRotulo: 16, fonteEixo: 15, espessura: 32, padDireita: 170 });
-    await new Promise(r => setTimeout(r, 60));
-
-    const out = document.createElement('canvas');
-    out.width = W * 2; out.height = (CAB + ALT + 44) * 2;
-    const c = out.getContext('2d');
+    cv.width = W * 2; cv.height = H * 2;
+    const c = cv.getContext('2d');
     c.scale(2, 2);
-    c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, CAB + ALT + 44);
+    c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, H);
     c.fillStyle = '#38487A'; c.fillRect(0, 0, W, 8);
-    c.fillStyle = '#161C30'; c.font = '700 30px Arial'; c.textBaseline = 'alphabetic';
-    c.fillText('Viagens por empresa', 28, 56);
-    c.fillStyle = '#475170'; c.font = '600 17px Arial';
-    c.fillText(cortar(descFiltros(), 78), 28, 88);
-    c.fillStyle = '#35B066'; c.font = '800 20px Arial';
-    c.fillText(`Total: ${fmtN(res.viagens)} viagens`, 28, 118);
-    c.drawImage(cv, 0, CAB, W, ALT);
+    c.textBaseline = 'alphabetic';
+    c.fillStyle = '#161C30'; c.font = '700 30px Arial'; c.fillText('Viagens por empresa', 28, 58);
+    c.fillStyle = '#475170'; c.font = '600 17px Arial'; c.fillText(cortar(descFiltros(), 80), 28, 90);
+    c.fillStyle = '#35B066'; c.font = '800 21px Arial'; c.fillText(`Total: ${fmtN(res.viagens)} viagens`, 28, 120);
+
+    const max = linhas[0].viagens;
+    const xBarra = 28, larguraMax = W - 28 - 28 - 120;
+    linhas.forEach((e, i) => {
+      const y = CAB + i * LH;
+      c.fillStyle = '#161C30'; c.font = '700 17px Arial';
+      let nome = `${i + 1}. ${e.nome}`;
+      while (nome.length > 4 && c.measureText(nome).width > W - 56 - 110) nome = nome.slice(0, -2);
+      if (nome !== `${i + 1}. ${e.nome}`) nome = nome.trimEnd() + '…';
+      c.fillText(nome, 28, y + 20);
+      c.textAlign = 'right'; c.font = '800 19px Arial'; c.fillText(fmtN(e.viagens), W - 28, y + 20); c.textAlign = 'left';
+      let x = xBarra; const total = e.viagens, comp = Math.max(6, (e.viagens / max) * larguraMax);
+      c.fillStyle = '#EEF1F8'; c.fillRect(xBarra, y + 30, larguraMax, 20);
+      e.unis.forEach(([u, n]) => {
+        const w = comp * (n / total);
+        c.fillStyle = infoUnid(u).cor; c.fillRect(x, y + 30, w, 20); x += w;
+      });
+      c.fillStyle = '#7480A0'; c.font = '600 13px Arial';
+      const det = (S.umaUnidade ? '' : e.unis.map(([u, n]) => `${infoUnid(u).ab} ${fmtN(n)}`).join('  ·  ') + '   |   ') +
+        `${fmtPct(res.viagens ? (e.viagens / res.viagens) * 100 : 0)} do total  ·  ${fmtN(e.t)} t`;
+      c.fillText(det, 28, y + 64 - 2);
+    });
+    let yR = CAB + linhas.length * LH;
+    if (resto > 0) { c.fillStyle = '#7480A0'; c.font = '600 14px Arial'; c.fillText(`+ ${resto} empresa(s) com menos viagens`, 28, yR + 20); yR += 34; }
+    if (!S.umaUnidade) {
+      let x = 28; c.font = '700 13px Arial';
+      res.unidades.forEach(u => {
+        c.fillStyle = infoUnid(u).cor; c.fillRect(x, yR + 14, 14, 14);
+        c.fillStyle = '#475170'; const t = `${infoUnid(u).ab} = ${u}`; c.fillText(t, x + 20, yR + 26); x += 20 + c.measureText(t).width + 22;
+      });
+    }
     c.fillStyle = '#7480A0'; c.font = '600 13px Arial';
-    c.fillText('CTT · Controle Agrícola — dados da balança (GATEC)', 28, CAB + ALT + 26);
-    chart.destroy();
+    c.fillText('CTT · Controle Agrícola — dados da balança (GATEC)', 28, H - 20);
 
-    const linhas = res.lista.slice(0, 10).map((e, i) => `${i + 1}) ${e.nome} — ${fmtN(e.viagens)} (${fmtPct(res.viagens ? (e.viagens / res.viagens) * 100 : 0)})`);
-    const texto = `🚛 *Viagens por empresa*\n📍 ${descFiltros()}\n\n${linhas.join('\n')}\n\n*Total: ${fmtN(res.viagens)} viagens*`;
+    const texto = `🚛 *Viagens por empresa*\n📍 ${descFiltros()}\n\n` +
+      res.lista.slice(0, 10).map((e, i) => `${i + 1}) ${e.nome} — ${fmtN(e.viagens)} (${fmtPct(res.viagens ? (e.viagens / res.viagens) * 100 : 0)})` +
+        (S.umaUnidade ? '' : ` [${e.unis.map(([u, n]) => `${infoUnid(u).ab} ${fmtN(n)}`).join(' · ')}]`)).join('\n') +
+      `\n\n*Total: ${fmtN(res.viagens)} viagens*`;
 
-    out.toBlob(async blob => {
+    cv.toBlob(async blob => {
       if (!blob) { showToast('❌ Erro ao gerar a imagem.', 'error', 3000); return; }
       const hoje = new Date();
-      const nome = `Viagens_${String(hoje.getDate()).padStart(2, '0')}${String(hoje.getMonth() + 1).padStart(2, '0')}${hoje.getFullYear()}.png`;
-      const file = new File([blob], nome, { type: 'image/png' });
+      const nomeArq = `Viagens_${String(hoje.getDate()).padStart(2, '0')}${String(hoje.getMonth() + 1).padStart(2, '0')}${hoje.getFullYear()}.png`;
+      const file = new File([blob], nomeArq, { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try { await navigator.share({ files: [file], title: 'Viagens por empresa', text: texto }); showToast('✅ Enviado!'); }
-        catch (err) { if (err.name !== 'AbortError' && typeof _baixarImagemResumo === 'function') _baixarImagemResumo(blob, nome); }
+        catch (err) { if (err.name !== 'AbortError' && typeof _baixarImagemResumo === 'function') _baixarImagemResumo(blob, nomeArq); }
       } else if (typeof _baixarImagemResumo === 'function') {
-        _baixarImagemResumo(blob, nome);
+        _baixarImagemResumo(blob, nomeArq);
       }
     }, 'image/png', 1);
   };
