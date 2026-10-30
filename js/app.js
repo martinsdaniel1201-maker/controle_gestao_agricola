@@ -9542,7 +9542,7 @@ function _onLogout() {
     const todas = [];
     while (true) {
       const { data, error } = await _sbClient.from(TABELA)
-        .select('cod_empr,unidade,dia,frente,proprietario,viagens,peso_liquido_kg')
+        .select('cod_empr,unidade,dia,frente,proprietario,viagens,peso_liquido_t')
         .order('id', { ascending: true }).range(de, de + PAGINA - 1);
       if (error) throw error;
       if (!data || !data.length) break;
@@ -9559,7 +9559,7 @@ function _onLogout() {
         frente: frente || 'Sem frente',
         empresa: (r.proprietario && String(r.proprietario).trim()) || 'Não informado',
         viagens: Number(r.viagens) || 0,
-        kg: Number(r.peso_liquido_kg) || 0,
+        t: Number(r.peso_liquido_t) || 0,
       };
     });
   }
@@ -9609,6 +9609,9 @@ function _onLogout() {
     const mapa = new Map();
     S.dados.forEach(r => { if (!mapa.has(r.unidade)) mapa.set(r.unidade, r.cod); });
     const unidades = [...mapa.entries()].sort((a, b) => (a[1] - b[1]) || a[0].localeCompare(b[0], 'pt-BR'));
+    S.umaUnidade = unidades.length <= 1;                      // dados sem unidade: esconde o filtro
+    const secU = $('vc-sec-unidade'); if (secU) secU.style.display = S.umaUnidade ? 'none' : '';
+    if (S.umaUnidade) S.unidade = '';
     box.innerHTML =
       `<button type="button" class="lib-frente-chip ${S.unidade ? '' : 'active'}" data-v="" onclick="vcUnidade(this.dataset.v)"><i class="fas fa-layer-group"></i> Todas</button>` +
       unidades.map(([nome]) =>
@@ -9640,12 +9643,12 @@ function _onLogout() {
   function agregar(rows) {
     const porEmp = new Map();
     const dias = new Set();
-    let viagens = 0, kg = 0;
+    let viagens = 0, t = 0;
     rows.forEach(r => {
-      viagens += r.viagens; kg += r.kg; dias.add(r.dia);
+      viagens += r.viagens; t += r.t; dias.add(r.dia);
       let e = porEmp.get(r.empresa);
-      if (!e) { e = { nome: r.empresa, viagens: 0, kg: 0, dias: new Set(), frentes: new Set(), det: new Map() }; porEmp.set(r.empresa, e); }
-      e.viagens += r.viagens; e.kg += r.kg; e.dias.add(r.dia); e.frentes.add(r.unidade + '|' + r.frente);
+      if (!e) { e = { nome: r.empresa, viagens: 0, t: 0, dias: new Set(), frentes: new Set(), det: new Map() }; porEmp.set(r.empresa, e); }
+      e.viagens += r.viagens; e.t += r.t; e.dias.add(r.dia); e.frentes.add(r.unidade + '|' + r.frente);
       const k = r.unidade + '||' + r.frente;
       let d = e.det.get(k);
       if (!d) { d = { unidade: r.unidade, frente: r.frente, viagens: 0 }; e.det.set(k, d); }
@@ -9653,7 +9656,7 @@ function _onLogout() {
     });
     const lista = [...porEmp.values()].filter(e => e.viagens > 0)
       .sort((a, b) => (b.viagens - a.viagens) || a.nome.localeCompare(b.nome, 'pt-BR'));
-    return { lista, viagens, kg, dias: dias.size };
+    return { lista, viagens, t, dias: dias.size };
   }
 
   /* ── cores (tema claro/escuro; exportação sempre usa o claro) ── */
@@ -9834,7 +9837,7 @@ function _onLogout() {
       <div class="cosa-kpi cosa-total"><i class="fas fa-truck-moving"></i><span class="cosa-kpi-val">${fmtN(res.viagens)}</span><span class="cosa-kpi-label">Viagens</span></div>
       <div class="cosa-kpi cosa-ok"><i class="fas fa-calendar-day"></i><span class="cosa-kpi-val">${fmtN(media)}</span><span class="cosa-kpi-label">Média por dia</span></div>
       <div class="cosa-kpi cosa-neutro"><i class="fas fa-building"></i><span class="cosa-kpi-val">${fmtN(res.lista.length)}</span><span class="cosa-kpi-label">Empresas</span></div>
-      <div class="cosa-kpi cosa-neutro"><i class="fas fa-weight-hanging"></i><span class="cosa-kpi-val">${fmtN(res.kg / 1000)}</span><span class="cosa-kpi-label">Toneladas</span></div>`;
+      <div class="cosa-kpi cosa-neutro"><i class="fas fa-weight-hanging"></i><span class="cosa-kpi-val">${fmtN(res.t)}</span><span class="cosa-kpi-label">Toneladas</span></div>`;
   }
 
   /* ── lista "Detalhe por empresa" (card por empresa, expansível por unidade/frente) ── */
@@ -9852,7 +9855,7 @@ function _onLogout() {
       const MAXDET = 12;
       const linhas = det.slice(0, MAXDET).map(d => `
         <div class="vc-det-row">
-          <span class="vc-det-nome">${S.unidade ? '' : `<em>${esc(d.unidade)}</em>`}Frente ${esc(d.frente)}</span>
+          <span class="vc-det-nome">${(S.unidade || S.umaUnidade) ? '' : `<em>${esc(d.unidade)}</em>`}Frente ${esc(d.frente)}</span>
           <b>${fmtN(d.viagens)}</b>
         </div>`).join('') + (det.length > MAXDET ? `<div class="vc-det-mais">+ ${det.length - MAXDET} outras combinações</div>` : '');
       return `
@@ -9866,7 +9869,7 @@ function _onLogout() {
           <div class="vc-emp-bar"><span style="width:${larg.toFixed(1)}%"></span></div>
           <div class="vc-emp-meta">
             <span><i class="fas fa-percent"></i> ${fmtPct(pct)} do total</span>
-            <span><i class="fas fa-weight-hanging"></i> ${fmtN(e.kg / 1000)} t</span>
+            <span><i class="fas fa-weight-hanging"></i> ${fmtN(e.t)} t</span>
             <span><i class="fas fa-calendar-day"></i> ${fmtN(porDia)}/dia</span>
           </div>
           <div class="vc-emp-det">${linhas}</div>
@@ -9979,7 +9982,7 @@ function _onLogout() {
 
   /* ── compartilhar: imagem do ranking (fundo branco, tema claro) + texto pronto ── */
   function descFiltros() {
-    const partes = [S.unidade || 'Todas as unidades'];
+    const partes = S.umaUnidade ? [] : [S.unidade || 'Todas as unidades'];
     partes.push(S.frentes.length ? `Frente ${S.frentes.join(', ')}` : 'Todas as frentes');
     const de = S.de || primeiroDia(), ate = S.ate || ultimoDia();
     if (de && ate) partes.push(`${dataBR(de)} a ${dataBR(ate)}`);
