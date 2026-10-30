@@ -9561,7 +9561,7 @@ function _onLogout() {
       return {
         cod: Number(r.cod_empr) || 0,
         unidade: (r.unidade && String(r.unidade).trim()) || 'Geral',
-        dia: String(r.dia).slice(0, 10),
+        dia: r.dia ? String(r.dia).slice(0, 10) : '',          // '' = viagem sem data na balança
         frente: frente || 'Sem frente',
         empresa: (r.proprietario && String(r.proprietario).trim()) || 'Não informado',
         viagens: Number(r.viagens) || 0,
@@ -9571,8 +9571,8 @@ function _onLogout() {
   }
 
   /* ── período ── */
-  function ultimoDia() { let m = ''; S.dados.forEach(r => { if (r.dia > m) m = r.dia; }); return m; }
-  function primeiroDia() { let m = ''; S.dados.forEach(r => { if (!m || r.dia < m) m = r.dia; }); return m; }
+  function ultimoDia() { let m = ''; S.dados.forEach(r => { if (r.dia && r.dia > m) m = r.dia; }); return m; }
+  function primeiroDia() { let m = ''; S.dados.forEach(r => { if (r.dia && (!m || r.dia < m)) m = r.dia; }); return m; }
   function marcarPeriodo(p) {
     document.querySelectorAll('#vc-chips-periodo .lib-frente-chip').forEach(c => c.classList.toggle('active', c.dataset.p === p));
   }
@@ -9627,7 +9627,8 @@ function _onLogout() {
     return S.dados.filter(r =>
       (!S.unidade || r.unidade === S.unidade) &&
       (!fs || fs.has(r.frente)) &&
-      (!de || r.dia >= de) && (!ate || r.dia <= ate));
+      // viagem sem data só entra quando NÃO há período escolhido (Safra toda); com datas, fica de fora
+      (r.dia ? ((!de || r.dia >= de) && (!ate || r.dia <= ate)) : (!de && !ate)));
   }
 
   /* ── agregação: por empresa, com quebra por unidade e por frente ── */
@@ -9637,11 +9638,11 @@ function _onLogout() {
     const unidades = new Map();
     let viagens = 0, t = 0;
     rows.forEach(r => {
-      viagens += r.viagens; t += r.t; dias.add(r.dia);
+      viagens += r.viagens; t += r.t; if (r.dia) dias.add(r.dia);
       unidades.set(r.unidade, (unidades.get(r.unidade) || 0) + r.viagens);
       let e = porEmp.get(r.empresa);
       if (!e) { e = { nome: r.empresa, viagens: 0, t: 0, dias: new Set(), uni: new Map(), det: new Map() }; porEmp.set(r.empresa, e); }
-      e.viagens += r.viagens; e.t += r.t; e.dias.add(r.dia);
+      e.viagens += r.viagens; e.t += r.t; if (r.dia) e.dias.add(r.dia);
       e.uni.set(r.unidade, (e.uni.get(r.unidade) || 0) + r.viagens);
       const k = r.unidade + '||' + r.frente;
       let d = e.det.get(k);
@@ -9722,6 +9723,15 @@ function _onLogout() {
     const fonte = $('vc-fonte'), per = $('vc-periodo');
     const ult = ultimoDia();
     if (fonte) fonte.textContent = `Balança até ${dataBR(ult)}`;
+    // aviso das viagens sem data (respeita unidade/frente escolhidas)
+    const av = $('vc-semdata');
+    if (av) {
+      const fs = S.frentes.length ? new Set(S.frentes) : null;
+      const n = S.dados.filter(r => !r.dia && (!S.unidade || r.unidade === S.unidade) && (!fs || fs.has(r.frente))).reduce((s, r) => s + r.viagens, 0);
+      const filtrandoData = !!(S.de || S.ate);
+      av.style.display = n ? '' : 'none';
+      av.innerHTML = n ? `<i class="fas fa-circle-info"></i> ${filtrandoData ? `+ ${fmtN(n)} viagens sem data da balança ficam fora deste período` : `inclui ${fmtN(n)} viagens sem data da balança`}` : '';
+    }
     if (per) {
       const de = S.de || primeiroDia(), ate = S.ate || ult;
       per.textContent = de && ate ? `${dataBR(de)} a ${dataBR(ate)}` : '—';
