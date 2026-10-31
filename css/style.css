@@ -4734,3 +4734,49 @@ body.dark-mode .vc-u0 { --u: #9AA5C4; --ub: rgba(154,165,196,.16); }
 .vc-link-atualizar:active { transform: scale(.96); }
 
 body.dark-mode .vc-seg + .vc-seg { border-left-color: #1e1e1e; }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CAMPOS DE DATA — correção de layout no iOS (iPhone)
+   Causa: o <input type="date"> do Safari/iOS tem largura intrínseca (~150px) e
+   ignora width/min-width; dentro de grid "1fr 1fr" (que equivale a minmax(auto,1fr))
+   ou de auto-fit/minmax(135px) ele empurra a coluna e estoura a tela.
+   Correção em 3 partes: (1) o próprio input aceita encolher; (2) as colunas das
+   grades de data usam minmax(0,1fr); (3) os itens da grade podem ser menores
+   que o conteúdo (min-width:0). Telas cobertas: Clima→Histórico, Apontamento de
+   Horas, Plantio→Consulta entre Safras, pré-filtro de Tratos e Viagens.
+   Só acréscimo: nenhuma regra anterior foi alterada.
+══════════════════════════════════════════════════════════════════════════ */
+input[type="date"] {
+  -webkit-appearance: none; appearance: none;
+  display: block;
+  min-width: 0; max-width: 100%;
+  min-height: 42px;               /* appearance:none no iOS colapsa a altura quando o campo está vazio */
+  text-align: left;
+}
+input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; margin: 0; }
+input[type="date"]::-webkit-datetime-edit { padding: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; }
+body.dark-mode input[type="date"] { color-scheme: dark; }
+
+/* Visual padrão só para data SEM estilo próprio (ex.: pré-filtro de Tratos).
+   :where() deixa a especificidade em zero, então .field input, .capo-data-input
+   e estilos inline continuam mandando. */
+:where(input[type="date"]) {
+  box-sizing: border-box; width: 100%;
+  padding: 0 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface2); color: var(--text);
+  font-family: inherit; font-size: 16px; font-weight: 600;
+}
+
+/* Apontamento de Horas */
+.capo-filtro-datas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.capo-date-wrap { min-width: 0; }
+@media (max-width: 360px) { .capo-filtro-datas { grid-template-columns: 1fr; } }
+
+/* Plantio → Consulta entre Safras / Clima → Histórico */
+.pla-filtros-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pla-filtros-row > .field, .grid-inputs > .field { min-width: 0; }
+
+/* Pré-filtro de Tratos (flex): campos encolhem em vez de empurrar o "até" */
+#tratos-prefiltro-data-ini, #tratos-prefiltro-data-fim { flex: 1 1 0; min-width: 0; }
