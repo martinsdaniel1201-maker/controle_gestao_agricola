@@ -4780,3 +4780,39 @@ body.dark-mode input[type="date"] { color-scheme: dark; }
 
 /* Pré-filtro de Tratos (flex): campos encolhem em vez de empurrar o "até" */
 #tratos-prefiltro-data-ini, #tratos-prefiltro-data-fim { flex: 1 1 0; min-width: 0; }
+
+
+/* ══════════════════════════════════════════════
+   VIAGENS → FROTAS de cada empresa (dentro do detalhe que abre ao tocar)
+   Mobile-first: nada de largura fixa; colunas minmax(0,..), nome com reticências,
+   botões de 44px (alvo de toque do iOS) e lista paginada (10 + 15 por toque).
+══════════════════════════════════════════════ */
+.vc-frota { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.vc-frota-head {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3);
+}
+.vc-frota-head em {
+  font-style: normal; padding: 0 7px; border-radius: 999px; line-height: 1.6;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-2);
+}
+.vc-frota-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 44px; box-sizing: border-box; padding: 0 12px; margin-top: 4px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--green-700); font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.vc-frota-btn:active { transform: scale(.98); }
+.vc-frota-mais { min-height: 40px; margin-top: 8px; color: var(--text-2); font-size: 12px; }
+.vc-frota-msg { padding: 6px 0 2px; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--text-3); }
+.vc-frota-msg.erro { color: var(--red-500, #c62828); }
+
+.vc-fr-row { padding: 8px 0 6px; }
+.vc-fr-row + .vc-fr-row { border-top: 1px solid var(--border); }
+.vc-fr-top { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
+.vc-fr-nome { font-size: 13px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-fr-val { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.vc-fr-track { height: 6px; border-radius: 99px; background: var(--surface); overflow: hidden; margin: 6px 0 4px; }
+.vc-fr-track > span { display: block; height: 100%; border-radius: 99px; background: var(--u, var(--green-500)); }
+.vc-fr-meta { font-size: 10.5px; font-weight: 700; color: var(--text-3); }
