@@ -9527,7 +9527,9 @@ function _onLogout() {
     dados: [], carregadoEm: 0, carregando: false,
     unidade: '', frentes: [], periodo: '30', de: '', ate: '',
     umaUnidade: true, abertos: new Set(), lista: [], resumo: null,
+    frotas: new Map(),            // cache das frotas por (empresa + filtros)
   };
+  const FROTAS_PAGINA = 10, FROTAS_MAIS = 15;
 
   /* ── utilitários ── */
   const $ = id => document.getElementById(id);
@@ -9668,6 +9670,92 @@ function _onLogout() {
       <div class="cosa-kpi cosa-neutro"><i class="fas fa-weight-hanging"></i><span class="cosa-kpi-val">${fmtN(res.t)}<small> t</small></span><span class="cosa-kpi-label">Toneladas</span></div>`;
   }
 
+  /* ── frotas de cada empresa (sob demanda; o servidor soma, o app só recebe o resumo) ── */
+  const sigFiltros = () => [S.unidade, S.frentes.join(','), S.de, S.ate].join('|');
+  const chaveFrota = nome => `${nome}##${sigFiltros()}`;
+
+  function htmlFrotas(i) {
+    const e = S.lista[i];
+    if (!e) return '';
+    const st = S.frotas.get(chaveFrota(e.nome));
+    if (!st) {
+      return `<div class="vc-frota"><button type="button" class="vc-frota-btn" onclick="vcFrotas(${i})"><i class="fas fa-truck-moving"></i> Ver frotas desta empresa</button></div>`;
+    }
+    if (st.estado === 'carregando') {
+      return `<div class="vc-frota"><div class="vc-frota-msg"><i class="fas fa-spinner fa-spin"></i> Buscando as frotas...</div></div>`;
+    }
+    if (st.estado === 'erro') {
+      return `<div class="vc-frota"><div class="vc-frota-msg erro">${esc(st.msg)}</div>
+        <button type="button" class="vc-frota-btn" onclick="vcFrotas(${i}, true)"><i class="fas fa-rotate"></i> Tentar de novo</button></div>`;
+    }
+    const rows = st.rows;
+    if (!rows.length) return `<div class="vc-frota"><div class="vc-frota-msg">Nenhuma frota com esses filtros.</div></div>`;
+    const max = rows[0].viagens || 1;
+    const linhas = rows.slice(0, st.mostrar).map(r => `
+      <div class="vc-fr-row">
+        <div class="vc-fr-top">
+          <span class="vc-fr-nome">${esc(r.frota)}</span>
+          ${S.umaUnidade ? '' : tag(r.unidade)}
+          <b class="vc-fr-val">${fmtN(r.viagens)}</b>
+        </div>
+        <div class="vc-fr-track"><span class="${S.umaUnidade ? '' : `vc-u${infoUnid(r.unidade).n}`}" style="width:${Math.max(3, (r.viagens / max) * 100).toFixed(1)}%"></span></div>
+        <div class="vc-fr-meta">${fmtN(r.t)} t${r.dias ? ` · ${fmtN(r.dias)} dia${r.dias > 1 ? 's' : ''}` : ' · sem data'}</div>
+      </div>`).join('');
+    const resta = rows.length - st.mostrar;
+    return `<div class="vc-frota">
+      <div class="vc-frota-head">Frotas <em>${fmtN(rows.length)}</em></div>
+      ${linhas}
+      ${resta > 0 ? `<button type="button" class="vc-frota-btn vc-frota-mais" onclick="vcFrotasMais(${i})">Ver mais ${Math.min(FROTAS_MAIS, resta)} (restam ${fmtN(resta)})</button>` : ''}
+    </div>`;
+  }
+
+  // repinta só o bloco de frotas daquele card (não refaz a lista, então a tela não "pula")
+  function pintarFrotas(i, chave) {
+    const e = S.lista[i];
+    if (!e || (chave && chave !== chaveFrota(e.nome))) return;     // filtros mudaram no meio da busca
+    const slot = document.querySelectorAll('#vc-lista .vc-emp')[i]?.querySelector('.vc-frota-slot');
+    if (slot) slot.innerHTML = htmlFrotas(i);
+  }
+
+  window.vcFrotas = async function (i, forcar) {
+    const e = S.lista[i];
+    if (!e) return;
+    const chave = chaveFrota(e.nome);
+    const atual = S.frotas.get(chave);
+    if (atual && atual.estado === 'ok' && !forcar) return;
+    S.frotas.set(chave, { estado: 'carregando' });
+    pintarFrotas(i, chave);
+    let de = S.de, ate = S.ate;
+    if (de && ate && de > ate) { const t = de; de = ate; ate = t; }
+    try {
+      const { data, error } = await _sbClient.rpc('viagens_por_frota', {
+        p_empresa: e.nome, p_de: de || null, p_ate: ate || null,
+        p_unidade: S.unidade || null, p_frentes: S.frentes.length ? S.frentes : null,
+      });
+      if (error) throw error;
+      S.frotas.set(chave, {
+        estado: 'ok', mostrar: FROTAS_PAGINA,
+        rows: (data || []).map(r => ({ frota: String(r.frota || 'Sem frota'), unidade: r.unidade || 'Geral',
+                                       viagens: Number(r.viagens) || 0, t: Number(r.peso_liquido_t) || 0, dias: Number(r.dias) || 0 })),
+      });
+    } catch (err) {
+      console.warn('[Viagens] Falha ao buscar frotas', err);
+      const semFuncao = err && (err.code === 'PGRST202' || err.code === '42883' || /find the function|does not exist/i.test(String(err.message || '')));
+      S.frotas.set(chave, { estado: 'erro', msg: semFuncao
+        ? 'Falta criar as frotas no Supabase: rode o bloco "1b" do arquivo viagens_caminhoes.sql.'
+        : 'Não consegui carregar as frotas. Tente de novo.' });
+    }
+    pintarFrotas(i, chave);
+  };
+
+  window.vcFrotasMais = function (i) {
+    const e = S.lista[i];
+    const st = e && S.frotas.get(chaveFrota(e.nome));
+    if (!st || st.estado !== 'ok') return;
+    st.mostrar += FROTAS_MAIS;
+    pintarFrotas(i, chaveFrota(e.nome));
+  };
+
   /* ── comparativo: 1 linha por empresa, barra empilhada por unidade ── */
   function renderLegenda(res) {
     const el = $('vc-legenda');
@@ -9713,7 +9801,7 @@ function _onLogout() {
           <div class="vc-track"><div class="vc-bar" style="width:${larg.toFixed(1)}%">${segs}</div></div>
           ${tags}
           <div class="vc-meta"><span>${fmtPct(pct)} do total</span><span>${fmtN(e.t)} t</span><span>${fmtN(porDia)}/dia</span></div>
-          <div class="vc-det">${det}</div>
+          <div class="vc-det">${det}<div class="vc-frota-slot">${htmlFrotas(i)}</div></div>
         </div>`;
     }).join('');
   }
@@ -9780,6 +9868,7 @@ function _onLogout() {
     try {
       S.dados = await buscar();
       S.carregadoEm = Date.now();
+      S.frotas.clear();
     } catch (e) {
       console.warn('[Viagens] Falha ao buscar no Supabase', e);
       S.carregando = false;
