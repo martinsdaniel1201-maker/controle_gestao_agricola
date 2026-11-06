@@ -3546,6 +3546,7 @@ function cosaRender() {
   });
 
   const filtrados = baseSemStatus.filter(r => !_cosaFiltroStatus || r.status === _cosaFiltroStatus);
+  window._cosaUltimaLista = filtrados;   // base do botão "Exportar lista de O.S."
 
   // KPIs por bucket
   const buckets = [
@@ -10163,6 +10164,83 @@ window.capoExportarGrafico = async function () {
   } catch (e) {
     console.error('[capoExportarGrafico]', e);
     showToast('❌ Erro ao gerar a imagem.', 'error', 3000);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+
+/* ── Painel O.S. em Aberto: exportar LISTA (PDF) com O.S., operações e dias ──
+   Respeita os filtros ativos (unidade, responsável, situação, busca).
+   Ordena do mais atrasado pro menos; destaca em vermelho > 15 dias e em
+   laranja de 7 a 15. Operações em "código - descrição", uma por linha. */
+window.cosaExportarLista = async function () {
+  const lista = (window._cosaUltimaLista || []).slice();
+  if (!lista.length) { showToast('⚠️ Nenhuma O.S. para exportar com os filtros atuais.', 'error', 2500); return; }
+  const btn = document.getElementById('btn-cosa-lista-pdf');
+  if (btn) btn.disabled = true;
+  try {
+    lista.sort((a, b) => (Number(b.dias) || 0) - (Number(a.dias) || 0));
+    const diasNum = r => (r.dias != null && r.dias !== '' && !isNaN(Number(r.dias))) ? Math.round(Number(r.dias)) : null;
+    const n15 = lista.filter(r => r.status === '> 15').length;
+    const n7 = lista.filter(r => r.status === '> 7 e < 15').length;
+
+    const empresa = _cosaFiltroEmpresa || 'Todas as unidades';
+    const rotuloSit = { '< 7': 'Até 7 dias', '> 7 e < 15': '7 a 15 dias', '> 15': 'Mais de 15 dias', 'PLANEJADO': 'Planejado' };
+    const filtros = [
+      'Unidade: ' + empresa,
+      _cosaFiltroResp.length ? 'Responsável: ' + _cosaFiltroResp.join(', ') : null,
+      _cosaFiltroStatus ? 'Situação: ' + (rotuloSit[_cosaFiltroStatus] || _cosaFiltroStatus) : null,
+      (document.getElementById('cosa-busca')?.value || '').trim() ? 'Busca: ' + document.getElementById('cosa-busca').value.trim() : null,
+    ].filter(Boolean).join('   ·   ');
+    const subtitulo = `${lista.length} O.S. em aberto   ·   ${n15} com mais de 15 dias   ·   ${n7} de 7 a 15 dias\n${filtros}`;
+
+    const { pdf, y } = _novoPDFRelatorio('O.S. em Aberto', subtitulo, 'landscape');
+    const corpo = lista.map(r => {
+      const d = diasNum(r);
+      const ops = _cosaParseOperacoes(r.operacoes).map(o => (o.cod ? o.cod + ' - ' : '') + o.nome).join('\n') || '—';
+      const fz = _cosaFzdLimpo(r.fzd);
+      return [
+        String(r.os),
+        (fz ? fz + ' - ' : '') + (r.dsc || '—'),
+        r.responsavel || '—',
+        r.empresa || '—',
+        _cosaFmtData(r.dt) || '—',
+        r.status === 'PLANEJADO' ? 'Planejado' : (d != null ? String(d) : '—'),
+        ops,
+      ];
+    });
+
+    pdf.autoTable({
+      ...(_PDF_TABLE_ESTILO),
+      startY: y,
+      head: [['O.S.', 'Fazenda', 'Responsável', 'Unid.', 'Aberta em', 'Dias', 'Operações']],
+      body: corpo,
+      styles: { fontSize: 8, cellPadding: 1.8, valign: 'top', overflow: 'linebreak' },
+      columnStyles: {
+        0: { cellWidth: 20, fontStyle: 'bold' },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 36 },
+        3: { cellWidth: 14, halign: 'center' },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
+      },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        const r = lista[data.row.index];
+        if (data.column.index === 5) {
+          if (r.status === '> 15') { data.cell.styles.textColor = [198, 40, 40]; data.cell.styles.fillColor = [255, 235, 238]; }
+          else if (r.status === '> 7 e < 15') { data.cell.styles.textColor = [194, 120, 0]; data.cell.styles.fillColor = [255, 243, 224]; }
+          else if (r.status === '< 7') data.cell.styles.textColor = [46, 125, 50];
+        }
+      },
+    });
+
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    await _finalizarPDFRelatorio(pdf, `OS_em_Aberto_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}.pdf`);
+  } catch (e) {
+    console.error('[cosaExportarLista]', e);
+    showToast('❌ Erro ao gerar o PDF da lista.', 'error', 3000);
   } finally {
     if (btn) btn.disabled = false;
   }
