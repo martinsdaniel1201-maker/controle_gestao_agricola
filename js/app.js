@@ -582,7 +582,7 @@ async function exportarResumoFrentesPDF() {
 
   try {
     const canvas = await html2canvas(node, {
-      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: '#ffffff'
+      scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 820
     });
 
     const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
@@ -609,22 +609,7 @@ async function exportarResumoFrentesPDF() {
     const now = new Date();
     const nomeArq = `Resumo_Frentes_${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}.pdf`;
     const blobPdf = pdf.output('blob');
-    const filePdf = new File([blobPdf], nomeArq, { type: 'application/pdf' });
-
-    if (navigator.canShare && navigator.canShare({ files: [filePdf] })) {
-      try {
-        await navigator.share({ files: [filePdf], title: 'Resumo por Frente' });
-        showToast('✅ PDF do resumo gerado!');
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          _baixarArquivo(blobPdf, nomeArq);
-          showToast('✅ PDF do resumo baixado!');
-        }
-      }
-    } else {
-      _baixarArquivo(blobPdf, nomeArq);
-      showToast('✅ PDF do resumo baixado!');
-    }
+    await _entregarArquivo(blobPdf, nomeArq, { titulo: 'Resumo por Frente' });
   } catch (e) {
     console.error(e);
     showToast('❌ Erro ao gerar PDF do resumo.', 'error', 3000);
@@ -637,14 +622,7 @@ async function exportarResumoFrentesPDF() {
    ENVIAR RESUMO POR FRENTE — IMAGEM (WhatsApp e outros apps)
 ══════════════════════════════════════════════ */
 function _baixarImagemResumo(blob, nomeArq) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeArq;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  _baixarArquivo(blob, nomeArq);
   showToast('✅ Imagem baixada! Envie pelo WhatsApp anexando o arquivo.', 'info', 4000);
 }
 
@@ -665,38 +643,15 @@ async function compartilharResumoFrentesImagem() {
 
   try {
     const canvas = await html2canvas(node, {
-      scale: 3, useCORS: true, allowTaint: true, logging: false, backgroundColor: '#ffffff'
+      scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: 820
     });
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        showToast('❌ Erro ao gerar imagem do resumo.', 'error', 3000);
-        node.remove();
-        return;
-      }
-
-      const now = new Date();
-      const nomeArq = `Resumo_Frentes_${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}.png`;
-      const file = new File([blob], nomeArq, { type: 'image/png' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'Resumo por Frente',
-            text: 'Resumo de produção por frente — CTT Controle Agrícola'
-          });
-          showToast('✅ Resumo enviado!');
-        } catch (err) {
-          if (err.name !== 'AbortError') {
-            _baixarImagemResumo(blob, nomeArq);
-          }
-        }
-      } else {
-        _baixarImagemResumo(blob, nomeArq);
-      }
-      node.remove();
-    }, 'image/png', 1);
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 1));
+    node.remove();
+    if (!blob) { showToast('❌ Erro ao gerar imagem do resumo.', 'error', 3000); return; }
+    const now = new Date();
+    const nomeArq = `Resumo_Frentes_${now.getDate().toString().padStart(2,'0')}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getFullYear()}.png`;
+    await _entregarArquivo(blob, nomeArq, { titulo: 'Resumo por Frente', texto: 'Resumo de produção por frente — CTT Controle Agrícola' });
   } catch (e) {
     console.error(e);
     showToast('❌ Erro ao gerar imagem do resumo.', 'error', 3000);
@@ -793,10 +748,13 @@ function _baixarArquivo(blob, nomeArquivo) {
   const a = document.createElement('a');
   a.href = url;
   a.download = nomeArquivo;
+  a.rel = 'noopener';
+  a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  // BUGFIX: revogar o blob na hora cancelava o download no Safari/iOS e em
+  // alguns Androids (o arquivo "não acontecia"). Espera o navegador pegar.
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 60000);
 }
 
 // Gera o PDF como Blob/File nomeado e usa o Web Share nativo (com fallback de
@@ -817,21 +775,7 @@ async function _finalizarPDFRelatorio(pdf, nomeArquivo) {
   }
 
   const blob = pdf.output('blob');
-  const file = new File([blob], nomeArquivo, { type: 'application/pdf' });
-
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: nomeArquivo.replace(/\.pdf$/i, '') });
-      showToast('✅ PDF gerado!', 'success', 2500);
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') return; // usuário cancelou o compartilhamento
-      // se o share falhar por outro motivo, cai para o download normal abaixo
-    }
-  }
-
-  _baixarArquivo(blob, nomeArquivo);
-  showToast('✅ PDF baixado!', 'success', 2500);
+  await _entregarArquivo(blob, nomeArquivo, { titulo: nomeArquivo.replace(/\.pdf$/i, '') });
 }
 
 // Estilo padrão de tabela, reaproveitado em todos os relatórios
@@ -2251,7 +2195,7 @@ const difIcon = isNaN(difNum)
           <td data-label="Área (ha):" style="text-align:right;">${area}</td>
           <td data-label="Prod. Est.:" style="text-align:right;">${prodEst}</td>
           <td data-label="Prod. Real:" style="text-align:right;">${prodReal}</td>
-           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};">${difIcon}${difProd}</td>
+           <td data-label="Dif. Prod.:" class="cell-dif-prod" style="text-align:right; font-weight:600; color:${difColor};"><span class="dif-val">${difIcon}<span class="dif-num">${difProd}</span></span></td>
           <td data-label="TCH:" style="text-align:right;">${tch}</td>
           <td data-label="Status:" style="text-align:center;">
             <span class="badge" style="background:${isEncerrada ? '#FFEBEE' : '#E8F5E9'}; color:${isEncerrada ? '#C62828' : '#1B5E20'};">
@@ -2319,14 +2263,7 @@ function exportarExcelLiberacoes() {
 
   const csv  = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `liberacoes_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  _baixarArquivo(blob, `liberacoes_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`);
   showToast(`✅ ${filtrados.length} liberações exportadas!`, 'success', 2500);
 }
 
@@ -3546,9 +3483,11 @@ function cosaRenderChart(dadosBase) {
     if (!porResp[nome]) porResp[nome] = { '< 7': 0, '> 7 e < 15': 0, '> 15': 0 };
     if (porResp[nome][r.status] != null) porResp[nome][r.status]++;
   });
-  const nomes = Object.keys(porResp)
-    .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0))
-    .slice(0, 10);
+  const nomesTodos = Object.keys(porResp)
+    .sort((a, b) => Object.values(porResp[b]).reduce((s,v)=>s+v,0) - Object.values(porResp[a]).reduce((s,v)=>s+v,0));
+  const nomes = nomesTodos.slice(0, 10);
+  // Guarda TODOS os responsáveis p/ o botão de compartilhar (imagem + texto)
+  window._cosaUltimoGrafico = nomesTodos.map(n => ({ nome: n, ate7: porResp[n]['< 7'], de7a15: porResp[n]['> 7 e < 15'], mais15: porResp[n]['> 15'] }));
 
   if (!nomes.length) { card.style.display = 'none'; return; }
   card.style.display = 'block';
@@ -3852,7 +3791,12 @@ function capoRenderChart(filtrados, planPorResp) {
     if (!planPorResp) porResp[nome].planejada += r.horas_dia || 0;
     porResp[nome].apontadas += r.horas_apontadas || 0;
   });
-  const nomes = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada).slice(0, 12);
+  const nomesTodos = Object.keys(porResp).sort((a, b) => porResp[b].planejada - porResp[a].planejada);
+  const nomes = nomesTodos.slice(0, 12);
+  window._capoUltimoGrafico = nomesTodos.map(n => ({
+    nome: n, plan: porResp[n].planejada, apont: porResp[n].apontadas,
+    falta: Math.max(0, Math.round((porResp[n].planejada - porResp[n].apontadas) * 100) / 100),
+  }));
 
   const cVerde = _cosaCorTema('--green-500');
   const cAmarelo = _cosaCorTema('--ok');
@@ -6793,15 +6737,7 @@ iniciarSabedoria();
 
     const csv  = '\uFEFF' + cab.map(c=>`"${c}"`).join(';') + '\n' + linhas.join('\n');
     const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), {
-      href: url,
-      download: `tratos_culturais_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`
-    });
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    _baixarArquivo(blob, `tratos_culturais_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`);
     if (typeof showToast === 'function') showToast(`✅ ${dados.length} registros exportados!`, 'success', 2500);
   }
 
@@ -8920,14 +8856,7 @@ iniciarSabedoria();
 
     const csv  = '\uFEFF' + cabecalho.map(c => `"${c}"`).join(';') + '\n' + linhas.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `comparativo_safras_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    _baixarArquivo(blob, `comparativo_safras_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`);
     showToast('✅ Excel exportado!', 'success', 2500);
   }
   window.exportarExcelComparar = exportarExcelComparar;
@@ -9977,17 +9906,257 @@ function _onLogout() {
         (S.umaUnidade ? '' : ` [${e.unis.map(([u, n]) => `${infoUnid(u).ab} ${fmtN(n)}`).join(' · ')}]`)).join('\n') +
       `\n\n*Total: ${fmtN(res.viagens)} viagens*`;
 
-    cv.toBlob(async blob => {
+    cv.toBlob(blob => {
       if (!blob) { showToast('❌ Erro ao gerar a imagem.', 'error', 3000); return; }
       const hoje = new Date();
       const nomeArq = `Viagens_${String(hoje.getDate()).padStart(2, '0')}${String(hoje.getMonth() + 1).padStart(2, '0')}${hoje.getFullYear()}.png`;
-      const file = new File([blob], nomeArq, { type: 'image/png' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: 'Viagens por empresa', text: texto }); showToast('✅ Enviado!'); }
-        catch (err) { if (err.name !== 'AbortError' && typeof _baixarImagemResumo === 'function') _baixarImagemResumo(blob, nomeArq); }
-      } else if (typeof _baixarImagemResumo === 'function') {
-        _baixarImagemResumo(blob, nomeArq);
-      }
+      _entregarArquivo(blob, nomeArq, { titulo: 'Viagens por empresa', texto });
     }, 'image/png', 1);
   };
 })();
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   EXPORTAR / COMPARTILHAR — módulo único (PDF, imagem, WhatsApp)
+   Corrige:
+   • navigator.share() só funciona logo após o toque. Depois de gerar PDF
+     ou imagem (html2canvas leva segundos) o iPhone recusa com
+     NotAllowedError e antes o app caía num download que não abria.
+     Agora, se o compartilhamento direto falhar, abre uma folha com
+     botões Compartilhar / Baixar / Abrir / WhatsApp — cada botão é um
+     NOVO toque, então o iOS libera.
+   • URL.revokeObjectURL logo após o clique cancelava downloads no Safari.
+══════════════════════════════════════════════════════════════════════ */
+let _expUrlAtual = null;
+
+function _expFechar() {
+  const ov = document.getElementById('exp-sheet');
+  if (ov) ov.classList.remove('open');
+  if (_expUrlAtual) { const u = _expUrlAtual; _expUrlAtual = null; setTimeout(() => URL.revokeObjectURL(u), 60000); }
+}
+
+function _expAbrirFolha(blob, nome, file, opts) {
+  let ov = document.getElementById('exp-sheet');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'exp-sheet';
+    ov.className = 'exp-sheet-overlay';
+    ov.setAttribute('data-nav-overlay', '');   // o botão/gesto voltar fecha a folha
+    ov.addEventListener('click', e => { if (e.target === ov) _expFechar(); });
+    document.body.appendChild(ov);
+  }
+  if (_expUrlAtual) URL.revokeObjectURL(_expUrlAtual);
+  const url = _expUrlAtual = URL.createObjectURL(blob);
+  const ehImagem = /^image\//.test(blob.type);
+  const podeShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  ov.innerHTML = `
+    <div class="exp-sheet-box">
+      <div class="exp-sheet-handle"></div>
+      <div class="exp-sheet-head">
+        <span class="exp-sheet-ico"><i class="fas ${ehImagem ? 'fa-image' : 'fa-file-pdf'}"></i></span>
+        <div class="exp-sheet-info"><b>${ehImagem ? 'Imagem pronta' : 'PDF pronto'}</b><small>${esc(nome)}</small></div>
+      </div>
+      ${ehImagem ? `<div class="exp-sheet-prev"><img src="${url}" alt="Prévia"></div>` : ''}
+      <div class="exp-sheet-acoes">
+        ${podeShare ? `<button type="button" class="exp-btn exp-btn-main" id="exp-b-share"><i class="fas fa-share-nodes"></i> Compartilhar (WhatsApp e outros)</button>` : ''}
+        ${opts.texto ? `<button type="button" class="exp-btn exp-btn-wa" id="exp-b-wa"><i class="fab fa-whatsapp"></i> Enviar só o texto no WhatsApp</button>` : ''}
+        <button type="button" class="exp-btn" id="exp-b-baixar"><i class="fas fa-download"></i> Baixar arquivo</button>
+        <button type="button" class="exp-btn" id="exp-b-abrir"><i class="fas fa-up-right-from-square"></i> Abrir / visualizar</button>
+        <button type="button" class="exp-btn exp-btn-fechar" id="exp-b-fechar">Fechar</button>
+      </div>
+    </div>`;
+
+  const dados = { files: [file], title: opts.titulo || nome };
+  if (opts.texto) dados.text = opts.texto;
+  const $ = id => ov.querySelector('#' + id);
+
+  if ($('exp-b-share')) $('exp-b-share').onclick = async () => {
+    try { await navigator.share(dados); _expFechar(); showToast('✅ Enviado!', 'success', 2500); }
+    catch (err) { if (!err || err.name !== 'AbortError') showToast('⚠️ Não consegui abrir o compartilhar. Use "Baixar arquivo".', 'error', 3500); }
+  };
+  if ($('exp-b-wa')) $('exp-b-wa').onclick = () => { window.open('https://wa.me/?text=' + encodeURIComponent(opts.texto), '_blank'); };
+  $('exp-b-baixar').onclick = () => { _baixarArquivo(blob, nome); showToast('✅ Arquivo baixado!', 'success', 2500); };
+  $('exp-b-abrir').onclick = () => { window.open(url, '_blank'); };
+  $('exp-b-fechar').onclick = _expFechar;
+
+  requestAnimationFrame(() => ov.classList.add('open'));
+}
+
+// Ponto único de saída de PDF/imagem. Tenta o compartilhar nativo na hora
+// (funciona quando ainda estamos no toque); senão abre a folha de opções.
+async function _entregarArquivo(blob, nome, opts) {
+  opts = opts || {};
+  const file = new File([blob], nome, { type: blob.type || (/\.pdf$/i.test(nome) ? 'application/pdf' : 'image/png') });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    const dados = { files: [file], title: opts.titulo || nome };
+    if (opts.texto) dados.text = opts.texto;
+    try {
+      await navigator.share(dados);
+      showToast('✅ Enviado!', 'success', 2500);
+      return 'compartilhado';
+    } catch (err) {
+      if (err && err.name === 'AbortError') return 'cancelado';   // pessoa fechou o menu
+      // NotAllowedError (toque expirou) ou outro erro → folha com novo toque
+    }
+  }
+  _expAbrirFolha(blob, nome, file, opts);
+  return 'folha';
+}
+
+/* ── Desenha um gráfico de barras horizontais AGRUPADAS em PNG (fundo branco,
+   texto escuro — legível no WhatsApp mesmo com o app em modo escuro) ── */
+function _expDesenharBarras(cfg) {
+  const W = 1080, PAD = 36, CAB = 150;
+  const nS = cfg.series.length;
+  const BH = 20, BG = 5, RG = 26, NOME_H = 34;
+  const RH = NOME_H + nS * (BH + BG) + RG;
+  const linhas = cfg.linhas;
+  const LEG = 44, ROD = 88;
+  const H = CAB + LEG + linhas.length * RH + ROD;
+  const DPR = 2;
+  const cv = document.createElement('canvas');
+  cv.width = W * DPR; cv.height = H * DPR;
+  const c = cv.getContext('2d');
+  c.scale(DPR, DPR);
+  c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, H);
+
+  // faixa de cabeçalho (azul-marinho Ipiranga)
+  c.fillStyle = '#38487A'; c.fillRect(0, 0, W, CAB - 20);
+  c.fillStyle = '#FFFFFF'; c.textBaseline = 'alphabetic';
+  c.font = '800 34px Arial, Helvetica, sans-serif'; c.fillText(cfg.titulo, PAD, 56);
+  c.font = '600 19px Arial, Helvetica, sans-serif'; c.fillStyle = 'rgba(255,255,255,0.88)';
+  (cfg.subtitulos || []).slice(0, 2).forEach((t, i) => {
+    let tt = t; while (tt.length > 4 && c.measureText(tt).width > W - PAD * 2) tt = tt.slice(0, -2);
+    if (tt !== t) tt = tt.trimEnd() + '…';
+    c.fillText(tt, PAD, 88 + i * 26);
+  });
+
+  // legenda
+  let lx = PAD; const ly = CAB + 6;
+  c.font = '700 17px Arial, Helvetica, sans-serif';
+  cfg.series.forEach(se => {
+    c.fillStyle = se.cor; c.fillRect(lx, ly, 18, 18);
+    c.fillStyle = '#2B3350'; c.fillText(se.label, lx + 26, ly + 15);
+    lx += 26 + c.measureText(se.label).width + 30;
+  });
+
+  const maxV = Math.max(1, ...linhas.flatMap(l => l.valores));
+  const xBar = PAD, larguraMax = W - PAD * 2 - 110;
+  linhas.forEach((l, i) => {
+    const y0 = CAB + LEG + i * RH;
+    if (i % 2 === 0) { c.fillStyle = '#F5F7FC'; c.fillRect(0, y0 - 6, W, RH); }
+    c.fillStyle = '#161C30'; c.font = '800 22px Arial, Helvetica, sans-serif';
+    let nome = l.nome;
+    while (nome.length > 3 && c.measureText(nome).width > W - PAD * 2 - 200) nome = nome.slice(0, -2);
+    if (nome !== l.nome) nome = nome.trimEnd() + '…';
+    c.fillText(nome, PAD, y0 + 22);
+    if (l.detalhe) {
+      c.textAlign = 'right'; c.fillStyle = '#6B7699'; c.font = '700 17px Arial, Helvetica, sans-serif';
+      c.fillText(l.detalhe, W - PAD, y0 + 22); c.textAlign = 'left';
+    }
+    l.valores.forEach((v, k) => {
+      const y = y0 + NOME_H + k * (BH + BG);
+      c.fillStyle = '#E8ECF6'; c.fillRect(xBar, y, larguraMax, BH);
+      const w = v > 0 ? Math.max(4, (v / maxV) * larguraMax) : 0;
+      c.fillStyle = cfg.series[k].cor; c.fillRect(xBar, y, w, BH);
+      c.fillStyle = '#161C30'; c.font = '800 17px Arial, Helvetica, sans-serif';
+      c.fillText(cfg.fmt(v), xBar + larguraMax + 12, y + 16);
+    });
+  });
+
+  const yR = CAB + LEG + linhas.length * RH;
+  c.fillStyle = '#6B7699'; c.font = '600 16px Arial, Helvetica, sans-serif';
+  if (cfg.rodapeTotal) { c.fillStyle = '#2B3350'; c.font = '800 19px Arial, Helvetica, sans-serif'; c.fillText(cfg.rodapeTotal, PAD, yR + 26); }
+  c.fillStyle = '#8A93B0'; c.font = '600 14px Arial, Helvetica, sans-serif';
+  c.fillText('CTT · Controle Técnico Agrícola — Usina Ipiranga · ' + new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), PAD, H - 20);
+  return cv;
+}
+
+function _expNomeArq(prefixo) {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return `${prefixo}_${p(d.getDate())}${p(d.getMonth() + 1)}${d.getFullYear()}.png`;
+}
+
+/* ── Painel O.S. em Aberto: compartilhar gráfico (imagem + texto) ── */
+window.cosaExportarGrafico = async function () {
+  const dados = window._cosaUltimoGrafico || [];
+  if (!dados.length) { showToast('⚠️ Sem dados no gráfico para compartilhar.', 'error', 2500); return; }
+  const btn = document.getElementById('btn-cosa-exportar');
+  if (btn) btn.disabled = true;
+  try {
+    const lista = dados.slice(0, 20);
+    const tot = lista.reduce((a, r) => ({ a7: a.a7 + r.ate7, m: a.m + r.de7a15, c: a.c + r.mais15 }), { a7: 0, m: 0, c: 0 });
+    const totalGeral = tot.a7 + tot.m + tot.c;
+    const cor = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const empresa = (typeof _cosaFiltroEmpresa !== 'undefined' && _cosaFiltroEmpresa) ? _cosaFiltroEmpresa : 'Todas as empresas';
+    const resp = (typeof _cosaFiltroResp !== 'undefined' && _cosaFiltroResp.length) ? ' · ' + _cosaFiltroResp.length + ' responsável(is)' : '';
+    const cv = _expDesenharBarras({
+      titulo: 'O.S. em aberto por responsável',
+      subtitulos: [empresa + resp, 'Total em aberto: ' + totalGeral],
+      series: [
+        { label: 'Até 7 dias', cor: '#2E9E5B' },
+        { label: '7 a 15 dias', cor: '#F2A20C' },
+        { label: 'Mais de 15 dias', cor: '#E53935' },
+      ],
+      fmt: v => String(v),
+      linhas: lista.map(r => ({ nome: r.nome, valores: [r.ate7, r.de7a15, r.mais15], detalhe: (r.ate7 + r.de7a15 + r.mais15) + ' O.S.' })),
+      rodapeTotal: `Total: ${totalGeral} O.S.  ·  ${tot.c} com mais de 15 dias`,
+    });
+    const texto = `📋 *O.S. em aberto por responsável*\n🏢 ${empresa}\n\n` +
+      lista.map((r, i) => `${i + 1}) ${r.nome} — ${r.ate7 + r.de7a15 + r.mais15} O.S.` + (r.mais15 ? ` (🔴 ${r.mais15} com +15 dias)` : '')).join('\n') +
+      `\n\n*Total: ${totalGeral} O.S. · ${tot.c} com mais de 15 dias*`;
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png', 1));
+    if (!blob) throw new Error('toBlob vazio');
+    await _entregarArquivo(blob, _expNomeArq('OS_em_Aberto'), { titulo: 'O.S. em aberto por responsável', texto });
+  } catch (e) {
+    console.error('[cosaExportarGrafico]', e);
+    showToast('❌ Erro ao gerar a imagem.', 'error', 3000);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
+
+/* ── Apontamento de Horas: compartilhar gráfico + texto de cobrança ── */
+window.capoExportarGrafico = async function () {
+  const dados = window._capoUltimoGrafico || [];
+  if (!dados.length) { showToast('⚠️ Sem dados no gráfico para compartilhar.', 'error', 2500); return; }
+  const btn = document.getElementById('btn-capo-exportar');
+  if (btn) btn.disabled = true;
+  try {
+    const lista = dados.slice(0, 20);
+    const periodo = (document.getElementById('capo-periodo')?.textContent || '').trim();
+    const empresa = (typeof _capoFiltroEmpresa !== 'undefined' && _capoFiltroEmpresa) ? _capoFiltroEmpresa : 'Todas as empresas';
+    const fh = n => Math.round(n).toLocaleString('pt-BR') + 'h';
+    const totPlan = lista.reduce((s, r) => s + r.plan, 0);
+    const totApont = lista.reduce((s, r) => s + r.apont, 0);
+    const totFalta = lista.reduce((s, r) => s + r.falta, 0);
+    const cv = _expDesenharBarras({
+      titulo: 'Apontamento de Horas',
+      subtitulos: [empresa + (periodo ? ' · ' + periodo : ''), `Planejada ${fh(totPlan)}  ·  Apontada ${fh(totApont)}  ·  Falta ${fh(totFalta)}`],
+      series: [
+        { label: 'Planejada', cor: '#2E9E5B' },
+        { label: 'Apontada', cor: '#38487A' },
+        { label: 'Falta apontar', cor: '#E53935' },
+      ],
+      fmt: fh,
+      linhas: lista.map(r => ({ nome: r.nome, valores: [r.plan, r.apont, r.falta], detalhe: r.plan > 0 ? Math.round((r.apont / r.plan) * 100) + '% apontado' : '' })),
+      rodapeTotal: `Falta apontar no total: ${fh(totFalta)}`,
+    });
+    const devendo = lista.filter(r => r.falta > 0).sort((a, b) => b.falta - a.falta);
+    const texto = `⏱️ *Apontamento de Horas*\n🏢 ${empresa}${periodo ? '\n📅 ' + periodo : ''}\n\n` +
+      (devendo.length
+        ? '*Falta apontar:*\n' + devendo.map((r, i) => `${i + 1}) ${r.nome} — faltam ${fh(r.falta)} (apontou ${fh(r.apont)} de ${fh(r.plan)})`).join('\n') +
+          `\n\n*Total que falta: ${fh(totFalta)}*\nPor favor, regularizem os apontamentos. 🙏`
+        : '✅ Todos os apontamentos estão em dia.');
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png', 1));
+    if (!blob) throw new Error('toBlob vazio');
+    await _entregarArquivo(blob, _expNomeArq('Apontamento_Horas'), { titulo: 'Apontamento de Horas', texto });
+  } catch (e) {
+    console.error('[capoExportarGrafico]', e);
+    showToast('❌ Erro ao gerar a imagem.', 'error', 3000);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
