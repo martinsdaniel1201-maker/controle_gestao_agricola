@@ -3422,17 +3422,8 @@ async function cosaInit() {
       empresas.map(e => `<button class="lib-frente-chip" data-v="${e}" onclick="cosaFiltrar('empresa','${e}')">${e}</button>`).join('');
   }
 
-  // Responsável — dropdown com busca e seleção múltipla (evita fileira
-  // enorme de chips quando há muitos nomes).
-  const responsaveis = [...new Set(dados.map(r => r.responsavel).filter(Boolean))].sort();
-  const chipsResp = document.getElementById('cosa-chips-resp');
-  if (chipsResp) {
-    chipsResp.innerHTML = _msMontarHtml('cosa-resp');
-    msInit('cosa-resp', responsaveis, (selecionados) => {
-      _cosaFiltroResp = selecionados;
-      cosaRender();
-    }, _cosaFiltroResp);
-  }
+  // Responsável — dropdown com busca e seleção múltipla, em cascata por Empresa.
+  _cosaAtualizarChipsResp();
 
   // Chips de Situação (buckets de dias em aberto)
   const statusOrdem = ['< 7', '> 7 e < 15', '> 15', 'PLANEJADO'];
@@ -3454,8 +3445,24 @@ async function cosaInit() {
   cosaRender();
 }
 
+// Responsável em cascata por Unidade/Empresa: só aparecem os responsáveis
+// que realmente têm O.S. na unidade escolhida (com "Todas", mostra todos).
+// Quem já estava selecionado e não pertence à unidade nova é desmarcado.
+function _cosaAtualizarChipsResp() {
+  const chipsResp = document.getElementById('cosa-chips-resp');
+  if (!chipsResp) return;
+  const base = (window._centralOSDados || []).filter(r => !_cosaFiltroEmpresa || r.empresa === _cosaFiltroEmpresa);
+  const responsaveis = [...new Set(base.map(r => r.responsavel).filter(Boolean))].sort();
+  _cosaFiltroResp = _cosaFiltroResp.filter(v => responsaveis.includes(v));
+  chipsResp.innerHTML = _msMontarHtml('cosa-resp');
+  msInit('cosa-resp', responsaveis, (selecionados) => {
+    _cosaFiltroResp = selecionados;
+    cosaRender();
+  }, _cosaFiltroResp);
+}
+
 function cosaFiltrar(tipo, valor) {
-  if (tipo === 'empresa') _cosaFiltroEmpresa = valor;
+  if (tipo === 'empresa') { _cosaFiltroEmpresa = valor; _cosaAtualizarChipsResp(); }
   if (tipo === 'status') _cosaFiltroStatus = valor;
   const mapaId = { empresa: 'cosa-chips-empresa', status: 'cosa-chips-status' };
   const container = document.getElementById(mapaId[tipo]);
