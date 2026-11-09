@@ -154,7 +154,7 @@ function showTab(e, id, opts) {
     'mapas_aba':   { nome: 'MAPAS',        icon: 'fa-map' },
     'calc_aba':    { nome: 'CALCULADORA',  icon: 'fa-calculator' },
     'plantio_aba': { nome: 'PLANTIO',      icon: 'fa-seedling' },
-    'planejamento_safra': { nome: 'PLANEJAMENTO DE SAFRA', icon: 'fa-route' }
+    'resumo_frentes': { nome: 'RESUMO POR FRENTE', icon: 'fa-chart-simple' }
   };
   const cfg = abaConfig[id] || { nome: '', icon: 'fa-circle' };
   const nomeEl = document.getElementById('voltar-aba-nome');
@@ -178,8 +178,8 @@ function showTab(e, id, opts) {
   if (id === 'viagens_caminhoes' && typeof vcInit === 'function' && !restaurando) {
     vcInit();
   }
-  if (id === 'planejamento_safra' && typeof window.plsAoAbrirSecao === 'function' && !restaurando) {
-    window.plsAoAbrirSecao();
+  if (id === 'resumo_frentes' && typeof window.rfAoAbrir === 'function' && !restaurando) {
+    window.rfAoAbrir();
   }
 
 
@@ -2224,6 +2224,8 @@ const difIcon = isNaN(difNum)
       registrarSync('ok', 'GATEC/Liberações');
       // MELHORIA 1+4+5: atualiza resumo executivo da home
       atualizarResumoExecutivo();
+      // Resumo por Frente usa os mesmos dados — mantém a aba em dia
+      if (typeof window.rfRender === 'function') window.rfRender();
 }
 
 function exportarExcelLiberacoes() {
@@ -4853,12 +4855,6 @@ setTimeout(() => {
   }
 }, 1500);
 
-// Pré-carrega Planejamento de Safra (leve — ~2 mil linhas) em background,
-// pra abrir a aba já pronta em vez de esperar o Supabase na hora do clique.
-setTimeout(() => {
-  if (typeof carregarPlanejamentoSafra === 'function') carregarPlanejamentoSafra();
-}, 2000);
-
 // Pré-carregar Tratos Culturais em background foi REMOVIDO — mesmo só a
 // safra atual já é gente demais (dezenas/centenas de milhares de linhas),
 // e o carregamento ficava "preso" bem na hora que o usuário abria a aba,
@@ -6755,965 +6751,162 @@ iniciarSabedoria();
 
 
 /* ══════════════════════════════════════════════
-   MÓDULO PLANEJAMENTO DE SAFRA
-   Frente 401: gid=413102496   | Frente 402: gid=1906371632
-   Frente 403: gid=1980138572  | Frente 404: gid=1281974991
-   TIRO MEDIO: gid=1448262477  | DISTANCIAS: gid=352483918
+   MÓDULO RESUMO POR FRENTE
+   Substitui o antigo Planejamento de Safra. Tudo é calculado em cima da
+   própria tabela de Liberações (window._gatecDados) — nenhuma planilha ou
+   tabela extra. Por frente: liberações (abertas/encerradas), área, produção
+   estimada × real, meta/aderência, TCH médio real e produção por fazenda.
 ══════════════════════════════════════════════ */
 (function() {
   'use strict';
 
-  // ⚠️ Migrado do Google Sheets pro Supabase — o Python
-  // (sync_excel_supabase.py, função sincronizar_pls(), 1x/dia) lê as abas
-  // F401-F404 + Tiro Médio + Distâncias do Excel e alimenta as tabelas
-  // pls_frente / pls_tiro / pls_dist. O app não depende mais do Google
-  // Sheets pra essa tela.
-  const PLS_TABLE_FRENTE = 'pls_frente';
-  const PLS_TABLE_TIRO   = 'pls_tiro';
-  const PLS_TABLE_DIST   = 'pls_dist';
+  const FRENTES = ['401', '402', '403', '404', '451'];
+  let _rfAbertas = new Set(); // frentes com a lista de fazendas expandida
 
-  let _plsDados   = { '401': [], '402': [], '403': [], '404': [] };
-  let _plsTiro    = [];
-  let _plsDist    = [];
-  let _plsLoaded  = false;
-  let _plsLoading = false;
+  const _n = v => { const x = _gatecParseNumBR(v); return isNaN(x) ? 0 : x; };
+  const _fmt = (v, d = 0) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const _esc = s => (typeof escapeHtml === 'function') ? escapeHtml(String(s ?? '')) : String(s ?? '');
+  const _encerrada = r => String(r['STATUS OS'] || '').toUpperCase().includes('ENCERRADA');
 
-  window.plsAoAbrirSecao = plsAoAbrirSecao;
-  window.carregarPlanejamentoSafra = carregarPlanejamentoSafra;
-  window.filtrarPlanejamentoTimeline = filtrarPlanejamentoTimeline;
-  window.popularTalhoesBusca = popularTalhoesBusca;
-
-  /* ── helpers locais (independentes do módulo Plantio) ────────────── */
-  function _norm(s) {
-    return String(s || '').toUpperCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^A-Z0-9]/g, '');
-  }
-  function _num(v) {
-    if (v == null || v === '') return NaN;
-    return parseFloat(String(v).trim().replace(',', '.'));
-  }
-  function _fmtData(d) {
-    if (!d || !(d instanceof Date) || isNaN(d)) return '—';
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-  }
-  function _parseData(str) {
-    if (!str) return null;
-    str = String(str).trim();
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-      const [d,m,y] = str.split('/');
-      return new Date(+y, +m-1, +d);
-    }
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return new Date(str.substring(0,10));
-    return null;
+  // TCH médio = Σ produção ÷ Σ área (área = produção ÷ TCH de cada OS)
+  function _tchPonderado(rows) {
+    let prod = 0, area = 0;
+    rows.forEach(r => {
+      const tch = _n(r['TCH']), p = _n(r['PROD. REAL']);
+      if (tch > 0 && p > 0) { prod += p; area += p / tch; }
+    });
+    return area > 0 ? prod / area : NaN;
   }
 
-  /* ── navegação (agora é uma aba normal, chamada pelo showTab) ─────── */
-  function plsAoAbrirSecao() {
-    if (!_plsLoaded && !_plsLoading) carregarPlanejamentoSafra();
-    else if (_plsLoaded) _plsRenderizarTudo();
-  }
-
-  /* ── carregamento (Supabase) ──────────────────────────────────────── */
-  // Converte uma linha de pls_frente (snake_case) pro mesmo formato
-  // camelCase que o resto do módulo já espera (mesmas chaves de antes).
-  function _plsRowFrente(row) {
+  function _agregar(rows) {
+    const enc = rows.filter(_encerrada);
+    const estEnc = enc.reduce((s, r) => s + _n(r['PROD. ESTIMADA']), 0);
+    const realEnc = enc.reduce((s, r) => s + _n(r['PROD. REAL']), 0);
     return {
-      frente: String(row.frente || '').trim(),
-      seq: Number(row.seq) || 0,
-      codFazenda: row.cod_fazenda || '',
-      fazenda: row.fazenda || '',
-      talhao: String(row.talhao || '').trim(),
-      bloco: row.bloco || '',
-      variedade: row.variedade || '',
-      data: _parseData(row.data_colheita),
-      tch: row.tch != null ? Number(row.tch) : NaN,
-      moagem: row.moagem != null ? Number(row.moagem) : NaN,
-      tc: row.tc != null ? Number(row.tc) : NaN,
-      raio: row.raio != null ? Number(row.raio) : NaN,
-      tiroMedio: row.tiro_medio != null ? Number(row.tiro_medio) : NaN,
-      vel: row.vel != null ? Number(row.vel) : NaN,
-      tonH: row.ton_h != null ? Number(row.ton_h) : NaN,
-      hrProd: row.hr_prod != null ? Number(row.hr_prod) : NaN,
-      colheitabilidade: row.colheitabilidade != null ? Number(row.colheitabilidade) : NaN,
+      libs: rows.length,
+      encerradas: enc.length,
+      abertas: rows.length - enc.length,
+      area: rows.reduce((s, r) => s + _n(r['AREA LIBERADA (HA)']), 0),
+      est: rows.reduce((s, r) => s + _n(r['PROD. ESTIMADA']), 0),
+      real: rows.reduce((s, r) => s + _n(r['PROD. REAL']), 0),
+      difEnc: estEnc > 0 ? ((realEnc - estEnc) / estEnc) * 100 : NaN,
+      tch: _tchPonderado(rows),
     };
   }
 
-  // Busca paginada genérica — Supabase/PostgREST limita a 1000 linhas por
-  // chamada por padrão, mesmo sem pedir. BUGFIX: antes as 3 tabelas do PLS
-  // eram lidas com um .select('*') simples, sem paginação — enquanto a
-  // tabela pls_frente tinha poucas centenas de linhas (só 401/402
-  // funcionando) nunca deu problema, mas agora com as 4 frentes
-  // sincronizando direito (2195 linhas ao todo) a busca sem paginação
-  // cortava o resto silenciosamente — é o que fazia o Roteiro de Colheita
-  // mostrar "0 talhões" pra frente 404 (as últimas a entrar, cortadas).
-  // OTIMIZADO: antes buscava 1 página de cada vez, esperando cada resposta
-  // voltar pra só então pedir a próxima (pls_frente tem ~2195 linhas = 3
-  // idas e vindas em série). Agora pede a 1ª página pra descobrir se tem
-  // mais, e daí em diante busca as páginas seguintes 2 de cada vez, em
-  // paralelo — corta o tempo de espera quase pela metade sem mudar nada
-  // no resultado final. Também usa `select(colunas)` só com o que a tela
-  // realmente usa, em vez de `select('*')` — menos dado trafegado.
-  async function _plsBuscarPaginado(tabela, colunas) {
-    const PAGINA = 1000;
-    const cols = colunas || '*';
-    const primeira = await _sbClient.from(tabela).select(cols).range(0, PAGINA - 1);
-    if (primeira.error) throw primeira.error;
-    let todas = primeira.data || [];
-    if (todas.length < PAGINA) return todas; // só 1 página — já é tudo
-
-    let de = PAGINA;
-    while (true) {
-      const [rA, rB] = await Promise.all([
-        _sbClient.from(tabela).select(cols).range(de, de + PAGINA - 1),
-        _sbClient.from(tabela).select(cols).range(de + PAGINA, de + 2 * PAGINA - 1),
-      ]);
-      if (rA.error) throw rA.error;
-      if (rB.error) throw rB.error;
-      const pA = rA.data || [], pB = rB.data || [];
-      todas.push(...pA);
-      if (pA.length < PAGINA) break;
-      todas.push(...pB);
-      if (pB.length < PAGINA) break;
-      de += 2 * PAGINA;
-    }
-    return todas;
-  }
-
-  const PLS_COLS_FRENTE = 'frente,seq,cod_fazenda,fazenda,talhao,bloco,variedade,data_colheita,tch,moagem,tc,raio,tiro_medio,vel,ton_h,hr_prod,colheitabilidade';
-  const PLS_COLS_TIRO   = 'cod_fazenda,fazenda,tiro_medio,tiro_medio_pond';
-  const PLS_COLS_DIST   = 'cod_fazenda,fazenda,distancia';
-
-  async function carregarPlanejamentoSafra() {
-    _plsLoading = true;
-    const kpiEl = document.getElementById('pls-kpi-grid');
-    const tlEl  = document.getElementById('pls-timeline-container');
-    if (kpiEl) kpiEl.innerHTML = `<div style="grid-column:1/-1;">${cttLoadingHTML('Carregando Planejamento de Safra...', { icone: 'fa-route' })}</div>`;
-    if (tlEl)  tlEl.innerHTML  = cttLoadingHTML('Carregando roteiro de colheita...', { icone: 'fa-route' });
-
-    try {
-      if (typeof _sbClient === 'undefined') throw new Error('Cliente Supabase não encontrado.');
-
-      const [dadosFrente, dadosTiro, dadosDist] = await Promise.all([
-        _plsBuscarPaginado(PLS_TABLE_FRENTE, PLS_COLS_FRENTE),
-        _plsBuscarPaginado(PLS_TABLE_TIRO, PLS_COLS_TIRO),
-        _plsBuscarPaginado(PLS_TABLE_DIST, PLS_COLS_DIST),
-      ]);
-      const rFrente = { data: dadosFrente };
-      const rTiro   = { data: dadosTiro };
-      const rDist   = { data: dadosDist };
-
-      _plsDados = { '401': [], '402': [], '403': [], '404': [] };
-      (rFrente.data || []).forEach(row => {
-        const f = String(row.frente || '').trim();
-        if (_plsDados[f]) _plsDados[f].push(_plsRowFrente(row));
-      });
-
-      _plsTiro = (rTiro.data || []).map(row => ({
-        codFazenda: row.cod_fazenda || '',
-        fazenda: row.fazenda || '',
-        tiroMedio: row.tiro_medio != null ? Number(row.tiro_medio) : NaN,
-        tiroMedioPond: row.tiro_medio_pond != null ? Number(row.tiro_medio_pond) : NaN,
-      }));
-      _plsDist = (rDist.data || []).map(row => ({
-        codFazenda: row.cod_fazenda || '',
-        fazenda: row.fazenda || '',
-        distancia: row.distancia != null ? Number(row.distancia) : NaN,
-      }));
-
-      _plsLoaded  = true;
-      _plsLoading = false;
-      _plsRenderizarTudo();
-      if (typeof registrarSync === 'function') registrarSync('ok', 'Planejamento de Safra');
-    } catch(err) {
-      _plsLoading = false;
-      console.error('[PLANEJAMENTO SAFRA]', err);
-      if (typeof showToast === 'function') showToast('❌ Erro ao carregar planejamento de safra', 'error');
-    }
-  }
-
-  /* ── normalização (mantidas — não usadas mais no carregamento do
-     Supabase, mas deixadas aqui caso algo ainda dependa delas) ───────── */
-  function _plsNormalizarFrente(rows) {
-    if (!rows || !rows.length) return [];
-
-    let headerLine = -1;
-    for (let i = 0; i < Math.min(4, rows.length); i++) {
-      const vals = rows[i].map(v => _norm(String(v||'')));
-      if (vals.includes('FRENTE') && vals.includes('SEQUENCIA') && vals.some(v => v.startsWith('DESCRI'))) {
-        headerLine = i; break;
-      }
-    }
-    if (headerLine < 0) headerLine = 0;
-
-    const header   = rows[headerLine].map(v => _norm(String(v||'')));
-    const dataRows = rows.slice(headerLine + 1);
-
-    const iFrente   = header.findIndex(v => v === 'FRENTE');
-    const iSeq      = header.findIndex(v => v === 'SEQUENCIA');
-    const iLocal    = header.findIndex(v => v === 'LOCAL');
-    const iDesc     = header.findIndex(v => v.startsWith('DESCRI'));
-    const iTalhao   = header.findIndex(v => v === 'TALHAO');
-    const iBloco    = header.findIndex(v => v === 'BLOCO');
-    const iVar      = header.findIndex(v => v === 'VARIEDADE');
-    const iData     = header.findIndex(v => v.includes('DATA') && v.includes('COLHEITA'));
-    const iTch      = header.findIndex(v => v === 'TCH');
-    const iMoagem   = header.findIndex(v => v.includes('MOAGEM'));
-    const iTc       = header.findIndex(v => v === 'TC');
-    const iRaio     = header.findIndex(v => v === 'RAIO');
-    const iTiro     = header.findIndex(v => v.includes('TIRO') && v.includes('MEDIO'));
-    const iVel      = header.findIndex(v => v === 'VEL');
-    const iTonH     = header.findIndex(v => v.includes('TON') && v.includes('H'));
-    const iHrProd   = header.findIndex(v => v.includes('HR') && v.includes('PROD'));
-    const iColheit  = header.findIndex(v => v.includes('COLHEITABILIDADE'));
-    const iStatus   = header.length - 1; // última coluna costuma ter o status manual
-
-    return dataRows
-      .map(r => {
-        if (!r || r.length < 5) return null;
-        const frente = String(iFrente >= 0 ? r[iFrente] : '').trim();
-        const talhao = String(iTalhao >= 0 ? r[iTalhao] : '').trim();
-        if (!frente || !talhao) return null;
-
-        const data = _parseData(String(iData >= 0 ? r[iData] : ''));
-
-        return {
-          frente,
-          seq:      _num(iSeq >= 0 ? r[iSeq] : '') || 0,
-          codFazenda: String(iLocal >= 0 ? r[iLocal] : '').trim(),
-          fazenda:  String(iDesc  >= 0 ? r[iDesc]  : '').trim(),
-          talhao,
-          bloco:    String(iBloco >= 0 ? r[iBloco] : '').trim(),
-          variedade:String(iVar   >= 0 ? r[iVar]   : '').trim(),
-          data,
-          tch:      _num(iTch >= 0 ? r[iTch] : ''),
-          moagem:   _num(iMoagem >= 0 ? r[iMoagem] : ''),
-          tc:       _num(iTc >= 0 ? r[iTc] : ''),
-          raio:     _num(iRaio >= 0 ? r[iRaio] : ''),
-          tiroMedio:_num(iTiro >= 0 ? r[iTiro] : ''),
-          vel:      _num(iVel >= 0 ? r[iVel] : ''),
-          tonH:     _num(iTonH >= 0 ? r[iTonH] : ''),
-          hrProd:   _num(iHrProd >= 0 ? r[iHrProd] : ''),
-          colheitabilidade: _num(iColheit >= 0 ? r[iColheit] : ''),
-        };
-      })
-      .filter(Boolean);
-  }
-
-  function _plsNormalizarTiro(rows) {
-    if (!rows || !rows.length) return [];
-    const header = rows[0].map(v => _norm(String(v||'')));
-    const dataRows = rows.slice(1);
-    const iCod  = header.findIndex(v => v.includes('COD') && v.includes('FAZ'));
-    const iDesc = header.findIndex(v => v.startsWith('DESC'));
-    const iTiro = header.findIndex(v => v.includes('TIROMEDIO') && !v.includes('POND'));
-    const iPond = header.findIndex(v => v.includes('TIROMEDIOPOND'));
-    return dataRows.map(r => ({
-      codFazenda: String(iCod >= 0 ? r[iCod] : '').trim(),
-      fazenda:    String(iDesc >= 0 ? r[iDesc] : '').trim(),
-      tiroMedio:  _num(iTiro >= 0 ? r[iTiro] : ''),
-      tiroMedioPond: _num(iPond >= 0 ? r[iPond] : ''),
-    })).filter(r => r.fazenda);
-  }
-
-  function _plsNormalizarDist(rows) {
-    if (!rows || !rows.length) return [];
-    const header = rows[0].map(v => _norm(String(v||'')));
-    const dataRows = rows.slice(1);
-    const iCod  = header.findIndex(v => v.includes('COD'));
-    const iDesc = header.findIndex(v => v.startsWith('DESC'));
-    const iDist = header.findIndex(v => v.includes('DISTANCIA'));
-    return dataRows.map(r => ({
-      codFazenda: String(iCod >= 0 ? r[iCod] : '').trim(),
-      fazenda:    String(iDesc >= 0 ? r[iDesc] : '').trim(),
-      distancia:  _num(iDist >= 0 ? r[iDist] : ''),
-    })).filter(r => r.fazenda);
-  }
-
-  /* ── status real (cruza com Liberações) ─────────────────────────── */
-  // Remove prefixo "125-" de "125-CAMPO REDONDO" → "CAMPO REDONDO"
-  // e devolve também o código extraído, se houver
-  function _plsExtrairFazenda(desc) {
-    const s = String(desc || '').trim();
-    // BUGFIX: antes exigia um hífen "-" bem formado ("45 - NOME") pra
-    // separar código e nome. Isso falhava silenciosamente sempre que a
-    // planilha de Liberações tinha esse campo digitado com travessão
-    // (–/—), sem espaço, com dois pontos, ou qualquer variação — nesses
-    // casos o código voltava vazio E o "nome" ficava com o código ainda
-    // grudado na frente (ex. "45 - SAO SEBASTIAO" inteiro), o que quebrava
-    // também a comparação por nome. É exatamente esse tipo de
-    // inconsistência de digitação que faz "funcionar com algumas fazendas
-    // e não com outras". Agora extraímos só o número no início (qualquer
-    // separador depois dele) e tudo mais vira o nome.
-    const m = s.match(/^(\d+)/);
-    if (!m) return { cod: '', nome: s };
-    const cod = m[1];
-    const nome = s.slice(cod.length).replace(/^[\s\-–—:.]+/, '').trim();
-    return { cod, nome: nome || s };
-  }
-
-  // Remove só uma palavra genérica de prefixo tipo "FAZENDA"/"SÍTIO" no
-  // começo do nome — NUNCA um "contém" livre. Usado apenas para permitir
-  // que "FAZENDA X" bata com "X" quando o código não está disponível.
-  const _PLS_PREFIXO_GENERICO = /^(FAZENDA|FAZ\.?|SITIO|S[IÍ]TIO|PROPRIEDADE)\s+/i;
-  function _plsSemPrefixoGenerico(nome) {
-    return String(nome || '').trim().replace(_PLS_PREFIXO_GENERICO, '').trim();
-  }
-
-  // Acha a linha de Liberações (GATEC) que corresponde a este talhão —
-  // é a mesma lógica de match que _plsStatusTalhao usava embutida, só que
-  // agora devolve a linha inteira (não só o status), pra poder mostrar
-  // o número da OS, produção e TCH no card de detalhe do talhão.
-  function _plsBuscarLinhaLiberacao(frente, fazenda, talhao, codFazenda) {
-    const rows = window._gatecDados;
-    if (!rows || !rows.length) return null;
-
-    const talhaoNorm   = String(talhao).trim().replace(/^0+/, '') || '0';
-    const codNorm       = String(codFazenda || '').trim().replace(/^0+/, '');
-    const fazendaNomeNorm = _norm(fazenda);
-    const fazendaSemPrefixoNorm = _norm(_plsSemPrefixoGenerico(fazenda));
-
-    return rows.find(row => {
-      const rFrente  = String(row['FRENTE'] || '').trim();
-      if (rFrente !== String(frente).trim()) return false;
-
-      const rFazendaRaw = String(row['DESC.FAZENDA'] || '').trim();
-      const { cod: rCod, nome: rNome } = _plsExtrairFazenda(rFazendaRaw);
-      const rCodNorm = rCod.replace(/^0+/, '');
-
-      // Compara por código (mais confiável) e por nome normalizado. Como
-      // último recurso — só se as duas anteriores falharem — compara o
-      // nome removendo apenas uma palavra genérica de prefixo no início
-      // ("FAZENDA X" vs "X"). NUNCA usar "contém" livre entre os nomes
-      // completos: fazendas com nomes parecidos mas diferentes (ex.:
-      // "BARRINHA" e "BARRINHA II") são propriedades distintas e não podem
-      // ser cruzadas — cada uma tem sua própria liberação/OS no GATEC.
-      const rNomeNorm = _norm(rNome);
-      const rNomeSemPrefixoNorm = _norm(_plsSemPrefixoGenerico(rNome));
-      const bateCod  = codNorm && rCodNorm && codNorm === rCodNorm;
-      const bateNome = rNomeNorm === fazendaNomeNorm;
-      const bateSemPrefixo = !bateCod && !bateNome
-        && fazendaSemPrefixoNorm && rNomeSemPrefixoNorm
-        && fazendaSemPrefixoNorm === rNomeSemPrefixoNorm;
-      if (!bateCod && !bateNome && !bateSemPrefixo) return false;
-
-      const rTalhoes = String(row['LISTAGEM TALHAO'] || '');
-      const talhoesArr = rTalhoes.split(/[,;\s]+/)
-        .map(t => t.trim().replace(/^0+/, '') || '0')
-        .filter(Boolean);
-      return talhoesArr.includes(talhaoNorm);
-    }) || null;
-  }
-
-  function _plsStatusTalhao(frente, fazenda, talhao, codFazenda) {
-    const match = _plsBuscarLinhaLiberacao(frente, fazenda, talhao, codFazenda);
-    if (!match) return 'pendente';
-    const status = String(match['STATUS OS'] || '').toUpperCase();
-    if (status.includes('ENCERRADA')) return 'encerrada';
-    return 'aberta';
-  }
-
-  // DEBUG temporário — chame window.plsDebugStatus() no console
-  window.plsDebugStatus = function() {
-    const rows = window._gatecDados;
-    if (!rows || !rows.length) { console.log('window._gatecDados vazio ou não carregado'); return; }
-    console.group('[PLS DEBUG] Amostra de Liberações (_gatecDados)');
-    rows.slice(0, 5).forEach(r => {
-      console.log({
-        FRENTE: r['FRENTE'],
-        'DESC.FAZENDA': r['DESC.FAZENDA'],
-        'LISTAGEM TALHAO': r['LISTAGEM TALHAO'],
-        'STATUS OS': r['STATUS OS'],
-      });
+  function _porFazenda(rows) {
+    const mapa = {};
+    rows.forEach(r => {
+      const nome = String(r['DESC.FAZENDA'] || '').trim() || 'Sem fazenda';
+      (mapa[nome] = mapa[nome] || []).push(r);
     });
-    console.groupEnd();
-
-    console.group('[PLS DEBUG] Amostra de Planejamento (frente 401)');
-    (_plsDados['401'] || []).slice(0, 5).forEach(r => {
-      console.log({ frente: r.frente, fazenda: r.fazenda, talhao: r.talhao });
-    });
-    console.groupEnd();
-
-    console.group('[PLS DEBUG] Teste de cruzamento (primeiros 5 da frente 401)');
-    (_plsDados['401'] || []).slice(0, 5).forEach(r => {
-      const status = _plsStatusTalhao(r.frente, r.fazenda, r.talhao, r.codFazenda);
-      console.log(`${r.frente} | ${r.codFazenda} · ${r.fazenda} | Tal.${r.talhao} → ${status}`);
-    });
-    console.groupEnd();
-
-    // Lista todas as fazendas únicas de cada lado para comparar nomes
-    const fazLib = [...new Set(rows.map(r => r['DESC.FAZENDA']).filter(Boolean))].sort();
-    const fazPls = [...new Set((_plsDados['401']||[]).map(r => r.fazenda).filter(Boolean))].sort();
-    console.log('Fazendas em Liberações (amostra):', fazLib.slice(0,10));
-    console.log('Fazendas em Planejamento 401 (amostra):', fazPls.slice(0,10));
-
-    // NOVO: lista, pra cada frente, as fazendas do planejamento que não
-    // encontraram NENHUM talhão correspondente em Liberações — essas são
-    // as candidatas a diferença de digitação (nome/código) entre as duas
-    // planilhas. Ajuda a achar rápido qual fazenda está com problema.
-    console.group('[PLS DEBUG] Fazendas do planejamento SEM nenhum talhão encontrado em Liberações');
-    ['401','402','403','404'].forEach(frente => {
-      const porFaz = {};
-      (_plsDados[frente] || []).forEach(r => {
-        const key = `${r.codFazenda || '—'} · ${r.fazenda}`;
-        if (!porFaz[key]) porFaz[key] = [];
-        porFaz[key].push(r);
-      });
-      Object.entries(porFaz).forEach(([nomeFaz, talhoes]) => {
-        const nenhumEncontrado = talhoes.every(r => _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda) === 'pendente');
-        if (nenhumEncontrado) {
-          console.log(`Frente ${frente} | ${nomeFaz} (${talhoes.length} talhão(ões)) — 0 encontrados em Liberações`);
-        }
-      });
-    });
-    console.groupEnd();
-  };
-
-  /* ── renderização principal ──────────────────────────────────────── */
-  function _plsRenderizarTudo() {
-    _plsRenderizarKpis();
-    _plsRenderizarAlertas();
-    _plsPopularBuscaFazenda();
-    filtrarPlanejamentoTimeline();
-    popularTalhoesBusca(); // reaplica a busca com qualquer fazenda já marcada
+    return Object.entries(mapa).map(([nome, rs]) => ({ nome, ...(_agregar(rs)) }))
+      .sort((a, b) => b.real - a.real);
   }
 
-  // Cards resumo por frente — só o que ajuda a logística (TCH e tiro médios).
-  // Sem contagem de talhões e sem colhido/falta aqui: isso já aparece
-  // com muito mais contexto na Consulta de Fazenda e no Roteiro de Colheita.
-  function _plsRenderizarKpis() {
-    const cont = document.getElementById('pls-kpi-grid');
+  function _corAder(p) { return p >= 90 ? '#1B7F45' : p >= 70 ? '#E65100' : '#C62828'; }
+
+  function rfRender() {
+    const cont = document.getElementById('rf-conteudo');
     if (!cont) return;
-    let html = '';
-    ['401','402','403','404'].forEach(frente => {
-      const dados = _plsDados[frente];
-      if (!dados.length) return;
+    const dados = window._gatecDados || [];
+    if (!dados.length) {
+      cont.innerHTML = (typeof cttLoadingHTML === 'function')
+        ? cttLoadingHTML('Carregando resultados das liberações...', { icone: 'fa-chart-simple' })
+        : '<div class="rf-vazio">Carregando...</div>';
+      return;
+    }
+    const metas = getMetasFrentes();
+    const extras = [...new Set(dados.map(r => String(r['FRENTE'] || '').trim()))]
+      .filter(f => f && !FRENTES.includes(f) && /^\d+$/.test(f)).sort();
+    const lista = FRENTES.concat(extras);
 
-      // TCH médio est. — CORRIGIDO: antes era média simples do campo TCH de
-      // cada talhão (um talhão de 5 ha pesava igual a um de 500 ha, o que
-      // NUNCA bate com o "TCH médio" que a planilha mostra, porque lá é
-      // sempre produção total ÷ área total). Agora pondera pela tonelagem
-      // (TC) de cada talhão, igual o Tiro médio logo abaixo já fazia —
-      // matematicamente isso equivale a (Σ produção) ÷ (Σ área), que é a
-      // definição correta de TCH médio de um grupo de talhões.
-      let sumTc = 0, sumAreaEst = 0;
-      dados.forEach(r => {
-        const tc = isNaN(r.tc) ? 0 : r.tc;
-        if (tc > 0 && !isNaN(r.tch) && r.tch > 0) { sumTc += tc; sumAreaEst += tc / r.tch; }
-      });
-      const tchMedio = sumAreaEst > 0 ? sumTc / sumAreaEst : NaN;
+    const blocos = lista.map(f => {
+      const rows = dados.filter(r => String(r['FRENTE'] || '').trim() === f);
+      return rows.length ? { f, rows, a: _agregar(rows) } : null;
+    }).filter(Boolean).sort((x, y) => y.a.real - x.a.real);
 
-      let sumTcTiro = 0, sumTc2 = 0;
-      dados.forEach(r => {
-        const tc = isNaN(r.tc) ? 0 : r.tc;
-        const tm = isNaN(r.tiroMedio) ? 0 : r.tiroMedio;
-        if (tc > 0 && tm > 0) { sumTcTiro += tc * tm; sumTc2 += tc; }
-      });
-      const tiroMedioFrente = sumTc2 > 0 ? sumTcTiro / sumTc2 : NaN;
+    const todas = blocos.flatMap(b => b.rows);
+    const T = _agregar(todas);
+    const metaTotal = blocos.reduce((s, b) => s + (metas[b.f] || 0), 0);
+    const aderT = metaTotal > 0 ? (T.real / metaTotal) * 100 : NaN;
 
-      // TCH médio REAL, calculado em cima da própria aba "Ver Liberações"
-      // (_gatecDados) — só conta liberação já ENCERRADA dessa frente (é o
-      // TCH definitivo; enquanto está "aberta" ainda pode mudar).
-      // CORRIGIDO pelo mesmo motivo do TCH est. acima: antes era média
-      // simples do TCH de cada OS. Agora pondera pela Prod. Real (t) de
-      // cada OS — de novo, equivale a (Σ produção real) ÷ (Σ área real).
-      const rowsLib = (window._gatecDados || []).filter(r =>
-        String(r['FRENTE'] || '').trim() === frente &&
-        String(r['STATUS OS'] || '').toUpperCase().includes('ENCERRADA')
-      );
-      let sumProdReal = 0, sumAreaReal = 0, qtdEncerradasValidas = 0;
-      rowsLib.forEach(r => {
-        const tch = parseFloat(String(r['TCH'] || '').replace(',', '.'));
-        const prodReal = parseFloat(String(r['PROD. REAL'] || '').replace(',', '.'));
-        if (!isNaN(tch) && tch > 0 && !isNaN(prodReal) && prodReal > 0) {
-          sumProdReal += prodReal;
-          sumAreaReal += prodReal / tch;
-          qtdEncerradasValidas++;
-        }
-      });
-      const tchReal = sumAreaReal > 0 ? sumProdReal / sumAreaReal : NaN;
-      const difTch = (!isNaN(tchReal) && !isNaN(tchMedio) && tchMedio > 0)
-        ? ((tchReal - tchMedio) / tchMedio) * 100
-        : NaN;
+    let html = `
+      <div class="rf-total">
+        <div class="rf-total-label"><i class="fas fa-weight-hanging"></i> Todas as frentes</div>
+        <div class="rf-total-val">${_fmt(T.real)}<small> t</small></div>
+        <div class="rf-total-sub">${!isNaN(aderT) ? `<b style="color:#fff">${_fmt(aderT, 1)}%</b> da meta de ${_fmt(metaTotal)} t · ` : ''}${T.libs} liberações (${T.abertas} abertas · ${T.encerradas} encerradas)</div>
+        <div class="rf-total-grid">
+          <div><span>Área liberada</span><b>${_fmt(T.area, 1)} ha</b></div>
+          <div><span>Estimado</span><b>${_fmt(T.est)} t</b></div>
+          <div><span>TCH médio</span><b>${!isNaN(T.tch) ? _fmt(T.tch, 1) : '—'}</b></div>
+        </div>
+      </div>`;
 
+    blocos.forEach((b, i) => {
+      const a = b.a, meta = metas[b.f] || 0;
+      const ader = meta > 0 ? (a.real / meta) * 100 : NaN;
+      const barra = !isNaN(ader) ? Math.min(ader, 100) : 0;
+      const cor = !isNaN(ader) ? _corAder(ader) : 'var(--text-3)';
+      const fazs = _porFazenda(b.rows);
+      const aberta = _rfAbertas.has(b.f);
+      const difTxt = !isNaN(a.difEnc)
+        ? `<b style="color:${a.difEnc >= 0 ? '#1B7F45' : '#C62828'}">${a.difEnc > 0 ? '+' : ''}${_fmt(a.difEnc, 1)}%</b>` : '<b>—</b>';
       html += `
-        <div class="pls-kpi-card">
-          <div class="pls-kpi-frente">FRENTE ${frente}</div>
-          <div class="pls-kpi-linha"><span>TCH médio est.</span><b>${!isNaN(tchMedio) ? tchMedio.toFixed(0) : '—'}</b></div>
-          <div class="pls-kpi-linha"><span>TCH médio real (Liberações)</span><b>${!isNaN(tchReal) ? tchReal.toFixed(0) + ` <span style="font-weight:600;font-size:10px;color:var(--text-3);">(${qtdEncerradasValidas} enc.)</span>` : '—'}</b></div>
-          ${!isNaN(difTch) ? `<div class="pls-kpi-linha"><span>Dif. real × est.</span><b style="color:${difTch < 0 ? 'var(--red-600, #c0392b)' : 'var(--green-700)'}">${difTch > 0 ? '+' : ''}${difTch.toFixed(1)}%</b></div>` : ''}
-          <div class="pls-kpi-linha"><span>Tiro médio</span><b>${!isNaN(tiroMedioFrente) ? tiroMedioFrente.toFixed(0)+' m' : '—'}</b></div>
-        </div>`;
+      <div class="rf-card">
+        <div class="rf-card-top">
+          <span class="rf-rank">${i + 1}º</span>
+          <span class="rf-frente">Frente ${_esc(b.f)}</span>
+          <span class="rf-pct" style="color:${cor}">${!isNaN(ader) ? _fmt(ader, 1) + '%' : '—'}</span>
+        </div>
+        <div class="rf-prod">${_fmt(a.real)}<small> t produzidas</small></div>
+        <div class="rf-bar"><div class="rf-bar-fill" style="width:${barra}%;background:${cor}"></div></div>
+        <div class="rf-meta">Meta: ${meta > 0 ? _fmt(meta) + ' t' : '—'}${meta > 0 ? ` · faltam ${_fmt(Math.max(0, meta - a.real))} t` : ''}</div>
+        <div class="rf-grid">
+          <div><span>Liberações</span><b>${a.libs}</b><em>${a.abertas} abertas · ${a.encerradas} enc.</em></div>
+          <div><span>Área liberada</span><b>${_fmt(a.area, 1)} ha</b><em>${fazs.length} fazenda${fazs.length === 1 ? '' : 's'}</em></div>
+          <div><span>Estimado</span><b>${_fmt(a.est)} t</b><em>todas as liberações</em></div>
+          <div><span>Real × estimado</span>${difTxt}<em>só encerradas</em></div>
+          <div><span>TCH médio real</span><b>${!isNaN(a.tch) ? _fmt(a.tch, 1) : '—'}</b><em>t/ha</em></div>
+          <div><span>Produção/liberação</span><b>${a.libs ? _fmt(a.real / a.libs) : '—'} t</b><em>média</em></div>
+        </div>
+        <button type="button" class="rf-toggle" onclick="rfToggle('${_esc(b.f)}')">
+          <i class="fas fa-chevron-${aberta ? 'up' : 'down'}"></i> ${aberta ? 'Ocultar' : 'Ver'} produção por fazenda (${fazs.length})
+        </button>
+        ${aberta ? `<div class="rf-fazs">${fazs.map(z => `
+          <div class="rf-faz">
+            <div class="rf-faz-nome">${_esc(z.nome)}</div>
+            <div class="rf-faz-prod">${_fmt(z.real)} t</div>
+            <div class="rf-faz-info">${z.libs} lib. (${z.abertas} abertas) · ${_fmt(z.area, 1)} ha · TCH ${!isNaN(z.tch) ? _fmt(z.tch, 1) : '—'}</div>
+          </div>`).join('')}</div>` : ''}
+      </div>`;
     });
     cont.innerHTML = html;
   }
 
-  /* ── detecção de fazendas "quase concluídas" (possíveis talhões
-     esquecidos na liberação) ─────────────────────────────────────── */
-  function _plsDetectarAlertas() {
-    const alertas = [];
-    ['401','402','403','404'].forEach(frente => {
-      const dados = _plsDados[frente] || [];
-      const porFaz = {};
-      dados.forEach(r => {
-        const key = r.codFazenda ? `${r.codFazenda} · ${r.fazenda}` : r.fazenda;
-        if (!porFaz[key]) porFaz[key] = [];
-        porFaz[key].push(r);
-      });
-      Object.entries(porFaz).forEach(([nomeFaz, talhoes]) => {
-        const comStatus = talhoes.map(r => ({ ...r, status: _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda) }));
-        const total = comStatus.length;
-        const colhidos = comStatus.filter(r => r.status === 'encerrada').length;
-        const faltantes = comStatus.filter(r => r.status !== 'encerrada')
-          .sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
-        if (total >= 3 && faltantes.length > 0 && faltantes.length <= 3 && (colhidos/total) >= 0.75) {
-          alertas.push({ frente, nomeFaz, total, colhidos, faltantes });
-        }
-      });
-    });
-    alertas.sort((a,b) => a.faltantes.length - b.faltantes.length || (b.colhidos/b.total) - (a.colhidos/a.total));
-    return alertas;
+  function rfToggle(f) {
+    if (_rfAbertas.has(f)) _rfAbertas.delete(f); else _rfAbertas.add(f);
+    rfRender();
   }
 
-  function _plsRenderizarAlertas() {
-    const card  = document.getElementById('pls-alertas-card');
-    const lista = document.getElementById('pls-alertas-lista');
-    if (!card || !lista) return;
-    const alertas = _plsDetectarAlertas();
-    if (!alertas.length) { card.style.display = 'none'; lista.innerHTML = ''; return; }
-    card.style.display = 'block';
-    lista.innerHTML = alertas.map(a => {
-      const talhoesTxt = a.faltantes.map(r => r.talhao + (r.status === 'aberta' ? ' (liberado)' : '')).join(', ');
-      const nomeEsc = a.nomeFaz.replace(/'/g, "\\'");
-      return `
-        <div class="pls-alerta-item" onclick="plsIrParaFazenda('${nomeEsc}')">
-          <div class="pls-alerta-topo">
-            <span class="pls-alerta-faz">${a.nomeFaz}</span>
-            <span class="pls-alerta-frente">Frente ${a.frente}</span>
-          </div>
-          <div class="pls-alerta-info">${a.colhidos} de ${a.total} talhões colhidos — faltam <b>${a.faltantes.length}</b>: talhão ${talhoesTxt}</div>
-        </div>`;
-    }).join('');
+  async function rfAtualizar() {
+    const btn = document.getElementById('btn-atualizar-rf');
+    if (btn) btn.disabled = true;
+    try { await carregarDadosGATEC(); } finally { if (btn) btn.disabled = false; }
   }
 
-  window.plsIrParaFazenda = function(nomeFaz) {
-    // "Ir para fazenda" troca a seleção pra só essa fazenda (não soma às
-    // que já estavam marcadas) — é um atalho de "focar nela agora".
-    window._plsMultiSel = new Set([nomeFaz]);
-    _plsMSSyncDisplay();
-    popularTalhoesBusca();
-    const card = document.getElementById('pls-card-consulta');
-    if (card) {
-      card.classList.add('open');
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  function filtrarPlanejamentoTimeline() {
-    const frente       = document.getElementById('pls-filtro-frente')?.value || '401';
-    const statusFiltro = document.getElementById('pls-filtro-status')?.value || '';
-    const cont         = document.getElementById('pls-timeline-container');
-    const contador     = document.getElementById('pls-timeline-contador');
-    if (!cont) return;
-    const dados = (_plsDados[frente] || []).slice().sort((a,b) => a.seq - b.seq);
-    const comStatus = dados.map(r => ({
-      ...r,
-      status: _plsStatusTalhao(frente, r.fazenda, r.talhao, r.codFazenda),
-    }));
-
-    // Mesma causa do bug já corrigido no "Consultar Fazenda": a planilha
-    // F4xx traz 1 linha por bloco/parcela, então o mesmo talhão pode
-    // aparecer várias vezes dentro da mesma fazenda — no Roteiro isso
-    // aparecia como o talhão repetido na lista de sequência. Agrupa por
-    // (fazenda + talhão) e mantém a sequência/data mais cedo do grupo (é
-    // quando aquele talhão entra de fato no roteiro); quando há mais de
-    // um bloco agrupado, sinaliza com "× N blocos" no item.
-    const porFazTalhao = new Map();
-    comStatus.forEach(r => {
-      const key = `${r.fazenda}||${r.talhao}`;
-      if (!porFazTalhao.has(key)) porFazTalhao.set(key, []);
-      porFazTalhao.get(key).push(r);
-    });
-    const agrupado = [...porFazTalhao.values()].map(linhas => {
-      linhas.sort((a,b) => a.seq - b.seq);
-      const todasEncerradas = linhas.every(l => l.status === 'encerrada');
-      const algumaAberta    = linhas.some(l => l.status === 'aberta');
-      const algumaEncerrada = linhas.some(l => l.status === 'encerrada');
-      // Mesma correção do "Consultar Fazenda": mistura de blocos (1 já
-      // encerrado + 1 ainda pendente) não pode virar "pendente" — esconderia
-      // que já existe liberação/produção lançada nesse talhão.
-      const status = todasEncerradas ? 'encerrada' : ((algumaAberta || algumaEncerrada) ? 'aberta' : 'pendente');
-      return { ...linhas[0], status, _blocos: linhas.length };
-    }).sort((a,b) => a.seq - b.seq);
-
-    const filtrado = statusFiltro ? agrupado.filter(r => r.status === statusFiltro) : agrupado;
-    if (contador) contador.textContent =
-      `${filtrado.length} ${filtrado.length !== 1 ? 'talhões' : 'talhão'} · Frente ${frente}`;
-    if (!filtrado.length) {
-      cont.innerHTML = '<div class="pla-empty"><i class="fas fa-route"></i>Nenhum talhão encontrado para este filtro.</div>';
-      return;
-    }
-    const porFaz = {};
-    filtrado.forEach(r => {
-      const key = r.codFazenda ? `${r.codFazenda} · ${r.fazenda}` : r.fazenda;
-      if (!porFaz[key]) porFaz[key] = { talhoes: [], minSeq: r.seq };
-      porFaz[key].talhoes.push(r);
-      if (r.seq < porFaz[key].minSeq) porFaz[key].minSeq = r.seq;
-    });
-    const statusLabel = { aberta: 'Liberado', encerrada: 'Colhido', pendente: 'Não liberado' };
-
-    // Classifica cada fazenda pra organizar a lista do jeito mais útil:
-    // 1) atenção (quase concluída, poucos talhões faltando)
-    // 2) em andamento (mistura de colhido/liberado/pendente)
-    // 3) pendente (nada liberado ainda)
-    // 4) concluída (100% colhida) — vai pro fim, sem destaque
-    const grupos = Object.entries(porFaz).map(([fazNome, info]) => {
-      // Dentro de cada fazenda, o Roteiro mostra os talhões em ordem
-      // crescente do número do talhão (antes ficava na ordem de sequência
-      // de colheita, que não segue nenhuma ordem numérica visível).
-      const talhoes = info.talhoes.slice().sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
-      const total = talhoes.length;
-      const colhidos = talhoes.filter(r => r.status === 'encerrada').length;
-      const faltantes = total - colhidos;
-      let classe;
-      if (colhidos === total) classe = 'concluida';
-      else if (faltantes > 0 && faltantes <= 3 && total >= 3 && (colhidos/total) >= 0.75) classe = 'atencao';
-      else if (colhidos > 0 || talhoes.some(r => r.status === 'aberta')) classe = 'andamento';
-      else classe = 'pendente';
-      return { fazNome, talhoes, minSeq: info.minSeq, classe, total, colhidos };
-    });
-    const ordemClasse = { atencao: 0, andamento: 1, pendente: 2, concluida: 3 };
-    grupos.sort((a,b) => (ordemClasse[a.classe] - ordemClasse[b.classe]) || (a.minSeq - b.minSeq));
-
-    let html = '';
-    grupos.forEach(({ fazNome, talhoes, classe, total, colhidos }, idxFaz) => {
-      const idBody = `pls-faz-body-${idxFaz}`;
-
-      // Fazenda concluída: card discreto, sem chips de detalhe
-      if (classe === 'concluida') {
-        html += `
-          <div class="pla-pipeline-fazenda pls-faz-concluida" style="margin-bottom:8px;">
-            <div class="pla-pipeline-header" onclick="plsToggleFazenda('${idBody}', this)">
-              <span class="pla-pipeline-fazenda-nome">
-                <i class="fas fa-check-circle" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${fazNome}
-                <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${total} ${total===1?'talhão':'talhões'})</span>
-              </span>
-              <div style="display:flex;align-items:center;gap:4px;">
-                <span class="pls-tl-status-badge encerrada" style="opacity:0.75;">Concluída</span>
-                <i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:4px;"></i>
-              </div>
-            </div>
-            <div class="pla-pipeline-talhoes" id="${idBody}" style="padding:8px;">
-              ${talhoes.map(r => `
-                <div class="pls-timeline-item status-${r.status}" style="margin-bottom:4px;">
-                  <div class="pls-tl-row1">
-                    <span class="pls-tl-seq">#${r.seq}</span>
-                    <span class="pls-tl-faz">Talhão ${r.talhao}${r._blocos > 1 ? ` <small style="font-weight:600;color:var(--text-3);">× ${r._blocos} blocos</small>` : ''}</span>
-                    <span class="pls-tl-data">${_fmtData(r.data)}</span>
-                  </div>
-                </div>`).join('')}
-            </div>
-          </div>`;
-        return;
-      }
-
-      const restantes = total - colhidos;
-      const liberados = talhoes.filter(r => r.status === 'aberta').length;
-      const pendentes = talhoes.filter(r => r.status === 'pendente').length;
-      const chipsHtml =
-        (classe === 'atencao' ? `<span class="pls-tl-status-badge atencao"><i class="fas fa-triangle-exclamation"></i> Só ${restantes} restante${restantes>1?'s':''}</span>` : '') +
-        (colhidos  > 0 ? `<span class="pls-tl-status-badge encerrada" style="margin-left:4px">${colhidos} colhido${colhidos>1?'s':''}</span>` : '') +
-        (liberados > 0 ? `<span class="pls-tl-status-badge aberta" style="margin-left:4px">${liberados} liberado${liberados>1?'s':''}</span>` : '') +
-        (pendentes > 0 ? `<span class="pls-tl-status-badge pendente" style="margin-left:4px">${pendentes} pendente${pendentes>1?'s':''}</span>` : '');
-      let talhoesHtml = '';
-      talhoes.forEach(r => {
-        talhoesHtml += `
-          <div class="pls-timeline-item status-${r.status}" style="margin-bottom:4px;">
-            <div class="pls-tl-row1">
-              <span class="pls-tl-seq">#${r.seq}</span>
-              <span class="pls-tl-faz">Talhão ${r.talhao}${r._blocos > 1 ? ` <small style="font-weight:600;color:var(--text-3);">× ${r._blocos} blocos</small>` : ''}</span>
-              <span class="pls-tl-data">${_fmtData(r.data)}</span>
-            </div>
-            <div class="pls-tl-row2">
-              ${!isNaN(r.tch) ? `<span><b>TCH</b> ${r.tch.toFixed(0)}</span>` : ''}
-              ${!isNaN(r.moagem) ? `<span><b>Moagem</b> ${r.moagem.toFixed(1)} mil t</span>` : ''}
-              ${!isNaN(r.tiroMedio) ? `<span><b>Tiro médio</b> ${r.tiroMedio.toFixed(0)} m</span>` : ''}
-              ${r.variedade ? `<span><b>Var.</b> ${r.variedade}</span>` : ''}
-              <span class="pls-tl-status-badge ${r.status}">${statusLabel[r.status]}</span>
-            </div>
-          </div>`;
-      });
-      html += `
-        <div class="pla-pipeline-fazenda ${classe === 'atencao' ? 'pls-faz-atencao' : ''}" style="margin-bottom:8px;">
-          <div class="pla-pipeline-header" onclick="plsToggleFazenda('${idBody}', this)">
-            <span class="pla-pipeline-fazenda-nome">
-              <i class="fas fa-map-marker-alt" style="margin-right:6px;color:var(--text-3);font-size:10px;"></i>${fazNome}
-              <span style="font-size:10px;font-weight:600;color:var(--text-3);margin-left:4px;">(${total} ${total===1?'talhão':'talhões'})</span>
-            </span>
-            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${chipsHtml}<i class="fas fa-chevron-down" style="font-size:10px;color:var(--text-3);margin-left:4px;"></i></div>
-          </div>
-          <div class="pla-pipeline-talhoes" id="${idBody}" style="padding:8px;">${talhoesHtml}</div>
-        </div>`;
-    });
-    cont.innerHTML = html;
+  function rfAoAbrir() {
+    if (!window._gatecDados || !window._gatecDados.length) {
+      rfRender();
+      if (typeof carregarDadosGATEC === 'function') carregarDadosGATEC();
+    } else rfRender();
   }
 
-  window.plsToggleFazenda = function(id, headerEl) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.toggle('open');
-    const ch = headerEl?.querySelector('.fa-chevron-down');
-    if (ch) ch.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
-  };
-
-  // Estado do multi-select de fazendas do "Consultar Fazenda" — mesmo
-  // padrão visual/interativo do multi-select de Tratos (classes tratos-ms/
-  // tratos-ms-opt reaproveitadas), mas com estado próprio pra não mexer
-  // em nada do filtro de Tratos.
-  window._plsMultiSel    = window._plsMultiSel    || new Set();
-  window._plsMultiOpcoes = window._plsMultiOpcoes || [];
-
-  function _plsPopularBuscaFazenda() {
-    const todasFazendas = new Set();
-    ['401','402','403','404'].forEach(f => {
-      _plsDados[f].forEach(r => {
-        const nome = r.codFazenda ? `${r.codFazenda} · ${r.fazenda}` : r.fazenda;
-        if (nome) todasFazendas.add(nome);
-      });
-    });
-    const lista = [...todasFazendas].sort((a,b) => {
-      const na = parseInt(a), nb = parseInt(b);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      return a.localeCompare(b,'pt-BR');
-    });
-    window._plsMultiOpcoes = lista.map(v => ({ value: v, label: v }));
-    // Remove da seleção fazendas que sumiram do dataset atual
-    const validas = new Set(lista);
-    [...window._plsMultiSel].forEach(v => { if (!validas.has(v)) window._plsMultiSel.delete(v); });
-    _plsMSSyncDisplay();
-  }
-
-  function _plsMSRenderLista(termo) {
-    const cont = document.getElementById('ms-opcoes-plsFazenda');
-    if (!cont) return;
-    const termoNorm = (termo || '').trim().toLowerCase();
-    const opcoes = window._plsMultiOpcoes || [];
-    const filtradas = !termoNorm ? opcoes : opcoes.filter(o => o.label.toLowerCase().includes(termoNorm));
-    if (!filtradas.length) {
-      cont.innerHTML = `<div class="tratos-ms-opt ss-empty">Nenhum resultado</div>`;
-      return;
-    }
-    const sel = window._plsMultiSel;
-    cont.innerHTML = filtradas.map(o => `
-      <label class="tratos-ms-opt">
-        <input type="checkbox" value="${escapeHtml(o.value)}" ${sel.has(o.value) ? 'checked' : ''} onchange="plsMSToggle(this.value, this.checked)">
-        <span>${escapeHtml(o.label)}</span>
-      </label>`).join('');
-  }
-
-  function plsMSAbrir() {
-    const wrap = document.getElementById('ms-tratos-filtro-plsFazenda');
-    if (!wrap) return;
-    document.querySelectorAll('.tratos-ms.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
-    document.querySelectorAll('.tratos-ss.open').forEach(el => el.classList.remove('open'));
-    const abrindo = !wrap.classList.contains('open');
-    wrap.classList.toggle('open', abrindo);
-    if (abrindo) _plsMSRenderLista('');
-  }
-
-  function plsMSFiltrarTexto(termo) { _plsMSRenderLista(termo); }
-
-  function plsMSToggle(val, marcado) {
-    if (marcado) window._plsMultiSel.add(val); else window._plsMultiSel.delete(val);
-    _plsMSSyncDisplay();
-    popularTalhoesBusca();
-  }
-
-  function plsMSLimpar() {
-    window._plsMultiSel.clear();
-    _plsMSRenderLista('');
-    _plsMSSyncDisplay();
-    popularTalhoesBusca();
-  }
-  window.plsMSAbrir = plsMSAbrir;
-  window.plsMSFiltrarTexto = plsMSFiltrarTexto;
-  window.plsMSToggle = plsMSToggle;
-  window.plsMSLimpar = plsMSLimpar;
-
-  function _plsMSSyncDisplay() {
-    const disp = document.getElementById('ms-display-plsFazenda');
-    const clearBtn = document.getElementById('ms-clear-plsFazenda');
-    if (!disp) return;
-    const sel = window._plsMultiSel;
-    if (sel.size === 0) {
-      disp.textContent = '— Selecione a(s) fazenda(s) —';
-      disp.classList.remove('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'none';
-    } else if (sel.size === 1) {
-      disp.textContent = [...sel][0];
-      disp.classList.add('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'block';
-    } else {
-      disp.textContent = `${sel.size} fazendas selecionadas`;
-      disp.classList.add('tem-valor');
-      if (clearBtn) clearBtn.style.display = 'block';
-    }
-  }
-
-  // Consulta de fazenda: assim que a(s) fazenda(s) são marcadas, já mostra
-  // TODOS os talhões delas (quantos são, quantos faltam, quais faltam) —
-  // sem precisar adivinhar um intervalo numérico. Com mais de uma fazenda
-  // marcada, mostra um bloco por fazenda, sempre na mesma ordem do filtro
-  // (numérica pelo código, senão alfabética) — não na ordem em que foram
-  // clicadas.
-  function popularTalhoesBusca() {
-    const resultDiv = document.getElementById('pls-busca-resultado');
-    if (!resultDiv) return;
-    const ordemLista = (window._plsMultiOpcoes || []).map(o => o.value);
-    const selecionadas = [...(window._plsMultiSel || [])]
-      .sort((a,b) => ordemLista.indexOf(a) - ordemLista.indexOf(b));
-    if (!selecionadas.length) { resultDiv.innerHTML = ''; return; }
-    resultDiv.innerHTML = selecionadas
-      .map((fazendaSel, idx) => _plsRenderBlocoFazenda(fazendaSel, idx))
-      .join('');
-  }
-
-  function _plsRenderBlocoFazenda(fazendaSel, idx) {
-    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
-    const margemTopo = idx > 0 ? 'margin-top:12px;' : '';
-
-    let encontrados = [];
-    ['401','402','403','404'].forEach(f => {
-      _plsDados[f].forEach(r => {
-        if (_norm(r.fazenda) === _norm(nomeSemCod)) encontrados.push({ ...r, frenteEncontrada: f });
-      });
-    });
-    if (!encontrados.length) {
-      return `<div class="pls-busca-resultado" style="${margemTopo}">
-        <div class="pla-empty"><i class="fas fa-search"></i>Nenhum talhão encontrado para ${escapeHtml(fazendaSel)}.</div>
-      </div>`;
-    }
-    encontrados = encontrados
-      .map(r => ({ ...r, status: _plsStatusTalhao(r.frenteEncontrada, r.fazenda, r.talhao, r.codFazenda) }));
-
-    // A planilha F4xx traz 1 linha por bloco/parcela — o mesmo número de
-    // talhão pode aparecer várias vezes (é o que fazia o grid de chips
-    // repetir "1, 1, 1, 1..."). Agrupa por talhão antes de montar os chips:
-    // um talhão só conta como "encerrada" se TODOS os seus blocos já
-    // encerraram; se algum bloco ainda está aberto/pendente, o talhão
-    // continua aparecendo como não concluído (evita esconder pendência).
-    const porTalhao = new Map();
-    encontrados.forEach(r => {
-      if (!porTalhao.has(r.talhao)) porTalhao.set(r.talhao, []);
-      porTalhao.get(r.talhao).push(r);
-    });
-    encontrados = [...porTalhao.entries()]
-      .map(([talhao, linhas]) => {
-        const todasEncerradas = linhas.every(l => l.status === 'encerrada');
-        const algumaAberta    = linhas.some(l => l.status === 'aberta');
-        const algumaEncerrada = linhas.some(l => l.status === 'encerrada');
-        // Mistura de blocos (ex.: 1 bloco já com OS encerrada + 1 bloco
-        // ainda sem liberação) NÃO pode virar "pendente" (cinza) — isso
-        // escondia que o talhão já tinha liberação/produção lançada. Só é
-        // realmente "pendente" (cinza) quando NENHUM bloco teve qualquer
-        // movimento ainda.
-        const status = todasEncerradas ? 'encerrada' : ((algumaAberta || algumaEncerrada) ? 'aberta' : 'pendente');
-        return { ...linhas[0], status, _blocos: linhas.length };
-      })
-      .sort((a,b) => (parseInt(a.talhao)||0) - (parseInt(b.talhao)||0));
-
-    const total      = encontrados.length;
-    const colhidos   = encontrados.filter(r => r.status === 'encerrada').length;
-    const liberados  = encontrados.filter(r => r.status === 'aberta').length;
-    const pendentes  = encontrados.filter(r => r.status === 'pendente').length;
-    const faltantes  = encontrados.filter(r => r.status !== 'encerrada');
-    const quaseConcluida = total >= 3 && faltantes.length > 0 && faltantes.length <= 3 && (colhidos/total) >= 0.75;
-    const detalheId = `pls-talhao-detalhe-${idx}`;
-
-    const chipsHtml = encontrados.map(r => {
-      const destaque = quaseConcluida && r.status !== 'encerrada' ? ' pls-chip-atencao' : '';
-      const tituloBlocos = r._blocos > 1 ? ` title="${r._blocos} blocos/parcelas"` : '';
-      return `<button type="button" class="pls-talhao-chip status-${r.status}${destaque}"${tituloBlocos} onclick="plsMostrarTalhao(this,'${fazendaSel.replace(/'/g,"\\'")}','${r.talhao}','${r.frenteEncontrada}','${detalheId}')">${r.talhao}</button>`;
-    }).join('');
-
-    return `
-      <div class="pls-busca-resultado" style="${margemTopo}">
-        <div class="pls-faz-resumo-topo">
-          <span class="pls-faz-resumo-titulo">${escapeHtml(fazendaSel)}</span>
-          <span class="pls-faz-resumo-total">${total} talhõe${total===1?'':'s'}</span>
-        </div>
-        <div class="pls-faz-resumo-chips">
-          ${colhidos  ? `<span class="pls-tl-status-badge encerrada">${colhidos} colhido${colhidos>1?'s':''}</span>` : ''}
-          ${liberados ? `<span class="pls-tl-status-badge aberta">${liberados} liberado${liberados>1?'s':''}</span>` : ''}
-          ${pendentes ? `<span class="pls-tl-status-badge pendente">${pendentes} pendente${pendentes>1?'s':''}</span>` : ''}
-        </div>
-        ${quaseConcluida ? `<div class="pls-alerta-inline"><i class="fas fa-triangle-exclamation"></i> Restam só ${faltantes.length} ${faltantes.length>1?'talhões':'talhão'} nesta fazenda (${faltantes.map(r=>r.talhao).join(', ')}) — confira se não foram esquecidos na liberação.</div>` : ''}
-        <div class="pls-talhao-grid">${chipsHtml}</div>
-        <div id="${detalheId}"></div>
-      </div>`;
-  }
-
-  window.plsMostrarTalhao = function(btnEl, fazendaSel, talhao, frente, detalheId) {
-    document.querySelectorAll('.pls-talhao-chip').forEach(b => b.classList.remove('selected'));
-    if (btnEl) btnEl.classList.add('selected');
-    const nomeSemCod = fazendaSel.includes(' · ') ? fazendaSel.split(' · ')[1] : fazendaSel;
-    const r = (_plsDados[frente] || []).find(x => x.talhao === talhao && _norm(x.fazenda) === _norm(nomeSemCod));
-    const det = document.getElementById(detalheId || 'pls-talhao-detalhe');
-    if (!det || !r) return;
-    det.innerHTML = _plsCardTalhao(r, frente, nomeSemCod);
-  };
-
-  window.plsToggleCard = function(headerEl) {
-    const card = headerEl.closest('.pls-card-collapsible');
-    if (card) card.classList.toggle('open');
-  };
-
-  function _plsCardTalhao(r, frenteEncontrada, nomeSemCod) {
-    const status = _plsStatusTalhao(frenteEncontrada, r.fazenda, r.talhao, r.codFazenda);
-    const statusLabel = { aberta: 'Liberado (OS aberta)', encerrada: 'Já colhido', pendente: 'Ainda não liberado' };
-    const distInfo = _plsDist.find(d => _norm(d.fazenda) === _norm(nomeSemCod));
-    const lib = _plsBuscarLinhaLiberacao(frenteEncontrada, r.fazenda, r.talhao, r.codFazenda);
-
-    // Bloco de Liberação só aparece quando o talhão já tem uma OS aberta ou
-    // encerrada no GATEC (talhão "pendente" nunca teve liberação lançada
-    // ainda, então não tem OS/produção pra mostrar).
-    const libHtml = lib ? `
-          <div class="pls-busca-col">
-            <div class="pls-busca-col-title">Liberação (GATEC)</div>
-            <div class="pls-busca-linha"><span>OS</span><b>${lib['LIBERAÇÃO']||'—'}</b></div>
-            <div class="pls-busca-linha"><span>Status OS</span><b>${lib['STATUS OS']||'—'}</b></div>
-            <div class="pls-busca-linha"><span>Prod. estimada</span><b>${lib['PROD. ESTIMADA']||'—'} t</b></div>
-            <div class="pls-busca-linha"><span>Prod. real</span><b>${lib['PROD. REAL']||'—'} t</b></div>
-            <div class="pls-busca-linha"><span>Dif. prod.</span><b>${lib['DIF PROD.']||'—'}</b></div>
-            <div class="pls-busca-linha"><span>TCH (Liberações)</span><b>${lib['TCH']||'—'}</b></div>
-          </div>` : '';
-
-    return `<div class="pls-busca-resultado" style="margin-top:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:12px;font-weight:800;color:var(--text);">Frente ${frenteEncontrada} · Tal. ${r.talhao}</span>
-          <span class="pls-tl-status-badge ${status}">${statusLabel[status]}</span>
-        </div>
-        <div class="pls-busca-grid">
-          <div class="pls-busca-col">
-            <div class="pls-busca-col-title">Planejamento</div>
-            <div class="pls-busca-linha"><span>Sequência</span><b>#${r.seq}</b></div>
-            <div class="pls-busca-linha"><span>Data prevista</span><b>${_fmtData(r.data)}</b></div>
-            <div class="pls-busca-linha"><span>Variedade</span><b>${r.variedade||'—'}</b></div>
-            <div class="pls-busca-linha"><span>TCH est.</span><b>${!isNaN(r.tch)?r.tch.toFixed(0):'—'}</b></div>
-            <div class="pls-busca-linha"><span>Moagem</span><b>${!isNaN(r.moagem)?r.moagem.toFixed(1)+' mil t':'—'}</b></div>
-          </div>
-          <div class="pls-busca-col">
-            <div class="pls-busca-col-title">Logística</div>
-            <div class="pls-busca-linha"><span>Tiro médio</span><b>${!isNaN(r.tiroMedio)?r.tiroMedio.toFixed(0)+' m':'—'}</b></div>
-            <div class="pls-busca-linha"><span>Dist. usina</span><b>${distInfo&&!isNaN(distInfo.distancia)?distInfo.distancia+' km':'—'}</b></div>
-            <div class="pls-busca-linha"><span>Raio</span><b>${!isNaN(r.raio)?r.raio.toFixed(1):'—'}</b></div>
-          </div>
-          ${libHtml}
-        </div>
-      </div>`;
-  }
-
-})(); /* fim IIFE PLANEJAMENTO DE SAFRA */
+  window.rfRender = rfRender;
+  window.rfToggle = rfToggle;
+  window.rfAtualizar = rfAtualizar;
+  window.rfAoAbrir = rfAoAbrir;
+})(); /* fim IIFE RESUMO POR FRENTE */
 
 
 
