@@ -197,24 +197,43 @@ function showTab(e, id, opts) {
   atualizarBottomNavAtivo(id);
 }
 
-/* Destaca o item correspondente na barra de navegação inferior. Seções sem
-   ícone próprio na barra (Conferências, Simulador, Clima, Calculadora)
-   destacam o botão "Mais", já que vivem dentro daquele sheet. */
+/* Destaca na barra inferior o item da tela em que você está. Telas que não
+   têm botão próprio (Simulador, Clima, Calculadora) aparecem no slot "Mais",
+   que troca para o ícone e o nome da tela atual enquanto ela estiver aberta.
+   Na Home, o botão "Início" fica ativo. */
+const BN_MAPA = {
+  'home':                 'bn-home',
+  'liberacoes_menu':      'bn-liberacoes',
+  'liberacoes':           'bn-liberacoes',
+  'viagens_caminhoes':    'bn-liberacoes',
+  'resumo_frentes':       'bn-liberacoes',
+  'conf_menu':            'bn-central',
+  'central_os_aging':     'bn-central',
+  'central_apontamentos': 'bn-central',
+  'conf_novo_recurso':    'bn-central',
+  'plantio_aba':          'bn-plantio',
+  'mapas_aba':            'bn-mapas'
+};
+const BN_MAIS_TELAS = {
+  'simulador': { icon: 'fa-tractor',    label: 'Simulador' },
+  'clima_aba': { icon: 'fa-cloud-sun',  label: 'Clima' },
+  'calc_aba':  { icon: 'fa-calculator', label: 'Calculadora' }
+};
 function atualizarBottomNavAtivo(id) {
-  const mapa = {
-    'liberacoes_menu':     'bn-liberacoes',
-    'liberacoes':          'bn-liberacoes',
-    'viagens_caminhoes':   'bn-liberacoes',
-    'tratos_menu':         'bn-tratos',
-    'tratos_aba':          'bn-tratos',
-    'tratos_novo_recurso': 'bn-tratos',
-    'plantio_aba':         'bn-plantio',
-    'mapas_aba':           'bn-mapas'
-  };
-  const alvoId = mapa[id] || 'bn-mais';
+  const alvoId = BN_MAPA[id] || 'bn-mais';
   document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
   const alvo = document.getElementById(alvoId);
   if (alvo) alvo.classList.add('active');
+
+  // Slot "Mais": mostra o ícone/nome da tela atual quando ela vive dentro dele
+  const mais = document.getElementById('bn-mais');
+  if (mais) {
+    const t = BN_MAIS_TELAS[id] || { icon: 'fa-bars', label: 'Mais' };
+    const ic = mais.querySelector('.bn-icon i');
+    const lb = mais.querySelector('.bn-label');
+    if (ic) ic.className = 'fas ' + t.icon;
+    if (lb) lb.textContent = t.label;
+  }
 }
 
 function abrirMaisSheet() {
@@ -264,7 +283,7 @@ function voltarParaHome() {
 
   document.getElementById('btn-voltar-menu').style.display = 'none';
   document.getElementById('btn-atualizar-global').style.display = 'none';
-  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  atualizarBottomNavAtivo('home');
   document.getElementById('mais-sheet-overlay').classList.remove('open');
 
   // Reexibe a Sabedoria de Campo
@@ -6817,11 +6836,8 @@ iniciarSabedoria();
       return;
     }
     const metas = getMetasFrentes();
-    const extras = [...new Set(dados.map(r => String(r['FRENTE'] || '').trim()))]
-      .filter(f => f && !FRENTES.includes(f) && /^\d+$/.test(f)).sort();
-    const lista = FRENTES.concat(extras);
-
-    const blocos = lista.map(f => {
+    // Só as frentes de colheita (401, 402, 403, 404 e 451) entram no resumo
+    const blocos = FRENTES.map(f => {
       const rows = dados.filter(r => String(r['FRENTE'] || '').trim() === f);
       return rows.length ? { f, rows, a: _agregar(rows) } : null;
     }).filter(Boolean).sort((x, y) => y.a.real - x.a.real);
