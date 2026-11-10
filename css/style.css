@@ -2913,7 +2913,7 @@ body.dark-mode .rf-grid > div, body.dark-mode .rf-bar { background: rgba(255,255
     #btn-dark-mode:hover { border-color: var(--green-500); color: var(--green-700); }
     /* Com a barra inferior redesenhada (mais alta + pastilha ativa que sobe),
        o botão precisa subir para não ficar por baixo dela quando uma aba está aberta. */
-    body.tab-open #btn-dark-mode { bottom: calc(env(safe-area-inset-bottom) + 102px); }
+    #btn-dark-mode { bottom: calc(env(safe-area-inset-bottom) + 102px); }
 
     /* Botão flutuante "voltar ao menu" — espelha o dark-mode no canto oposto */
     #btn-voltar-flutuante {
@@ -3981,8 +3981,7 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
 
 /* ══════════════════════════════════════════════════════════════════════════
    ⭐ BARRA DE NAVEGAÇÃO INFERIOR (estilo Facebook, adaptado)
-   Só aparece dentro de uma seção (body.tab-open). Na Home o grid normal
-   continua igual. Permite trocar de módulo sem voltar à Home a cada vez.
+   Fica visível em todas as telas, inclusive na Home. Permite trocar de módulo sem voltar à Home a cada vez.
 ══════════════════════════════════════════════════════════════════════════ */
 .bottom-nav {
   display: none;
@@ -4008,11 +4007,12 @@ body.dark-mode .skeleton::after { background: linear-gradient(90deg, transparent
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
-body.tab-open .bottom-nav { display: flex; }
+/* Barra visível em todas as telas, inclusive na Home */
+.bottom-nav { display: flex; }
 /* A barra inferior substitui o botão flutuante "voltar" — evita redundância */
 body.tab-open #btn-voltar-flutuante { display: none !important; }
 /* Reserva espaço no fim da página igual à altura real da barra — evita que ela sobreponha a lista */
-body.tab-open { padding-bottom: calc(env(safe-area-inset-bottom) + 76px); }
+body { padding-bottom: calc(env(safe-area-inset-bottom) + 76px); }
 
 .bn-item {
   position: relative;
